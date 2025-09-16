@@ -9,79 +9,31 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
-import { Inmueble, Agente, Reserva, CSVInmueble } from "@/types/inventario";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download } from "lucide-react";
+import { useInmuebles, CreateInmuebleData } from "@/hooks/useInmuebles";
+import { useReservas } from "@/hooks/useReservas";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-// Mock data
-const INMUEBLES_MOCK: Inmueble[] = [
-  {
-    id: "INM001",
-    ciudad: "Madrid",
-    region: "Comunidad de Madrid", 
-    tipo: "Piso",
-    precio: 350000,
-    direccion: "Calle Gran Vía, 45",
-    proveedor: "Inmobiliaria Central",
-    disponible: true,
-    fechaCreacion: new Date("2024-01-15"),
-  },
-  {
-    id: "INM002", 
-    ciudad: "Barcelona",
-    region: "Cataluña",
-    tipo: "Apartamento",
-    precio: 280000,
-    direccion: "Paseo de Gracia, 123",
-    proveedor: "Barcelona Properties",
-    disponible: true,
-    fechaCreacion: new Date("2024-01-20"),
-  },
-];
-
-const AGENTES_MOCK: Agente[] = [
-  {
-    id: "AGE001",
-    nombre: "María García",
-    email: "maria.garcia@email.com",
-    telefono: "+34 666 123 456",
-    fechaCreacion: new Date("2024-01-01"),
-    activo: true,
-  },
-  {
-    id: "AGE002",
-    nombre: "Juan Pérez", 
-    email: "juan.perez@email.com",
-    telefono: "+34 666 789 012",
-    fechaCreacion: new Date("2024-01-05"),
-    activo: true,
-  },
-];
-
-const RESERVAS_MOCK: Reserva[] = [
-  {
-    id: "RES001",
-    inmuebleId: "INM001",
-    agenteId: "AGE001",
-    fechaSolicitud: new Date("2024-02-01"),
-    fechaVisita: new Date("2024-02-15"),
-    horaVisita: "10:00",
-    estado: 'pendiente',
-  },
-];
-
 const AdminInventario = () => {
+  const { profile, signOut } = useAuth();
+  const { inmuebles, loading, createInmueble, deleteInmueble } = useInmuebles();
+  const { reservas } = useReservas();
+  
   const [activeTab, setActiveTab] = useState("inmuebles");
-  const [inmuebles, setInmuebles] = useState<Inmueble[]>(INMUEBLES_MOCK);
-  const [agentes, setAgentes] = useState<Agente[]>(AGENTES_MOCK);
-  const [reservas, setReservas] = useState<Reserva[]>(RESERVAS_MOCK);
   const [showCreateInmueble, setShowCreateInmueble] = useState(false);
-  const [showCreateAgente, setShowCreateAgente] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form states
-  const [newInmueble, setNewInmueble] = useState({
+  const [newInmueble, setNewInmueble] = useState<{
+    ciudad: string;
+    region: string;
+    tipo: CreateInmuebleData['tipo'] | '';
+    precio: string;
+    direccion: string;
+    proveedor: string;
+  }>({
     ciudad: "",
     region: "",
     tipo: "",
@@ -90,116 +42,125 @@ const AdminInventario = () => {
     proveedor: "",
   });
 
-  const [newAgente, setNewAgente] = useState({
-    nombre: "",
-    email: "",
-    telefono: "",
-  });
-
   useEffect(() => {
     console.log("[Inventario] Panel de administración cargado");
   }, []);
 
   const handleCreateInmueble = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    if (!newInmueble.tipo) {
+      toast.error("Selecciona un tipo de inmueble");
+      return;
+    }
+    
+    setIsSubmitting(true);
 
     try {
-      const inmueble: Inmueble = {
-        id: `INM${String(inmuebles.length + 1).padStart(3, '0')}`,
+      const inmuebleData: CreateInmuebleData = {
         ciudad: newInmueble.ciudad,
         region: newInmueble.region,
-        tipo: newInmueble.tipo,
+        tipo: newInmueble.tipo as CreateInmuebleData['tipo'],
         precio: parseInt(newInmueble.precio),
         direccion: newInmueble.direccion,
         proveedor: newInmueble.proveedor,
-        disponible: true,
-        fechaCreacion: new Date(),
       };
 
-      setInmuebles(prev => [...prev, inmueble]);
-      setNewInmueble({ ciudad: "", region: "", tipo: "", precio: "", direccion: "", proveedor: "" });
-      setShowCreateInmueble(false);
+      const { error } = await createInmueble(inmuebleData);
       
-      toast.success("Inmueble creado correctamente");
-      console.log("[Inventario] Nuevo inmueble creado:", inmueble.id);
+      if (!error) {
+        setNewInmueble({ ciudad: "", region: "", tipo: "", precio: "", direccion: "", proveedor: "" });
+        setShowCreateInmueble(false);
+      }
     } catch (error) {
-      toast.error("Error al crear el inmueble");
       console.error("[Inventario] Error:", error);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  // TODO: Implementar gestión de agentes con Supabase Auth
   const handleCreateAgente = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const agente: Agente = {
-        id: `AGE${String(agentes.length + 1).padStart(3, '0')}`,
-        nombre: newAgente.nombre,
-        email: newAgente.email,
-        telefono: newAgente.telefono,
-        fechaCreacion: new Date(),
-        activo: true,
-      };
-
-      setAgentes(prev => [...prev, agente]);
-      setNewAgente({ nombre: "", email: "", telefono: "" });
-      setShowCreateAgente(false);
-      
-      toast.success("Agente creado correctamente");
-      console.log("[Inventario] Nuevo agente creado:", agente.id);
-    } catch (error) {
-      toast.error("Error al crear el agente");
-      console.error("[Inventario] Error:", error);
-    } finally {
-      setLoading(false);
-    }
+    toast.info("Función en desarrollo: Crear agentes con Supabase Auth");
   };
 
-  const handleDeleteInmueble = (id: string) => {
-    setInmuebles(prev => prev.filter(i => i.id !== id));
-    toast.success("Inmueble eliminado");
-    console.log("[Inventario] Inmueble eliminado:", id);
+  const handleDeleteInmueble = async (id: string) => {
+    await deleteInmueble(id);
   };
 
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsSubmitting(true);
     try {
       const text = await file.text();
       const lines = text.split('\n');
-      const headers = lines[0].split(',');
       
-      const newInmuebles: Inmueble[] = [];
+      let successCount = 0;
+      let errorCount = 0;
       
       for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',');
-        if (values.length >= 6) {
-          const inmueble: Inmueble = {
-            id: values[0].trim() || `INM${Date.now()}_${i}`,
+        if (values.length >= 6 && values[0].trim()) {
+          const tipoValue = values[2].trim().toLowerCase();
+          let tipo: CreateInmuebleData['tipo'];
+          
+          // Mapear tipos CSV a tipos del enum
+          switch (tipoValue) {
+            case 'piso':
+            case 'apartamento':
+              tipo = 'apartamento';
+              break;
+            case 'casa':
+            case 'chalet':
+              tipo = 'casa';
+              break;
+            case 'local':
+            case 'local_comercial':
+              tipo = 'local_comercial';
+              break;
+            case 'terreno':
+              tipo = 'terreno';
+              break;
+            case 'oficina':
+              tipo = 'oficina';
+              break;
+            default:
+              tipo = 'apartamento';
+          }
+
+          const inmuebleData: CreateInmuebleData = {
             ciudad: values[1].trim(),
-            region: values[1].trim(), // Usando ciudad como región por simplicidad
-            tipo: values[2].trim(),
+            region: values[1].trim(), // Usando ciudad como región
+            tipo,
             precio: parseInt(values[3].trim()) || 0,
             direccion: values[4].trim(),
             proveedor: values[5].trim(),
-            disponible: true,
-            fechaCreacion: new Date(),
           };
-          newInmuebles.push(inmueble);
+
+          const { error } = await createInmueble(inmuebleData);
+          if (error) {
+            errorCount++;
+          } else {
+            successCount++;
+          }
         }
       }
 
-      setInmuebles(prev => [...prev, ...newInmuebles]);
-      toast.success(`${newInmuebles.length} inmuebles importados correctamente`);
-      console.log("[Inventario] CSV importado:", newInmuebles.length, "inmuebles");
+      if (successCount > 0) {
+        toast.success(`${successCount} inmuebles importados correctamente`);
+      }
+      if (errorCount > 0) {
+        toast.error(`${errorCount} inmuebles no pudieron ser importados`);
+      }
+      
+      console.log("[Inventario] CSV importado:", successCount, "éxitos,", errorCount, "errores");
     } catch (error) {
       toast.error("Error al procesar el archivo CSV");
       console.error("[Inventario] Error CSV:", error);
+    } finally {
+      setIsSubmitting(false);
     }
 
     // Reset input
@@ -207,7 +168,6 @@ const AdminInventario = () => {
   };
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
-  const agenteActivos = agentes.filter(a => a.activo);
 
   return (
     <div className="min-h-screen bg-background">
@@ -228,11 +188,16 @@ const AdminInventario = () => {
                 <div>
                   <h1 className="text-2xl font-bold">Panel de Administración</h1>
                   <p className="text-sm text-muted-foreground">
-                    Gestiona inmuebles, agentes y reservas
+                    Bienvenido, {profile?.nombre} - Gestiona inmuebles y reservas
                   </p>
                 </div>
               </div>
             </div>
+            
+            <Button variant="outline" onClick={signOut}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Cerrar Sesión
+            </Button>
           </div>
         </div>
       </header>
@@ -252,11 +217,11 @@ const AdminInventario = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Agentes Activos</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Reservas</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{agenteActivos.length}</div>
+              <div className="text-2xl font-bold">{reservas.length}</div>
             </CardContent>
           </Card>
 
@@ -284,9 +249,8 @@ const AdminInventario = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="inmuebles">Inmuebles</TabsTrigger>
-            <TabsTrigger value="agentes">Agentes</TabsTrigger>
             <TabsTrigger value="reservas">Reservas</TabsTrigger>
           </TabsList>
 
@@ -349,16 +313,16 @@ const AdminInventario = () => {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="tipo">Tipo</Label>
-                          <Select value={newInmueble.tipo} onValueChange={(value) => setNewInmueble(prev => ({...prev, tipo: value}))}>
+                          <Select value={newInmueble.tipo} onValueChange={(value: CreateInmuebleData['tipo']) => setNewInmueble(prev => ({...prev, tipo: value}))}>
                             <SelectTrigger>
                               <SelectValue placeholder="Seleccionar tipo" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Piso">Piso</SelectItem>
-                              <SelectItem value="Casa">Casa</SelectItem>
-                              <SelectItem value="Apartamento">Apartamento</SelectItem>
-                              <SelectItem value="Dúplex">Dúplex</SelectItem>
-                              <SelectItem value="Estudio">Estudio</SelectItem>
+                              <SelectItem value="apartamento">Apartamento</SelectItem>
+                              <SelectItem value="casa">Casa</SelectItem>
+                              <SelectItem value="local_comercial">Local Comercial</SelectItem>  
+                              <SelectItem value="terreno">Terreno</SelectItem>
+                              <SelectItem value="oficina">Oficina</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -395,8 +359,8 @@ const AdminInventario = () => {
                         <Button type="button" variant="outline" onClick={() => setShowCreateInmueble(false)}>
                           Cancelar
                         </Button>
-                        <Button type="submit" disabled={loading}>
-                          {loading ? "Creando..." : "Crear Inmueble"}
+                        <Button type="submit" disabled={isSubmitting}>
+                          {isSubmitting ? "Creando..." : "Crear Inmueble"}
                         </Button>
                       </DialogFooter>
                     </form>
@@ -408,12 +372,27 @@ const AdminInventario = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {inmuebles.map((inmueble) => (
                 <div key={inmueble.id} className="relative">
-                  <InmuebleCard inmueble={inmueble} showSolicitarVisita={false} />
+                  <InmuebleCard 
+                    inmueble={{
+                      id: inmueble.id,
+                      ciudad: inmueble.ciudad,
+                      region: inmueble.region,
+                      tipo: inmueble.tipo,
+                      precio: inmueble.precio,
+                      direccion: inmueble.direccion,
+                      proveedor: inmueble.proveedor,
+                      disponible: inmueble.disponible,
+                      fechaCreacion: new Date(inmueble.created_at),
+                      agenteAsignado: inmueble.agente_asignado,
+                    }}
+                    showSolicitarVisita={false} 
+                  />
                   <Button
                     variant="destructive"
                     size="sm"
                     className="absolute top-2 right-2"
                     onClick={() => handleDeleteInmueble(inmueble.id)}
+                    disabled={isSubmitting}
                   >
                     <Trash2 className="w-3 h-3" />
                   </Button>

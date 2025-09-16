@@ -2,7 +2,7 @@ export interface Inmueble {
   id: string;
   ciudad: string;
   region: string;
-  tipo: string;
+  tipo: 'apartamento' | 'casa' | 'local_comercial' | 'terreno' | 'oficina';
   precio: number;
   direccion: string;
   proveedor: string;

@@ -4,90 +4,32 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
-import { Inmueble, FiltrosBusqueda, Reserva } from "@/types/inventario";
-import { ArrowLeft, Home, CheckCircle } from "lucide-react";
+import { FiltrosBusqueda } from "@/types/inventario";
+import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
+import { useReservas } from "@/hooks/useReservas";
+import { useAuth } from "@/contexts/AuthContext";
+import { ArrowLeft, Home, CheckCircle, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-// Mock data - En producción esto vendría de una API
-const INMUEBLES_MOCK: Inmueble[] = [
-  {
-    id: "INM001",
-    ciudad: "Madrid",
-    region: "Comunidad de Madrid",
-    tipo: "Piso",
-    precio: 350000,
-    direccion: "Calle Gran Vía, 45",
-    proveedor: "Inmobiliaria Central",
-    disponible: true,
-    fechaCreacion: new Date("2024-01-15"),
-  },
-  {
-    id: "INM002",
-    ciudad: "Barcelona",
-    region: "Cataluña",
-    tipo: "Apartamento",
-    precio: 280000,
-    direccion: "Paseo de Gracia, 123",
-    proveedor: "Barcelona Properties",
-    disponible: true,
-    fechaCreacion: new Date("2024-01-20"),
-  },
-  {
-    id: "INM003",
-    ciudad: "Valencia",
-    region: "Comunidad Valenciana",
-    tipo: "Casa",
-    precio: 450000,
-    direccion: "Avenida del Puerto, 67",
-    proveedor: "Valencia Homes",
-    disponible: false,
-    fechaCreacion: new Date("2024-01-10"),
-  },
-  {
-    id: "INM004",
-    ciudad: "Sevilla",
-    region: "Andalucía",
-    tipo: "Dúplex",
-    precio: 320000,
-    direccion: "Calle Sierpes, 89",
-    proveedor: "Andaluza Real Estate",
-    disponible: true,
-    fechaCreacion: new Date("2024-01-25"),
-  },
-  {
-    id: "INM005",
-    ciudad: "Madrid",
-    region: "Comunidad de Madrid",
-    tipo: "Estudio",
-    precio: 180000,
-    direccion: "Calle Malasaña, 12",
-    proveedor: "Inmobiliaria Central",
-    disponible: true,
-    fechaCreacion: new Date("2024-02-01"),
-  },
-];
-
 const AgenteInventario = () => {
-  const [inmuebles, setInmuebles] = useState<Inmueble[]>(INMUEBLES_MOCK);
-  const [inmueblesFiltrados, setInmueblesFiltrados] = useState<Inmueble[]>(INMUEBLES_MOCK);
-  const [reservas, setReservas] = useState<Reserva[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { profile, signOut } = useAuth();
+  const { inmuebles, loading } = useInmuebles();
+  const { reservas, createReserva } = useReservas();
+  const [inmueblesFiltrados, setInmueblesFiltrados] = useState<DatabaseInmueble[]>([]);
 
-  const ciudadesDisponibles = [...new Set(inmuebles.map(i => i.ciudad))].sort();
-  const tiposDisponibles = [...new Set(inmuebles.map(i => i.tipo))].sort();
+  const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
+  const tiposDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.tipo))].sort();
 
   useEffect(() => {
     console.log("[Inventario] Cargando inmuebles para agente");
-    // Simulamos carga de datos
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-  }, []);
+    // Filtrar solo inmuebles disponibles
+    const disponibles = inmuebles.filter(inmueble => inmueble.disponible);
+    setInmueblesFiltrados(disponibles);
+  }, [inmuebles]);
 
   const handleFiltrosChange = (filtros: FiltrosBusqueda) => {
-    let filtrados = [...inmuebles];
+    let filtrados = inmuebles.filter(inmueble => inmueble.disponible);
 
     if (filtros.ciudad) {
       filtrados = filtrados.filter(inmueble => inmueble.ciudad === filtros.ciudad);
@@ -111,20 +53,10 @@ const AgenteInventario = () => {
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
     console.log("[Inventario] Solicitando visita", { inmuebleId, fecha, hora });
     
-    const nuevaReserva: Reserva = {
-      id: `RES${Date.now()}`,
-      inmuebleId,
-      agenteId: "AGENTE001", // Mock agente ID
-      fechaSolicitud: new Date(),
-      fechaVisita: new Date(fecha),
-      horaVisita: hora,
-      estado: 'pendiente',
-    };
-
-    setReservas(prev => [...prev, nuevaReserva]);
-    
-    toast.success("Solicitud de visita enviada correctamente", {
-      description: `Tu visita para el ${fecha} a las ${hora} está pendiente de confirmación.`
+    await createReserva({
+      inmueble_id: inmuebleId,
+      fecha_visita: fecha,
+      hora_visita: hora,
     });
   };
 
@@ -145,7 +77,7 @@ const AgenteInventario = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link to="/">
                 <Button variant="ghost" size="sm">
@@ -160,18 +92,24 @@ const AgenteInventario = () => {
                 <div>
                   <h1 className="text-2xl font-bold">Portal del Agente</h1>
                   <p className="text-sm text-muted-foreground">
-                    {inmueblesFiltrados.length} inmuebles disponibles
+                    Bienvenido, {profile?.nombre} - {inmueblesFiltrados.length} inmuebles disponibles
                   </p>
                 </div>
               </div>
             </div>
 
-            {reservasPendientes > 0 && (
-              <Badge variant="default" className="flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                {reservasPendientes} visitas pendientes
-              </Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {reservasPendientes > 0 && (
+                <Badge variant="default" className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  {reservasPendientes} visitas pendientes
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -204,7 +142,18 @@ const AgenteInventario = () => {
             {inmueblesFiltrados.map((inmueble) => (
               <InmuebleCard
                 key={inmueble.id}
-                inmueble={inmueble}
+                inmueble={{
+                  id: inmueble.id,
+                  ciudad: inmueble.ciudad,
+                  region: inmueble.region,
+                  tipo: inmueble.tipo,
+                  precio: inmueble.precio,
+                  direccion: inmueble.direccion,
+                  proveedor: inmueble.proveedor,
+                  disponible: inmueble.disponible,
+                  fechaCreacion: new Date(inmueble.created_at),
+                  agenteAsignado: inmueble.agente_asignado,
+                }}
                 onSolicitarVisita={handleSolicitarVisita}
               />
             ))}
