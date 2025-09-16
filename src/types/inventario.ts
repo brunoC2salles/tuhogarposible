@@ -1,0 +1,48 @@
+export interface Inmueble {
+  id: string;
+  ciudad: string;
+  region: string;
+  tipo: string;
+  precio: number;
+  direccion: string;
+  proveedor: string;
+  disponible: boolean;
+  fechaCreacion: Date;
+  agenteAsignado?: string;
+}
+
+export interface Agente {
+  id: string;
+  nombre: string;
+  email: string;
+  telefono?: string;
+  fechaCreacion: Date;
+  activo: boolean;
+}
+
+export interface Reserva {
+  id: string;
+  inmuebleId: string;
+  agenteId: string;
+  fechaSolicitud: Date;
+  fechaVisita?: Date;
+  horaVisita?: string;
+  estado: 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
+  notas?: string;
+}
+
+export interface FiltrosBusqueda {
+  ciudad?: string;
+  tipo?: string;
+  precioMin?: number;
+  precioMax?: number;
+}
+
+export interface CSVInmueble {
+  ID: string;
+  Ciudad: string;
+  Tipo: string;
+  Precio: string;
+  Direccion: string;
+  Proveedor: string;
+}
