@@ -14,16 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      inmuebles: {
+        Row: {
+          agente_asignado: string | null
+          ciudad: string
+          created_at: string
+          direccion: string
+          disponible: boolean
+          id: string
+          precio: number
+          proveedor: string
+          region: string
+          tipo: Database["public"]["Enums"]["tipo_inmueble"]
+          updated_at: string
+        }
+        Insert: {
+          agente_asignado?: string | null
+          ciudad: string
+          created_at?: string
+          direccion: string
+          disponible?: boolean
+          id?: string
+          precio: number
+          proveedor: string
+          region: string
+          tipo: Database["public"]["Enums"]["tipo_inmueble"]
+          updated_at?: string
+        }
+        Update: {
+          agente_asignado?: string | null
+          ciudad?: string
+          created_at?: string
+          direccion?: string
+          disponible?: boolean
+          id?: string
+          precio?: number
+          proveedor?: string
+          region?: string
+          tipo?: Database["public"]["Enums"]["tipo_inmueble"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inmuebles_agente_asignado_fkey"
+            columns: ["agente_asignado"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          activo: boolean
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          role: Database["public"]["Enums"]["user_role"]
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          email: string
+          id: string
+          nombre: string
+          role?: Database["public"]["Enums"]["user_role"]
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reservas: {
+        Row: {
+          agente_id: string
+          created_at: string
+          estado: Database["public"]["Enums"]["estado_reserva"]
+          fecha_solicitud: string
+          fecha_visita: string | null
+          hora_visita: string | null
+          id: string
+          inmueble_id: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          agente_id: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_reserva"]
+          fecha_solicitud?: string
+          fecha_visita?: string | null
+          hora_visita?: string | null
+          id?: string
+          inmueble_id: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agente_id?: string
+          created_at?: string
+          estado?: Database["public"]["Enums"]["estado_reserva"]
+          fecha_solicitud?: string
+          fecha_visita?: string | null
+          hora_visita?: string | null
+          id?: string
+          inmueble_id?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_agente_id_fkey"
+            columns: ["agente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
     }
     Enums: {
-      [_ in never]: never
+      estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
+      tipo_inmueble:
+        | "apartamento"
+        | "casa"
+        | "local_comercial"
+        | "terreno"
+        | "oficina"
+      user_role: "admin" | "agente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +296,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
+      tipo_inmueble: [
+        "apartamento",
+        "casa",
+        "local_comercial",
+        "terreno",
+        "oficina",
+      ],
+      user_role: ["admin", "agente"],
+    },
   },
 } as const
