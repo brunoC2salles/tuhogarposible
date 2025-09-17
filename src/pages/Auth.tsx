@@ -8,15 +8,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
-
 const Auth = () => {
-  const { user, signIn, signUp, loading } = useAuth();
+  const {
+    user,
+    signIn,
+    signUp,
+    loading
+  } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   // Login form state
   const [loginForm, setLoginForm] = useState({
     email: '',
-    password: '',
+    password: ''
   });
 
   // Register form state
@@ -24,21 +28,20 @@ const Auth = () => {
     email: '',
     password: '',
     nombre: '',
-    confirmPassword: '',
+    confirmPassword: ''
   });
 
   // If user is already logged in, redirect to home
   if (user) {
     return <Navigate to="/" replace />;
   }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
     try {
-      const { error } = await signIn(loginForm.email, loginForm.password);
-      
+      const {
+        error
+      } = await signIn(loginForm.email, loginForm.password);
       if (error) {
         if (error.message.includes('Invalid login credentials')) {
           toast.error('Credenciales incorrectas', {
@@ -63,29 +66,21 @@ const Auth = () => {
       setIsSubmitting(false);
     }
   };
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (registerForm.password !== registerForm.confirmPassword) {
       toast.error('Las contraseñas no coinciden');
       return;
     }
-
     if (registerForm.password.length < 6) {
       toast.error('La contraseña debe tener al menos 6 caracteres');
       return;
     }
-
     setIsSubmitting(true);
-
     try {
-      const { error } = await signUp(
-        registerForm.email, 
-        registerForm.password, 
-        registerForm.nombre
-      );
-      
+      const {
+        error
+      } = await signUp(registerForm.email, registerForm.password, registerForm.nombre);
       if (error) {
         if (error.message.includes('User already registered')) {
           toast.error('Usuario ya registrado', {
@@ -105,7 +100,7 @@ const Auth = () => {
           email: '',
           password: '',
           nombre: '',
-          confirmPassword: '',
+          confirmPassword: ''
         });
       }
     } catch (error) {
@@ -115,20 +110,16 @@ const Auth = () => {
       setIsSubmitting(false);
     }
   };
-
   const handleCreateAdmin = async () => {
     setIsSubmitting(true);
-    
     try {
       const response = await fetch('https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/create-admin', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
-      
       const data = await response.json();
-      
       if (response.ok) {
         toast.success('Usuario admin creado exitosamente', {
           description: 'Ahora puedes iniciar sesión con las credenciales mostradas'
@@ -147,9 +138,7 @@ const Auth = () => {
       setIsSubmitting(false);
     }
   };
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-blue-light to-background flex items-center justify-center p-4">
+  return <div className="min-h-screen bg-gradient-to-br from-sky-blue-light to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
@@ -187,58 +176,27 @@ const Auth = () => {
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={loginForm.email}
-                      onChange={(e) => setLoginForm(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="tu@email.com"
-                      required
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="email" type="email" value={loginForm.email} onChange={e => setLoginForm(prev => ({
+                    ...prev,
+                    email: e.target.value
+                  }))} placeholder="tu@email.com" required disabled={loading || isSubmitting} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="password">Contraseña</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={loginForm.password}
-                      onChange={(e) => setLoginForm(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="password" type="password" value={loginForm.password} onChange={e => setLoginForm(prev => ({
+                    ...prev,
+                    password: e.target.value
+                  }))} placeholder="••••••••" required disabled={loading || isSubmitting} />
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={loading || isSubmitting}
-                  >
+                  <Button type="submit" className="w-full" disabled={loading || isSubmitting}>
                     {isSubmitting ? 'Iniciando sesión...' : 'Iniciar Sesión'}
                   </Button>
                 </form>
 
                 <div className="mt-4 space-y-3">
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm text-blue-800">
-                        <p className="font-medium mb-1">Cuenta de administrador:</p>
-                        <p><strong>Email:</strong> tuhogarposible.contacto@gmail.com</p>
-                        <p><strong>Contraseña:</strong> @Inventario25!</p>
-                      </div>
-                    </div>
-                  </div>
                   
-                  <Button 
-                    type="button"
-                    variant="outline" 
-                    className="w-full"
-                    onClick={handleCreateAdmin}
-                    disabled={loading || isSubmitting}
-                  >
-                    Crear Usuario Admin (solo primera vez)
-                  </Button>
+                  
+                  
                 </div>
               </TabsContent>
 
@@ -246,58 +204,33 @@ const Auth = () => {
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="register-nombre">Nombre completo</Label>
-                    <Input
-                      id="register-nombre"
-                      type="text"
-                      value={registerForm.nombre}
-                      onChange={(e) => setRegisterForm(prev => ({ ...prev, nombre: e.target.value }))}
-                      placeholder="Tu nombre completo"
-                      required
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="register-nombre" type="text" value={registerForm.nombre} onChange={e => setRegisterForm(prev => ({
+                    ...prev,
+                    nombre: e.target.value
+                  }))} placeholder="Tu nombre completo" required disabled={loading || isSubmitting} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-email">Email</Label>
-                    <Input
-                      id="register-email"
-                      type="email"
-                      value={registerForm.email}
-                      onChange={(e) => setRegisterForm(prev => ({ ...prev, email: e.target.value }))}
-                      placeholder="tu@email.com"
-                      required
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="register-email" type="email" value={registerForm.email} onChange={e => setRegisterForm(prev => ({
+                    ...prev,
+                    email: e.target.value
+                  }))} placeholder="tu@email.com" required disabled={loading || isSubmitting} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-password">Contraseña</Label>
-                    <Input
-                      id="register-password"
-                      type="password"
-                      value={registerForm.password}
-                      onChange={(e) => setRegisterForm(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                      minLength={6}
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="register-password" type="password" value={registerForm.password} onChange={e => setRegisterForm(prev => ({
+                    ...prev,
+                    password: e.target.value
+                  }))} placeholder="••••••••" required minLength={6} disabled={loading || isSubmitting} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-confirm">Confirmar contraseña</Label>
-                    <Input
-                      id="register-confirm"
-                      type="password"
-                      value={registerForm.confirmPassword}
-                      onChange={(e) => setRegisterForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                      placeholder="••••••••"
-                      required
-                      disabled={loading || isSubmitting}
-                    />
+                    <Input id="register-confirm" type="password" value={registerForm.confirmPassword} onChange={e => setRegisterForm(prev => ({
+                    ...prev,
+                    confirmPassword: e.target.value
+                  }))} placeholder="••••••••" required disabled={loading || isSubmitting} />
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={loading || isSubmitting}
-                  >
+                  <Button type="submit" className="w-full" disabled={loading || isSubmitting}>
                     {isSubmitting ? 'Creando cuenta...' : 'Crear Cuenta'}
                   </Button>
                 </form>
@@ -307,16 +240,11 @@ const Auth = () => {
         </Card>
 
         <div className="text-center mt-4">
-          <Link 
-            to="/" 
-            className="text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
+          <Link to="/" className="text-sm text-muted-foreground hover:text-primary transition-colors">
             ← Volver al inicio
           </Link>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Auth;
