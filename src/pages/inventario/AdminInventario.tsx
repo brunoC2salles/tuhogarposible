@@ -408,8 +408,6 @@ const AdminInventario = () => {
             <h2 className="text-xl font-semibold">Reservas de Visitas</h2>
             <div className="grid gap-4">
               {reservas.map((reserva) => {
-                const inmueble = inmuebles.find(i => i.id === reserva.inmueble_id);
-                
                 return (
                   <Card key={reserva.id}>
                     <CardHeader>
