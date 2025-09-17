@@ -116,6 +116,38 @@ const Auth = () => {
     }
   };
 
+  const handleCreateAdmin = async () => {
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/create-admin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        toast.success('Usuario admin creado exitosamente', {
+          description: 'Ahora puedes iniciar sesión con las credenciales mostradas'
+        });
+      } else {
+        toast.error('Error al crear usuario admin', {
+          description: data.error || 'Error desconocido'
+        });
+      }
+    } catch (error) {
+      toast.error('Error de conexión', {
+        description: 'No se pudo crear el usuario admin'
+      });
+      console.error('[Auth] Create admin error:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-blue-light to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -186,15 +218,27 @@ const Auth = () => {
                   </Button>
                 </form>
 
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-medium mb-1">Cuenta de administrador:</p>
-                      <p><strong>Email:</strong> tuhogarposible.contacto@gmail.com</p>
-                      <p><strong>Contraseña:</strong> @Inventario25!</p>
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium mb-1">Cuenta de administrador:</p>
+                        <p><strong>Email:</strong> tuhogarposible.contacto@gmail.com</p>
+                        <p><strong>Contraseña:</strong> @Inventario25!</p>
+                      </div>
                     </div>
                   </div>
+                  
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleCreateAdmin}
+                    disabled={loading || isSubmitting}
+                  >
+                    Crear Usuario Admin (solo primera vez)
+                  </Button>
                 </div>
               </TabsContent>
 
