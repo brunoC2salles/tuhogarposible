@@ -401,97 +401,14 @@ const AdminInventario = () => {
             </div>
           </TabsContent>
 
-          {/* Agentes Tab */}
-          <TabsContent value="agentes" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-xl font-semibold">Gestión de Agentes</h2>
-              <Dialog open={showCreateAgente} onOpenChange={setShowCreateAgente}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nuevo Agente
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Crear Nueva Cuenta de Agente</DialogTitle>
-                    <DialogDescription>
-                      Añade un nuevo agente al sistema
-                    </DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleCreateAgente} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nombre">Nombre completo</Label>
-                      <Input
-                        id="nombre"
-                        value={newAgente.nombre}
-                        onChange={(e) => setNewAgente(prev => ({...prev, nombre: e.target.value}))}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={newAgente.email}
-                        onChange={(e) => setNewAgente(prev => ({...prev, email: e.target.value}))}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="telefono">Teléfono</Label>
-                      <Input
-                        id="telefono"
-                        value={newAgente.telefono}
-                        onChange={(e) => setNewAgente(prev => ({...prev, telefono: e.target.value}))}
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setShowCreateAgente(false)}>
-                        Cancelar
-                      </Button>
-                      <Button type="submit" disabled={loading}>
-                        {loading ? "Creando..." : "Crear Agente"}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="grid gap-4">
-              {agentes.map((agente) => (
-                <Card key={agente.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-lg">{agente.nombre}</CardTitle>
-                        <CardDescription>{agente.email}</CardDescription>
-                      </div>
-                      <Badge variant={agente.activo ? "default" : "secondary"}>
-                        {agente.activo ? "Activo" : "Inactivo"}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-sm text-muted-foreground">
-                      <p>Teléfono: {agente.telefono || "No especificado"}</p>
-                      <p>Fecha de registro: {agente.fechaCreacion.toLocaleDateString('es-ES')}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
+          {/* Agentes Tab - Removed for now */}
 
           {/* Reservas Tab */}
           <TabsContent value="reservas" className="space-y-6">
             <h2 className="text-xl font-semibold">Reservas de Visitas</h2>
             <div className="grid gap-4">
               {reservas.map((reserva) => {
-                const agente = agentes.find(a => a.id === reserva.agenteId);
-                const inmueble = inmuebles.find(i => i.id === reserva.inmuebleId);
+                const inmueble = inmuebles.find(i => i.id === reserva.inmueble_id);
                 
                 return (
                   <Card key={reserva.id}>
@@ -511,11 +428,11 @@ const AdminInventario = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Agente:</strong> {agente?.nombre}</p>
-                        <p><strong>Inmueble:</strong> {inmueble?.direccion}, {inmueble?.ciudad}</p>
-                        <p><strong>Fecha:</strong> {reserva.fechaVisita?.toLocaleDateString('es-ES')}</p>
-                        <p><strong>Hora:</strong> {reserva.horaVisita}</p>
-                        <p><strong>Solicitado:</strong> {reserva.fechaSolicitud.toLocaleDateString('es-ES')}</p>
+                        <p><strong>Agente:</strong> {reserva.profiles?.nombre}</p>
+                        <p><strong>Inmueble:</strong> {reserva.inmuebles?.direccion}, {reserva.inmuebles?.ciudad}</p>
+                        <p><strong>Fecha:</strong> {reserva.fecha_visita}</p>
+                        <p><strong>Hora:</strong> {reserva.hora_visita}</p>
+                        <p><strong>Solicitado:</strong> {new Date(reserva.fecha_solicitud).toLocaleDateString('es-ES')}</p>
                         {reserva.notas && <p><strong>Notas:</strong> {reserva.notas}</p>}
                       </div>
                     </CardContent>
