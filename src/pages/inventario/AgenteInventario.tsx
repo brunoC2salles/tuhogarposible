@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Home, CheckCircle, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import Logo from "@/components/Logo";
 
 const AgenteInventario = () => {
   const { profile, signOut } = useAuth();
@@ -86,9 +87,7 @@ const AgenteInventario = () => {
                 </Button>
               </Link>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-sky-blue-light rounded-full flex items-center justify-center">
-                  <Home className="w-5 h-5 text-primary" />
-                </div>
+                <Logo size="sm" />
                 <div>
                   <h1 className="text-2xl font-bold">Portal del Agente</h1>
                   <p className="text-sm text-muted-foreground">

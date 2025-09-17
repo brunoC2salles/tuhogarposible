@@ -2,14 +2,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Users, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
+import Logo from "@/components/Logo";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-foreground">Tu Hogar Posible</h1>
-          <p className="text-muted-foreground mt-2">Plataforma de inventario inmobiliario</p>
+          <div className="flex items-center gap-4">
+            <Logo size="lg" />
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Tu Hogar Posible</h1>
+              <p className="text-muted-foreground mt-2">Plataforma de inventario inmobiliario</p>
+            </div>
+          </div>
         </div>
       </header>
 

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, LogIn, UserPlus, AlertCircle } from 'lucide-react';
 import { Link, Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import Logo from "@/components/Logo";
 const Auth = () => {
   const {
     user,
@@ -141,10 +142,8 @@ const Auth = () => {
   return <div className="min-h-screen bg-gradient-to-br from-sky-blue-light to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-              <Home className="w-6 h-6 text-white" />
-            </div>
+          <Link to="/" className="inline-flex items-center gap-3 text-primary hover:text-primary/80 transition-colors">
+            <Logo size="md" />
             <div className="text-left">
               <h1 className="text-2xl font-bold">Tu Hogar Posible</h1>
               <p className="text-sm text-muted-foreground">Portal de Inventario</p>
