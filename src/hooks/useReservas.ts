@@ -29,6 +29,7 @@ export interface DatabaseReserva {
 
 export interface CreateReservaData {
   inmueble_id: string;
+  agente_id?: string; // Opcional para que admin pueda especificar el agente
   fecha_visita: string;
   hora_visita: string;
   notas?: string;
@@ -85,7 +86,7 @@ export const useReservas = () => {
     try {
       const reservaData = {
         ...data,
-        agente_id: profile.id,
+        agente_id: data.agente_id || profile.id, // Usar agente especificado o el usuario actual
       };
 
       const { data: newReserva, error } = await supabase
@@ -139,6 +140,26 @@ export const useReservas = () => {
     }
   };
 
+  const deleteReserva = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('reservas')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setReservas(prev => prev.filter(reserva => reserva.id !== id));
+      toast.success('Reserva eliminada correctamente');
+      console.log('[Reservas] Deleted:', id);
+      return { error: null };
+    } catch (err: any) {
+      console.error('[Reservas] Delete error:', err);
+      toast.error('Error al eliminar la reserva');
+      return { error: err.message };
+    }
+  };
+
   useEffect(() => {
     fetchReservas();
   }, [profile]);
@@ -150,5 +171,6 @@ export const useReservas = () => {
     fetchReservas,
     createReserva,
     updateReservaEstado,
+    deleteReserva,
   };
 };

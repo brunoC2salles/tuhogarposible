@@ -14,6 +14,7 @@ export interface DatabaseInmueble {
   agente_asignado?: string;
   created_at: string;
   updated_at: string;
+  codigo_inventario?: string;
 }
 
 export interface CreateInmuebleData {
@@ -24,6 +25,7 @@ export interface CreateInmuebleData {
   direccion: string;
   proveedor: string;
   agente_asignado?: string;
+  codigo_inventario?: string;
 }
 
 export const useInmuebles = () => {
@@ -119,6 +121,26 @@ export const useInmuebles = () => {
     }
   };
 
+  const deleteMultipleInmuebles = async (ids: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('inmuebles')
+        .delete()
+        .in('id', ids);
+
+      if (error) throw error;
+
+      setInmuebles(prev => prev.filter(inmueble => !ids.includes(inmueble.id)));
+      toast.success(`${ids.length} inmuebles eliminados correctamente`);
+      console.log('[Inmuebles] Deleted multiple:', ids.length);
+      return { error: null };
+    } catch (err: any) {
+      console.error('[Inmuebles] Delete multiple error:', err);
+      toast.error('Error al eliminar inmuebles');
+      return { error: err.message };
+    }
+  };
+
   useEffect(() => {
     fetchInmuebles();
   }, []);
@@ -131,5 +153,6 @@ export const useInmuebles = () => {
     createInmueble,
     updateInmueble,
     deleteInmueble,
+    deleteMultipleInmuebles,
   };
 };

@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           agente_asignado: string | null
           ciudad: string
+          codigo_inventario: string | null
           created_at: string
           direccion: string
           disponible: boolean
@@ -31,6 +32,7 @@ export type Database = {
         Insert: {
           agente_asignado?: string | null
           ciudad: string
+          codigo_inventario?: string | null
           created_at?: string
           direccion: string
           disponible?: boolean
@@ -44,6 +46,7 @@ export type Database = {
         Update: {
           agente_asignado?: string | null
           ciudad?: string
+          codigo_inventario?: string | null
           created_at?: string
           direccion?: string
           disponible?: boolean

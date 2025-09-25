@@ -8,23 +8,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
+import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
 import { useInmuebles, CreateInmuebleData } from "@/hooks/useInmuebles";
 import { useReservas } from "@/hooks/useReservas";
+import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
 
 const AdminInventario = () => {
   const { profile, signOut } = useAuth();
-  const { inmuebles, loading, createInmueble, deleteInmueble } = useInmuebles();
-  const { reservas } = useReservas();
+  const { inmuebles, loading, createInmueble, deleteInmueble, deleteMultipleInmuebles } = useInmuebles();
+  const { reservas, createReserva, deleteReserva } = useReservas();
+  const { agentes } = useAgentes();
   
   const [activeTab, setActiveTab] = useState("inmuebles");
   const [showCreateInmueble, setShowCreateInmueble] = useState(false);
+  const [showCreateReserva, setShowCreateReserva] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedInmuebles, setSelectedInmuebles] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   // Form states
   const [newInmueble, setNewInmueble] = useState<{
@@ -34,6 +41,7 @@ const AdminInventario = () => {
     precio: string;
     direccion: string;
     proveedor: string;
+    codigo_inventario: string;
   }>({
     ciudad: "",
     region: "",
@@ -41,6 +49,7 @@ const AdminInventario = () => {
     precio: "",
     direccion: "",
     proveedor: "",
+    codigo_inventario: "",
   });
 
   useEffect(() => {
@@ -64,12 +73,21 @@ const AdminInventario = () => {
         precio: parseInt(newInmueble.precio),
         direccion: newInmueble.direccion,
         proveedor: newInmueble.proveedor,
+        codigo_inventario: newInmueble.codigo_inventario || undefined,
       };
 
       const { error } = await createInmueble(inmuebleData);
       
       if (!error) {
-        setNewInmueble({ ciudad: "", region: "", tipo: "", precio: "", direccion: "", proveedor: "" });
+        setNewInmueble({ 
+          ciudad: "", 
+          region: "", 
+          tipo: "", 
+          precio: "", 
+          direccion: "", 
+          proveedor: "", 
+          codigo_inventario: "" 
+        });
         setShowCreateInmueble(false);
       }
     } catch (error) {
@@ -89,6 +107,55 @@ const AdminInventario = () => {
     await deleteInmueble(id);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedInmuebles.length === 0) {
+      toast.error("Selecciona al menos un inmueble para eliminar");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await deleteMultipleInmuebles(selectedInmuebles);
+      setSelectedInmuebles([]);
+      setShowBulkActions(false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectInmueble = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedInmuebles(prev => [...prev, id]);
+    } else {
+      setSelectedInmuebles(prev => prev.filter(inmuebleId => inmuebleId !== id));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedInmuebles(inmuebles.map(i => i.id));
+    } else {
+      setSelectedInmuebles([]);
+    }
+  };
+
+  const handleDeleteReserva = async (id: string) => {
+    await deleteReserva(id);
+  };
+
+  const handleCreateReserva = async (data: any) => {
+    setIsSubmitting(true);
+    try {
+      const result = await createReserva(data);
+      if (!result.error) {
+        setShowCreateReserva(false);
+      }
+      return result;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -101,10 +168,16 @@ const AdminInventario = () => {
       let successCount = 0;
       let errorCount = 0;
       
+      // Saltar la primera línea si es header
       for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',');
-        if (values.length >= 6 && values[0].trim()) {
-          const tipoValue = values[2].trim().toLowerCase();
+        const line = lines[i].trim();
+        if (!line) continue; // Saltar líneas vacías
+        
+        const values = line.split(',').map(val => val.trim());
+        
+        // Nueva orden: Ciudad, Región, Tipo, Precio (€), Dirección, Proveedor, Código de Inventário
+        if (values.length >= 6) {
+          const tipoValue = values[2]?.toLowerCase() || '';
           let tipo: CreateInmuebleData['tipo'];
           
           // Mapear tipos CSV a tipos del enum
@@ -132,12 +205,13 @@ const AdminInventario = () => {
           }
 
           const inmuebleData: CreateInmuebleData = {
-            ciudad: values[1].trim(),
-            region: values[1].trim(), // Usando ciudad como región
+            ciudad: values[0] || '', // Ciudad
+            region: values[1] || '', // Región
             tipo,
-            precio: parseInt(values[3].trim()) || 0,
-            direccion: values[4].trim(),
-            proveedor: values[5].trim(),
+            precio: values[3] ? parseInt(values[3].replace(/[€,]/g, '')) || 0 : 0, // Precio
+            direccion: values[4] || '', // Dirección
+            proveedor: values[5] || '', // Proveedor
+            codigo_inventario: values[6] || undefined, // Código de Inventário (opcional)
           };
 
           const { error } = await createInmueble(inmuebleData);
@@ -258,6 +332,34 @@ const AdminInventario = () => {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gestión de Inmuebles</h2>
               <div className="flex gap-2">
+                {selectedInmuebles.length > 0 && (
+                  <div className="flex items-center gap-2 mr-4">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedInmuebles.length} seleccionados
+                    </span>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      disabled={isSubmitting}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Eliminar Seleccionados
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => {
+                        setSelectedInmuebles([]);
+                        setShowBulkActions(false);
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  </div>
+                )}
+                
                 <input
                   type="file"
                   accept=".csv"
@@ -345,15 +447,23 @@ const AdminInventario = () => {
                           required
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="proveedor">Proveedor</Label>
-                        <Input
-                          id="proveedor"
-                          value={newInmueble.proveedor}
-                          onChange={(e) => setNewInmueble(prev => ({...prev, proveedor: e.target.value}))}
-                          required
-                        />
-                      </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="proveedor">Proveedor</Label>
+                          <Input
+                            id="proveedor"
+                            value={newInmueble.proveedor}
+                            onChange={(e) => setNewInmueble(prev => ({...prev, proveedor: e.target.value}))}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="codigo_inventario">Código de Inventario</Label>
+                          <Input
+                            id="codigo_inventario"
+                            value={newInmueble.codigo_inventario}
+                            onChange={(e) => setNewInmueble(prev => ({...prev, codigo_inventario: e.target.value}))}
+                          />
+                        </div>
                       <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => setShowCreateInmueble(false)}>
                           Cancelar
@@ -368,9 +478,42 @@ const AdminInventario = () => {
               </div>
             </div>
 
+            {/* Bulk selection controls */}
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="select-all"
+                  checked={selectedInmuebles.length === inmuebles.length && inmuebles.length > 0}
+                  onCheckedChange={handleSelectAll}
+                />
+                <Label htmlFor="select-all" className="text-sm">
+                  Seleccionar todos ({inmuebles.length})
+                </Label>
+              </div>
+              
+              {!showBulkActions && selectedInmuebles.length === 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowBulkActions(true)}
+                >
+                  Modo Selección
+                </Button>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {inmuebles.map((inmueble) => (
                 <div key={inmueble.id} className="relative">
+                  {(showBulkActions || selectedInmuebles.length > 0) && (
+                    <div className="absolute top-2 left-2 z-10">
+                      <Checkbox
+                        checked={selectedInmuebles.includes(inmueble.id)}
+                        onCheckedChange={(checked) => handleSelectInmueble(inmueble.id, checked as boolean)}
+                        className="bg-white"
+                      />
+                    </div>
+                  )}
                   <InmuebleCard 
                     inmueble={{
                       id: inmueble.id,
@@ -383,18 +526,21 @@ const AdminInventario = () => {
                       disponible: inmueble.disponible,
                       fechaCreacion: new Date(inmueble.created_at),
                       agenteAsignado: inmueble.agente_asignado,
+                      codigoInventario: inmueble.codigo_inventario,
                     }}
                     showSolicitarVisita={false} 
                   />
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="absolute top-2 right-2"
-                    onClick={() => handleDeleteInmueble(inmueble.id)}
-                    disabled={isSubmitting}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  {!showBulkActions && selectedInmuebles.length === 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => handleDeleteInmueble(inmueble.id)}
+                      disabled={isSubmitting}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -404,7 +550,14 @@ const AdminInventario = () => {
 
           {/* Reservas Tab */}
           <TabsContent value="reservas" className="space-y-6">
-            <h2 className="text-xl font-semibold">Reservas de Visitas</h2>
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-semibold">Reservas de Visitas</h2>
+              <Button onClick={() => setShowCreateReserva(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Reserva
+              </Button>
+            </div>
+            
             <div className="grid gap-4">
               {reservas.map((reserva) => {
                 return (
@@ -412,21 +565,32 @@ const AdminInventario = () => {
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <CardTitle className="text-lg">
-                          Visita {reserva.id}
+                          Visita #{reserva.id.slice(-6)}
                         </CardTitle>
-                        <Badge variant={
-                          reserva.estado === 'pendiente' ? 'default' :
-                          reserva.estado === 'confirmada' ? 'default' :
-                          reserva.estado === 'cancelada' ? 'destructive' : 'default'
-                        }>
-                          {reserva.estado}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={
+                            reserva.estado === 'pendiente' ? 'default' :
+                            reserva.estado === 'confirmada' ? 'default' :
+                            reserva.estado === 'cancelada' ? 'destructive' : 'default'
+                          }>
+                            {reserva.estado}
+                          </Badge>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteReserva(reserva.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
-                        <p><strong>Agente:</strong> {reserva.profiles?.nombre}</p>
+                        <p><strong>Agente:</strong> {reserva.profiles?.nombre || 'No asignado'}</p>
+                        <p><strong>Email:</strong> {reserva.profiles?.email || 'No disponible'}</p>
                         <p><strong>Inmueble:</strong> {reserva.inmuebles?.direccion}, {reserva.inmuebles?.ciudad}</p>
+                        <p><strong>Tipo:</strong> {reserva.inmuebles?.tipo} - €{reserva.inmuebles?.precio?.toLocaleString()}</p>
                         <p><strong>Fecha:</strong> {reserva.fecha_visita}</p>
                         <p><strong>Hora:</strong> {reserva.hora_visita}</p>
                         <p><strong>Solicitado:</strong> {new Date(reserva.fecha_solicitud).toLocaleDateString('es-ES')}</p>
@@ -437,6 +601,15 @@ const AdminInventario = () => {
                 );
               })}
             </div>
+
+            <CreateReservaModal
+              open={showCreateReserva}
+              onOpenChange={setShowCreateReserva}
+              onCreateReserva={handleCreateReserva}
+              inmuebles={inmuebles}
+              agentes={agentes}
+              isSubmitting={isSubmitting}
+            />
           </TabsContent>
         </Tabs>
       </main>

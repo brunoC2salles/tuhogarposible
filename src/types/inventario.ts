@@ -9,6 +9,7 @@ export interface Inmueble {
   disponible: boolean;
   fechaCreacion: Date;
   agenteAsignado?: string;
+  codigoInventario?: string;
 }
 
 export interface Agente {
@@ -39,10 +40,11 @@ export interface FiltrosBusqueda {
 }
 
 export interface CSVInmueble {
-  ID: string;
   Ciudad: string;
+  Region: string;
   Tipo: string;
   Precio: string;
   Direccion: string;
   Proveedor: string;
+  CodigoInventario: string;
 }
