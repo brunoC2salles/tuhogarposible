@@ -10,25 +10,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
+import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
-import { useInmuebles, CreateInmuebleData } from "@/hooks/useInmuebles";
+import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { Inmueble } from "@/types/inventario";
 import Logo from "@/components/Logo";
 
 const AdminInventario = () => {
   const { profile, signOut } = useAuth();
-  const { inmuebles, loading, createInmueble, deleteInmueble, deleteMultipleInmuebles } = useInmuebles();
+  const { inmuebles, loading, createInmueble, updateInmueble, deleteInmueble, deleteMultipleInmuebles } = useInmuebles();
   const { reservas, createReserva, deleteReserva } = useReservas();
   const { agentes } = useAgentes();
   
   const [activeTab, setActiveTab] = useState("inmuebles");
   const [showCreateInmueble, setShowCreateInmueble] = useState(false);
   const [showCreateReserva, setShowCreateReserva] = useState(false);
+  const [showEditInmueble, setShowEditInmueble] = useState(false);
+  const [selectedInmuebleForEdit, setSelectedInmuebleForEdit] = useState<DatabaseInmueble | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInmuebles, setSelectedInmuebles] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -156,6 +160,18 @@ const AdminInventario = () => {
     }
   };
 
+  const handleEditInmueble = (inmueble: Inmueble) => {
+    const dbInmueble = inmuebles.find(i => i.id === inmueble.id);
+    if (dbInmueble) {
+      setSelectedInmuebleForEdit(dbInmueble);
+      setShowEditInmueble(true);
+    }
+  };
+
+  const handleUpdateInmueble = async (id: string, data: Partial<CreateInmuebleData>) => {
+    return await updateInmueble(id, data);
+  };
+
   const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -163,24 +179,30 @@ const AdminInventario = () => {
     setIsSubmitting(true);
     try {
       const text = await file.text();
-      const lines = text.split('\n');
+      const lines = text.split('\n').filter(line => line.trim()); // Filtrar líneas vacías
+      
+      console.log('[CSV Import] Iniciando importación de', lines.length - 1, 'registros');
       
       let successCount = 0;
       let errorCount = 0;
+      const processedData: CreateInmuebleData[] = [];
       
-      // Saltar la primera línea si es header
+      // Procesar cada línea (saltando header si existe)
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
-        if (!line) continue; // Saltar líneas vacías
+        if (!line) continue;
         
-        const values = line.split(',').map(val => val.trim());
+        // Usar regex para manejar comas dentro de comillas
+        const values = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(val => 
+          val.replace(/^"(.*)"$/, '$1').trim()
+        ) || [];
         
-        // Nueva orden: Ciudad, Región, Tipo, Precio (€), Dirección, Proveedor, Código de Inventário
+        // Orden: Ciudad, Región, Tipo, Precio (€), Dirección, Proveedor, Código de Inventario
         if (values.length >= 6) {
           const tipoValue = values[2]?.toLowerCase() || '';
           let tipo: CreateInmuebleData['tipo'];
           
-          // Mapear tipos CSV a tipos del enum
+          // Mapear tipos CSV exactamente
           switch (tipoValue) {
             case 'piso':
             case 'apartamento':
@@ -191,6 +213,7 @@ const AdminInventario = () => {
               tipo = 'casa';
               break;
             case 'local':
+            case 'local comercial':
             case 'local_comercial':
               tipo = 'local_comercial';
               break;
@@ -201,39 +224,61 @@ const AdminInventario = () => {
               tipo = 'oficina';
               break;
             default:
+              console.warn(`[CSV Import] Tipo desconocido '${tipoValue}', usando 'apartamento'`);
               tipo = 'apartamento';
           }
 
+          // Limpiar precio - remover símbolos y espacios
+          const precioStr = values[3]?.replace(/[€\s,\.]/g, '') || '0';
+          const precio = parseInt(precioStr) || 0;
+          
+          if (precio === 0) {
+            console.warn(`[CSV Import] Precio inválido en línea ${i + 1}: '${values[3]}'`);
+          }
+
           const inmuebleData: CreateInmuebleData = {
-            ciudad: values[0] || '', // Ciudad
-            region: values[1] || '', // Región
+            ciudad: values[0] || '', // Campo en blanco permitido
+            region: values[1] || '', // Campo en blanco permitido  
             tipo,
-            precio: values[3] ? parseInt(values[3].replace(/[€,]/g, '')) || 0 : 0, // Precio
-            direccion: values[4] || '', // Dirección
-            proveedor: values[5] || '', // Proveedor
-            codigo_inventario: values[6] || undefined, // Código de Inventário (opcional)
+            precio,
+            direccion: values[4] || '', // Campo en blanco permitido
+            proveedor: values[5] || '', // Campo en blanco permitido
+            codigo_inventario: values[6] || undefined, // Campo opcional
           };
+          
+          processedData.push(inmuebleData);
+          console.log(`[CSV Import] Línea ${i + 1}:`, inmuebleData);
 
           const { error } = await createInmueble(inmuebleData);
           if (error) {
+            console.error(`[CSV Import] Error línea ${i + 1}:`, error);
             errorCount++;
           } else {
             successCount++;
           }
+        } else {
+          console.warn(`[CSV Import] Línea ${i + 1} tiene columnas insuficientes:`, values.length);
+          errorCount++;
         }
       }
+
+      console.log('[CSV Import]', { 
+        total: lines.length - 1,
+        successful: successCount, 
+        errors: errorCount,
+        processedData 
+      });
 
       if (successCount > 0) {
         toast.success(`${successCount} inmuebles importados correctamente`);
       }
       if (errorCount > 0) {
-        toast.error(`${errorCount} inmuebles no pudieron ser importados`);
+        toast.error(`${errorCount} líneas no pudieron ser procesadas`);
       }
       
-      console.log("[Inventario] CSV importado:", successCount, "éxitos,", errorCount, "errores");
     } catch (error) {
       toast.error("Error al procesar el archivo CSV");
-      console.error("[Inventario] Error CSV:", error);
+      console.error("[CSV Import] Error general:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -528,7 +573,9 @@ const AdminInventario = () => {
                       agenteAsignado: inmueble.agente_asignado,
                       codigoInventario: inmueble.codigo_inventario,
                     }}
-                    showSolicitarVisita={false} 
+                    showSolicitarVisita={false}
+                    showEditButton={true}
+                    onEdit={handleEditInmueble}
                   />
                   {!showBulkActions && selectedInmuebles.length === 0 && (
                     <Button
@@ -612,6 +659,17 @@ const AdminInventario = () => {
             />
           </TabsContent>
         </Tabs>
+        
+        {/* Edit Inmueble Modal */}
+        {selectedInmuebleForEdit && (
+          <EditInmuebleModal
+            open={showEditInmueble}
+            onOpenChange={setShowEditInmueble}
+            inmueble={selectedInmuebleForEdit}
+            onUpdateInmueble={handleUpdateInmueble}
+            isSubmitting={isSubmitting}
+          />
+        )}
       </main>
     </div>
   );

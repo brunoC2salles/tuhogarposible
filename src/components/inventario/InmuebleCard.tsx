@@ -2,20 +2,24 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Building2, Eye, Calendar } from "lucide-react";
+import { MapPin, Euro, Building2, Eye, Calendar, Edit } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
 
 interface InmuebleCardProps {
   inmueble: Inmueble;
   showSolicitarVisita?: boolean;
+  showEditButton?: boolean;
   onSolicitarVisita?: (inmuebleId: string, fecha: string, hora: string) => void;
+  onEdit?: (inmueble: Inmueble) => void;
 }
 
 export function InmuebleCard({ 
   inmueble, 
-  showSolicitarVisita = true, 
-  onSolicitarVisita 
+  showSolicitarVisita = true,
+  showEditButton = false,
+  onSolicitarVisita,
+  onEdit
 }: InmuebleCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showVisitaModal, setShowVisitaModal] = useState(false);
@@ -70,12 +74,18 @@ export function InmuebleCard({
               <div className="mt-4 pt-3 border-t animate-fade-in">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">ID del inmueble:</span>
-                    <span className="font-mono">{inmueble.id}</span>
-                  </div>
-                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Proveedor:</span>
                     <span>{inmueble.proveedor}</span>
+                  </div>
+                  {inmueble.codigoInventario && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Código de Inventario:</span>
+                      <span className="font-mono">{inmueble.codigoInventario}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">ID del inmueble:</span>
+                    <span className="font-mono text-xs">{inmueble.id.slice(-8)}</span>
                   </div>
                 </div>
               </div>
@@ -93,6 +103,18 @@ export function InmuebleCard({
             <Eye className="w-4 h-4 mr-1" />
             {showDetails ? "Ocultar" : "Ver más"}
           </Button>
+          
+          {showEditButton && onEdit && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => onEdit(inmueble)}
+              className="flex-1"
+            >
+              <Edit className="w-4 h-4 mr-1" />
+              Editar
+            </Button>
+          )}
           
           {showSolicitarVisita && inmueble.disponible && (
             <Button 
