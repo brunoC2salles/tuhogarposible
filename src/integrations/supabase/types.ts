@@ -17,45 +17,63 @@ export type Database = {
       inmuebles: {
         Row: {
           agente_asignado: string | null
+          area_m2: number | null
+          banheiros: number | null
           ciudad: string
           codigo_inventario: string | null
           created_at: string
           direccion: string
           disponible: boolean
           id: string
+          image_url: string | null
           precio: number
           proveedor: string
+          quartos: number | null
           region: string
           tipo: Database["public"]["Enums"]["tipo_inmueble"]
+          titulo: string | null
           updated_at: string
+          url_externa: string | null
         }
         Insert: {
           agente_asignado?: string | null
+          area_m2?: number | null
+          banheiros?: number | null
           ciudad: string
           codigo_inventario?: string | null
           created_at?: string
           direccion: string
           disponible?: boolean
           id?: string
+          image_url?: string | null
           precio: number
           proveedor: string
+          quartos?: number | null
           region: string
           tipo: Database["public"]["Enums"]["tipo_inmueble"]
+          titulo?: string | null
           updated_at?: string
+          url_externa?: string | null
         }
         Update: {
           agente_asignado?: string | null
+          area_m2?: number | null
+          banheiros?: number | null
           ciudad?: string
           codigo_inventario?: string | null
           created_at?: string
           direccion?: string
           disponible?: boolean
           id?: string
+          image_url?: string | null
           precio?: number
           proveedor?: string
+          quartos?: number | null
           region?: string
           tipo?: Database["public"]["Enums"]["tipo_inmueble"]
+          titulo?: string | null
           updated_at?: string
+          url_externa?: string | null
         }
         Relationships: [
           {

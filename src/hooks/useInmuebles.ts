@@ -15,6 +15,12 @@ export interface DatabaseInmueble {
   created_at: string;
   updated_at: string;
   codigo_inventario?: string;
+  titulo?: string;
+  quartos?: number;
+  banheiros?: number;
+  area_m2?: number;
+  url_externa?: string;
+  image_url?: string;
 }
 
 export interface CreateInmuebleData {
@@ -26,6 +32,12 @@ export interface CreateInmuebleData {
   proveedor: string;
   agente_asignado?: string;
   codigo_inventario?: string;
+  titulo?: string;
+  quartos?: number;
+  banheiros?: number;
+  area_m2?: number;
+  url_externa?: string;
+  image_url?: string;
 }
 
 export const useInmuebles = () => {

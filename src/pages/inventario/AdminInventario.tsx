@@ -16,7 +16,7 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
@@ -287,6 +287,142 @@ const AdminInventario = () => {
     event.target.value = "";
   };
 
+  // Parser JSON - Função para processar arquivos JSON do Solvia
+  const parseAddress = (address: string): { ciudad: string; region: string; direccion: string } => {
+    // Exemplo: "Toledo , Carpio de Tajo (El) - C/ El Sol"
+    const parts = address.split(' - ');
+    const direccion = parts[1]?.trim() || '';
+    
+    const locationParts = parts[0].split(' , ');
+    const region = locationParts[0]?.trim() || '';
+    const ciudad = locationParts[1]?.trim() || '';
+    
+    return { ciudad, region, direccion };
+  };
+
+  const mapPropertyType = (jsonType: string | null): CreateInmuebleData['tipo'] => {
+    const typeMap: Record<string, CreateInmuebleData['tipo']> = {
+      'piso': 'apartamento',
+      'chalet': 'casa',
+      'garaje': 'local_comercial',
+    };
+    
+    return typeMap[jsonType?.toLowerCase() || ''] || 'apartamento';
+  };
+
+  const handleJSONUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast.error('Por favor, seleccione un archivo JSON válido');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const text = await file.text();
+      const jsonData = JSON.parse(text);
+      
+      console.log('[JSON Import] Archivo cargado:', jsonData);
+      
+      const items = jsonData.items || [];
+      const validItems: CreateInmuebleData[] = [];
+      const errors: string[] = [];
+      
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        
+        try {
+          // Validación de campos obligatorios
+          if (!item.price_eur || !item.address) {
+            errors.push(`Item ${i + 1}: Preço ou endereço ausente`);
+            continue;
+          }
+          
+          const { ciudad, region, direccion } = parseAddress(item.address);
+          
+          if (!ciudad || !region) {
+            errors.push(`Item ${i + 1}: No se pudo extraer ciudad/región de "${item.address}"`);
+            continue;
+          }
+          
+          // Extraer código de inventario de la URL
+          let codigoInventario: string | undefined;
+          if (item.url) {
+            const urlParts = item.url.split('-');
+            codigoInventario = urlParts[urlParts.length - 1];
+          }
+          
+          const inmueble: CreateInmuebleData = {
+            titulo: item.title || '',
+            ciudad,
+            region,
+            tipo: mapPropertyType(item.property_type),
+            precio: item.price_eur,
+            direccion,
+            proveedor: 'Solvia',
+            quartos: item.rooms || undefined,
+            banheiros: item.bathrooms || undefined,
+            area_m2: item.area_m2 || undefined,
+            url_externa: item.url || '',
+            image_url: item.image_url || '',
+            codigo_inventario: codigoInventario,
+          };
+          
+          validItems.push(inmueble);
+          
+        } catch (err: any) {
+          errors.push(`Item ${i + 1}: ${err.message}`);
+        }
+      }
+      
+      console.log('[JSON Import] Items válidos:', validItems.length);
+      console.log('[JSON Import] Erros:', errors);
+      
+      if (errors.length > 0) {
+        console.warn('[JSON Import] Errores encontrados:', errors);
+        toast.warning(`${errors.length} items con problemas (verifique console)`);
+      }
+      
+      if (validItems.length === 0) {
+        toast.error('Ningún item válido encontrado en el JSON');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Importación en lote
+      let successCount = 0;
+      let failCount = 0;
+      
+      for (const item of validItems) {
+        const result = await createInmueble(item);
+        if (result.error) {
+          console.error('[JSON Import] Error al crear:', result.error);
+          failCount++;
+        } else {
+          successCount++;
+        }
+      }
+      
+      toast.success(`✅ ${successCount} inmuebles importados con éxito!`);
+      if (failCount > 0) {
+        toast.error(`❌ ${failCount} inmuebles fallaron en la importación`);
+      }
+      
+      console.log('[JSON Import] Concluído:', { successCount, failCount });
+      
+    } catch (error: any) {
+      console.error('[JSON Import] Error:', error);
+      toast.error('Error al procesar archivo JSON');
+    } finally {
+      setIsSubmitting(false);
+    }
+    
+    // Reset input
+    event.target.value = '';
+  };
+
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
 
   return (
@@ -417,6 +553,22 @@ const AdminInventario = () => {
                     <span>
                       <Upload className="w-4 h-4 mr-2" />
                       Subir CSV
+                    </span>
+                  </Button>
+                </Label>
+                
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleJSONUpload}
+                  className="hidden"
+                  id="json-upload"
+                />
+                <Label htmlFor="json-upload" className="cursor-pointer">
+                  <Button variant="outline" asChild>
+                    <span>
+                      <FileJson className="w-4 h-4 mr-2" />
+                      Subir JSON
                     </span>
                   </Button>
                 </Label>

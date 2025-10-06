@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Building2, Eye, Calendar, Edit } from "lucide-react";
+import { MapPin, Euro, Building2, Eye, Calendar, Edit, BedDouble, Bath, Maximize, ExternalLink } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
 
@@ -40,34 +40,81 @@ export function InmuebleCard({
 
   return (
     <>
-      <Card className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in">
+      <Card className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden">
+        {inmueble.imageUrl && (
+          <div className="w-full h-48 overflow-hidden relative">
+            <img 
+              src={inmueble.imageUrl} 
+              alt={inmueble.titulo || `${inmueble.ciudad} (${inmueble.region})`}
+              className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
+            <Badge 
+              variant={inmueble.disponible ? "default" : "destructive"}
+              className="absolute top-3 right-3 shadow-md"
+            >
+              {inmueble.disponible ? "Disponible" : "Reservado"}
+            </Badge>
+          </div>
+        )}
+        
         <CardHeader className="pb-3">
           <div className="flex justify-between items-start mb-2">
             <Badge variant="secondary" className="text-xs">
               {inmueble.tipo}
             </Badge>
-            <Badge 
-              variant={inmueble.disponible ? "default" : "destructive"}
-              className="text-xs"
-            >
-              {inmueble.disponible ? "Disponible" : "Reservado"}
-            </Badge>
+            {!inmueble.imageUrl && (
+              <Badge 
+                variant={inmueble.disponible ? "default" : "destructive"}
+                className="text-xs"
+              >
+                {inmueble.disponible ? "Disponible" : "Reservado"}
+              </Badge>
+            )}
           </div>
           <CardTitle className="text-xl font-bold text-foreground">
-            {inmueble.ciudad} ({inmueble.region})
+            {inmueble.titulo || `${inmueble.ciudad} (${inmueble.region})`}
           </CardTitle>
         </CardHeader>
 
         <CardContent className="pb-3">
           <div className="space-y-3">
             <div className="flex items-center text-muted-foreground">
-              <MapPin className="w-4 h-4 mr-2" />
+              <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
               <span className="text-sm">{inmueble.direccion}</span>
             </div>
             
-            <div className="flex items-center text-primary font-semibold text-lg">
-              <Euro className="w-5 h-5 mr-1" />
-              <span>{formatPrice(inmueble.precio)}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-primary font-semibold text-lg">
+                <Euro className="w-5 h-5 mr-1" />
+                <span>{formatPrice(inmueble.precio)}</span>
+              </div>
+              
+              {(inmueble.quartos || inmueble.banheiros || inmueble.areaM2) && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  {inmueble.quartos && (
+                    <span className="flex items-center gap-1">
+                      <BedDouble className="h-4 w-4" />
+                      {inmueble.quartos}
+                    </span>
+                  )}
+                  {inmueble.banheiros && (
+                    <span className="flex items-center gap-1">
+                      <Bath className="h-4 w-4" />
+                      {inmueble.banheiros}
+                    </span>
+                  )}
+                  {inmueble.areaM2 && (
+                    <span className="flex items-center gap-1">
+                      <Maximize className="h-4 w-4" />
+                      {inmueble.areaM2}m²
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             {showDetails && (
@@ -81,6 +128,19 @@ export function InmuebleCard({
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Código de Inventario:</span>
                       <span className="font-mono">{inmueble.codigoInventario}</span>
+                    </div>
+                  )}
+                  {inmueble.urlExterna && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-muted-foreground">Link externo:</span>
+                      <a 
+                        href={inmueble.urlExterna} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1"
+                      >
+                        Ver <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
                   )}
                   <div className="flex justify-between">

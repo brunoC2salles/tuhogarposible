@@ -10,6 +10,12 @@ export interface Inmueble {
   fechaCreacion: Date;
   agenteAsignado?: string;
   codigoInventario?: string;
+  titulo?: string;
+  quartos?: number;
+  banheiros?: number;
+  areaM2?: number;
+  urlExterna?: string;
+  imageUrl?: string;
 }
 
 export interface Agente {
