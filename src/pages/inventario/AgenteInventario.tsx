@@ -8,7 +8,9 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut } from "lucide-react";
+import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
@@ -18,6 +20,8 @@ const AgenteInventario = () => {
   const { inmuebles, loading } = useInmuebles();
   const { reservas, createReserva } = useReservas();
   const [inmueblesFiltrados, setInmueblesFiltrados] = useState<DatabaseInmueble[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(12);
 
   const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
   const tiposDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.tipo))].sort();
@@ -47,7 +51,20 @@ const AgenteInventario = () => {
       );
     }
 
+    if (filtros.quartos) {
+      filtrados = filtrados.filter(inmueble => 
+        inmueble.quartos && inmueble.quartos >= filtros.quartos!
+      );
+    }
+
+    if (filtros.areaMin) {
+      filtrados = filtrados.filter(inmueble => 
+        inmueble.area_m2 && inmueble.area_m2 >= filtros.areaMin!
+      );
+    }
+
     setInmueblesFiltrados(filtrados);
+    setCurrentPage(1); // Reset para primeira página ao filtrar
     console.log("[Inventario] Filtrados:", filtrados.length, "inmuebles");
   };
 
@@ -62,6 +79,12 @@ const AgenteInventario = () => {
   };
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente').length;
+
+  // Cálculos de paginação
+  const totalPages = Math.ceil(inmueblesFiltrados.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const inmueblesExibidos = inmueblesFiltrados.slice(startIndex, endIndex);
 
   if (loading) {
     return (
@@ -120,6 +143,31 @@ const AgenteInventario = () => {
           tiposDisponibles={tiposDisponibles}
         />
 
+        {/* Indicador de resultados e seletor de itens por página */}
+        {inmueblesFiltrados.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <p className="text-sm text-muted-foreground">
+              Mostrando {startIndex + 1}-{Math.min(endIndex, inmueblesFiltrados.length)} de {inmueblesFiltrados.length} inmuebles
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Mostrar:</span>
+              <Select value={itemsPerPage.toString()} onValueChange={(val) => {
+                setItemsPerPage(Number(val));
+                setCurrentPage(1);
+              }}>
+                <SelectTrigger className="w-20">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="12">12</SelectItem>
+                  <SelectItem value="24">24</SelectItem>
+                  <SelectItem value="48">48</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+
         {inmueblesFiltrados.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
@@ -137,26 +185,87 @@ const AgenteInventario = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {inmueblesFiltrados.map((inmueble) => (
-              <InmuebleCard
-                key={inmueble.id}
-                inmueble={{
-                  id: inmueble.id,
-                  ciudad: inmueble.ciudad,
-                  region: inmueble.region,
-                  tipo: inmueble.tipo,
-                  precio: inmueble.precio,
-                  direccion: inmueble.direccion,
-                  proveedor: inmueble.proveedor,
-                  disponible: inmueble.disponible,
-                  fechaCreacion: new Date(inmueble.created_at),
-                  agenteAsignado: inmueble.agente_asignado,
-                }}
-                onSolicitarVisita={handleSolicitarVisita}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {inmueblesExibidos.map((inmueble) => (
+                <InmuebleCard
+                  key={inmueble.id}
+                  inmueble={{
+                    id: inmueble.id,
+                    ciudad: inmueble.ciudad,
+                    region: inmueble.region,
+                    tipo: inmueble.tipo,
+                    precio: inmueble.precio,
+                    direccion: inmueble.direccion,
+                    proveedor: inmueble.proveedor,
+                    disponible: inmueble.disponible,
+                    fechaCreacion: new Date(inmueble.created_at),
+                    agenteAsignado: inmueble.agente_asignado,
+                    titulo: inmueble.titulo || undefined,
+                    quartos: inmueble.quartos || undefined,
+                    banheiros: inmueble.banheiros || undefined,
+                    areaM2: inmueble.area_m2 || undefined,
+                    urlExterna: inmueble.url_externa || undefined,
+                    imageUrl: inmueble.image_url || undefined,
+                    codigoInventario: inmueble.codigo_inventario || undefined,
+                  }}
+                  onSolicitarVisita={handleSolicitarVisita}
+                />
+              ))}
+            </div>
+
+            {/* Paginação */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter(page => {
+                      // Mostrar primeira, última e páginas próximas à atual
+                      return page === 1 || 
+                             page === totalPages || 
+                             (page >= currentPage - 1 && page <= currentPage + 1);
+                    })
+                    .map((page, index, array) => (
+                      <>
+                        {index > 0 && array[index - 1] !== page - 1 && (
+                          <span key={`ellipsis-${page}`} className="px-2 text-muted-foreground">...</span>
+                        )}
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="min-w-9"
+                        >
+                          {page}
+                        </Button>
+                      </>
+                    ))
+                  }
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </main>
     </div>

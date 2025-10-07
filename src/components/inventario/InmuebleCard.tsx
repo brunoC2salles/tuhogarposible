@@ -47,6 +47,7 @@ export function InmuebleCard({
               src={inmueble.imageUrl} 
               alt={inmueble.titulo || `${inmueble.ciudad} (${inmueble.region})`}
               className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+              loading="lazy"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';

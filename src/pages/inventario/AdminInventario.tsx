@@ -723,7 +723,13 @@ const AdminInventario = () => {
                       disponible: inmueble.disponible,
                       fechaCreacion: new Date(inmueble.created_at),
                       agenteAsignado: inmueble.agente_asignado,
-                      codigoInventario: inmueble.codigo_inventario,
+                      titulo: inmueble.titulo || undefined,
+                      quartos: inmueble.quartos || undefined,
+                      banheiros: inmueble.banheiros || undefined,
+                      areaM2: inmueble.area_m2 || undefined,
+                      urlExterna: inmueble.url_externa || undefined,
+                      imageUrl: inmueble.image_url || undefined,
+                      codigoInventario: inmueble.codigo_inventario || undefined,
                     }}
                     showSolicitarVisita={false}
                     showEditButton={true}

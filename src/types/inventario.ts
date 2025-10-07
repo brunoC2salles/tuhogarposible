@@ -43,6 +43,8 @@ export interface FiltrosBusqueda {
   tipo?: string;
   precioMin?: number;
   precioMax?: number;
+  quartos?: number;
+  areaMin?: number;
 }
 
 export interface CSVInmueble {

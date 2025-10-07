@@ -111,6 +111,46 @@ export function FiltrosInmuebles({
         </div>
       </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="quartos">Quartos mínimos</Label>
+          <Select
+            value={filtros.quartos?.toString() || ""}
+            onValueChange={(value) => handleFiltroChange("quartos", value === "todos" ? undefined : Number(value))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Cualquier cantidad" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Cualquier cantidad</SelectItem>
+              <SelectItem value="1">1+ quarto</SelectItem>
+              <SelectItem value="2">2+ quartos</SelectItem>
+              <SelectItem value="3">3+ quartos</SelectItem>
+              <SelectItem value="4">4+ quartos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="areaMin">Área mínima (m²)</Label>
+          <Select
+            value={filtros.areaMin?.toString() || ""}
+            onValueChange={(value) => handleFiltroChange("areaMin", value === "todas" ? undefined : Number(value))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Cualquier tamaño" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Cualquier tamaño</SelectItem>
+              <SelectItem value="50">50+ m²</SelectItem>
+              <SelectItem value="100">100+ m²</SelectItem>
+              <SelectItem value="150">150+ m²</SelectItem>
+              <SelectItem value="200">200+ m²</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-4">
         <Label>Rango de precio</Label>
         <div className="px-2">
