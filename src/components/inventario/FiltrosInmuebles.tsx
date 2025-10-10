@@ -29,7 +29,7 @@ export function FiltrosInmuebles({
   const [isOpen, setIsOpen] = useState(!isMobile);
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     precioMin: 0,
-    precioMax: 1000000,
+    precioMax: 450000,
   });
 
   const handleFiltroChange = (key: keyof FiltrosBusqueda, value: any) => {
@@ -52,11 +52,19 @@ export function FiltrosInmuebles({
   const limpiarFiltros = () => {
     const filtrosLimpios: FiltrosBusqueda = {
       precioMin: 0,
-      precioMax: 1000000,
+      precioMax: 450000,
     };
     setFiltros(filtrosLimpios);
     onFiltrosChange(filtrosLimpios);
     console.log("[Inventario] Filtros limpiados");
+  };
+
+  const tipoDisplayNames: Record<string, string> = {
+    'apartamento': 'Piso',
+    'casa': 'Casa',
+    'local_comercial': 'Local comercial',
+    'terreno': 'Terreno',
+    'oficina': 'Oficina'
   };
 
   const formatPrice = (price: number) => {
@@ -103,7 +111,7 @@ export function FiltrosInmuebles({
               <SelectItem value="todos">Todos los tipos</SelectItem>
               {tiposDisponibles.map((tipo) => (
                 <SelectItem key={tipo} value={tipo}>
-                  {tipo}
+                  {tipoDisplayNames[tipo] || tipo}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -113,7 +121,7 @@ export function FiltrosInmuebles({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="quartos">Quartos mínimos</Label>
+          <Label htmlFor="quartos">Habitaciones</Label>
           <Select
             value={filtros.quartos?.toString() || ""}
             onValueChange={(value) => handleFiltroChange("quartos", value === "todos" ? undefined : Number(value))}
@@ -123,29 +131,10 @@ export function FiltrosInmuebles({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Cualquier cantidad</SelectItem>
-              <SelectItem value="1">1+ quarto</SelectItem>
-              <SelectItem value="2">2+ quartos</SelectItem>
-              <SelectItem value="3">3+ quartos</SelectItem>
-              <SelectItem value="4">4+ quartos</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="areaMin">Área mínima (m²)</Label>
-          <Select
-            value={filtros.areaMin?.toString() || ""}
-            onValueChange={(value) => handleFiltroChange("areaMin", value === "todas" ? undefined : Number(value))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Cualquier tamaño" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Cualquier tamaño</SelectItem>
-              <SelectItem value="50">50+ m²</SelectItem>
-              <SelectItem value="100">100+ m²</SelectItem>
-              <SelectItem value="150">150+ m²</SelectItem>
-              <SelectItem value="200">200+ m²</SelectItem>
+              <SelectItem value="1">1 habitación</SelectItem>
+              <SelectItem value="2">2 habitaciones</SelectItem>
+              <SelectItem value="3">3 habitaciones</SelectItem>
+              <SelectItem value="4">4+ habitaciones</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -155,9 +144,9 @@ export function FiltrosInmuebles({
         <Label>Rango de precio</Label>
         <div className="px-2">
           <Slider
-            value={[filtros.precioMin || 0, filtros.precioMax || 1000000]}
+            value={[filtros.precioMin || 0, filtros.precioMax || 450000]}
             onValueChange={handlePrecioChange}
-            max={1000000}
+            max={450000}
             min={0}
             step={5000}
             className="w-full"
@@ -165,7 +154,7 @@ export function FiltrosInmuebles({
         </div>
         <div className="flex justify-between text-sm text-muted-foreground">
           <span>{formatPrice(filtros.precioMin || 0)}</span>
-          <span>{formatPrice(filtros.precioMax || 1000000)}</span>
+          <span>{formatPrice(filtros.precioMax || 450000)}</span>
         </div>
       </div>
 

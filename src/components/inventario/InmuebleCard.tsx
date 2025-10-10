@@ -12,6 +12,8 @@ interface InmuebleCardProps {
   showEditButton?: boolean;
   onSolicitarVisita?: (inmuebleId: string, fecha: string, hora: string) => void;
   onEdit?: (inmueble: Inmueble) => void;
+  visitasAgendadas?: number;
+  visitasExistentes?: any[];
 }
 
 export function InmuebleCard({ 
@@ -19,7 +21,9 @@ export function InmuebleCard({
   showSolicitarVisita = true,
   showEditButton = false,
   onSolicitarVisita,
-  onEdit
+  onEdit,
+  visitasAgendadas = 0,
+  visitasExistentes = []
 }: InmuebleCardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showVisitaModal, setShowVisitaModal] = useState(false);
@@ -54,10 +58,10 @@ export function InmuebleCard({
               }}
             />
             <Badge 
-              variant={inmueble.disponible ? "default" : "destructive"}
+              variant={visitasAgendadas >= 2 ? "destructive" : (inmueble.disponible ? "default" : "destructive")}
               className="absolute top-3 right-3 shadow-md"
             >
-              {inmueble.disponible ? "Disponible" : "Reservado"}
+              {visitasAgendadas >= 2 ? "En venta" : (inmueble.disponible ? "Disponible" : "Reservado")}
             </Badge>
           </div>
         )}
@@ -69,10 +73,10 @@ export function InmuebleCard({
             </Badge>
             {!inmueble.imageUrl && (
               <Badge 
-                variant={inmueble.disponible ? "default" : "destructive"}
+                variant={visitasAgendadas >= 2 ? "destructive" : (inmueble.disponible ? "default" : "destructive")}
                 className="text-xs"
               >
-                {inmueble.disponible ? "Disponible" : "Reservado"}
+                {visitasAgendadas >= 2 ? "En venta" : (inmueble.disponible ? "Disponible" : "Reservado")}
               </Badge>
             )}
           </div>
@@ -121,10 +125,6 @@ export function InmuebleCard({
             {showDetails && (
               <div className="mt-4 pt-3 border-t animate-fade-in">
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Proveedor:</span>
-                    <span>{inmueble.proveedor}</span>
-                  </div>
                   {inmueble.codigoInventario && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Código de Inventario:</span>
@@ -182,9 +182,10 @@ export function InmuebleCard({
               size="sm" 
               onClick={() => setShowVisitaModal(true)}
               className="flex-1"
+              disabled={visitasAgendadas >= 2}
             >
               <Calendar className="w-4 h-4 mr-1" />
-              Solicitar visita
+              {visitasAgendadas >= 2 ? "No disponible" : "Solicitar visita"}
             </Button>
           )}
         </CardFooter>
@@ -196,6 +197,7 @@ export function InmuebleCard({
           isOpen={showVisitaModal}
           onClose={() => setShowVisitaModal(false)}
           onSubmit={handleSolicitarVisita}
+          visitasExistentes={visitasExistentes}
         />
       )}
     </>

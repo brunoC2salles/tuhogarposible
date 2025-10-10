@@ -2,26 +2,48 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
-import { useReservas } from "@/hooks/useReservas";
+import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
 
+const getWeekNumber = (date: Date): number => {
+  const startOfYear = new Date(date.getFullYear(), 0, 1);
+  const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil((days + startOfYear.getDay() + 1) / 7);
+};
+
+const contarVisitasSemanaAtual = (visitas: DatabaseReserva[]): number => {
+  const hoje = new Date();
+  const semanaAtual = getWeekNumber(hoje);
+  const anoAtual = hoje.getFullYear();
+  
+  return visitas.filter(v => {
+    if (!v.fecha_visita || v.estado === 'cancelada') return false;
+    const visitaDate = new Date(v.fecha_visita);
+    return getWeekNumber(visitaDate) === semanaAtual && 
+           visitaDate.getFullYear() === anoAtual;
+  }).length;
+};
+
 const AgenteInventario = () => {
   const { profile, signOut } = useAuth();
   const { inmuebles, loading } = useInmuebles();
-  const { reservas, createReserva } = useReservas();
+  const { reservas, createReserva, fetchReservasByInmueble } = useReservas();
   const [inmueblesFiltrados, setInmueblesFiltrados] = useState<DatabaseInmueble[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
 
   const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
   const tiposDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.tipo))].sort();
@@ -35,6 +57,18 @@ const AgenteInventario = () => {
 
   const handleFiltrosChange = (filtros: FiltrosBusqueda) => {
     let filtrados = inmuebles.filter(inmueble => inmueble.disponible);
+
+    // Busca global
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtrados = filtrados.filter(inmueble => 
+        inmueble.ciudad.toLowerCase().includes(searchLower) ||
+        inmueble.direccion.toLowerCase().includes(searchLower) ||
+        inmueble.region.toLowerCase().includes(searchLower) ||
+        (inmueble.titulo && inmueble.titulo.toLowerCase().includes(searchLower)) ||
+        (inmueble.codigo_inventario && inmueble.codigo_inventario.toLowerCase().includes(searchLower))
+      );
+    }
 
     if (filtros.ciudad) {
       filtrados = filtrados.filter(inmueble => inmueble.ciudad === filtros.ciudad);
@@ -57,16 +91,14 @@ const AgenteInventario = () => {
       );
     }
 
-    if (filtros.areaMin) {
-      filtrados = filtrados.filter(inmueble => 
-        inmueble.area_m2 && inmueble.area_m2 >= filtros.areaMin!
-      );
-    }
-
     setInmueblesFiltrados(filtrados);
-    setCurrentPage(1); // Reset para primeira página ao filtrar
+    setCurrentPage(1);
     console.log("[Inventario] Filtrados:", filtrados.length, "inmuebles");
   };
+
+  useEffect(() => {
+    handleFiltrosChange({});
+  }, [searchTerm, inmuebles]);
 
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
     console.log("[Inventario] Solicitando visita", { inmuebleId, fecha, hora });
@@ -85,6 +117,23 @@ const AgenteInventario = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const inmueblesExibidos = inmueblesFiltrados.slice(startIndex, endIndex);
+
+  useEffect(() => {
+    const cargarVisitas = async () => {
+      const visitasMap: Record<string, DatabaseReserva[]> = {};
+      
+      for (const inmueble of inmueblesExibidos) {
+        const visitas = await fetchReservasByInmueble(inmueble.id);
+        visitasMap[inmueble.id] = visitas;
+      }
+      
+      setVisitasPorInmueble(visitasMap);
+    };
+    
+    if (inmueblesExibidos.length > 0) {
+      cargarVisitas();
+    }
+  }, [inmueblesExibidos]);
 
   if (loading) {
     return (
@@ -137,6 +186,18 @@ const AgenteInventario = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+            <Input
+              placeholder="Buscar por ciudad, dirección, código..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+          </div>
+        </div>
+
         <FiltrosInmuebles
           onFiltrosChange={handleFiltrosChange}
           ciudadesDisponibles={ciudadesDisponibles}
@@ -187,31 +248,38 @@ const AgenteInventario = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {inmueblesExibidos.map((inmueble) => (
-                <InmuebleCard
-                  key={inmueble.id}
-                  inmueble={{
-                    id: inmueble.id,
-                    ciudad: inmueble.ciudad,
-                    region: inmueble.region,
-                    tipo: inmueble.tipo,
-                    precio: inmueble.precio,
-                    direccion: inmueble.direccion,
-                    proveedor: inmueble.proveedor,
-                    disponible: inmueble.disponible,
-                    fechaCreacion: new Date(inmueble.created_at),
-                    agenteAsignado: inmueble.agente_asignado,
-                    titulo: inmueble.titulo || undefined,
-                    quartos: inmueble.quartos || undefined,
-                    banheiros: inmueble.banheiros || undefined,
-                    areaM2: inmueble.area_m2 || undefined,
-                    urlExterna: inmueble.url_externa || undefined,
-                    imageUrl: inmueble.image_url || undefined,
-                    codigoInventario: inmueble.codigo_inventario || undefined,
-                  }}
-                  onSolicitarVisita={handleSolicitarVisita}
-                />
-              ))}
+              {inmueblesExibidos.map((inmueble) => {
+                const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
+                const visitasSemana = contarVisitasSemanaAtual(visitasInmueble);
+                
+                return (
+                  <InmuebleCard
+                    key={inmueble.id}
+                    inmueble={{
+                      id: inmueble.id,
+                      ciudad: inmueble.ciudad,
+                      region: inmueble.region,
+                      tipo: inmueble.tipo,
+                      precio: inmueble.precio,
+                      direccion: inmueble.direccion,
+                      proveedor: inmueble.proveedor,
+                      disponible: inmueble.disponible,
+                      fechaCreacion: new Date(inmueble.created_at),
+                      agenteAsignado: inmueble.agente_asignado,
+                      titulo: inmueble.titulo || undefined,
+                      quartos: inmueble.quartos || undefined,
+                      banheiros: inmueble.banheiros || undefined,
+                      areaM2: inmueble.area_m2 || undefined,
+                      urlExterna: inmueble.url_externa || undefined,
+                      imageUrl: inmueble.image_url || undefined,
+                      codigoInventario: inmueble.codigo_inventario || undefined,
+                    }}
+                    onSolicitarVisita={handleSolicitarVisita}
+                    visitasAgendadas={visitasSemana}
+                    visitasExistentes={visitasInmueble}
+                  />
+                );
+              })}
             </div>
 
             {/* Paginação */}

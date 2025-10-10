@@ -164,6 +164,26 @@ export const useReservas = () => {
     fetchReservas();
   }, [profile]);
 
+  const fetchReservasByInmueble = async (inmuebleId: string): Promise<DatabaseReserva[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('reservas')
+        .select('*')
+        .eq('inmueble_id', inmuebleId)
+        .in('estado', ['pendiente', 'confirmada']);
+      
+      if (error) {
+        console.error('[Reservas] Error fetching by inmueble:', error);
+        return [];
+      }
+      
+      return data || [];
+    } catch (err) {
+      console.error('[Reservas] Error:', err);
+      return [];
+    }
+  };
+
   return {
     reservas,
     loading,
@@ -172,5 +192,6 @@ export const useReservas = () => {
     createReserva,
     updateReservaEstado,
     deleteReserva,
+    fetchReservasByInmueble,
   };
 };

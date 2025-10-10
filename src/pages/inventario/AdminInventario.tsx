@@ -13,19 +13,38 @@ import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
 import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useInmuebles";
-import { useReservas } from "@/hooks/useReservas";
+import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
 import Logo from "@/components/Logo";
 
+const getWeekNumber = (date: Date): number => {
+  const startOfYear = new Date(date.getFullYear(), 0, 1);
+  const days = Math.floor((date.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.ceil((days + startOfYear.getDay() + 1) / 7);
+};
+
+const contarVisitasSemanaAtual = (visitas: DatabaseReserva[]): number => {
+  const hoje = new Date();
+  const semanaAtual = getWeekNumber(hoje);
+  const anoAtual = hoje.getFullYear();
+  
+  return visitas.filter(v => {
+    if (!v.fecha_visita || v.estado === 'cancelada') return false;
+    const visitaDate = new Date(v.fecha_visita);
+    return getWeekNumber(visitaDate) === semanaAtual && 
+           visitaDate.getFullYear() === anoAtual;
+  }).length;
+};
+
 const AdminInventario = () => {
   const { profile, signOut } = useAuth();
   const { inmuebles, loading, createInmueble, updateInmueble, deleteInmueble, deleteMultipleInmuebles } = useInmuebles();
-  const { reservas, createReserva, deleteReserva } = useReservas();
+  const { reservas, createReserva, deleteReserva, fetchReservasByInmueble } = useReservas();
   const { agentes } = useAgentes();
   
   const [activeTab, setActiveTab] = useState("inmuebles");
@@ -36,6 +55,8 @@ const AdminInventario = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedInmuebles, setSelectedInmuebles] = useState<string[]>([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
 
   // Form states
   const [newInmueble, setNewInmueble] = useState<{
@@ -59,6 +80,23 @@ const AdminInventario = () => {
   useEffect(() => {
     console.log("[Inventario] Panel de administración cargado");
   }, []);
+
+  useEffect(() => {
+    const cargarVisitas = async () => {
+      const visitasMap: Record<string, DatabaseReserva[]> = {};
+      
+      for (const inmueble of inmuebles) {
+        const visitas = await fetchReservasByInmueble(inmueble.id);
+        visitasMap[inmueble.id] = visitas;
+      }
+      
+      setVisitasPorInmueble(visitasMap);
+    };
+    
+    if (inmuebles.length > 0) {
+      cargarVisitas();
+    }
+  }, [inmuebles]);
 
   const handleCreateInmueble = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -510,6 +548,18 @@ const AdminInventario = () => {
 
           {/* Inmuebles Tab */}
           <TabsContent value="inmuebles" className="space-y-6">
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                <Input
+                  placeholder="Buscar por ciudad, dirección, código..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-12 text-base"
+                />
+              </div>
+            </div>
+
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gestión de Inmuebles</h2>
               <div className="flex gap-2">
@@ -700,54 +750,73 @@ const AdminInventario = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inmuebles.map((inmueble) => (
-                <div key={inmueble.id} className="relative">
-                  {(showBulkActions || selectedInmuebles.length > 0) && (
-                    <div className="absolute top-2 left-2 z-10">
-                      <Checkbox
-                        checked={selectedInmuebles.includes(inmueble.id)}
-                        onCheckedChange={(checked) => handleSelectInmueble(inmueble.id, checked as boolean)}
-                        className="bg-white"
-                      />
-                    </div>
-                  )}
-                  <InmuebleCard 
-                    inmueble={{
-                      id: inmueble.id,
-                      ciudad: inmueble.ciudad,
-                      region: inmueble.region,
-                      tipo: inmueble.tipo,
-                      precio: inmueble.precio,
-                      direccion: inmueble.direccion,
-                      proveedor: inmueble.proveedor,
-                      disponible: inmueble.disponible,
-                      fechaCreacion: new Date(inmueble.created_at),
-                      agenteAsignado: inmueble.agente_asignado,
-                      titulo: inmueble.titulo || undefined,
-                      quartos: inmueble.quartos || undefined,
-                      banheiros: inmueble.banheiros || undefined,
-                      areaM2: inmueble.area_m2 || undefined,
-                      urlExterna: inmueble.url_externa || undefined,
-                      imageUrl: inmueble.image_url || undefined,
-                      codigoInventario: inmueble.codigo_inventario || undefined,
-                    }}
-                    showSolicitarVisita={false}
-                    showEditButton={true}
-                    onEdit={handleEditInmueble}
-                  />
-                  {!showBulkActions && selectedInmuebles.length === 0 && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => handleDeleteInmueble(inmueble.id)}
-                      disabled={isSubmitting}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              {inmuebles
+                .filter(inmueble => {
+                  if (!searchTerm.trim()) return true;
+                  const searchLower = searchTerm.toLowerCase();
+                  return (
+                    inmueble.ciudad.toLowerCase().includes(searchLower) ||
+                    inmueble.direccion.toLowerCase().includes(searchLower) ||
+                    inmueble.region.toLowerCase().includes(searchLower) ||
+                    (inmueble.titulo && inmueble.titulo.toLowerCase().includes(searchLower)) ||
+                    (inmueble.codigo_inventario && inmueble.codigo_inventario.toLowerCase().includes(searchLower))
+                  );
+                })
+                .map((inmueble) => {
+                  const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
+                  const visitasSemana = contarVisitasSemanaAtual(visitasInmueble);
+                  
+                  return (
+                  <div key={inmueble.id} className="relative">
+                    {(showBulkActions || selectedInmuebles.length > 0) && (
+                      <div className="absolute top-2 left-2 z-10">
+                        <Checkbox
+                          checked={selectedInmuebles.includes(inmueble.id)}
+                          onCheckedChange={(checked) => handleSelectInmueble(inmueble.id, checked as boolean)}
+                          className="bg-white"
+                        />
+                      </div>
+                    )}
+                    <InmuebleCard 
+                      inmueble={{
+                        id: inmueble.id,
+                        ciudad: inmueble.ciudad,
+                        region: inmueble.region,
+                        tipo: inmueble.tipo,
+                        precio: inmueble.precio,
+                        direccion: inmueble.direccion,
+                        proveedor: inmueble.proveedor,
+                        disponible: inmueble.disponible,
+                        fechaCreacion: new Date(inmueble.created_at),
+                        agenteAsignado: inmueble.agente_asignado,
+                        titulo: inmueble.titulo || undefined,
+                        quartos: inmueble.quartos || undefined,
+                        banheiros: inmueble.banheiros || undefined,
+                        areaM2: inmueble.area_m2 || undefined,
+                        urlExterna: inmueble.url_externa || undefined,
+                        imageUrl: inmueble.image_url || undefined,
+                        codigoInventario: inmueble.codigo_inventario || undefined,
+                      }}
+                      showSolicitarVisita={false}
+                      showEditButton={true}
+                      onEdit={handleEditInmueble}
+                      visitasAgendadas={visitasSemana}
+                      visitasExistentes={visitasInmueble}
+                    />
+                    {!showBulkActions && selectedInmuebles.length === 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2"
+                        onClick={() => handleDeleteInmueble(inmueble.id)}
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </TabsContent>
 

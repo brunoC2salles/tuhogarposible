@@ -44,7 +44,6 @@ export interface FiltrosBusqueda {
   precioMin?: number;
   precioMax?: number;
   quartos?: number;
-  areaMin?: number;
 }
 
 export interface CSVInmueble {
