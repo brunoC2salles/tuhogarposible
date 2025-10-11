@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
+import { SearchBarAutocomplete } from "@/components/inventario/SearchBarAutocomplete";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -187,15 +187,11 @@ const AgenteInventario = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-            <Input
-              placeholder="Buscar por ciudad, dirección, código..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-base"
-            />
-          </div>
+          <SearchBarAutocomplete
+            inmuebles={inmuebles}
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
         </div>
 
         <FiltrosInmuebles

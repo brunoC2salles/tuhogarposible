@@ -12,11 +12,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
+import { SearchBarAutocomplete } from "@/components/inventario/SearchBarAutocomplete";
 import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, Search } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
@@ -548,17 +549,13 @@ const AdminInventario = () => {
 
           {/* Inmuebles Tab */}
           <TabsContent value="inmuebles" className="space-y-6">
-            <div className="mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-                <Input
-                  placeholder="Buscar por ciudad, dirección, código..."
+              <div className="mb-6">
+                <SearchBarAutocomplete
+                  inmuebles={inmuebles}
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 text-base"
+                  onChange={setSearchTerm}
                 />
               </div>
-            </div>
 
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">Gestión de Inmuebles</h2>

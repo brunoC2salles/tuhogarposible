@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,10 +43,10 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
                 Volver
               </Button>
               <Button asChild>
-                <a href="/inventario/agente">
+                <Link to="/inventario/agente">
                   <LogIn className="w-4 h-4 mr-2" />
                   Portal Agente
-                </a>
+                </Link>
               </Button>
             </div>
           </CardContent>

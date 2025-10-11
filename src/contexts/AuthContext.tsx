@@ -50,30 +50,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Defer profile fetch with setTimeout
-          setTimeout(async () => {
-            try {
-              const { data: profileData, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              
-              if (error) {
-                console.error('[Auth] Error fetching profile:', error);
-                toast.error('Error al cargar el perfil de usuario');
-              } else {
-                setProfile(profileData);
-              }
-            } catch (error) {
-              console.error('[Auth] Profile fetch error:', error);
+          setLoading(true);
+          try {
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              console.error('[Auth] Error fetching profile:', error);
+              toast.error('Error al cargar el perfil de usuario');
+            } else {
+              setProfile(profileData);
             }
-          }, 0);
+          } catch (error) {
+            console.error('[Auth] Profile fetch error:', error);
+          } finally {
+            setLoading(false);
+          }
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 

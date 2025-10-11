@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
+
 import { FiltrosBusqueda } from "@/types/inventario";
 import { Filter, Search, X } from "lucide-react";
 import {
@@ -26,14 +26,23 @@ export function FiltrosInmuebles({
   tiposDisponibles 
 }: FiltrosInmueblesProps) {
   const isMobile = useIsMobile();
-  const [isOpen, setIsOpen] = useState(!isMobile);
+  const [isOpen, setIsOpen] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     precioMin: 0,
     precioMax: 450000,
   });
 
   const handleFiltroChange = (key: keyof FiltrosBusqueda, value: any) => {
-    const nuevosFiltros = { ...filtros, [key]: value };
+    let nuevosFiltros = { ...filtros, [key]: value };
+    
+    // Validación de precio
+    if (key === "precioMin" && nuevosFiltros.precioMax && value > nuevosFiltros.precioMax) {
+      nuevosFiltros.precioMax = value;
+    }
+    if (key === "precioMax" && nuevosFiltros.precioMin && value < nuevosFiltros.precioMin) {
+      nuevosFiltros.precioMin = value;
+    }
+    
     setFiltros(nuevosFiltros);
     onFiltrosChange(nuevosFiltros);
     console.log("[Inventario] Filtros actualizados:", nuevosFiltros);
@@ -140,20 +149,53 @@ export function FiltrosInmuebles({
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         <Label>Rango de precio</Label>
-        <div className="px-2">
-          <Slider
-            value={[filtros.precioMin || 0, filtros.precioMax || 450000]}
-            onValueChange={handlePrecioChange}
-            max={450000}
-            min={0}
-            step={5000}
-            className="w-full"
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="precioMin" className="text-xs text-muted-foreground">
+              Precio mínimo
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
+              <Input
+                id="precioMin"
+                type="number"
+                min={0}
+                max={450000}
+                step={1000}
+                value={filtros.precioMin || 0}
+                onChange={(e) => handleFiltroChange("precioMin", Number(e.target.value))}
+                className="pl-8"
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="precioMax" className="text-xs text-muted-foreground">
+              Precio máximo
+            </Label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
+              <Input
+                id="precioMax"
+                type="number"
+                min={0}
+                max={450000}
+                step={1000}
+                value={filtros.precioMax || 450000}
+                onChange={(e) => handleFiltroChange("precioMax", Number(e.target.value))}
+                className="pl-8"
+                placeholder="450000"
+              />
+            </div>
+          </div>
         </div>
-        <div className="flex justify-between text-sm text-muted-foreground">
+        
+        <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
           <span>{formatPrice(filtros.precioMin || 0)}</span>
+          <span className="text-xs">→</span>
           <span>{formatPrice(filtros.precioMax || 450000)}</span>
         </div>
       </div>
