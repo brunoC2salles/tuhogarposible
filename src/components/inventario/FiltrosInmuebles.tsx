@@ -209,40 +209,26 @@ export function FiltrosInmuebles({
     </CardContent>
   );
 
-  if (isMobile) {
-    return (
-      <Card className="mb-6">
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors">
-              <CardTitle className="flex items-center justify-between text-lg">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5" />
-                  Filtros de búsqueda
-                </div>
-                <Button variant="ghost" size="sm">
-                  {isOpen ? "Ocultar" : "Mostrar"}
-                </Button>
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <FiltersContent />
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-    );
-  }
-
   return (
     <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Filter className="w-5 h-5" />
-          Filtros de búsqueda
-        </CardTitle>
-      </CardHeader>
-      <FiltersContent />
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filtros de búsqueda
+              </div>
+              <Button variant="ghost" size="sm">
+                {isOpen ? "Ocultar" : "Mostrar"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <FiltersContent />
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }
