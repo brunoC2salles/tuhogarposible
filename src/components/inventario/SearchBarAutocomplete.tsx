@@ -1,12 +1,18 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatabaseInmueble } from "@/hooks/useInmuebles";
 
 interface SearchBarAutocompleteProps {
@@ -29,6 +35,7 @@ export function SearchBarAutocomplete({
   onChange 
 }: SearchBarAutocompleteProps) {
   const [open, setOpen] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
 
   // Extrair sugestões únicas dos inmuebles
   const suggestions = useMemo(() => {
@@ -73,7 +80,7 @@ export function SearchBarAutocomplete({
 
   // Filtrar sugestões baseado no input
   const filteredSuggestions = useMemo(() => {
-    if (!value || value.length < 1) return null;
+    if (!value || value.length < 2) return null;
     
     const searchLower = value.toLowerCase();
     
@@ -102,116 +109,101 @@ export function SearchBarAutocomplete({
     return totalResults > 0 ? filtered : null;
   }, [value, suggestions]);
 
-  const handleSelect = useCallback((selectedValue: string) => {
+  // Abrir popover quando houver sugestões
+  useEffect(() => {
+    setOpen(inputFocused && !!filteredSuggestions && value.length >= 2);
+  }, [filteredSuggestions, inputFocused, value]);
+
+  const handleSelect = (selectedValue: string) => {
     onChange(selectedValue);
     setOpen(false);
-  }, [onChange]);
-
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    onChange(newValue);
-    setOpen(newValue.length >= 1);
-  }, [onChange]);
+  };
 
   return (
-    <div className="relative">
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10 pointer-events-none" />
-      <Popover open={open && !!filteredSuggestions} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
           <Input
             placeholder="Buscar por ciudad, dirección, región, tipo..."
             value={value}
-            onChange={handleInputChange}
-            onFocus={() => value.length >= 1 && setOpen(true)}
+            onChange={(e) => onChange(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setTimeout(() => setInputFocused(false), 200)}
             className="pl-10 h-12 text-base"
           />
-        </PopoverTrigger>
-        
+        </div>
+      </PopoverTrigger>
+      
+      {filteredSuggestions && (
         <PopoverContent 
-          className="w-[var(--radix-popover-trigger-width)] p-0"
+          className="w-[--radix-popover-trigger-width] p-0"
           align="start"
           side="bottom"
-          onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <ScrollArea className="h-[300px]">
-            <div className="p-2">
-              {!filteredSuggestions && (
-                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                  No se encontraron sugerencias
-                </div>
-              )}
+          <Command>
+            <CommandList>
+              <CommandEmpty>No se encontraron sugerencias</CommandEmpty>
               
-              {filteredSuggestions?.ciudades && filteredSuggestions.ciudades.length > 0 && (
-                <div className="mb-4">
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    Ciudades
-                  </div>
+              {filteredSuggestions.ciudades.length > 0 && (
+                <CommandGroup heading="Ciudades">
                   {filteredSuggestions.ciudades.map((item) => (
-                    <button
+                    <CommandItem
                       key={`ciudad-${item.value}`}
-                      onClick={() => handleSelect(item.value)}
-                      className="w-full text-left px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                      value={item.value}
+                      onSelect={handleSelect}
                     >
                       {item.label}
-                    </button>
+                    </CommandItem>
                   ))}
-                </div>
+                </CommandGroup>
               )}
               
-              {filteredSuggestions?.regiones && filteredSuggestions.regiones.length > 0 && (
-                <div className="mb-4">
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    Regiones
-                  </div>
+              {filteredSuggestions.regiones.length > 0 && (
+                <CommandGroup heading="Regiones">
                   {filteredSuggestions.regiones.map((item) => (
-                    <button
+                    <CommandItem
                       key={`region-${item.value}`}
-                      onClick={() => handleSelect(item.value)}
-                      className="w-full text-left px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                      value={item.value}
+                      onSelect={handleSelect}
                     >
                       {item.label}
-                    </button>
+                    </CommandItem>
                   ))}
-                </div>
+                </CommandGroup>
               )}
               
-              {filteredSuggestions?.tipos && filteredSuggestions.tipos.length > 0 && (
-                <div className="mb-4">
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    Tipos de inmueble
-                  </div>
+              {filteredSuggestions.tipos.length > 0 && (
+                <CommandGroup heading="Tipos de inmueble">
                   {filteredSuggestions.tipos.map((item) => (
-                    <button
+                    <CommandItem
                       key={`tipo-${item.value}`}
-                      onClick={() => handleSelect(item.value)}
-                      className="w-full text-left px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                      value={item.value}
+                      onSelect={handleSelect}
                     >
                       {item.label}
-                    </button>
+                    </CommandItem>
                   ))}
-                </div>
+                </CommandGroup>
               )}
               
-              {filteredSuggestions?.direcciones && filteredSuggestions.direcciones.length > 0 && (
-                <div>
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    Direcciones
-                  </div>
+              {filteredSuggestions.direcciones.length > 0 && (
+                <CommandGroup heading="Direcciones">
                   {filteredSuggestions.direcciones.map((item) => (
-                    <button
+                    <CommandItem
                       key={`dir-${item.value}`}
-                      onClick={() => handleSelect(item.value)}
-                      className="w-full text-left px-2 py-2 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                      value={item.value}
+                      onSelect={handleSelect}
                     >
                       {item.label}
-                    </button>
+                    </CommandItem>
                   ))}
-                </div>
+                </CommandGroup>
               )}
-            </div>
-          </ScrollArea>
+            </CommandList>
+          </Command>
         </PopoverContent>
-      </Popover>
-    </div>
+      )}
+    </Popover>
   );
 }
