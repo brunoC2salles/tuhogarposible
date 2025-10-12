@@ -4,15 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-import { FiltrosBusqueda } from "@/types/inventario";
-import { Filter, Search, X } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { FiltrosBusqueda } from "@/types/inventario";
+import { Filter, X } from "lucide-react";
 
 interface FiltrosInmueblesProps {
   onFiltrosChange: (filtros: FiltrosBusqueda) => void;
@@ -25,7 +23,6 @@ export function FiltrosInmuebles({
   ciudadesDisponibles, 
   tiposDisponibles 
 }: FiltrosInmueblesProps) {
-  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
     precioMin: 0,
@@ -209,40 +206,26 @@ export function FiltrosInmuebles({
     </CardContent>
   );
 
-  if (isMobile) {
-    return (
-      <Card className="mb-6">
-        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors">
-              <CardTitle className="flex items-center justify-between text-lg">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-5 h-5" />
-                  Filtros de búsqueda
-                </div>
-                <Button variant="ghost" size="sm">
-                  {isOpen ? "Ocultar" : "Mostrar"}
-                </Button>
-              </CardTitle>
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <FiltersContent />
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
-    );
-  }
-
   return (
     <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Filter className="w-5 h-5" />
-          Filtros de búsqueda
-        </CardTitle>
-      </CardHeader>
-      <FiltersContent />
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="pb-2 cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors">
+            <CardTitle className="flex items-center justify-between text-lg">
+              <div className="flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filtros de búsqueda
+              </div>
+              <Button variant="ghost" size="sm">
+                {isOpen ? "Ocultar" : "Mostrar"}
+              </Button>
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <FiltersContent />
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }

@@ -1,18 +1,8 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { DatabaseInmueble } from "@/hooks/useInmuebles";
 
 interface SearchBarAutocompleteProps {
@@ -35,101 +25,77 @@ export function SearchBarAutocomplete({
   onChange 
 }: SearchBarAutocompleteProps) {
   const [open, setOpen] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
+  const [debouncedValue, setDebouncedValue] = useState(value);
 
-  // Extrair sugestões únicas dos inmuebles
-  const suggestions = useMemo(() => {
-    const ciudades = [...new Set(inmuebles.map(i => i.ciudad))].map(c => ({
-      value: c,
-      label: c,
-      category: 'Ciudad'
-    }));
+  // Debounce: Aguarda 300ms após última digitação
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, 300);
     
-    const regiones = [...new Set(inmuebles.map(i => i.region))].map(r => ({
-      value: r,
-      label: r,
-      category: 'Región'
-    }));
-    
-    const tipos = [...new Set(inmuebles.map(i => i.tipo))].map(t => ({
-      value: t,
-      label: tipoDisplayNames[t] || t,
-      category: 'Tipo'
-    }));
-    
-    // Adicionar endereços únicos (limitado a 10 mais relevantes)
-    const direcciones = [...new Set(
-      inmuebles
-        .filter(i => i.direccion)
-        .map(i => i.direccion)
-    )]
-    .slice(0, 10)
-    .map(d => ({
-      value: d,
-      label: d,
-      category: 'Dirección'
-    }));
+    return () => clearTimeout(timer);
+  }, [value]);
 
+  // Sugestões base (calculadas apenas 1x quando inmuebles mudar)
+  const baseSuggestions = useMemo(() => {
     return {
-      ciudades,
-      regiones,
-      tipos,
-      direcciones
+      ciudades: [...new Set(inmuebles.map(i => i.ciudad))].sort(),
+      regiones: [...new Set(inmuebles.map(i => i.region))].sort(),
+      tipos: [...new Set(inmuebles.map(i => i.tipo))].sort(),
+      direcciones: [...new Set(inmuebles.map(i => i.direccion))].slice(0, 20)
     };
   }, [inmuebles]);
 
-  // Filtrar sugestões baseado no input
+  // Filtrar apenas quando debounced value mudar
   const filteredSuggestions = useMemo(() => {
-    if (!value || value.length < 2) return null;
+    if (!debouncedValue || debouncedValue.length < 1) return null;
     
-    const searchLower = value.toLowerCase();
+    const searchLower = debouncedValue.toLowerCase();
     
     const filtered = {
-      ciudades: suggestions.ciudades.filter(s => 
-        s.value.toLowerCase().includes(searchLower)
-      ),
-      regiones: suggestions.regiones.filter(s => 
-        s.value.toLowerCase().includes(searchLower)
-      ),
-      tipos: suggestions.tipos.filter(s => 
-        s.value.toLowerCase().includes(searchLower) ||
-        s.label.toLowerCase().includes(searchLower)
-      ),
-      direcciones: suggestions.direcciones.filter(s => 
-        s.value.toLowerCase().includes(searchLower)
-      )
+      ciudades: baseSuggestions.ciudades
+        .filter(c => c.toLowerCase().includes(searchLower))
+        .slice(0, 5),
+      regiones: baseSuggestions.regiones
+        .filter(r => r.toLowerCase().includes(searchLower))
+        .slice(0, 5),
+      tipos: baseSuggestions.tipos
+        .filter(t => {
+          const displayName = tipoDisplayNames[t] || t;
+          return t.toLowerCase().includes(searchLower) || 
+                 displayName.toLowerCase().includes(searchLower);
+        })
+        .slice(0, 5),
+      direcciones: baseSuggestions.direcciones
+        .filter(d => d.toLowerCase().includes(searchLower))
+        .slice(0, 5)
     };
     
-    const totalResults = 
-      filtered.ciudades.length + 
-      filtered.regiones.length + 
-      filtered.tipos.length + 
-      filtered.direcciones.length;
+    const total = filtered.ciudades.length + filtered.regiones.length + 
+                  filtered.tipos.length + filtered.direcciones.length;
     
-    return totalResults > 0 ? filtered : null;
-  }, [value, suggestions]);
+    return total > 0 ? filtered : null;
+  }, [debouncedValue, baseSuggestions]);
 
-  // Abrir popover quando houver sugestões
+  // Abrir popover apenas com resultados
   useEffect(() => {
-    setOpen(inputFocused && !!filteredSuggestions && value.length >= 2);
-  }, [filteredSuggestions, inputFocused, value]);
+    setOpen(!!filteredSuggestions && value.length >= 1);
+  }, [filteredSuggestions, value]);
 
-  const handleSelect = (selectedValue: string) => {
+  const handleSelect = useCallback((selectedValue: string) => {
     onChange(selectedValue);
     setOpen(false);
-  };
+  }, [onChange]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 z-10 pointer-events-none" />
           <Input
             placeholder="Buscar por ciudad, dirección, región, tipo..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setTimeout(() => setInputFocused(false), 200)}
             className="pl-10 h-12 text-base"
           />
         </div>
@@ -141,67 +107,86 @@ export function SearchBarAutocomplete({
           align="start"
           side="bottom"
         >
-          <Command>
-            <CommandList>
-              <CommandEmpty>No se encontraron sugerencias</CommandEmpty>
-              
+          <ScrollArea className="max-h-80">
+            <div className="p-2">
               {filteredSuggestions.ciudades.length > 0 && (
-                <CommandGroup heading="Ciudades">
-                  {filteredSuggestions.ciudades.map((item) => (
-                    <CommandItem
-                      key={`ciudad-${item.value}`}
-                      value={item.value}
-                      onSelect={handleSelect}
+                <div className="mb-2">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Ciudades
+                  </div>
+                  {filteredSuggestions.ciudades.map((ciudad) => (
+                    <button
+                      key={`ciudad-${ciudad}`}
+                      onClick={() => handleSelect(ciudad)}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
                     >
-                      {item.label}
-                    </CommandItem>
+                      {ciudad}
+                    </button>
                   ))}
-                </CommandGroup>
+                </div>
               )}
               
               {filteredSuggestions.regiones.length > 0 && (
-                <CommandGroup heading="Regiones">
-                  {filteredSuggestions.regiones.map((item) => (
-                    <CommandItem
-                      key={`region-${item.value}`}
-                      value={item.value}
-                      onSelect={handleSelect}
+                <div className="mb-2">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Regiones
+                  </div>
+                  {filteredSuggestions.regiones.map((region) => (
+                    <button
+                      key={`region-${region}`}
+                      onClick={() => handleSelect(region)}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
                     >
-                      {item.label}
-                    </CommandItem>
+                      {region}
+                    </button>
                   ))}
-                </CommandGroup>
+                </div>
               )}
               
               {filteredSuggestions.tipos.length > 0 && (
-                <CommandGroup heading="Tipos de inmueble">
-                  {filteredSuggestions.tipos.map((item) => (
-                    <CommandItem
-                      key={`tipo-${item.value}`}
-                      value={item.value}
-                      onSelect={handleSelect}
+                <div className="mb-2">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Tipos de inmueble
+                  </div>
+                  {filteredSuggestions.tipos.map((tipo) => (
+                    <button
+                      key={`tipo-${tipo}`}
+                      onClick={() => handleSelect(tipo)}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
                     >
-                      {item.label}
-                    </CommandItem>
+                      {tipoDisplayNames[tipo] || tipo}
+                    </button>
                   ))}
-                </CommandGroup>
+                </div>
               )}
               
               {filteredSuggestions.direcciones.length > 0 && (
-                <CommandGroup heading="Direcciones">
-                  {filteredSuggestions.direcciones.map((item) => (
-                    <CommandItem
-                      key={`dir-${item.value}`}
-                      value={item.value}
-                      onSelect={handleSelect}
+                <div>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    Direcciones
+                  </div>
+                  {filteredSuggestions.direcciones.map((dir) => (
+                    <button
+                      key={`dir-${dir}`}
+                      onClick={() => handleSelect(dir)}
+                      className="w-full text-left px-2 py-1.5 text-sm rounded-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors"
                     >
-                      {item.label}
-                    </CommandItem>
+                      {dir}
+                    </button>
                   ))}
-                </CommandGroup>
+                </div>
               )}
-            </CommandList>
-          </Command>
+              
+              {!filteredSuggestions.ciudades.length && 
+               !filteredSuggestions.regiones.length && 
+               !filteredSuggestions.tipos.length && 
+               !filteredSuggestions.direcciones.length && (
+                <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                  No se encontraron sugerencias
+                </div>
+              )}
+            </div>
+          </ScrollArea>
         </PopoverContent>
       )}
     </Popover>
