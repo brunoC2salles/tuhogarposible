@@ -162,7 +162,7 @@ export const useReservas = () => {
 
   useEffect(() => {
     fetchReservas();
-  }, [profile]);
+  }, [profile?.id]);
 
   const fetchReservasByInmueble = async (inmuebleId: string): Promise<DatabaseReserva[]> => {
     try {

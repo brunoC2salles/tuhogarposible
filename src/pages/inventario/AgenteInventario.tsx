@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import Logo from "@/components/Logo";
 
 const getWeekNumber = (date: Date): number => {
@@ -120,20 +121,45 @@ const AgenteInventario = () => {
 
   useEffect(() => {
     const cargarVisitas = async () => {
-      const visitasMap: Record<string, DatabaseReserva[]> = {};
-      
-      for (const inmueble of inmueblesExibidos) {
-        const visitas = await fetchReservasByInmueble(inmueble.id);
-        visitasMap[inmueble.id] = visitas;
+      if (inmueblesExibidos.length === 0) {
+        setVisitasPorInmueble({});
+        return;
       }
-      
-      setVisitasPorInmueble(visitasMap);
+
+      try {
+        const inmuebleIds = inmueblesExibidos.map(i => i.id);
+        
+        // Single query for all properties - huge performance boost
+        const { data, error } = await supabase
+          .from('reservas')
+          .select('*')
+          .in('inmueble_id', inmuebleIds)
+          .in('estado', ['pendiente', 'confirmada']);
+        
+        if (error) {
+          console.error('[Inventario] Error loading visits:', error);
+          return;
+        }
+        
+        // Map visits by property ID
+        const visitasMap: Record<string, DatabaseReserva[]> = {};
+        inmuebleIds.forEach(id => visitasMap[id] = []);
+        
+        (data || []).forEach(visita => {
+          if (visitasMap[visita.inmueble_id]) {
+            visitasMap[visita.inmueble_id].push(visita as DatabaseReserva);
+          }
+        });
+        
+        setVisitasPorInmueble(visitasMap);
+        console.log('[Inventario] Loaded visits for', inmuebleIds.length, 'properties in 1 query');
+      } catch (error) {
+        console.error('[Inventario] Error:', error);
+      }
     };
     
-    if (inmueblesExibidos.length > 0) {
-      cargarVisitas();
-    }
-  }, [inmueblesExibidos]);
+    cargarVisitas();
+  }, [inmueblesExibidos.map(i => i.id).join(',')]);
 
   if (loading) {
     return (
