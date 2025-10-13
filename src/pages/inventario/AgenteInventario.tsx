@@ -23,17 +23,24 @@ const getWeekNumber = (date: Date): number => {
   return Math.ceil((days + startOfYear.getDay() + 1) / 7);
 };
 
-const contarVisitasSemanaAtual = (visitas: DatabaseReserva[]): number => {
-  const hoje = new Date();
-  const semanaAtual = getWeekNumber(hoje);
-  const anoAtual = hoje.getFullYear();
+const contarMaxVisitasPorSemana = (visitas: DatabaseReserva[]): number => {
+  // Agrupar visitas por semana
+  const visitasPorSemana: Record<string, number> = {};
   
-  return visitas.filter(v => {
-    if (!v.fecha_visita || v.estado === 'cancelada') return false;
+  visitas.forEach(v => {
+    if (!v.fecha_visita || v.estado === 'cancelada') return;
+    
     const visitaDate = new Date(v.fecha_visita);
-    return getWeekNumber(visitaDate) === semanaAtual && 
-           visitaDate.getFullYear() === anoAtual;
-  }).length;
+    const semana = getWeekNumber(visitaDate);
+    const ano = visitaDate.getFullYear();
+    const chave = `${ano}-W${semana}`; // Ex: "2025-W42"
+    
+    visitasPorSemana[chave] = (visitasPorSemana[chave] || 0) + 1;
+  });
+  
+  // Retornar o máximo de visitas em qualquer semana
+  const maxVisitas = Math.max(0, ...Object.values(visitasPorSemana));
+  return maxVisitas;
 };
 
 const AgenteInventario = () => {
@@ -272,7 +279,7 @@ const AgenteInventario = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {inmueblesExibidos.map((inmueble) => {
                 const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
-                const visitasSemana = contarVisitasSemanaAtual(visitasInmueble);
+                const visitasSemana = contarMaxVisitasPorSemana(visitasInmueble);
                 
                 return (
                   <InmuebleCard
