@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -84,20 +85,44 @@ const AdminInventario = () => {
 
   useEffect(() => {
     const cargarVisitas = async () => {
-      const visitasMap: Record<string, DatabaseReserva[]> = {};
-      
-      for (const inmueble of inmuebles) {
-        const visitas = await fetchReservasByInmueble(inmueble.id);
-        visitasMap[inmueble.id] = visitas;
+      if (inmuebles.length === 0) {
+        setVisitasPorInmueble({});
+        return;
       }
-      
-      setVisitasPorInmueble(visitasMap);
+
+      try {
+        const inmuebleIds = inmuebles.map(i => i.id);
+        
+        // Single query para TODOS os imóveis (ao invés de loop)
+        const { data, error } = await supabase
+          .from('reservas')
+          .select('*')
+          .in('inmueble_id', inmuebleIds);
+        
+        if (error) {
+          console.error('[Admin] Error loading visits:', error);
+          return;
+        }
+        
+        // Mapear visitas por inmueble_id
+        const visitasMap: Record<string, DatabaseReserva[]> = {};
+        inmuebleIds.forEach(id => visitasMap[id] = []);
+        
+        (data || []).forEach(visita => {
+          if (visitasMap[visita.inmueble_id]) {
+            visitasMap[visita.inmueble_id].push(visita as DatabaseReserva);
+          }
+        });
+        
+        setVisitasPorInmueble(visitasMap);
+        console.log('[Admin] Loaded visits for', inmuebleIds.length, 'properties in 1 query');
+      } catch (error) {
+        console.error('[Admin] Error:', error);
+      }
     };
     
-    if (inmuebles.length > 0) {
-      cargarVisitas();
-    }
-  }, [inmuebles]);
+    cargarVisitas();
+  }, [inmuebles.map(i => i.id).join(',')]);
 
   const handleCreateInmueble = async (e: React.FormEvent) => {
     e.preventDefault();

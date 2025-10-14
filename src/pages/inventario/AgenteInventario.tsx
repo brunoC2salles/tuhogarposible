@@ -49,8 +49,9 @@ const AgenteInventario = () => {
   const { reservas, createReserva, fetchReservasByInmueble } = useReservas();
   const [inmueblesFiltrados, setInmueblesFiltrados] = useState<DatabaseInmueble[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(12);
+  const [itemsPerPage, setItemsPerPage] = useState(48);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
 
   const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
@@ -63,12 +64,21 @@ const AgenteInventario = () => {
     setInmueblesFiltrados(disponibles);
   }, [inmuebles]);
 
+  // Debounce para search term (evita filtrar a cada tecla)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const handleFiltrosChange = (filtros: FiltrosBusqueda) => {
     let filtrados = inmuebles.filter(inmueble => inmueble.disponible);
 
     // Busca global
-    if (searchTerm.trim()) {
-      const searchLower = searchTerm.toLowerCase();
+    if (debouncedSearchTerm.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
       filtrados = filtrados.filter(inmueble => 
         inmueble.ciudad.toLowerCase().includes(searchLower) ||
         inmueble.direccion.toLowerCase().includes(searchLower) ||
@@ -106,7 +116,7 @@ const AgenteInventario = () => {
 
   useEffect(() => {
     handleFiltrosChange({});
-  }, [searchTerm, inmuebles]);
+  }, [debouncedSearchTerm, inmuebles]);
 
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
     console.log("[Inventario] Solicitando visita", { inmuebleId, fecha, hora });
