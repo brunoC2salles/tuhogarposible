@@ -36,15 +36,25 @@ export function SearchBarAutocomplete({
     return () => clearTimeout(timer);
   }, [value]);
 
-  // Sugestões base (calculadas apenas 1x quando inmuebles mudar)
+  // Sugestões base - otimizado para evitar loops infinitos
   const baseSuggestions = useMemo(() => {
+    // Se não há inmuebles, retornar vazio
+    if (!inmuebles || inmuebles.length === 0) {
+      return {
+        ciudades: [],
+        regiones: [],
+        tipos: [],
+        direcciones: []
+      };
+    }
+    
     return {
       ciudades: [...new Set(inmuebles.map(i => i.ciudad))].sort(),
       regiones: [...new Set(inmuebles.map(i => i.region))].sort(),
       tipos: [...new Set(inmuebles.map(i => i.tipo))].sort(),
       direcciones: [...new Set(inmuebles.map(i => i.direccion))].slice(0, 20)
     };
-  }, [inmuebles]);
+  }, [inmuebles.length]); // Otimizado: depende apenas do tamanho
 
   // Filtrar apenas quando debounced value mudar
   const filteredSuggestions = useMemo(() => {

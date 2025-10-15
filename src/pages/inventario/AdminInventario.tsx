@@ -59,6 +59,19 @@ const AdminInventario = () => {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(48);
+  const [totalInmuebles, setTotalInmuebles] = useState(0);
+
+  // Fetch paginado inicial
+  useEffect(() => {
+    const loadPage = async () => {
+      console.log("[AdminInventario] Cargando página", currentPage);
+      const result = await fetchInmuebles(currentPage, itemsPerPage);
+      setTotalInmuebles(result.total);
+    };
+    loadPage();
+  }, [currentPage, itemsPerPage, fetchInmuebles]);
 
   // Form states
   const [newInmueble, setNewInmueble] = useState<{
@@ -511,6 +524,9 @@ const AdminInventario = () => {
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
 
+  // Paginação server-side
+  const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -791,6 +807,49 @@ const AdminInventario = () => {
                   Modo Selección
                 </Button>
               )}
+            </div>
+
+            {/* Controles de paginação */}
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Itens por página:</span>
+                <select 
+                  value={itemsPerPage} 
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="border rounded px-2 py-1 text-sm"
+                >
+                  <option value={24}>24</option>
+                  <option value={48}>48</option>
+                  <option value={96}>96</option>
+                  <option value={200}>200</option>
+                </select>
+                <span className="text-sm text-muted-foreground">
+                  Total: {totalInmuebles} inmuebles
+                </span>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                >
+                  Anterior
+                </button>
+                <span className="px-3 py-1 text-sm">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

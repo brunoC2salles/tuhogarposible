@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,19 +55,48 @@ const AgenteInventario = () => {
   const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
   const [totalInmuebles, setTotalInmuebles] = useState(0);
   const [filtrosActivos, setFiltrosActivos] = useState<FiltrosBusqueda>({});
+  const [allCiudades, setAllCiudades] = useState<string[]>([]);
+  const [allTipos, setAllTipos] = useState<string[]>([]);
+  
+  // Memoizar cálculos pesados para evitar loops infinitos
+  const ciudadesDisponibles = useMemo(() => 
+    allCiudades.length > 0 ? allCiudades : [...new Set(inmuebles.map(i => i.ciudad))],
+    [allCiudades, inmuebles.length]
+  );
+  
+  const tiposDisponibles = useMemo(() => 
+    allTipos.length > 0 ? allTipos : [...new Set(inmuebles.map(i => i.tipo))],
+    [allTipos, inmuebles.length]
+  );
 
-  const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
-  const tiposDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.tipo))].sort();
-
-  // Load page with server-side pagination
+  // Carregar cidades e tipos distintos do banco (apenas 1x)
   useEffect(() => {
-    const loadPage = async () => {
-      console.log("[Inventario] Cargando página", currentPage);
-      await fetchInmueblesWithFilters();
+    const fetchDistinctValues = async () => {
+      try {
+        const { data: ciudadesData } = await supabase
+          .from('inmuebles')
+          .select('ciudad')
+          .eq('disponible', true);
+        
+        const { data: tiposData } = await supabase
+          .from('inmuebles')
+          .select('tipo')
+          .eq('disponible', true);
+        
+        if (ciudadesData) {
+          setAllCiudades([...new Set(ciudadesData.map(i => i.ciudad))].sort());
+        }
+        
+        if (tiposData) {
+          setAllTipos([...new Set(tiposData.map(i => i.tipo))].sort());
+        }
+      } catch (err) {
+        console.error('[Inventario] Error loading distinct values:', err);
+      }
     };
     
-    loadPage();
-  }, [currentPage, itemsPerPage]);
+    fetchDistinctValues();
+  }, []); // Apenas 1x ao montar
 
   // Debounce para search term (evita filtrar a cada tecla)
   useEffect(() => {
@@ -78,8 +107,8 @@ const AgenteInventario = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Server-side filtering with pagination
-  const fetchInmueblesWithFilters = async () => {
+  // Fetch inmuebles with filters (memoizado para estabilidade)
+  const fetchInmueblesWithFilters = useCallback(async () => {
     try {
       let query = supabase
         .from('inmuebles')
@@ -130,16 +159,18 @@ const AgenteInventario = () => {
       console.error("[Inventario] Error filtering:", err);
       toast.error("Error al aplicar filtros");
     }
-  };
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivos]);
 
-  const handleFiltrosChange = (filtros: FiltrosBusqueda) => {
-    setFiltrosActivos(filtros);
-    setCurrentPage(1);
-  };
-
+  // Fetch initial data (depende de fetchInmueblesWithFilters que é estável via useCallback)
   useEffect(() => {
     fetchInmueblesWithFilters();
-  }, [debouncedSearchTerm, filtrosActivos, currentPage, itemsPerPage]);
+  }, [fetchInmueblesWithFilters]);
+
+  // Memoizar handler para evitar recriação
+  const handleFiltrosChange = useCallback((filtros: FiltrosBusqueda) => {
+    setFiltrosActivos(filtros);
+    setCurrentPage(1); // Reset para primeira página
+  }, []);
 
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
     console.log("[Inventario] Solicitando visita", { inmuebleId, fecha, hora });
@@ -158,6 +189,7 @@ const AgenteInventario = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalInmuebles);
 
+  // Fetch visits quando mudar página ou lista (otimizado para não recriar arrays)
   useEffect(() => {
     const cargarVisitas = async () => {
       if (inmueblesFiltrados.length === 0) {
