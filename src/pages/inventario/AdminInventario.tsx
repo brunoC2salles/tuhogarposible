@@ -45,7 +45,7 @@ const contarVisitasSemanaAtual = (visitas: DatabaseReserva[]): number => {
 
 const AdminInventario = () => {
   const { profile, signOut } = useAuth();
-  const { inmuebles, loading, createInmueble, updateInmueble, deleteInmueble, deleteMultipleInmuebles } = useInmuebles();
+  const { inmuebles, loading, createInmueble, updateInmueble, deleteInmueble, deleteMultipleInmuebles, fetchInmuebles } = useInmuebles();
   const { reservas, createReserva, deleteReserva, fetchReservasByInmueble } = useReservas();
   const { agentes } = useAgentes();
   
@@ -455,21 +455,43 @@ const AdminInventario = () => {
         return;
       }
       
-      // Importación en lote
+      // Batch import optimization - 100 items per batch
+      const BATCH_SIZE = 100;
       let successCount = 0;
       let failCount = 0;
       
-      for (const item of validItems) {
-        const result = await createInmueble(item);
-        if (result.error) {
-          console.error('[JSON Import] Error al crear:', result.error);
-          failCount++;
-        } else {
-          successCount++;
+      for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
+        const batch = validItems.slice(i, i + BATCH_SIZE);
+        
+        try {
+          // Insert entire batch in a single query
+          const { data, error } = await supabase
+            .from('inmuebles')
+            .insert(batch)
+            .select();
+          
+          if (error) throw error;
+          
+          successCount += data.length;
+          
+          // Update progress
+          const progress = Math.round((successCount / validItems.length) * 100);
+          toast.info(`📦 Importando: ${progress}% (${successCount}/${validItems.length})`, {
+            id: 'batch-progress'
+          });
+          
+        } catch (err: any) {
+          console.error('[JSON Import] Batch error:', err);
+          failCount += batch.length;
         }
       }
       
-      toast.success(`✅ ${successCount} inmuebles importados con éxito!`);
+      // Refresh the list after import
+      await fetchInmuebles();
+      
+      toast.success(`✅ ${successCount} inmuebles importados con éxito!`, {
+        id: 'batch-progress'
+      });
       if (failCount > 0) {
         toast.error(`❌ ${failCount} inmuebles fallaron en la importación`);
       }

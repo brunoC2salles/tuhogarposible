@@ -45,7 +45,7 @@ const contarMaxVisitasPorSemana = (visitas: DatabaseReserva[]): number => {
 
 const AgenteInventario = () => {
   const { profile, signOut } = useAuth();
-  const { inmuebles, loading } = useInmuebles();
+  const { inmuebles, loading, fetchInmuebles } = useInmuebles();
   const { reservas, createReserva, fetchReservasByInmueble } = useReservas();
   const [inmueblesFiltrados, setInmueblesFiltrados] = useState<DatabaseInmueble[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -53,16 +53,21 @@ const AgenteInventario = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [visitasPorInmueble, setVisitasPorInmueble] = useState<Record<string, DatabaseReserva[]>>({});
+  const [totalInmuebles, setTotalInmuebles] = useState(0);
+  const [filtrosActivos, setFiltrosActivos] = useState<FiltrosBusqueda>({});
 
   const ciudadesDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.ciudad))].sort();
   const tiposDisponibles = [...new Set(inmuebles.filter(i => i.disponible).map(i => i.tipo))].sort();
 
+  // Load page with server-side pagination
   useEffect(() => {
-    console.log("[Inventario] Cargando inmuebles para agente");
-    // Filtrar solo inmuebles disponibles
-    const disponibles = inmuebles.filter(inmueble => inmueble.disponible);
-    setInmueblesFiltrados(disponibles);
-  }, [inmuebles]);
+    const loadPage = async () => {
+      console.log("[Inventario] Cargando página", currentPage);
+      await fetchInmueblesWithFilters();
+    };
+    
+    loadPage();
+  }, [currentPage, itemsPerPage]);
 
   // Debounce para search term (evita filtrar a cada tecla)
   useEffect(() => {
@@ -73,50 +78,68 @@ const AgenteInventario = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Server-side filtering with pagination
+  const fetchInmueblesWithFilters = async () => {
+    try {
+      let query = supabase
+        .from('inmuebles')
+        .select('*', { count: 'exact' })
+        .eq('disponible', true)
+        .order('created_at', { ascending: false });
+
+      // Global search
+      if (debouncedSearchTerm.trim()) {
+        const searchLower = `%${debouncedSearchTerm.toLowerCase()}%`;
+        query = query.or(`ciudad.ilike.${searchLower},direccion.ilike.${searchLower},region.ilike.${searchLower},titulo.ilike.${searchLower},codigo_inventario.ilike.${searchLower}`);
+      }
+
+      // City filter
+      if (filtrosActivos.ciudad) {
+        query = query.eq('ciudad', filtrosActivos.ciudad);
+      }
+
+      // Type filter
+      if (filtrosActivos.tipo) {
+        query = query.eq('tipo', filtrosActivos.tipo as any);
+      }
+
+      // Price filter
+      if (filtrosActivos.precioMin !== undefined && filtrosActivos.precioMax !== undefined) {
+        query = query.gte('precio', filtrosActivos.precioMin).lte('precio', filtrosActivos.precioMax);
+      }
+
+      // Rooms filter
+      if (filtrosActivos.quartos) {
+        query = query.gte('quartos', filtrosActivos.quartos);
+      }
+
+      // Pagination
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage - 1;
+      query = query.range(start, end);
+
+      const { data, error, count } = await query;
+      
+      if (error) throw error;
+      
+      setInmueblesFiltrados(data || []);
+      setTotalInmuebles(count || 0);
+      
+      console.log("[Inventario] Filtrados server-side:", count, "inmuebles, página", currentPage);
+    } catch (err) {
+      console.error("[Inventario] Error filtering:", err);
+      toast.error("Error al aplicar filtros");
+    }
+  };
+
   const handleFiltrosChange = (filtros: FiltrosBusqueda) => {
-    let filtrados = inmuebles.filter(inmueble => inmueble.disponible);
-
-    // Busca global
-    if (debouncedSearchTerm.trim()) {
-      const searchLower = debouncedSearchTerm.toLowerCase();
-      filtrados = filtrados.filter(inmueble => 
-        inmueble.ciudad.toLowerCase().includes(searchLower) ||
-        inmueble.direccion.toLowerCase().includes(searchLower) ||
-        inmueble.region.toLowerCase().includes(searchLower) ||
-        (inmueble.titulo && inmueble.titulo.toLowerCase().includes(searchLower)) ||
-        (inmueble.codigo_inventario && inmueble.codigo_inventario.toLowerCase().includes(searchLower))
-      );
-    }
-
-    if (filtros.ciudad) {
-      filtrados = filtrados.filter(inmueble => inmueble.ciudad === filtros.ciudad);
-    }
-
-    if (filtros.tipo) {
-      filtrados = filtrados.filter(inmueble => inmueble.tipo === filtros.tipo);
-    }
-
-    if (filtros.precioMin !== undefined && filtros.precioMax !== undefined) {
-      filtrados = filtrados.filter(inmueble => 
-        inmueble.precio >= filtros.precioMin! && 
-        inmueble.precio <= filtros.precioMax!
-      );
-    }
-
-    if (filtros.quartos) {
-      filtrados = filtrados.filter(inmueble => 
-        inmueble.quartos && inmueble.quartos >= filtros.quartos!
-      );
-    }
-
-    setInmueblesFiltrados(filtrados);
+    setFiltrosActivos(filtros);
     setCurrentPage(1);
-    console.log("[Inventario] Filtrados:", filtrados.length, "inmuebles");
   };
 
   useEffect(() => {
-    handleFiltrosChange({});
-  }, [debouncedSearchTerm, inmuebles]);
+    fetchInmueblesWithFilters();
+  }, [debouncedSearchTerm, filtrosActivos, currentPage, itemsPerPage]);
 
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
     console.log("[Inventario] Solicitando visita", { inmuebleId, fecha, hora });
@@ -130,23 +153,22 @@ const AgenteInventario = () => {
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente').length;
 
-  // Cálculos de paginação
-  const totalPages = Math.ceil(inmueblesFiltrados.length / itemsPerPage);
+  // Server-side pagination calculations
+  const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const inmueblesExibidos = inmueblesFiltrados.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + itemsPerPage, totalInmuebles);
 
   useEffect(() => {
     const cargarVisitas = async () => {
-      if (inmueblesExibidos.length === 0) {
+      if (inmueblesFiltrados.length === 0) {
         setVisitasPorInmueble({});
         return;
       }
 
       try {
-        const inmuebleIds = inmueblesExibidos.map(i => i.id);
+        const inmuebleIds = inmueblesFiltrados.map(i => i.id);
         
-        // Single query for all properties - huge performance boost
+        // Single query for all properties on current page
         const { data, error } = await supabase
           .from('reservas')
           .select('*')
@@ -176,7 +198,7 @@ const AgenteInventario = () => {
     };
     
     cargarVisitas();
-  }, [inmueblesExibidos.map(i => i.id).join(',')]);
+  }, [inmueblesFiltrados.map(i => i.id).join(',')]);
 
   if (loading) {
     return (
@@ -201,12 +223,12 @@ const AgenteInventario = () => {
                   Volver
                 </Button>
               </Link>
-              <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
                 <Logo size="sm" />
                 <div>
                   <h1 className="text-2xl font-bold">Portal del Agente</h1>
                   <p className="text-sm text-muted-foreground">
-                    Bienvenido, {profile?.nombre} - {inmueblesFiltrados.length} inmuebles disponibles
+                    Bienvenido, {profile?.nombre} - {totalInmuebles} inmuebles disponibles
                   </p>
                 </div>
               </div>
@@ -244,10 +266,10 @@ const AgenteInventario = () => {
         />
 
         {/* Indicador de resultados e seletor de itens por página */}
-        {inmueblesFiltrados.length > 0 && (
+        {totalInmuebles > 0 && (
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1}-{Math.min(endIndex, inmueblesFiltrados.length)} de {inmueblesFiltrados.length} inmuebles
+              Mostrando {startIndex + 1}-{endIndex} de {totalInmuebles} inmuebles
             </p>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Mostrar:</span>
@@ -268,7 +290,7 @@ const AgenteInventario = () => {
           </div>
         )}
 
-        {inmueblesFiltrados.length === 0 ? (
+        {totalInmuebles === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
               <Home className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -287,7 +309,7 @@ const AgenteInventario = () => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {inmueblesExibidos.map((inmueble) => {
+              {inmueblesFiltrados.map((inmueble) => {
                 const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
                 const visitasSemana = contarMaxVisitasPorSemana(visitasInmueble);
                 

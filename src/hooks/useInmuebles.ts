@@ -45,24 +45,37 @@ export const useInmuebles = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInmuebles = async () => {
+  const fetchInmuebles = async (page: number = 1, pageSize: number = 48) => {
     try {
       setLoading(true);
       setError(null);
       
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize - 1;
+      
+      // Fetch total count for pagination
+      const { count } = await supabase
+        .from('inmuebles')
+        .select('*', { count: 'exact', head: true });
+      
+      // Fetch only the requested page
       const { data, error } = await supabase
         .from('inmuebles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(start, end);
 
       if (error) throw error;
 
       setInmuebles(data || []);
-      console.log('[Inmuebles] Fetched:', data?.length || 0, 'inmuebles');
+      console.log('[Inmuebles] Fetched page:', page, 'items:', data?.length || 0, 'total:', count);
+      
+      return { data: data || [], total: count || 0, page, pageSize };
     } catch (err: any) {
       console.error('[Inmuebles] Fetch error:', err);
       setError(err.message);
       toast.error('Error al cargar inmuebles');
+      return { data: [], total: 0, page, pageSize };
     } finally {
       setLoading(false);
     }
