@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,16 +62,24 @@ const AdminInventario = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(48);
   const [totalInmuebles, setTotalInmuebles] = useState(0);
+  const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
+
+  // ✅ FASE 3: Hash estável para IDs dos imóveis
+  const inmueblesIdsHash = useMemo(
+    () => inmuebles.map(i => i.id).sort().join(','),
+    [inmuebles.length]
+  );
 
   // Fetch paginado inicial
   useEffect(() => {
+    console.log('🔴 [Debug] AdminInventario - useEffect loadPage disparado');
     const loadPage = async () => {
       console.log("[AdminInventario] Cargando página", currentPage);
       const result = await fetchInmuebles(currentPage, itemsPerPage);
       setTotalInmuebles(result.total);
     };
     loadPage();
-  }, [currentPage, itemsPerPage, fetchInmuebles]);
+  }, [currentPage, itemsPerPage]);
 
   // Form states
   const [newInmueble, setNewInmueble] = useState<{
@@ -97,6 +105,7 @@ const AdminInventario = () => {
   }, []);
 
   useEffect(() => {
+    console.log('🟡 [Debug] AdminInventario - useEffect cargarVisitas disparado');
     const cargarVisitas = async () => {
       if (inmuebles.length === 0) {
         setVisitasPorInmueble({});
@@ -104,38 +113,31 @@ const AdminInventario = () => {
       }
 
       try {
-        const inmuebleIds = inmuebles.map(i => i.id);
+        const ids = inmuebles.map(i => i.id);
         
-        // Single query para TODOS os imóveis (ao invés de loop)
-        const { data, error } = await supabase
+        const { data: visitas, error } = await supabase
           .from('reservas')
           .select('*')
-          .in('inmueble_id', inmuebleIds);
-        
-        if (error) {
-          console.error('[Admin] Error loading visits:', error);
-          return;
-        }
-        
-        // Mapear visitas por inmueble_id
+          .in('inmueble_id', ids);
+
+        if (error) throw error;
+
         const visitasMap: Record<string, DatabaseReserva[]> = {};
-        inmuebleIds.forEach(id => visitasMap[id] = []);
-        
-        (data || []).forEach(visita => {
-          if (visitasMap[visita.inmueble_id]) {
-            visitasMap[visita.inmueble_id].push(visita as DatabaseReserva);
+        visitas?.forEach((visita) => {
+          if (!visitasMap[visita.inmueble_id]) {
+            visitasMap[visita.inmueble_id] = [];
           }
+          visitasMap[visita.inmueble_id].push(visita);
         });
-        
+
         setVisitasPorInmueble(visitasMap);
-        console.log('[Admin] Loaded visits for', inmuebleIds.length, 'properties in 1 query');
       } catch (error) {
-        console.error('[Admin] Error:', error);
+        console.error('[AdminInventario] Error cargando visitas:', error);
       }
     };
     
     cargarVisitas();
-  }, [inmuebles.map(i => i.id).join(',')]);
+  }, [inmueblesIdsHash]);
 
   const handleCreateInmueble = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -523,9 +525,6 @@ const AdminInventario = () => {
   };
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
-
-  // Paginação server-side
-  const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-background">

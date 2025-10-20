@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -45,7 +45,7 @@ export const useInmuebles = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInmuebles = async (page: number = 1, pageSize: number = 48) => {
+  const fetchInmuebles = useCallback(async (page: number = 1, pageSize: number = 48) => {
     try {
       setLoading(true);
       setError(null);
@@ -79,9 +79,9 @@ export const useInmuebles = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const createInmueble = async (data: CreateInmuebleData) => {
+  const createInmueble = useCallback(async (data: CreateInmuebleData) => {
     try {
       const { data: newInmueble, error } = await supabase
         .from('inmuebles')
@@ -100,9 +100,9 @@ export const useInmuebles = () => {
       toast.error('Error al crear inmueble');
       return { data: null, error: err.message };
     }
-  };
+  }, []);
 
-  const updateInmueble = async (id: string, updates: Partial<CreateInmuebleData>) => {
+  const updateInmueble = useCallback(async (id: string, updates: Partial<CreateInmuebleData>) => {
     try {
       const { data, error } = await supabase
         .from('inmuebles')
@@ -124,9 +124,9 @@ export const useInmuebles = () => {
       toast.error('Error al actualizar inmueble');
       return { data: null, error: err.message };
     }
-  };
+  }, []);
 
-  const deleteInmueble = async (id: string) => {
+  const deleteInmueble = useCallback(async (id: string) => {
     try {
       const { error } = await supabase
         .from('inmuebles')
@@ -144,9 +144,9 @@ export const useInmuebles = () => {
       toast.error('Error al eliminar inmueble');
       return { error: err.message };
     }
-  };
+  }, []);
 
-  const deleteMultipleInmuebles = async (ids: string[]) => {
+  const deleteMultipleInmuebles = useCallback(async (ids: string[]) => {
     try {
       const { error } = await supabase
         .from('inmuebles')
@@ -164,11 +164,11 @@ export const useInmuebles = () => {
       toast.error('Error al eliminar inmuebles');
       return { error: err.message };
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchInmuebles();
-  }, []);
+  }, [fetchInmuebles]);
 
   return {
     inmuebles,

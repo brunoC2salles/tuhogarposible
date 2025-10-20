@@ -126,6 +126,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     setLoading(true);
+    
+    // ✅ FASE 5: Limpar cache antes de logout
+    try {
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+    } catch (err) {
+      console.error('[Auth] Error clearing cache:', err);
+    }
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

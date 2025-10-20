@@ -59,14 +59,26 @@ const AgenteInventario = () => {
   const [allTipos, setAllTipos] = useState<string[]>([]);
   
   // Memoizar cálculos pesados para evitar loops infinitos
-  const ciudadesDisponibles = useMemo(() => 
-    allCiudades.length > 0 ? allCiudades : [...new Set(inmuebles.map(i => i.ciudad))],
-    [allCiudades, inmuebles.length]
+  const ciudadesDisponibles = useMemo(() => {
+    const allCities = allCiudades.length > 0 ? allCiudades : Array.from(new Set(inmuebles.map(i => i.ciudad)));
+    return allCities.sort();
+  }, [allCiudades, inmuebles.length]);
+
+  const tiposDisponibles = useMemo(() => {
+    const allTypes = allTipos.length > 0 ? allTipos : Array.from(new Set(inmuebles.map(i => i.tipo)));
+    return allTypes.sort();
+  }, [allTipos, inmuebles.length]);
+
+  // ✅ FASE 2: Hash estável para IDs dos imóveis filtrados
+  const inmuebleIdsHash = useMemo(
+    () => inmueblesFiltrados.map(i => i.id).sort().join(','),
+    [inmueblesFiltrados.length]
   );
-  
-  const tiposDisponibles = useMemo(() => 
-    allTipos.length > 0 ? allTipos : [...new Set(inmuebles.map(i => i.tipo))],
-    [allTipos, inmuebles.length]
+
+  // ✅ FASE 2: Hash estável para filtros ativos
+  const filtrosActivosHash = useMemo(
+    () => JSON.stringify(filtrosActivos),
+    [filtrosActivos.ciudad, filtrosActivos.tipo, filtrosActivos.precioMin, filtrosActivos.precioMax, filtrosActivos.quartos]
   );
 
   // Carregar cidades e tipos distintos do banco (apenas 1x)
@@ -159,10 +171,11 @@ const AgenteInventario = () => {
       console.error("[Inventario] Error filtering:", err);
       toast.error("Error al aplicar filtros");
     }
-  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivos]);
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash]);
 
   // Fetch initial data (depende de fetchInmueblesWithFilters que é estável via useCallback)
   useEffect(() => {
+    console.log('🔵 [Debug] AgenteInventario - useEffect fetchInmueblesWithFilters disparado');
     fetchInmueblesWithFilters();
   }, [fetchInmueblesWithFilters]);
 
@@ -191,6 +204,7 @@ const AgenteInventario = () => {
 
   // Fetch visits quando mudar página ou lista (otimizado para não recriar arrays)
   useEffect(() => {
+    console.log('🟢 [Debug] AgenteInventario - useEffect cargarVisitas disparado');
     const cargarVisitas = async () => {
       if (inmueblesFiltrados.length === 0) {
         setVisitasPorInmueble({});
@@ -230,7 +244,7 @@ const AgenteInventario = () => {
     };
     
     cargarVisitas();
-  }, [inmueblesFiltrados.map(i => i.id).join(',')]);
+  }, [inmuebleIdsHash]);
 
   if (loading) {
     return (
