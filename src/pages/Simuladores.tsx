@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Logo from "@/components/Logo";
 import { SimuladorCreditoPersonal } from "@/components/simuladores/SimuladorCreditoPersonal";
+import { SimuladorCreditoHipotecario } from "@/components/simuladores/SimuladorCreditoHipotecario";
 
 const Simuladores = () => {
   return (
@@ -75,27 +76,44 @@ const Simuladores = () => {
               </CardContent>
             </Card>
 
-            {/* Placeholder para Simulador 2 */}
-            <Card className="opacity-60 cursor-not-allowed">
+            {/* Simulador de Crédito Hipotecario */}
+            <Card className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="p-3 rounded-lg bg-muted">
-                    <Home className="h-6 w-6 text-muted-foreground" />
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Home className="h-6 w-6 text-primary" />
                   </div>
-                  <CardTitle className="text-xl">Simulador 2</CardTitle>
+                  <CardTitle className="text-xl">Simulador de Crédito Hipotecario</CardTitle>
                 </div>
                 <CardDescription className="text-base">
-                  Próximamente: Nuevo simulador en desarrollo
+                  Calcula el financiamiento hipotecario hasta el 80% del valor de la vivienda,
+                  con análisis de gastos por comunidad y capacidad de endeudamiento.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Estamos trabajando en nuevas herramientas para ayudarte en tu proceso 
-                  de compra inmobiliaria.
-                </p>
-                <Button size="lg" className="w-full" disabled>
-                  Próximamente
-                </Button>
+                <ul className="space-y-2 mb-6 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Financiamiento hasta 80% del valor</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Cálculo de gastos por comunidad autónoma</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Descuentos por familia numerosa y menores de 35 años</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Análisis de capacidad de endeudamiento (30%)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary mt-1">•</span>
+                    <span>Exportación de resultados en PDF</span>
+                  </li>
+                </ul>
+                <SimuladorCreditoHipotecario />
               </CardContent>
             </Card>
           </div>

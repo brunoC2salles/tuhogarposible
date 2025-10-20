@@ -36,3 +36,44 @@ export const simuladorCreditoSchema = z.object({
 });
 
 export type SimuladorCreditoFormData = z.infer<typeof simuladorCreditoSchema>;
+
+// ========== SIMULADOR HIPOTECARIO ==========
+
+export const simuladorHipotecaSchema = z.object({
+  nombreCompleto: z.string()
+    .trim()
+    .min(3, 'Nombre debe tener mínimo 3 caracteres')
+    .max(100, 'Nombre muy largo'),
+  
+  edad: z.number()
+    .int('Edad debe ser un número entero')
+    .min(18, 'Edad mínima: 18 años')
+    .max(65, 'Edad máxima: 65 años'),
+  
+  precioVivienda: z.number()
+    .min(10000, 'Precio de vivienda debe ser mayor a 10.000€'),
+  
+  comunidadAutonoma: z.enum(['Madrid', 'Cataluña', 'Andalucía', 'Valencia', 'Otros'], {
+    required_error: 'Debe seleccionar una comunidad autónoma'
+  }),
+  
+  familiaNumerosa: z.boolean(),
+  
+  menorDe35: z.boolean(),
+  
+  situacionLaboral: z.enum(['autonomo', 'empleado'], {
+    required_error: 'Debe seleccionar situación laboral'
+  }),
+  
+  ingresosMensuales: z.number()
+    .min(1, 'Ingresos mensuales deben ser positivos'),
+  
+  creditosPendientes: z.number()
+    .min(0, 'Créditos pendientes no pueden ser negativos'),
+  
+  tasaAnual: z.number()
+    .min(1, 'Tasa mínima: 1%')
+    .max(15, 'Tasa máxima: 15%')
+});
+
+export type SimuladorHipotecaFormData = z.infer<typeof simuladorHipotecaSchema>;
