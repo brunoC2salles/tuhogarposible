@@ -78,15 +78,11 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <a 
-                href="https://simuladores-agentes.lovable.app/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-              >
+              <Link to="/simuladores">
                 <Button className="w-full" size="lg">
                   Acceder a los simuladores
                 </Button>
-              </a>
+              </Link>
             </CardContent>
           </Card>
         </div>

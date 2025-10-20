@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AgenteInventario from "./pages/inventario/AgenteInventario";
 import AdminInventario from "./pages/inventario/AdminInventario";
+import Simuladores from "./pages/Simuladores";
 
 const queryClient = new QueryClient();
 
@@ -23,8 +24,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/simuladores" element={<Simuladores />} />
             <Route 
-              path="/inventario/agente" 
+              path="/inventario/agente"
               element={
                 <ProtectedRoute>
                   <AgenteInventario />
