@@ -182,6 +182,7 @@ const AgenteInventario = () => {
   // Memoizar handler para evitar recriação
   const handleFiltrosChange = useCallback((filtros: FiltrosBusqueda) => {
     setFiltrosActivos(filtros);
+    setSearchTerm(""); // ✅ Limpar pesquisa ao mudar filtros
     setCurrentPage(1); // Reset para primeira página
   }, []);
 
@@ -246,7 +247,7 @@ const AgenteInventario = () => {
     cargarVisitas();
   }, [inmuebleIdsHash]);
 
-  if (loading) {
+  if (loading && inmuebles.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -299,10 +300,22 @@ const AgenteInventario = () => {
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <SearchBarAutocomplete
-            inmuebles={inmuebles}
             value={searchTerm}
             onChange={setSearchTerm}
           />
+          {searchTerm && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm">
+                Buscando: "{searchTerm}"
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="ml-2 hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </Badge>
+            </div>
+          )}
         </div>
 
         <FiltrosInmuebles
@@ -353,13 +366,26 @@ const AgenteInventario = () => {
             </CardContent>
           </Card>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {inmueblesFiltrados.map((inmueble) => {
-                const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
-                const visitasSemana = contarMaxVisitasPorSemana(visitasInmueble);
-                
-                return (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {loading ? (
+                  // Loading skeletons
+                  Array.from({ length: 12 }).map((_, i) => (
+                    <Card key={i} className="overflow-hidden">
+                      <CardContent className="p-6">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-full mb-4" />
+                        <Skeleton className="h-4 w-1/2 mb-2" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  inmueblesFiltrados.map((inmueble) => {
+                    const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
+                    const visitasSemana = contarMaxVisitasPorSemana(visitasInmueble);
+                    
+                    return (
                   <InmuebleCard
                     key={inmueble.id}
                     inmueble={{
@@ -385,9 +411,10 @@ const AgenteInventario = () => {
                     visitasAgendadas={visitasSemana}
                     visitasExistentes={visitasInmueble}
                   />
-                );
-              })}
-            </div>
+                    );
+                  })
+                )}
+              </div>
 
             {/* Paginação */}
             {totalPages > 1 && (

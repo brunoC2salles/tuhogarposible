@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
@@ -613,10 +614,22 @@ const AdminInventario = () => {
           <TabsContent value="inmuebles" className="space-y-6">
               <div className="mb-6">
                 <SearchBarAutocomplete
-                  inmuebles={inmuebles}
                   value={searchTerm}
                   onChange={setSearchTerm}
                 />
+                {searchTerm && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge variant="secondary" className="text-sm">
+                      Buscando: "{searchTerm}"
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="ml-2 hover:text-foreground"
+                      >
+                        ✕
+                      </button>
+                    </Badge>
+                  </div>
+                )}
               </div>
 
             <div className="flex justify-between items-center">
@@ -852,23 +865,36 @@ const AdminInventario = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inmuebles
-                .filter(inmueble => {
-                  if (!searchTerm.trim()) return true;
-                  const searchLower = searchTerm.toLowerCase();
-                  return (
-                    inmueble.ciudad.toLowerCase().includes(searchLower) ||
-                    inmueble.direccion.toLowerCase().includes(searchLower) ||
-                    inmueble.region.toLowerCase().includes(searchLower) ||
-                    (inmueble.titulo && inmueble.titulo.toLowerCase().includes(searchLower)) ||
-                    (inmueble.codigo_inventario && inmueble.codigo_inventario.toLowerCase().includes(searchLower))
-                  );
-                })
-                .map((inmueble) => {
-                  const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
-                  const visitasSemana = contarVisitasSemanaAtual(visitasInmueble);
-                  
-                  return (
+              {loading ? (
+                // Loading skeletons
+                Array.from({ length: 12 }).map((_, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="p-6">
+                      <Skeleton className="h-6 w-3/4 mb-2" />
+                      <Skeleton className="h-4 w-full mb-4" />
+                      <Skeleton className="h-4 w-1/2 mb-2" />
+                      <Skeleton className="h-4 w-2/3" />
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                inmuebles
+                  .filter(inmueble => {
+                    if (!searchTerm.trim()) return true;
+                    const searchLower = searchTerm.toLowerCase();
+                    return (
+                      inmueble.ciudad.toLowerCase().includes(searchLower) ||
+                      inmueble.direccion.toLowerCase().includes(searchLower) ||
+                      inmueble.region.toLowerCase().includes(searchLower) ||
+                      (inmueble.titulo && inmueble.titulo.toLowerCase().includes(searchLower)) ||
+                      (inmueble.codigo_inventario && inmueble.codigo_inventario.toLowerCase().includes(searchLower))
+                    );
+                  })
+                  .map((inmueble) => {
+                    const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
+                    const visitasSemana = contarVisitasSemanaAtual(visitasInmueble);
+                    
+                    return (
                   <div key={inmueble.id} className="relative">
                     {(showBulkActions || selectedInmuebles.length > 0) && (
                       <div className="absolute top-2 left-2 z-10">
@@ -917,8 +943,9 @@ const AdminInventario = () => {
                       </Button>
                     )}
                   </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </TabsContent>
 

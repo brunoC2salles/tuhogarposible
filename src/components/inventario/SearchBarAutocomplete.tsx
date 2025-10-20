@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Search } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { DatabaseInmueble } from "@/hooks/useInmuebles";
+import { useSearchSuggestions } from "@/hooks/useSearchSuggestions";
 
 interface SearchBarAutocompleteProps {
-  inmuebles: DatabaseInmueble[];
   value: string;
   onChange: (value: string) => void;
 }
@@ -20,72 +19,11 @@ const tipoDisplayNames: Record<string, string> = {
 };
 
 export function SearchBarAutocomplete({ 
-  inmuebles, 
   value, 
   onChange 
 }: SearchBarAutocompleteProps) {
   const [open, setOpen] = useState(false);
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  // Debounce: Aguarda 300ms após última digitação
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedValue(value);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [value]);
-
-  // Sugestões base - otimizado para evitar loops infinitos
-  const baseSuggestions = useMemo(() => {
-    // Se não há inmuebles, retornar vazio
-    if (!inmuebles || inmuebles.length === 0) {
-      return {
-        ciudades: [],
-        regiones: [],
-        tipos: [],
-        direcciones: []
-      };
-    }
-    
-    return {
-      ciudades: [...new Set(inmuebles.map(i => i.ciudad))].sort(),
-      regiones: [...new Set(inmuebles.map(i => i.region))].sort(),
-      tipos: [...new Set(inmuebles.map(i => i.tipo))].sort(),
-      direcciones: [...new Set(inmuebles.map(i => i.direccion))].slice(0, 20)
-    };
-  }, [inmuebles.length]); // Otimizado: depende apenas do tamanho
-
-  // Filtrar apenas quando debounced value mudar
-  const filteredSuggestions = useMemo(() => {
-    if (!debouncedValue || debouncedValue.length < 1) return null;
-    
-    const searchLower = debouncedValue.toLowerCase();
-    
-    const filtered = {
-      ciudades: baseSuggestions.ciudades
-        .filter(c => c.toLowerCase().includes(searchLower))
-        .slice(0, 5),
-      regiones: baseSuggestions.regiones
-        .filter(r => r.toLowerCase().includes(searchLower))
-        .slice(0, 5),
-      tipos: baseSuggestions.tipos
-        .filter(t => {
-          const displayName = tipoDisplayNames[t] || t;
-          return t.toLowerCase().includes(searchLower) || 
-                 displayName.toLowerCase().includes(searchLower);
-        })
-        .slice(0, 5),
-      direcciones: baseSuggestions.direcciones
-        .filter(d => d.toLowerCase().includes(searchLower))
-        .slice(0, 5)
-    };
-    
-    const total = filtered.ciudades.length + filtered.regiones.length + 
-                  filtered.tipos.length + filtered.direcciones.length;
-    
-    return total > 0 ? filtered : null;
-  }, [debouncedValue, baseSuggestions]);
+  const { suggestions: filteredSuggestions, loading } = useSearchSuggestions(value);
 
   // Abrir popover apenas com resultados
   useEffect(() => {
@@ -106,8 +44,11 @@ export function SearchBarAutocomplete({
             placeholder="Buscar por ciudad, dirección, región, tipo..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="pl-10 h-12 text-base"
+            className="pl-10 pr-10 h-12 text-base"
           />
+          {loading && (
+            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+          )}
         </div>
       </PopoverTrigger>
       
