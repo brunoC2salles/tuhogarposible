@@ -49,6 +49,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Helper function to load profile
     const loadProfile = async (userId: string) => {
       console.log('[Auth] 🔵 Loading profile for user:', userId);
+      
+      // Wait to ensure auth context is established
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       try {
         const { data: profileData, error } = await supabase
           .from('profiles')
@@ -58,13 +62,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (error) {
           console.error('[Auth] ❌ Error fetching profile:', error);
+          console.error('[Auth] ❌ Error details:', JSON.stringify(error));
           toast.error('Error al cargar el perfil de usuario');
+          setProfile(null);
         } else {
-          console.log('[Auth] ✅ Profile loaded:', profileData.nombre);
+          console.log('[Auth] ✅ Profile loaded:', profileData?.nombre);
           setProfile(profileData);
         }
       } catch (error) {
         console.error('[Auth] ❌ Profile fetch exception:', error);
+        setProfile(null);
       }
     };
 
