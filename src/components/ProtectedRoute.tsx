@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -12,13 +12,28 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
   const { user, profile, loading, isAdmin } = useAuth();
+  const [showReload, setShowReload] = useState(false);
+
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => setShowReload(true), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowReload(false);
+    }
+  }, [loading]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Verificando acceso...</p>
+          <p className="text-muted-foreground mb-4">Verificando acceso...</p>
+          {showReload && (
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Recargar página
+            </Button>
+          )}
         </div>
       </div>
     );

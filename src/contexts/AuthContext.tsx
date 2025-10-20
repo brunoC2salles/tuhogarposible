@@ -41,10 +41,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
+
     // Helper function to load profile
     const loadProfile = async (userId: string) => {
+      console.log('[Auth] 🔵 Loading profile for user:', userId);
       try {
         const { data: profileData, error } = await supabase
           .from('profiles')
@@ -53,19 +57,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .single();
         
         if (error) {
-          console.error('[Auth] Error fetching profile:', error);
+          console.error('[Auth] ❌ Error fetching profile:', error);
           toast.error('Error al cargar el perfil de usuario');
         } else {
+          console.log('[Auth] ✅ Profile loaded:', profileData.nombre);
           setProfile(profileData);
         }
       } catch (error) {
-        console.error('[Auth] Profile fetch error:', error);
+        console.error('[Auth] ❌ Profile fetch exception:', error);
       }
     };
 
-    // Set up auth state listener
+    // 1. First, check for existing session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('[Auth] 🟢 Get session result:', !!session);
+      if (!mounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        await loadProfile(session.user.id);
+      }
+      
+      setLoading(false);
+      setInitialized(true);
+    });
+
+    // 2. Then, set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[Auth] 🟡 Auth state change:', event);
+        if (!mounted) return;
+        
+        // Ignore redundant events during initialization
+        if (!initialized && event === 'INITIAL_SESSION') return;
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -75,26 +102,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setProfile(null);
         }
         
-        // Always set loading to false after processing
-        setLoading(false);
+        if (initialized) {
+          setLoading(false);
+        }
       }
     );
 
-    // Check for existing session - load profile immediately
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadProfile(session.user.id);
-      }
-      
-      // Release loading state immediately after checking session
-      setLoading(false);
-    });
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [initialized]);
 
-    return () => subscription.unsubscribe();
-  }, []);
+  // Safety timeout - force loading to false after 5 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('[Auth] ⏰ Loading timeout - forcing false');
+        setLoading(false);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [loading]);
 
   const signIn = async (email: string, password: string) => {
     setLoading(true);

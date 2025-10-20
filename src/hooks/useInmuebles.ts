@@ -53,6 +53,8 @@ export const useInmuebles = () => {
       const start = (page - 1) * pageSize;
       const end = start + pageSize - 1;
       
+      console.log('[useInmuebles] 🔵 Fetching page:', page);
+      
       // Fetch total count for pagination
       const { count } = await supabase
         .from('inmuebles')
@@ -68,16 +70,17 @@ export const useInmuebles = () => {
       if (error) throw error;
 
       setInmuebles(data || []);
-      console.log('[Inmuebles] Fetched page:', page, 'items:', data?.length || 0, 'total:', count);
+      console.log('[useInmuebles] ✅ Fetched', data?.length || 0, 'items, total:', count);
       
       return { data: data || [], total: count || 0, page, pageSize };
     } catch (err: any) {
-      console.error('[Inmuebles] Fetch error:', err);
+      console.error('[useInmuebles] ❌ Fetch error:', err);
       setError(err.message);
+      setInmuebles([]); // Always set empty array on error
       toast.error('Error al cargar inmuebles');
       return { data: [], total: 0, page, pageSize };
     } finally {
-      setLoading(false);
+      setLoading(false); // ALWAYS turn off loading
     }
   }, []);
 
