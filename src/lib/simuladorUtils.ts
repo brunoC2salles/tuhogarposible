@@ -96,6 +96,7 @@ export interface DatosSimulacionHipoteca {
   creditosPendientes: number;
   edad: number;
   tasaAnual: number;
+  porcentajeFinanciamiento: number;
 }
 
 export interface ResultadosSimulacionHipoteca {
@@ -178,11 +179,12 @@ export function calcularSimulacionHipoteca(
     ingresosMensuales,
     creditosPendientes,
     edad,
-    tasaAnual
+    tasaAnual,
+    porcentajeFinanciamiento
   } = datos;
   
-  // 1. Monto financiable: 80% del precio
-  const montoFinanciable = precioVivienda * 0.8;
+  // 1. Monto financiable: porcentaje configurado del precio
+  const montoFinanciable = precioVivienda * (porcentajeFinanciamiento / 100);
   
   // 2. Gastos e impuestos
   const gastosImpuestos = calcularGastosHipoteca(
@@ -192,8 +194,9 @@ export function calcularSimulacionHipoteca(
     menorDe35
   );
   
-  // 3. Capital propio necesario: 20% + gastos
-  const capitalPropioNecesario = (precioVivienda * 0.2) + gastosImpuestos;
+  // 3. Capital propio necesario: (100% - porcentaje financiamiento) + gastos
+  const porcentajeCapitalPropio = (100 - porcentajeFinanciamiento) / 100;
+  const capitalPropioNecesario = (precioVivienda * porcentajeCapitalPropio) + gastosImpuestos;
   
   // 4. Plazo máximo según edad
   const plazoMaximoAnios = calcularPlazoMaximo(edad);

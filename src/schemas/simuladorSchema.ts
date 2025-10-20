@@ -73,7 +73,11 @@ export const simuladorHipotecaSchema = z.object({
   
   tasaAnual: z.number()
     .min(1, 'Tasa mínima: 1%')
-    .max(15, 'Tasa máxima: 15%')
+    .max(15, 'Tasa máxima: 15%'),
+  
+  porcentajeFinanciamiento: z.number()
+    .min(1, 'Porcentaje mínimo: 1%')
+    .max(100, 'Porcentaje máximo: 100%')
 });
 
 export type SimuladorHipotecaFormData = z.infer<typeof simuladorHipotecaSchema>;

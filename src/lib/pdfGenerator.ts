@@ -249,6 +249,8 @@ export function generateSimulacionHipotecariaPDF(
   doc.setFont('helvetica', 'normal');
   doc.text(`Precio de la vivienda: ${formatEuro(datos.precioVivienda)}`, margin, currentY);
   currentY += 6;
+  doc.text(`Porcentaje de financiamiento: ${datos.porcentajeFinanciamiento}%`, margin, currentY);
+  currentY += 6;
   doc.text(`Comunidad autónoma: ${datos.comunidadAutonoma}`, margin, currentY);
   currentY += 6;
   doc.text(`Familia numerosa: ${datos.familiaNumerosa ? 'Sí (50% descuento)' : 'No'}`, margin, currentY);
@@ -296,8 +298,8 @@ export function generateSimulacionHipotecariaPDF(
     startY: currentY,
     head: [['Concepto', 'Valor']],
     body: [
-      ['Monto a financiar (80%)', formatEuro(resultados.montoFinanciable)],
-      ['Capital propio necesario (20% + gastos)', formatEuro(resultados.capitalPropioNecesario)],
+      [`Monto a financiar (${datos.porcentajeFinanciamiento}%)`, formatEuro(resultados.montoFinanciable)],
+      [`Capital propio necesario (${100 - datos.porcentajeFinanciamiento}% + gastos)`, formatEuro(resultados.capitalPropioNecesario)],
       ['Cuota mensual', formatEuro(resultados.cuotaMensual)],
       ['Total de intereses', formatEuro(resultados.totalIntereses)],
       ['Monto total a pagar', formatEuro(resultados.montoTotalPagar)]

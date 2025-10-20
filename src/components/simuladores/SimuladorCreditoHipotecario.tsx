@@ -32,7 +32,8 @@ export function SimuladorCreditoHipotecario() {
     mode: "onChange",
     defaultValues: {
       familiaNumerosa: false,
-      menorDe35: false
+      menorDe35: false,
+      porcentajeFinanciamiento: 100
     }
   });
 
@@ -50,7 +51,8 @@ export function SimuladorCreditoHipotecario() {
         ingresosMensuales: data.ingresosMensuales,
         creditosPendientes: data.creditosPendientes,
         edad: data.edad,
-        tasaAnual: data.tasaAnual
+        tasaAnual: data.tasaAnual,
+        porcentajeFinanciamiento: data.porcentajeFinanciamiento
       });
 
       setResultados(resultadosCalculados);
@@ -261,6 +263,25 @@ export function SimuladorCreditoHipotecario() {
                       <p className="text-sm text-destructive">{errors.tasaAnual.message}</p>
                     )}
                     <p className="text-xs text-muted-foreground">Entre 1% y 15% (típicamente 3-5%)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="porcentajeFinanciamiento">Porcentaje de Financiamiento (%) *</Label>
+                    <Input
+                      id="porcentajeFinanciamiento"
+                      type="number"
+                      step="1"
+                      {...register("porcentajeFinanciamiento", { valueAsNumber: true })}
+                      placeholder="100"
+                      min="1"
+                      max="100"
+                    />
+                    {errors.porcentajeFinanciamiento && (
+                      <p className="text-sm text-destructive">{errors.porcentajeFinanciamiento.message}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Porcentaje del valor de la vivienda a financiar (default: 100%)
+                    </p>
                   </div>
                 </AccordionContent>
               </AccordionItem>

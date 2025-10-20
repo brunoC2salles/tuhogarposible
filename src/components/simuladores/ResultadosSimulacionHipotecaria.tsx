@@ -57,7 +57,7 @@ export function ResultadosSimulacionHipotecaria({
                 <p className="text-xl font-bold">{formatEuro(resultados.capitalPropioNecesario)}</p>
               </div>
               <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Monto a financiar (80%)</p>
+                <p className="text-sm text-muted-foreground mb-1">Monto a financiar ({datos.porcentajeFinanciamiento}%)</p>
                 <p className="text-xl font-bold">{formatEuro(resultados.montoFinanciable)}</p>
               </div>
               <div className="p-4 bg-muted/50 rounded-lg">

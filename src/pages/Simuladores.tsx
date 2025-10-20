@@ -86,7 +86,7 @@ const Simuladores = () => {
                   <CardTitle className="text-xl">Simulador de Crédito Hipotecario</CardTitle>
                 </div>
                 <CardDescription className="text-base">
-                  Calcula el financiamiento hipotecario hasta el 80% del valor de la vivienda,
+                  Calcula el financiamiento hipotecario hasta el 100% del valor de la vivienda,
                   con análisis de gastos por comunidad y capacidad de endeudamiento.
                 </CardDescription>
               </CardHeader>
@@ -94,7 +94,7 @@ const Simuladores = () => {
                 <ul className="space-y-2 mb-6 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
-                    <span>Financiamiento hasta 80% del valor</span>
+                    <span>Financiamiento configurable hasta 100% del valor</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary mt-1">•</span>
