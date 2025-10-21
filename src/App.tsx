@@ -12,7 +12,9 @@ import AgenteInventario from "./pages/inventario/AgenteInventario";
 import AdminInventario from "./pages/inventario/AdminInventario";
 import AgenteCRM from "./pages/inventario/AgenteCRM";
 import AdminCRM from "./pages/inventario/AdminCRM";
-import Simuladores from "./pages/Simuladores";
+import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
+import SimuladorPersonalPage from "./pages/simuladores/SimuladorPersonalPage";
+import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPage";
 
 const queryClient = new QueryClient();
 
@@ -26,7 +28,9 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/simuladores" element={<Simuladores />} />
+            <Route path="/simuladores" element={<SimuladoresIndex />} />
+            <Route path="/simuladores/credito-personal" element={<SimuladorPersonalPage />} />
+            <Route path="/simuladores/credito-hipotecario" element={<SimuladorHipotecarioPage />} />
             <Route 
               path="/inventario/agente"
               element={

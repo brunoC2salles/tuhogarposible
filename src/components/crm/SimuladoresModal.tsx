@@ -1,12 +1,7 @@
-import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { SimuladorCreditoPersonal } from '@/components/simuladores/SimuladorCreditoPersonal';
-import { SimuladorCreditoHipotecario } from '@/components/simuladores/SimuladorCreditoHipotecario';
-import { Save } from 'lucide-react';
-import { toast } from 'sonner';
+import { Calculator, TrendingUp, ExternalLink } from 'lucide-react';
 
 interface SimuladoresModalProps {
   open: boolean;
@@ -15,47 +10,74 @@ interface SimuladoresModalProps {
   onSave: (leadId: string, updates: Partial<Lead>) => void;
 }
 
-export const SimuladoresModal = ({ open, onClose, lead, onSave }: SimuladoresModalProps) => {
-  const [personalData, setPersonalData] = useState(lead?.simulador_personal_data);
-  const [hipotecarioData, setHipotecarioData] = useState(lead?.simulador_hipotecario_data);
+export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps) => {
+  if (!lead) return null;
 
-  const handleSave = () => {
-    if (!lead) return;
-
-    onSave(lead.id, {
-      simulador_personal_data: personalData,
-      simulador_hipotecario_data: hipotecarioData,
-    });
-
-    toast.success('Datos de simuladores guardados');
-    onClose();
+  const handleOpenPersonal = () => {
+    window.open('/simuladores/credito-personal', '_blank');
   };
 
-  if (!lead) return null;
+  const handleOpenHipotecario = () => {
+    window.open('/simuladores/credito-hipotecario', '_blank');
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Simuladores para {lead.nombre_completo}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           <p className="text-sm text-muted-foreground">
-            Los simuladores se ejecutarán en la página de Simuladores. Los resultados se guardarán automáticamente.
+            Escolha o tipo de simulação que deseja executar. Os simuladores abrirão em uma nova aba.
           </p>
           
-          <div className="flex gap-2">
-            <Button onClick={() => window.open('/simuladores', '_blank')} className="flex-1">
-              Abrir Simulador de Crédito Personal
-            </Button>
-            <Button onClick={() => window.open('/simuladores', '_blank')} className="flex-1">
-              Abrir Simulador Hipotecario
-            </Button>
+          <div className="grid gap-4">
+            {/* Personal Credit Button */}
+            <div className="border rounded-lg p-4 hover:border-primary transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calculator className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Crédito Personal</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Simule crédito pessoal com prazos de 5 a 12 anos
+                  </p>
+                  <Button onClick={handleOpenPersonal} className="w-full" variant="outline">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Abrir Simulador Personal
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Mortgage Credit Button */}
+            <div className="border rounded-lg p-4 hover:border-primary transition-colors">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Crédito Hipotecário</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Simule hipoteca com benefícios fiscais incluídos
+                  </p>
+                  <Button onClick={handleOpenHipotecario} className="w-full" variant="outline">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Abrir Simulador Hipotecário
+                  </Button>
+                </div>
+              </div>
+            </div>
           </div>
           
-          <div className="text-center text-xs text-muted-foreground pt-4">
-            Nota: Después de ejecutar los simuladores, actualiza manualmente los datos del lead con los resultados obtenidos.
+          <div className="bg-muted/50 rounded-lg p-4">
+            <p className="text-xs text-muted-foreground">
+              <strong>Nota:</strong> Os simuladores abrirão em páginas separadas. Para integrar os resultados ao lead, 
+              use a funcionalidade de edição após concluir as simulações.
+            </p>
           </div>
         </div>
       </DialogContent>
