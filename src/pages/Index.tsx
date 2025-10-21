@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, Shield, Calculator } from "lucide-react";
+import { Building2, Users, Shield, Calculator, LayoutDashboard, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 
@@ -81,6 +81,44 @@ const Index = () => {
               <Link to="/simuladores">
                 <Button className="w-full" size="lg">
                   Acceder a los simuladores
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+                <LayoutDashboard className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">CRM - Gestión de Leads</CardTitle>
+              <CardDescription className="text-lg">
+                Gestiona leads, asigna agentes y da seguimiento a oportunidades
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Link to="/inventario/agente/crm">
+                <Button className="w-full" size="lg">
+                  Acceder al CRM
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+                <FileText className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Formulario de Cualificación</CardTitle>
+              <CardDescription className="text-lg">
+                Completa el formulario para evaluar tu elegibilidad y agendar una reunión
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Link to="/formulario-qualificacion">
+                <Button className="w-full" size="lg">
+                  Completar Formulario
                 </Button>
               </Link>
             </CardContent>
