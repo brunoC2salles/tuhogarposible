@@ -52,13 +52,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         console.log('[Auth] 🔵 Loading profile for user:', userId);
         
-        // ✅ SINGLE QUERY with LEFT JOIN to fetch profile + role
+        // ✅ SIMPLE QUERY - fetch profile with role already included
         const { data, error } = await supabase
           .from('profiles')
-          .select(`
-            *,
-            user_roles!left(role)
-          `)
+          .select('*')
           .eq('id', userId)
           .maybeSingle();
         
@@ -72,13 +69,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return null;
         }
 
-        // ✅ Extract role from join (handle array format)
-        const roleData = Array.isArray(data.user_roles) ? data.user_roles[0] : data.user_roles;
-        const role = roleData?.role || 'agente';
-        
+        // ✅ Role already exists in profiles table
         const fullProfile = {
           ...data,
-          role
+          role: data.role || 'agente'
         } as Profile;
         
         console.log('[Auth] ✅ Profile loaded:', fullProfile.nombre, 'Role:', fullProfile.role);
