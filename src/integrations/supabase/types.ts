@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_assignment_tracking: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_assigned_agent_id: string | null
+          last_assignment_at: string | null
+          region: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_assigned_agent_id?: string | null
+          last_assignment_at?: string | null
+          region: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_assigned_agent_id?: string | null
+          last_assignment_at?: string | null
+          region?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_assignment_tracking_last_assigned_agent_id_fkey"
+            columns: ["last_assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_submissions: {
         Row: {
           acepta_privacidad: boolean
