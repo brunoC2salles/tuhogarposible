@@ -19,7 +19,7 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, UserCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
@@ -546,14 +546,22 @@ const AdminInventario = () => {
                   <p className="text-sm text-muted-foreground">
                     Bienvenido, {profile?.nombre} - Gestiona inmuebles y reservas
                   </p>
-                </div>
-              </div>
             </div>
-            
-            <Button variant="outline" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Cerrar Sesión
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <Link to="/inventario/admin/crm">
+            <Button variant="outline">
+              <UserCircle className="w-4 h-4 mr-2" />
+              CRM
             </Button>
+          </Link>
+          <Button variant="outline" onClick={signOut}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Cerrar Sesión
+          </Button>
+        </div>
           </div>
         </div>
       </header>
