@@ -73,7 +73,9 @@ export default function FormularioQualificacion() {
       edad: 0,
       comunidad_autonoma: "",
       ciudad_interes: "",
+      valor_inmueble_deseado: 0,
       ingresos_mensuales: 0,
+      entrada_disponible: 0,
       situacion_laboral: "empleado",
       tiene_credito_vigente: false,
       deudas_actuales: 0,
@@ -250,6 +252,25 @@ export default function FormularioQualificacion() {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="valor_inmueble_deseado"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>¿Cuál es el valor del inmueble que deseas? *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 150000"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             {/* Seção 3: Situação Financeira */}
@@ -346,6 +367,25 @@ export default function FormularioQualificacion() {
                   )}
                 />
               )}
+
+              <FormField
+                control={form.control}
+                name="entrada_disponible"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>¿Cuánto tienes disponible para entrada?</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Ej: 0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

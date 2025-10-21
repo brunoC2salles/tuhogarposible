@@ -32,6 +32,10 @@ export const formularioQualificacionSchema = z.object({
     .min(2, "La ciudad debe tener al menos 2 caracteres")
     .max(100, "La ciudad no puede exceder 100 caracteres"),
   
+  valor_inmueble_deseado: z.number()
+    .min(50000, "El valor del inmueble debe ser al menos 50.000€")
+    .max(5000000, "El valor del inmueble no puede exceder 5.000.000€"),
+  
   // Situação financeira
   ingresos_mensuales: z.number()
     .min(0, "Los ingresos no pueden ser negativos"),
@@ -45,6 +49,11 @@ export const formularioQualificacionSchema = z.object({
   deudas_actuales: z.number()
     .min(0, "Las deudas no pueden ser negativas")
     .optional(),
+  
+  entrada_disponible: z.number()
+    .min(0, "La entrada no puede ser negativa")
+    .optional()
+    .default(0),
   
   en_fichero_morosidad: z.boolean(),
   

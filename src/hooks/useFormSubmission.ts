@@ -3,6 +3,12 @@ import { useState } from "react";
 import type { FormularioQualificacionData } from "@/schemas/formularioQualificacionSchema";
 import type { QualificacionResult } from "@/lib/qualificacaoUtils";
 import { toast } from "sonner";
+import { 
+  calcularAmortizacionFrancesa, 
+  calcularSimulacionHipoteca,
+  type DatosSimulacion,
+  type DatosSimulacionHipoteca
+} from "@/lib/simuladorUtils";
 
 export function useFormSubmission() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,6 +51,53 @@ export function useFormSubmission() {
         }
       }
 
+      // Calcular menor_de_35 automaticamente
+      const menorDe35 = formData.edad < 35;
+
+      // 1. SIMULAÇÃO DE CRÉDITO PESSOAL
+      const datosSimulacionPersonal: DatosSimulacion = {
+        ingresos: formData.ingresos_mensuales,
+        deudas: formData.deudas_actuales || 0,
+        entrada: formData.entrada_disponible || 0,
+        valorInmueble: formData.valor_inmueble_deseado,
+        plazoMeses: 96,
+        tasaAnual: 6,
+      };
+
+      const resultadosPersonal = calcularAmortizacionFrancesa(datosSimulacionPersonal);
+
+      // 2. SIMULAÇÃO HIPOTECÁRIA
+      const situacionLaboralNormalizada = 
+        formData.situacion_laboral === "pensionista" ? "empleado" :
+        formData.situacion_laboral === "desempleado" ? "empleado" :
+        formData.situacion_laboral as "autonomo" | "empleado";
+
+      // Normalizar comunidade autônoma para o tipo aceito
+      const comunidadNormalizada = 
+        formData.comunidad_autonoma === "Comunidad de Madrid" ? "Madrid" :
+        formData.comunidad_autonoma === "Cataluña" ? "Cataluña" :
+        formData.comunidad_autonoma === "Andalucía" ? "Andalucía" :
+        formData.comunidad_autonoma === "Comunidad Valenciana" ? "Valencia" :
+        "Otros" as const;
+
+      const datosSimulacionHipoteca: DatosSimulacionHipoteca = {
+        edad: formData.edad,
+        precioVivienda: formData.valor_inmueble_deseado,
+        comunidadAutonoma: comunidadNormalizada,
+        familiaNumerosa: false,
+        menorDe35: menorDe35,
+        situacionLaboral: situacionLaboralNormalizada,
+        ingresosMensuales: formData.ingresos_mensuales,
+        creditosPendientes: formData.deudas_actuales || 0,
+        tasaAnual: 4,
+        porcentajeFinanciamiento: 100,
+      };
+
+      const resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
+
+      console.log('[Simulaciones] Crédito Personal:', resultadosPersonal);
+      console.log('[Simulaciones] Hipoteca:', resultadosHipoteca);
+
       // Preparar dados para inserção
       const submissionData = {
         // Dados pessoais
@@ -56,8 +109,10 @@ export function useFormSubmission() {
         // Interesse imobiliário
         comunidad_autonoma: formData.comunidad_autonoma,
         ciudad_interes: formData.ciudad_interes,
+        valor_inmueble_deseado: formData.valor_inmueble_deseado,
         
         // Situação financeira
+        entrada_disponible: formData.entrada_disponible || 0,
         ingresos_mensuales: formData.ingresos_mensuales,
         situacion_laboral: formData.situacion_laboral,
         deudas_actuales: formData.deudas_actuales || 0,
@@ -72,6 +127,12 @@ export function useFormSubmission() {
         // Qualificação
         qualificado: qualificacaoResult.qualificado,
         razon_no_qualificado: qualificacaoResult.razon_no_qualificado || null,
+        
+        // Simulações (calculadas automaticamente)
+        menor_de_35: menorDe35,
+        familia_numerosa: false,
+        simulador_personal_data: resultadosPersonal as any,
+        simulador_hipotecario_data: resultadosHipoteca as any,
         
         // Agente asignado (NOVO)
         agente_asignado_id: agenteAsignado?.id || null,
@@ -91,7 +152,7 @@ export function useFormSubmission() {
 
       const { data, error } = await supabase
         .from("form_submissions")
-        .insert(submissionData)
+        .insert([submissionData])
         .select()
         .single();
 
