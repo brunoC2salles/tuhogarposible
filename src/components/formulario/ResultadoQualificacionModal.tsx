@@ -13,6 +13,7 @@ interface ResultadoQualificacionModalProps {
   onOpenChange: (open: boolean) => void;
   tipo: "desqualificado" | "qualificado_cataluna" | "qualificado_general" | "agendamento_confirmado";
   tidycalLink?: string;
+  nombreAgente?: string;
 }
 
 export function ResultadoQualificacionModal({
@@ -20,6 +21,7 @@ export function ResultadoQualificacionModal({
   onOpenChange,
   tipo,
   tidycalLink,
+  nombreAgente,
 }: ResultadoQualificacionModalProps) {
   // Modal de desqualificação
   if (tipo === "desqualificado") {
@@ -85,6 +87,11 @@ export function ResultadoQualificacionModal({
           <DialogTitle className="text-center text-2xl">¡Muchas gracias!</DialogTitle>
           <DialogDescription className="text-center text-base space-y-3">
             <p>Estás a un paso para que puedas tener tu hogar posible!</p>
+            {nombreAgente && (
+              <p className="font-semibold text-primary">
+                Tu reunión será con <span className="underline">{nombreAgente}</span>
+              </p>
+            )}
             <p>En el calendario abajo puedes elegir el mejor momento para que hables con uno de nuestros agentes. Es importante que te comprometas a estar en la reunión, ya que nuestro agente se pondrá disponible para ayudarte con tu sueño.</p>
           </DialogDescription>
         </DialogHeader>

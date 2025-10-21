@@ -9,7 +9,7 @@ import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 import { RecomendacionesModal } from '@/components/crm/RecomendacionesModal';
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
 import { Lead } from '@/types/crm';
-import { Plus, ArrowLeft, Users, Building, LogOut } from 'lucide-react';
+import { Plus, ArrowLeft, Users, Building, LogOut, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
@@ -65,6 +65,10 @@ const AgenteCRM = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => navigate('/agente/settings')}>
+                <Settings className="h-4 w-4 mr-2" />
+                Mi Perfil
+              </Button>
               <Button variant="outline" onClick={() => navigate('/inventario/agente')}>
                 <Building className="h-4 w-4 mr-2" />
                 Inventario

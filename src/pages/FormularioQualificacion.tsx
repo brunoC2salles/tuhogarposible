@@ -56,6 +56,7 @@ export default function FormularioQualificacion() {
     open: boolean;
     tipo: "desqualificado" | "qualificado_cataluna" | "qualificado_general" | "agendamento_confirmado";
     tidycalLink?: string;
+    nombreAgente?: string;
   }>({
     open: false,
     tipo: "desqualificado",
@@ -117,7 +118,8 @@ export default function FormularioQualificacion() {
     setModalState({
       open: true,
       tipo,
-      tidycalLink: submissionResult.tidycal_link,
+      tidycalLink: submissionResult.tidycal_url,
+      nombreAgente: submissionResult.nombre_agente,
     });
   };
 
@@ -503,6 +505,7 @@ export default function FormularioQualificacion() {
         onOpenChange={(open) => setModalState({ ...modalState, open })}
         tipo={modalState.tipo}
         tidycalLink={modalState.tidycalLink}
+        nombreAgente={modalState.nombreAgente}
       />
     </div>
   );

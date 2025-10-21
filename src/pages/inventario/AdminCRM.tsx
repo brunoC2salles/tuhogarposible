@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut } from 'lucide-react';
+import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog } from 'lucide-react';
 import { STAGE_LABELS } from '@/types/crm';
 
 const AdminCRM = () => {
@@ -49,6 +49,10 @@ const AdminCRM = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button variant="outline" onClick={() => navigate('/admin/agentes')}>
+                <UserCog className="h-4 w-4 mr-2" />
+                Gestión de Agentes
+              </Button>
               <Button variant="outline" onClick={() => navigate('/inventario/admin')}>
                 <Building className="h-4 w-4 mr-2" />
                 Inventario

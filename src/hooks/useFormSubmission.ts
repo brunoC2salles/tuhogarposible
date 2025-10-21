@@ -14,10 +14,36 @@ export function useFormSubmission() {
     setIsSubmitting(true);
     
     try {
-      // Determinar link do Tidycal baseado na comunidad autónoma
-      const tidycal_link = formData.comunidad_autonoma === "Cataluña"
-        ? "https://tidycal.com/team/cataluna/cataluna-primera-reunion"
-        : "https://tidycal.com/team/general/general-primera-reunion";
+      // Se qualificado, buscar agente via round-robin
+      let agenteAsignado = null;
+      let tidycalUrl = null;
+
+      if (qualificacaoResult.qualificado) {
+        const region = formData.comunidad_autonoma === "Cataluña" ? "Cataluña" : "Geral";
+        
+        try {
+          const { data: agentData, error: agentError } = await supabase.functions.invoke(
+            'get-next-agent',
+            {
+              body: { region }
+            }
+          );
+
+          if (agentError) throw agentError;
+          
+          agenteAsignado = {
+            id: agentData.agent_id,
+            nombre: agentData.nombre
+          };
+          tidycalUrl = agentData.tidycal_url;
+          
+          console.log('[Formulario] Agente asignado:', agenteAsignado.nombre, 'Región:', region);
+        } catch (error) {
+          console.error('[Formulario] Error al asignar agente:', error);
+          toast.error("Error al asignar agente. Por favor, inténtalo de nuevo.");
+          throw error;
+        }
+      }
 
       // Preparar dados para inserção
       const submissionData = {
@@ -47,17 +73,20 @@ export function useFormSubmission() {
         qualificado: qualificacaoResult.qualificado,
         razon_no_qualificado: qualificacaoResult.razon_no_qualificado || null,
         
+        // Agente asignado (NOVO)
+        agente_asignado_id: agenteAsignado?.id || null,
+        
         // Privacidade
         acepta_privacidad: formData.acepta_privacidad,
         
-        // Tidycal
-        tidycal_link,
+        // Tidycal (não mais usado para scheduling, mas mantido por compatibilidade)
+        tidycal_link: tidycalUrl || null,
         tidycal_scheduled: false,
         tidycal_booking_id: null,
         
         // Status de processamento
         processed: false,
-        lead_id: null,
+        lead_id: null, // Será preenchido pelo trigger
       };
 
       const { data, error } = await supabase
@@ -72,10 +101,13 @@ export function useFormSubmission() {
         throw error;
       }
 
+      console.log('[Formulario] Submission creado:', data.id, 'Lead ID:', data.lead_id);
+
       return {
         success: true,
         submission_id: data.id,
-        tidycal_link,
+        tidycal_url: tidycalUrl,
+        nombre_agente: agenteAsignado?.nombre,
       };
     } catch (error) {
       console.error("Error in submitFormulario:", error);

@@ -1,1 +1,4 @@
 project_id = "tnzgpzablwfptagfbnvb"
+
+[functions.get-next-agent]
+verify_jwt = false
