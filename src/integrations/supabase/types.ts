@@ -85,6 +85,140 @@ export type Database = {
           },
         ]
       }
+      lead_historico: {
+        Row: {
+          changed_by: string
+          created_at: string
+          id: string
+          lead_id: string
+          notas: string | null
+          stage_anterior: Database["public"]["Enums"]["lead_stage"] | null
+          stage_nuevo: Database["public"]["Enums"]["lead_stage"]
+        }
+        Insert: {
+          changed_by: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          notas?: string | null
+          stage_anterior?: Database["public"]["Enums"]["lead_stage"] | null
+          stage_nuevo: Database["public"]["Enums"]["lead_stage"]
+        }
+        Update: {
+          changed_by?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notas?: string | null
+          stage_anterior?: Database["public"]["Enums"]["lead_stage"] | null
+          stage_nuevo?: Database["public"]["Enums"]["lead_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_historico_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_inmuebles: {
+        Row: {
+          created_at: string
+          id: string
+          inmueble_id: string
+          lead_id: string
+          vinculado_por: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          inmueble_id: string
+          lead_id: string
+          vinculado_por: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          inmueble_id?: string
+          lead_id?: string
+          vinculado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_inmuebles_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_inmuebles_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          agente_asignado_id: string | null
+          ciudad_interes: string | null
+          created_at: string
+          email: string
+          id: string
+          last_stage_change_at: string
+          nombre_completo: string
+          notas: string | null
+          simulador_hipotecario_data: Json | null
+          simulador_personal_data: Json | null
+          source: Database["public"]["Enums"]["lead_source"]
+          stage: Database["public"]["Enums"]["lead_stage"]
+          telefono: string
+          updated_at: string
+          valor_inmueble_deseado: number | null
+          zona_interes: string | null
+        }
+        Insert: {
+          agente_asignado_id?: string | null
+          ciudad_interes?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          last_stage_change_at?: string
+          nombre_completo: string
+          notas?: string | null
+          simulador_hipotecario_data?: Json | null
+          simulador_personal_data?: Json | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          telefono: string
+          updated_at?: string
+          valor_inmueble_deseado?: number | null
+          zona_interes?: string | null
+        }
+        Update: {
+          agente_asignado_id?: string | null
+          ciudad_interes?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          last_stage_change_at?: string
+          nombre_completo?: string
+          notas?: string | null
+          simulador_hipotecario_data?: Json | null
+          simulador_personal_data?: Json | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          telefono?: string
+          updated_at?: string
+          valor_inmueble_deseado?: number | null
+          zona_interes?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activo: boolean
@@ -212,6 +346,13 @@ export type Database = {
     }
     Enums: {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
+      lead_source: "formulario_web" | "manual" | "tidycal_webhook"
+      lead_stage:
+        | "nuevo_lead"
+        | "primera_llamada"
+        | "visita_agendada"
+        | "acuerdo"
+        | "listo"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -347,6 +488,14 @@ export const Constants = {
   public: {
     Enums: {
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
+      lead_source: ["formulario_web", "manual", "tidycal_webhook"],
+      lead_stage: [
+        "nuevo_lead",
+        "primera_llamada",
+        "visita_agendada",
+        "acuerdo",
+        "listo",
+      ],
       tipo_inmueble: [
         "apartamento",
         "casa",

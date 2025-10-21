@@ -10,6 +10,8 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AgenteInventario from "./pages/inventario/AgenteInventario";
 import AdminInventario from "./pages/inventario/AdminInventario";
+import AgenteCRM from "./pages/inventario/AgenteCRM";
+import AdminCRM from "./pages/inventario/AdminCRM";
 import Simuladores from "./pages/Simuladores";
 
 const queryClient = new QueryClient();
@@ -38,6 +40,22 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AdminInventario />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/inventario/agente/crm"
+              element={
+                <ProtectedRoute>
+                  <AgenteCRM />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/inventario/admin/crm"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminCRM />
                 </ProtectedRoute>
               } 
             />

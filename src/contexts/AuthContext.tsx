@@ -54,21 +54,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await new Promise(resolve => setTimeout(resolve, 50));
       
       try {
-        const { data: profileData, error } = await supabase
+        // Buscar profile
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
           .single();
         
-        if (error) {
-          console.error('[Auth] ❌ Error fetching profile:', error);
-          console.error('[Auth] ❌ Error details:', JSON.stringify(error));
+        if (profileError) {
+          console.error('[Auth] ❌ Error fetching profile:', profileError);
           toast.error('Error al cargar el perfil de usuario');
           setProfile(null);
-        } else {
-          console.log('[Auth] ✅ Profile loaded:', profileData?.nombre);
-          setProfile(profileData);
+          return;
         }
+
+        // Buscar role da nova tabela user_roles
+        const { data: roleData, error: roleError } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .single();
+        
+        if (roleError) {
+          console.error('[Auth] ❌ Error fetching role:', roleError);
+        }
+
+        // Merge profile + role
+        const fullProfile = {
+          ...profileData,
+          role: roleData?.role || 'agente'
+        };
+        
+        console.log('[Auth] ✅ Profile loaded:', fullProfile.nombre, 'Role:', fullProfile.role);
+        setProfile(fullProfile);
       } catch (error) {
         console.error('[Auth] ❌ Profile fetch exception:', error);
         setProfile(null);
