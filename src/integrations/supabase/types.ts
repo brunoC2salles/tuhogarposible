@@ -339,8 +339,10 @@ export type Database = {
           email: string
           id: string
           nombre: string
+          region_round_robin: string | null
           role: Database["public"]["Enums"]["user_role"]
           telefono: string | null
+          tidycal_url: string | null
           updated_at: string
         }
         Insert: {
@@ -349,8 +351,10 @@ export type Database = {
           email: string
           id: string
           nombre: string
+          region_round_robin?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
+          tidycal_url?: string | null
           updated_at?: string
         }
         Update: {
@@ -359,8 +363,10 @@ export type Database = {
           email?: string
           id?: string
           nombre?: string
+          region_round_robin?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
+          tidycal_url?: string | null
           updated_at?: string
         }
         Relationships: []
