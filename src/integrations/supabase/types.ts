@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      form_submissions: {
+        Row: {
+          ciudad_interes: string | null
+          comunidad_autonoma: string | null
+          created_at: string
+          deudas_actuales: number | null
+          edad: number
+          email: string
+          entrada_disponible: number | null
+          familia_numerosa: boolean | null
+          id: string
+          ingresos_mensuales: number
+          lead_id: string | null
+          menor_de_35: boolean | null
+          nombre_completo: string
+          processed: boolean
+          simulador_hipotecario_data: Json | null
+          simulador_personal_data: Json | null
+          situacion_laboral: string | null
+          telefono: string
+          tidycal_booking_id: string | null
+          tidycal_link: string | null
+          tidycal_scheduled: boolean | null
+          updated_at: string
+          valor_inmueble_deseado: number | null
+          zona_interes: string | null
+        }
+        Insert: {
+          ciudad_interes?: string | null
+          comunidad_autonoma?: string | null
+          created_at?: string
+          deudas_actuales?: number | null
+          edad: number
+          email: string
+          entrada_disponible?: number | null
+          familia_numerosa?: boolean | null
+          id?: string
+          ingresos_mensuales: number
+          lead_id?: string | null
+          menor_de_35?: boolean | null
+          nombre_completo: string
+          processed?: boolean
+          simulador_hipotecario_data?: Json | null
+          simulador_personal_data?: Json | null
+          situacion_laboral?: string | null
+          telefono: string
+          tidycal_booking_id?: string | null
+          tidycal_link?: string | null
+          tidycal_scheduled?: boolean | null
+          updated_at?: string
+          valor_inmueble_deseado?: number | null
+          zona_interes?: string | null
+        }
+        Update: {
+          ciudad_interes?: string | null
+          comunidad_autonoma?: string | null
+          created_at?: string
+          deudas_actuales?: number | null
+          edad?: number
+          email?: string
+          entrada_disponible?: number | null
+          familia_numerosa?: boolean | null
+          id?: string
+          ingresos_mensuales?: number
+          lead_id?: string | null
+          menor_de_35?: boolean | null
+          nombre_completo?: string
+          processed?: boolean
+          simulador_hipotecario_data?: Json | null
+          simulador_personal_data?: Json | null
+          situacion_laboral?: string | null
+          telefono?: string
+          tidycal_booking_id?: string | null
+          tidycal_link?: string | null
+          tidycal_scheduled?: boolean | null
+          updated_at?: string
+          valor_inmueble_deseado?: number | null
+          zona_interes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inmuebles: {
         Row: {
           agente_asignado: string | null
