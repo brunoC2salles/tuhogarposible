@@ -16,12 +16,18 @@ export type Database = {
     Tables: {
       form_submissions: {
         Row: {
+          acepta_privacidad: boolean
+          acompanante_aporte: number | null
+          acompanante_nombre: string | null
+          acompanante_relacion: string | null
           ciudad_interes: string | null
+          compra_solo_acompanado: string | null
           comunidad_autonoma: string | null
           created_at: string
           deudas_actuales: number | null
           edad: number
           email: string
+          en_fichero_morosidad: boolean
           entrada_disponible: number | null
           familia_numerosa: boolean | null
           id: string
@@ -30,6 +36,8 @@ export type Database = {
           menor_de_35: boolean | null
           nombre_completo: string
           processed: boolean
+          qualificado: boolean
+          razon_no_qualificado: string | null
           simulador_hipotecario_data: Json | null
           simulador_personal_data: Json | null
           situacion_laboral: string | null
@@ -42,12 +50,18 @@ export type Database = {
           zona_interes: string | null
         }
         Insert: {
+          acepta_privacidad?: boolean
+          acompanante_aporte?: number | null
+          acompanante_nombre?: string | null
+          acompanante_relacion?: string | null
           ciudad_interes?: string | null
+          compra_solo_acompanado?: string | null
           comunidad_autonoma?: string | null
           created_at?: string
           deudas_actuales?: number | null
           edad: number
           email: string
+          en_fichero_morosidad?: boolean
           entrada_disponible?: number | null
           familia_numerosa?: boolean | null
           id?: string
@@ -56,6 +70,8 @@ export type Database = {
           menor_de_35?: boolean | null
           nombre_completo: string
           processed?: boolean
+          qualificado?: boolean
+          razon_no_qualificado?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
           situacion_laboral?: string | null
@@ -68,12 +84,18 @@ export type Database = {
           zona_interes?: string | null
         }
         Update: {
+          acepta_privacidad?: boolean
+          acompanante_aporte?: number | null
+          acompanante_nombre?: string | null
+          acompanante_relacion?: string | null
           ciudad_interes?: string | null
+          compra_solo_acompanado?: string | null
           comunidad_autonoma?: string | null
           created_at?: string
           deudas_actuales?: number | null
           edad?: number
           email?: string
+          en_fichero_morosidad?: boolean
           entrada_disponible?: number | null
           familia_numerosa?: boolean | null
           id?: string
@@ -82,6 +104,8 @@ export type Database = {
           menor_de_35?: boolean | null
           nombre_completo?: string
           processed?: boolean
+          qualificado?: boolean
+          razon_no_qualificado?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
           situacion_laboral?: string | null

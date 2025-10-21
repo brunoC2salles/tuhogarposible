@@ -15,6 +15,7 @@ import AdminCRM from "./pages/inventario/AdminCRM";
 import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
 import SimuladorPersonalPage from "./pages/simuladores/SimuladorPersonalPage";
 import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPage";
+import FormularioQualificacion from "./pages/FormularioQualificacion";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/formulario-qualificacion" element={<FormularioQualificacion />} />
             <Route path="/simuladores" element={<SimuladoresIndex />} />
             <Route path="/simuladores/credito-personal" element={<SimuladorPersonalPage />} />
             <Route path="/simuladores/credito-hipotecario" element={<SimuladorHipotecarioPage />} />

@@ -34,6 +34,41 @@ export interface FormularioData {
   comunidad_autonoma?: string;
 }
 
+// Interface para os dados do formulário de qualificação
+export interface FormularioQualificacionData {
+  // Dados pessoais
+  nombre_completo: string;
+  email: string;
+  telefono: string;
+  edad: number;
+  
+  // Interesse imobiliário
+  comunidad_autonoma: string;
+  ciudad_interes: string;
+  
+  // Situação financeira
+  ingresos_mensuales: number;
+  situacion_laboral: 'empleado' | 'autonomo' | 'pensionista' | 'desempleado';
+  deudas_actuales?: number;
+  en_fichero_morosidad: boolean;
+  
+  // Compra
+  compra_solo_acompanado: 'solo' | 'acompanado';
+  acompanante_nombre?: string;
+  acompanante_relacion?: string;
+  acompanante_aporte?: number;
+  
+  // Privacidade
+  acepta_privacidad: boolean;
+}
+
+// Resultado de qualificação
+export interface QualificacionResult {
+  qualificado: boolean;
+  razon_no_qualificado?: string;
+  ingresos_totales: number;
+}
+
 // Tipos para os resultados dos simuladores (JSONB)
 export interface SimuladorPersonalResult {
   montoAprobado: number;
