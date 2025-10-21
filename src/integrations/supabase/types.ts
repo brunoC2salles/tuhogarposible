@@ -20,6 +20,7 @@ export type Database = {
           acompanante_aporte: number | null
           acompanante_nombre: string | null
           acompanante_relacion: string | null
+          agente_asignado_id: string | null
           ciudad_interes: string | null
           compra_solo_acompanado: string | null
           comunidad_autonoma: string | null
@@ -54,6 +55,7 @@ export type Database = {
           acompanante_aporte?: number | null
           acompanante_nombre?: string | null
           acompanante_relacion?: string | null
+          agente_asignado_id?: string | null
           ciudad_interes?: string | null
           compra_solo_acompanado?: string | null
           comunidad_autonoma?: string | null
@@ -88,6 +90,7 @@ export type Database = {
           acompanante_aporte?: number | null
           acompanante_nombre?: string | null
           acompanante_relacion?: string | null
+          agente_asignado_id?: string | null
           ciudad_interes?: string | null
           compra_solo_acompanado?: string | null
           comunidad_autonoma?: string | null
@@ -118,6 +121,13 @@ export type Database = {
           zona_interes?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "form_submissions_agente_asignado_id_fkey"
+            columns: ["agente_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "form_submissions_lead_id_fkey"
             columns: ["lead_id"]
