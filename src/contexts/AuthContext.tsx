@@ -41,103 +41,113 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+    let retryCount = 0;
+    const MAX_RETRIES = 1;
 
-    // Helper function to load profile
-    const loadProfile = async (userId: string) => {
-      console.log('[Auth] 🔵 Loading profile for user:', userId);
-      
-      // Wait to ensure auth context is established
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+    // ✅ Pure function to load profile - NO side effects here
+    const loadProfile = async (userId: string): Promise<Profile | null> => {
       try {
-        // Buscar profile
-        const { data: profileData, error: profileError } = await supabase
+        console.log('[Auth] 🔵 Loading profile for user:', userId);
+        
+        // ✅ SINGLE QUERY with LEFT JOIN to fetch profile + role
+        const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select(`
+            *,
+            user_roles!left(role)
+          `)
           .eq('id', userId)
-          .single();
+          .maybeSingle();
         
-        if (profileError) {
-          console.error('[Auth] ❌ Error fetching profile:', profileError);
-          toast.error('Error al cargar el perfil de usuario');
-          setProfile(null);
-          return;
+        if (error) {
+          console.error('[Auth] ❌ Error fetching profile:', error);
+          throw error;
+        }
+        
+        if (!data) {
+          console.warn('[Auth] ⚠️ No profile found for user:', userId);
+          return null;
         }
 
-        // Buscar role da nova tabela user_roles
-        const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .single();
+        // ✅ Extract role from join (handle array format)
+        const roleData = Array.isArray(data.user_roles) ? data.user_roles[0] : data.user_roles;
+        const role = roleData?.role || 'agente';
         
-        if (roleError) {
-          console.error('[Auth] ❌ Error fetching role:', roleError);
-        }
-
-        // Merge profile + role
         const fullProfile = {
-          ...profileData,
-          role: roleData?.role || 'agente'
-        };
+          ...data,
+          role
+        } as Profile;
         
         console.log('[Auth] ✅ Profile loaded:', fullProfile.nombre, 'Role:', fullProfile.role);
-        setProfile(fullProfile);
+        return fullProfile;
       } catch (error) {
         console.error('[Auth] ❌ Profile fetch exception:', error);
-        setProfile(null);
+        
+        // ✅ Retry logic - try once more
+        if (retryCount < MAX_RETRIES) {
+          retryCount++;
+          console.log('[Auth] 🔄 Retrying profile fetch, attempt:', retryCount);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return loadProfile(userId);
+        }
+        
+        toast.error('Error al cargar el perfil de usuario');
+        return null;
       }
     };
 
-    // 1. First, check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log('[Auth] 🟢 Get session result:', !!session);
-      if (!mounted) return;
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        await loadProfile(session.user.id);
-      }
-      
-      setLoading(false);
-      setInitialized(true);
-    });
-
-    // 2. Then, set up auth state listener
+    // ✅ Setup listener FIRST (best practice)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[Auth] 🟡 Auth state change:', event);
+      (event, session) => {
         if (!mounted) return;
         
-        // Ignore redundant events during initialization
-        if (!initialized && event === 'INITIAL_SESSION') return;
+        console.log('[Auth] 🟡 Auth state change:', event);
         
+        // ✅ Update session/user SYNCHRONOUSLY (no async!)
         setSession(session);
         setUser(session?.user ?? null);
         
+        // ✅ Defer profile loading with setTimeout(0) to avoid blocking
         if (session?.user) {
-          await loadProfile(session.user.id);
+          setTimeout(async () => {
+            if (!mounted) return;
+            const profile = await loadProfile(session.user.id);
+            if (mounted) {
+              setProfile(profile);
+              setLoading(false);
+            }
+          }, 0);
         } else {
           setProfile(null);
-        }
-        
-        if (initialized) {
           setLoading(false);
         }
       }
     );
 
+    // ✅ THEN get initial session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      
+      console.log('[Auth] 🟢 Get session result:', !!session);
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const profile = await loadProfile(session.user.id);
+        if (mounted) setProfile(profile);
+      }
+      
+      setLoading(false);
+    });
+
     return () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [initialized]);
+  }, []); // ✅ No dependencies - runs only once
 
   // Safety timeout - force loading to false after 5 seconds
   useEffect(() => {

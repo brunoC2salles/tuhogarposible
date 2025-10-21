@@ -9,7 +9,7 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, Home, CheckCircle, LogOut, UserCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -288,6 +288,12 @@ const AgenteInventario = () => {
                   {reservasPendientes} visitas pendientes
                 </Badge>
               )}
+              <Link to="/inventario/agente/crm">
+                <Button variant="outline" size="sm">
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  CRM
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Cerrar Sesión
