@@ -8,10 +8,11 @@ import { Lead, STAGE_LABELS, LeadHistorico } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, Clock, User, Building2 } from 'lucide-react';
+import { Calculator, Home, Clock, User, Building2, FileText } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -73,6 +74,19 @@ export const LeadDetailsModal = ({
     const success = await unlinkInmueble(lead.id, inmuebleId);
     if (success) {
       toast.success('Inmueble desvinculado');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!lead) return;
+
+    try {
+      toast.info('Generando PDF completo...');
+      await generateLeadCompletePDF(lead);
+      toast.success('PDF generado exitosamente');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error al generar PDF');
     }
   };
 
@@ -152,6 +166,13 @@ export const LeadDetailsModal = ({
                 </CardContent>
               </Card>
             )}
+
+            <div className="flex justify-center mt-6">
+              <Button onClick={handleExportPDF} size="lg" className="w-full">
+                <FileText className="h-5 w-5 mr-2" />
+                Exportar Ficha Completa (PDF)
+              </Button>
+            </div>
           </TabsContent>
 
           <TabsContent value="simulators" className="space-y-4">

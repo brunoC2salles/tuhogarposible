@@ -39,35 +39,35 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
 
       let filteredData = data || [];
 
-      // Filtrar por valor se temos dados do simulador hipotecário
-      if (lead.simulador_hipotecario_data) {
-        const maxValue = lead.simulador_hipotecario_data.montoMaximoCredito;
+      // Filtrar por valor: sempre usar ±20% do valor desejado, respeitando limite de crédito
+      if (lead.valor_inmueble_deseado) {
         const desiredValue = lead.valor_inmueble_deseado;
+        const margin = 0.2;
+        const minValue = desiredValue * (1 - margin);
+        const maxValueWithMargin = desiredValue * (1 + margin);
 
-        // Priorizar imóveis dentro da capacidade máxima de crédito
-        filteredData = filteredData.filter(inmueble => {
-          const price = Number(inmueble.precio);
-          // Aceita até 10% acima do máximo para dar flexibilidade
-          return price <= maxValue * 1.1;
-        });
+        // Se tem simulador hipotecário, limitar ao máximo de crédito
+        if (lead.simulador_hipotecario_data) {
+          const maxCreditValue = lead.simulador_hipotecario_data.montoMaximoCredito * 1.1;
+          const maxValueFinal = Math.min(maxValueWithMargin, maxCreditValue);
 
-        // Se tem valor desejado, ordenar por proximidade a esse valor
-        if (desiredValue) {
-          filteredData.sort((a, b) => {
-            const diffA = Math.abs(Number(a.precio) - desiredValue);
-            const diffB = Math.abs(Number(b.precio) - desiredValue);
-            return diffA - diffB;
+          filteredData = filteredData.filter(inmueble => {
+            const price = Number(inmueble.precio);
+            return price >= minValue && price <= maxValueFinal;
+          });
+        } else {
+          // Sem simulador: apenas ±20%
+          filteredData = filteredData.filter(inmueble => {
+            const price = Number(inmueble.precio);
+            return price >= minValue && price <= maxValueWithMargin;
           });
         }
-      } else if (lead.valor_inmueble_deseado) {
-        // Se só tem valor desejado (sem simulador), filtrar com 20% de margem
-        const margin = 0.2;
-        const minValue = lead.valor_inmueble_deseado * (1 - margin);
-        const maxValue = lead.valor_inmueble_deseado * (1 + margin);
 
-        filteredData = filteredData.filter(inmueble => {
-          const price = Number(inmueble.precio);
-          return price >= minValue && price <= maxValue;
+        // Ordenar por proximidade ao valor desejado
+        filteredData.sort((a, b) => {
+          const diffA = Math.abs(Number(a.precio) - desiredValue);
+          const diffB = Math.abs(Number(b.precio) - desiredValue);
+          return diffA - diffB;
         });
       }
 

@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Edit, UserCheck, UserX, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { AgentStatisticsBadge } from "@/components/admin/AgentStatisticsBadge";
 
 interface Agent {
   id: string;
@@ -228,13 +229,18 @@ export default function AdminAgentes() {
                     <TableHead>Teléfono</TableHead>
                     <TableHead>URL Tidycal</TableHead>
                     <TableHead>Región</TableHead>
+                    <TableHead>Estadísticas</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredAgents.map((agent) => (
-                    <TableRow key={agent.id}>
+                    <TableRow 
+                      key={agent.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/admin/agentes/${agent.id}`)}
+                    >
                       <TableCell className="font-medium">{agent.nombre}</TableCell>
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
@@ -245,6 +251,7 @@ export default function AdminAgentes() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {agent.tidycal_url}
                           </a>
@@ -260,11 +267,14 @@ export default function AdminAgentes() {
                         )}
                       </TableCell>
                       <TableCell>
+                        <AgentStatisticsBadge agentId={agent.id} />
+                      </TableCell>
+                      <TableCell>
                         <Badge variant={agent.activo ? "default" : "secondary"}>
                           {agent.activo ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right space-x-2">
+                      <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                         <Button
                           size="sm"
                           variant="outline"
