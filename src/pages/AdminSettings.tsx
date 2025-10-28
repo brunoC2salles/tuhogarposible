@@ -1,0 +1,265 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Save, TestTube, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { useAdminSettings } from '@/hooks/useAdminSettings';
+import { supabase } from '@/integrations/supabase/client';
+import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const AdminSettings = () => {
+  const navigate = useNavigate();
+  const { webhookUrl, loading, saving, webhookLogs, saveWebhookUrl, testWebhook, refreshLogs } = useAdminSettings();
+  const [localWebhookUrl, setLocalWebhookUrl] = useState('');
+  const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
+  const [exporting, setExporting] = useState(false);
+
+  // Atualizar local URL quando carregado
+  useState(() => {
+    if (webhookUrl && !localWebhookUrl) {
+      setLocalWebhookUrl(webhookUrl);
+    }
+  });
+
+  const handleSaveWebhook = async () => {
+    if (!localWebhookUrl.trim()) {
+      toast.error('Por favor, insira uma URL válida');
+      return;
+    }
+
+    const success = await saveWebhookUrl(localWebhookUrl);
+    if (success) {
+      refreshLogs();
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    if (!localWebhookUrl.trim()) {
+      toast.error('Por favor, insira uma URL válida');
+      return;
+    }
+    await testWebhook(localWebhookUrl);
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      setExporting(true);
+      
+      // Buscar submissions baseado no filtro
+      let query = supabase.from('form_submissions').select('*').order('created_at', { ascending: false });
+      
+      if (exportFilter === 'qualified') {
+        query = query.eq('qualificado', true);
+      }
+
+      const { data: submissions, error } = await query;
+
+      if (error) throw error;
+
+      if (!submissions || submissions.length === 0) {
+        toast.error('Nenhum dado para exportar');
+        return;
+      }
+
+      // Buscar nomes dos agentes
+      const { data: agentes } = await supabase.from('profiles').select('id, nombre');
+      const agenteNomes: Record<string, string> = {};
+      agentes?.forEach(a => {
+        agenteNomes[a.id] = a.nombre;
+      });
+
+      // Gerar CSV
+      const csvContent = exportLeadsToCSV(submissions as any, agenteNomes);
+      
+      // Download
+      const filename = `leads_export_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      downloadCSV(csvContent, filename);
+
+      toast.success(`${submissions.length} leads exportados com sucesso`);
+    } catch (err: any) {
+      console.error('[Export] Error:', err);
+      toast.error('Error al exportar datos');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const webhooksHoje = webhookLogs.filter(log => {
+    const logDate = new Date(log.created_at);
+    const today = new Date();
+    return logDate.toDateString() === today.toDateString();
+  }).length;
+
+  const webhooksErro = webhookLogs.filter(log => log.status === 'error').length;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p>Cargando configuraciones...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/inventario/admin/crm')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Configuraciones del Sistema</h1>
+              <p className="text-sm text-muted-foreground">Gestión de integraciones y exportaciones</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Integração Make.com */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Integración Make.com</CardTitle>
+            <CardDescription>
+              Configure el webhook para enviar leads qualificados automáticamente al Bitrix24 via Make.com
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="webhook-url">URL del Webhook</Label>
+              <Input
+                id="webhook-url"
+                type="url"
+                placeholder="https://hook.us1.make.com/..."
+                value={localWebhookUrl}
+                onChange={(e) => setLocalWebhookUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esta URL se disparará automáticamente cada vez que un lead sea qualificado y asignado a un agente
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button onClick={handleSaveWebhook} disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />
+                {saving ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button variant="outline" onClick={handleTestWebhook} disabled={!localWebhookUrl.trim()}>
+                <TestTube className="h-4 w-4 mr-2" />
+                Probar Conexión
+              </Button>
+            </div>
+
+            {/* Status */}
+            <div className="flex gap-4 pt-4 border-t">
+              <div>
+                <p className="text-sm font-medium">Webhooks Hoje</p>
+                <p className="text-2xl font-bold">{webhooksHoje}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Con Errores</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold">{webhooksErro}</p>
+                  {webhooksErro > 0 && <Badge variant="destructive">Revisar</Badge>}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Logs de Webhook */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Histórico de Webhooks</CardTitle>
+            <CardDescription>Últimos 20 webhooks disparados</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-[400px] overflow-y-auto">
+              {webhookLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Ningún webhook disparado aún
+                </p>
+              ) : (
+                webhookLogs.map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-3 border rounded-md">
+                    <div className="flex items-center gap-3">
+                      {log.status === 'success' ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 text-destructive" />
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">
+                          {log.status === 'success' ? 'Enviado correctamente' : 'Error al enviar'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss')}
+                        </p>
+                        {log.error_message && (
+                          <p className="text-xs text-destructive mt-1">{log.error_message}</p>
+                        )}
+                      </div>
+                    </div>
+                    <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
+                      {log.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Exportação CSV */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Exportación de Datos</CardTitle>
+            <CardDescription>
+              Descargue los datos de los leads en formato CSV para análisis externo
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="export-filter">Filtro de Exportación</Label>
+              <Select value={exportFilter} onValueChange={(v) => setExportFilter(v as 'all' | 'qualified')}>
+                <SelectTrigger id="export-filter">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los leads</SelectItem>
+                  <SelectItem value="qualified">Solo qualificados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button onClick={handleExportCSV} disabled={exporting}>
+              <Download className="h-4 w-4 mr-2" />
+              {exporting ? 'Exportando...' : 'Exportar CSV'}
+            </Button>
+
+            <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+              <p>• El archivo incluirá: datos personales, financieros, simulaciones y agente asignado</p>
+              <p>• Formato de fecha: DD/MM/YYYY</p>
+              <p>• Codificación: UTF-8 (compatible con Excel y Google Sheets)</p>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+};
+
+export default AdminSettings;

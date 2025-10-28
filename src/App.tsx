@@ -18,6 +18,7 @@ import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPa
 import FormularioQualificacion from "./pages/FormularioQualificacion";
 import AgentSettings from "./pages/AgentSettings";
 import AdminAgentes from "./pages/AdminAgentes";
+import AdminSettings from "./pages/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +81,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AdminAgentes />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminSettings />
                 </ProtectedRoute>
               } 
             />

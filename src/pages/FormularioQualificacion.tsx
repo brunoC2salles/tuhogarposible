@@ -57,6 +57,7 @@ export default function FormularioQualificacion() {
     tipo: "desqualificado" | "qualificado_cataluna" | "qualificado_general" | "agendamento_confirmado";
     tidycalLink?: string;
     nombreAgente?: string;
+    telefonoAgente?: string;
   }>({
     open: false,
     tipo: "desqualificado",
@@ -122,6 +123,7 @@ export default function FormularioQualificacion() {
       tipo,
       tidycalLink: submissionResult.tidycal_url,
       nombreAgente: submissionResult.nombre_agente,
+      telefonoAgente: submissionResult.telefono_agente,
     });
   };
 
@@ -546,6 +548,7 @@ export default function FormularioQualificacion() {
         tipo={modalState.tipo}
         tidycalLink={modalState.tidycalLink}
         nombreAgente={modalState.nombreAgente}
+        telefonoAgente={modalState.telefonoAgente}
       />
     </div>
   );

@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     // 1. Buscar agentes disponíveis da região
     const { data: agents, error: agentsError } = await supabaseAdmin
       .from('profiles')
-      .select('id, nombre, email, tidycal_url')
+      .select('id, nombre, email, tidycal_url, telefono')
       .eq('activo', true)
       .eq('region_round_robin', region)
       .not('tidycal_url', 'is', null)
@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         agent_id: nextAgent.id,
         tidycal_url: nextAgent.tidycal_url,
-        nombre: nextAgent.nombre
+        nombre: nextAgent.nombre,
+        telefono: nextAgent.telefono
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

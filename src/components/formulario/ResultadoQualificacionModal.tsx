@@ -14,6 +14,7 @@ interface ResultadoQualificacionModalProps {
   tipo: "desqualificado" | "qualificado_cataluna" | "qualificado_general" | "agendamento_confirmado";
   tidycalLink?: string;
   nombreAgente?: string;
+  telefonoAgente?: string;
 }
 
 export function ResultadoQualificacionModal({
@@ -22,6 +23,7 @@ export function ResultadoQualificacionModal({
   tipo,
   tidycalLink,
   nombreAgente,
+  telefonoAgente,
 }: ResultadoQualificacionModalProps) {
   // Modal de desqualificação
   if (tipo === "desqualificado") {
@@ -106,6 +108,17 @@ export function ResultadoQualificacionModal({
               loading="lazy"
             />
           )}
+        </div>
+
+        {/* Frase após Tidycal */}
+        <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-md">
+          <p className="text-sm text-amber-900 dark:text-amber-100 text-center">
+            Asegúrese de haber programado su reunión con uno de nuestros agentes y de que asistirá. 
+            Si tiene alguna pregunta o necesita reprogramarla, comuníquese al número que figura a continuación.
+          </p>
+          <p className="text-center font-bold text-lg mt-2 text-primary">
+            {telefonoAgente || "+34 614 17 36 85"}
+          </p>
         </div>
       </DialogContent>
     </Dialog>

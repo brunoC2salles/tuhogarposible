@@ -39,7 +39,8 @@ export function useFormSubmission() {
           
           agenteAsignado = {
             id: agentData.agent_id,
-            nombre: agentData.nombre
+            nombre: agentData.nombre,
+            telefono: agentData.telefono
           };
           tidycalUrl = agentData.tidycal_url;
           
@@ -164,11 +165,107 @@ export function useFormSubmission() {
 
       console.log('[Formulario] Submission creado:', data.id, 'Lead ID:', data.lead_id);
 
+      // ========================================
+      // DISPARAR WEBHOOK PARA MAKE.COM (se configurado)
+      // ========================================
+      if (qualificacaoResult.qualificado && agenteAsignado) {
+        let webhookConfigValue = 'unknown';
+        try {
+          // Buscar URL do webhook
+          const { data: webhookConfig } = await supabase
+            .from('admin_settings')
+            .select('value')
+            .eq('key', 'webhook_makecom_url')
+            .single();
+
+          const webhookUrl = webhookConfig?.value;
+          webhookConfigValue = webhookUrl || 'unknown';
+
+          if (webhookUrl && webhookUrl.trim() !== '') {
+            // Preparar payload completo
+            const webhookPayload = {
+              submission_id: data.id,
+              lead_id: data.lead_id,
+              timestamp: new Date().toISOString(),
+              
+              lead: {
+                nombre_completo: formData.nombre_completo,
+                email: formData.email,
+                telefono: formData.telefono,
+                edad: formData.edad,
+                ciudad_interes: formData.ciudad_interes,
+                comunidad_autonoma: formData.comunidad_autonoma,
+                valor_inmueble_deseado: formData.valor_inmueble_deseado,
+              },
+              
+              financeiro: {
+                entrada_disponible: formData.entrada_disponible || 0,
+                ingresos_mensuales: formData.ingresos_mensuales,
+                deudas_actuales: formData.deudas_actuales || 0,
+                situacion_laboral: formData.situacion_laboral,
+                en_fichero_morosidad: formData.en_fichero_morosidad,
+              },
+              
+              acompanante: formData.compra_solo_acompanado === 'acompanado' ? {
+                nombre: formData.acompanante_nombre,
+                relacion: formData.acompanante_relacion,
+                aporte: formData.acompanante_aporte,
+              } : null,
+              
+              agente: {
+                id: agenteAsignado.id,
+                nombre: agenteAsignado.nombre,
+                telefono: agenteAsignado.telefono,
+                tidycal_url: tidycalUrl,
+              },
+              
+              simulaciones: {
+                credito_personal: resultadosPersonal,
+                credito_hipotecario: resultadosHipoteca,
+              },
+            };
+
+            // Disparar webhook (no-cors)
+            await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              mode: 'no-cors',
+              body: JSON.stringify(webhookPayload),
+            });
+
+            // Log de sucesso
+            await supabase.from('webhook_logs').insert([{
+              submission_id: data.id,
+              webhook_url: webhookUrl,
+              status: 'success',
+              payload: webhookPayload as any,
+            }]);
+
+            console.log('[Webhook] Enviado com sucesso para Make.com');
+          }
+        } catch (webhookError: any) {
+          console.error('[Webhook] Erro:', webhookError);
+          
+          // Log de erro (não bloquear fluxo)
+          try {
+            await supabase.from('webhook_logs').insert([{
+              submission_id: data.id,
+              webhook_url: webhookConfigValue,
+              status: 'error',
+              error_message: webhookError.message || 'Unknown error',
+            }]);
+          } catch (logError) {
+            console.error('[Webhook] Erro ao salvar log:', logError);
+          }
+        }
+      }
+
       return {
         success: true,
         submission_id: data.id,
         tidycal_url: tidycalUrl,
         nombre_agente: agenteAsignado?.nombre,
+        telefono_agente: agenteAsignado?.telefono,
       };
     } catch (error) {
       console.error("Error in submitFormulario:", error);
