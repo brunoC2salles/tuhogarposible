@@ -26,10 +26,11 @@ import {
   formularioQualificacionSchema,
   type FormularioQualificacionData,
 } from "@/schemas/formularioQualificacionSchema";
-import { qualificarLead } from "@/lib/qualificacaoUtils";
-import { useFormSubmission } from "@/hooks/useFormSubmission";
+import { qualificarLead, type QualificacionResult } from "@/lib/qualificacaoUtils";
+import { useConfirmAgendamento } from "@/hooks/useConfirmAgendamento";
 import { ResultadoQualificacionModal } from "@/components/formulario/ResultadoQualificacionModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const COMUNIDADES_AUTONOMAS = [
   "Andalucía",
@@ -63,7 +64,18 @@ export default function FormularioQualificacion() {
     tipo: "desqualificado",
   });
 
-  const { submitFormulario, isSubmitting } = useFormSubmission();
+  // Estados temporários para armazenar dados antes da confirmação
+  const [tempFormData, setTempFormData] = useState<FormularioQualificacionData | null>(null);
+  const [tempResultado, setTempResultado] = useState<QualificacionResult | null>(null);
+  const [tempAgenteData, setTempAgenteData] = useState<{
+    id: string;
+    nombre: string;
+    telefono: string;
+    tidycal_url: string;
+  } | null>(null);
+
+  const { confirmAgendamento, isConfirming } = useConfirmAgendamento();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormularioQualificacionData>({
     resolver: zodResolver(formularioQualificacionSchema),
@@ -93,38 +105,88 @@ export default function FormularioQualificacion() {
   const compraAcompanado = form.watch("compra_solo_acompanado") === "acompanado";
 
   const onSubmit = async (data: FormularioQualificacionData) => {
-    // Executar lógica de qualificação
-    const resultado = qualificarLead(data);
+    setIsSubmitting(true);
+    
+    try {
+      // Executar lógica de qualificação
+      const resultado = qualificarLead(data);
 
-    // Se desqualificado, mostrar modal e NÃO salvar no banco
-    if (!resultado.qualificado) {
+      // Se desqualificado, mostrar modal e NÃO salvar no banco
+      if (!resultado.qualificado) {
+        setModalState({
+          open: true,
+          tipo: "desqualificado",
+        });
+        return;
+      }
+
+      // Se qualificado, APENAS buscar agente e abrir modal (NÃO salvar ainda!)
+      const region = data.comunidad_autonoma === "Cataluña" ? "Cataluña" : "Geral";
+      
+      const { data: agentData, error } = await supabase.functions.invoke('get-next-agent', {
+        body: { region }
+      });
+
+      if (error) throw error;
+
+      // Armazenar dados temporariamente
+      setTempFormData(data);
+      setTempResultado(resultado);
+      setTempAgenteData({
+        id: agentData.agent_id,
+        nombre: agentData.nombre,
+        telefono: agentData.telefono,
+        tidycal_url: agentData.tidycal_url,
+      });
+
+      // Abrir modal com Tidycal (NÃO salvar no banco ainda!)
+      const tipo = data.comunidad_autonoma === "Cataluña"
+        ? "qualificado_cataluna"
+        : "qualificado_general";
+
       setModalState({
         open: true,
-        tipo: "desqualificado",
+        tipo,
+        tidycalLink: agentData.tidycal_url,
+        nombreAgente: agentData.nombre,
+        telefonoAgente: agentData.telefono,
       });
+    } catch (error) {
+      toast.error("Error al procesar. Por favor, inténtalo de nuevo.");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handler para confirmação no modal (após agendar no Tidycal)
+  const handleConfirmarAgendamento = async () => {
+    if (!tempFormData || !tempResultado || !tempAgenteData) {
+      toast.error("Datos incompletos. Por favor, vuelve a intentarlo.");
       return;
     }
 
-    // Se qualificado, salvar no banco
-    const submissionResult = await submitFormulario(data, resultado);
+    const result = await confirmAgendamento(tempFormData, tempResultado, tempAgenteData);
 
-    if (!submissionResult.success) {
-      toast.error("Error al enviar el formulario. Por favor, inténtalo de nuevo.");
-      return;
+    if (result.success) {
+      // Fechar modal atual e abrir modal de confirmação final
+      setModalState({
+        open: true,
+        tipo: "agendamento_confirmado",
+      });
+      
+      // Limpar dados temporários
+      setTempFormData(null);
+      setTempResultado(null);
+      setTempAgenteData(null);
+      
+      // Resetar formulário
+      form.reset();
+      
+      toast.success("¡Registro completado con éxito!");
+    } else {
+      toast.error(result.error || "Error al confirmar. Inténtalo de nuevo.");
     }
-
-    // Mostrar modal com Tidycal baseado na comunidade
-    const tipo = data.comunidad_autonoma === "Cataluña"
-      ? "qualificado_cataluna"
-      : "qualificado_general";
-
-    setModalState({
-      open: true,
-      tipo,
-      tidycalLink: submissionResult.tidycal_url,
-      nombreAgente: submissionResult.nombre_agente,
-      telefonoAgente: submissionResult.telefono_agente,
-    });
   };
 
   return (
@@ -534,7 +596,7 @@ export default function FormularioQualificacion() {
                 disabled={isSubmitting}
                 className="min-w-[200px]"
               >
-                {isSubmitting ? "Enviando..." : "Enviar y Continuar"}
+                {isSubmitting ? "Procesando..." : "Finalizar"}
               </Button>
             </div>
           </form>
@@ -549,6 +611,8 @@ export default function FormularioQualificacion() {
         tidycalLink={modalState.tidycalLink}
         nombreAgente={modalState.nombreAgente}
         telefonoAgente={modalState.telefonoAgente}
+        onConfirmarAgendamento={handleConfirmarAgendamento}
+        isConfirming={isConfirming}
       />
     </div>
   );

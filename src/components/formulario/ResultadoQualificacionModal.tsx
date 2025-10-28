@@ -6,7 +6,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertCircle, CheckCircle } from "lucide-react";
+import { useState } from "react";
 
 interface ResultadoQualificacionModalProps {
   open: boolean;
@@ -15,6 +17,8 @@ interface ResultadoQualificacionModalProps {
   tidycalLink?: string;
   nombreAgente?: string;
   telefonoAgente?: string;
+  onConfirmarAgendamento?: () => void;
+  isConfirming?: boolean;
 }
 
 export function ResultadoQualificacionModal({
@@ -24,7 +28,10 @@ export function ResultadoQualificacionModal({
   tidycalLink,
   nombreAgente,
   telefonoAgente,
+  onConfirmarAgendamento,
+  isConfirming = false,
 }: ResultadoQualificacionModalProps) {
+  const [confirmAgendado, setConfirmAgendado] = useState(false);
   // Modal de desqualificação
   if (tipo === "desqualificado") {
     return (
@@ -119,6 +126,34 @@ export function ResultadoQualificacionModal({
           <p className="text-center font-bold text-lg mt-2 text-primary">
             {telefonoAgente || "+34 614 17 36 85"}
           </p>
+        </div>
+
+        {/* Checkbox de confirmação */}
+        <div className="mt-6 flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+          <Checkbox 
+            id="confirm-agendado" 
+            checked={confirmAgendado}
+            onCheckedChange={(checked) => setConfirmAgendado(checked === true)}
+            className="mt-1"
+          />
+          <label 
+            htmlFor="confirm-agendado" 
+            className="text-sm text-blue-900 dark:text-blue-100 cursor-pointer flex-1"
+          >
+            ☑️ Confirmo que he agendado mi reunión con el agente y me comprometo a asistir en la fecha programada.
+          </label>
+        </div>
+
+        {/* Botão de confirmação */}
+        <div className="mt-6 flex justify-center">
+          <Button 
+            onClick={onConfirmarAgendamento} 
+            size="lg" 
+            className="w-full max-w-md"
+            disabled={!confirmAgendado || isConfirming}
+          >
+            {isConfirming ? "Confirmando..." : "Finalizar Registro"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
