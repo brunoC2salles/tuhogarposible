@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Lead, STAGE_LABELS } from '@/types/crm';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import logo from '@/assets/logo.png';
 
 export function generateSimulacionPDF(
   datos: SimuladorCreditoFormData,
@@ -19,12 +20,13 @@ export function generateSimulacionPDF(
   const margin = 20;
   let currentY = margin;
 
-  // Logo (texto como placeholder - você pode substituir por uma imagem real)
-  doc.setFontSize(20);
+  // Logo
+  doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(41, 98, 255); // Cor azul
-  doc.text('TU HOGAR POSIBLE', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 15;
+  doc.setTextColor(41, 98, 255);
+  doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
+  currentY += 20;
 
   // Título
   doc.setFontSize(16);
@@ -194,11 +196,12 @@ export function generateSimulacionHipotecariaPDF(
   let currentY = margin;
 
   // Logo
-  doc.setFontSize(20);
+  doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(41, 98, 255);
-  doc.text('TU HOGAR POSIBLE', pageWidth / 2, currentY, { align: 'center' });
-  currentY += 15;
+  doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
+  currentY += 20;
 
   // Título
   doc.setFontSize(16);

@@ -116,7 +116,7 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              <Link to="/formulario-qualificacion">
+              <Link to="/formulario-qualificacion" target="_blank" rel="noopener noreferrer">
                 <Button className="w-full" size="lg">
                   Completar Formulario
                 </Button>

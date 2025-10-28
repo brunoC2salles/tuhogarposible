@@ -35,8 +35,10 @@ const AdminSettings = () => {
 
   const handleSaveWebhook = async () => {
     if (!localWebhookUrl.trim()) {
-      toast.error('Por favor, insira uma URL válida');
-      return;
+      const confirmar = window.confirm(
+        '⚠️ Estás a punto de eliminar la URL del webhook. ¿Continuar?'
+      );
+      if (!confirmar) return;
     }
 
     const success = await saveWebhookUrl(localWebhookUrl);

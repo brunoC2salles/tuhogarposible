@@ -5,6 +5,7 @@ import { Lead, STAGE_LABELS } from '@/types/crm';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { calcularAmortizacionFrancesa, calcularSimulacionHipoteca, formatEuro, formatDateTime } from './simuladorUtils';
+import logo from '@/assets/logo.png';
 
 export async function generateLeadCompletePDF(lead: Lead) {
   try {
@@ -86,11 +87,12 @@ export async function generateLeadCompletePDF(lead: Lead) {
     let currentY = margin;
 
     // Logo e título
-    doc.setFontSize(20);
+    doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(41, 98, 255);
-    doc.text('TU HOGAR POSIBLE', pageWidth / 2, currentY, { align: 'center' });
-    currentY += 15;
+    doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
+    currentY += 20;
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
