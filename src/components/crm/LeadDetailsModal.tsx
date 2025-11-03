@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,8 +8,9 @@ import { Lead, STAGE_LABELS, LeadHistorico } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, Clock, User, Building2, FileText } from 'lucide-react';
+import { Calculator, Home, Clock, User, Building2, FileText, Upload, Download, Trash2 } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
+import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
@@ -31,8 +32,10 @@ export const LeadDetailsModal = ({
 }: LeadDetailsModalProps) => {
   const { user } = useAuth();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
+  const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
   const [historico, setHistorico] = useState<LeadHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (lead && open) {
@@ -90,6 +93,22 @@ export const LeadDetailsModal = ({
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await uploadDocument(file);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteDocument = async (fileName: string) => {
+    if (window.confirm('¿Estás seguro de eliminar este documento?')) {
+      await deleteDocument(fileName);
+    }
+  };
+
   if (!lead) return null;
 
   return (
@@ -106,10 +125,11 @@ export const LeadDetailsModal = ({
         </DialogHeader>
 
         <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="info">Información</TabsTrigger>
             <TabsTrigger value="simulators">Simuladores</TabsTrigger>
             <TabsTrigger value="inmuebles">Inmuebles ({inmuebles.length})</TabsTrigger>
+            <TabsTrigger value="documentos">Documentos ({documents.length})</TabsTrigger>
             <TabsTrigger value="historico">Historial</TabsTrigger>
           </TabsList>
 
@@ -310,6 +330,67 @@ export const LeadDetailsModal = ({
             ) : (
               <div className="text-center text-muted-foreground py-8">
                 No hay historial de movimientos
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="documentos" className="space-y-4">
+            <div className="flex justify-end mb-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploading ? 'Subiendo...' : 'Subir PDF'}
+              </Button>
+            </div>
+
+            {documentsLoading ? (
+              <div className="text-center text-muted-foreground py-8">Cargando...</div>
+            ) : documents.length > 0 ? (
+              <div className="grid gap-3">
+                {documents.map((doc) => (
+                  <Card key={doc.id}>
+                    <CardContent className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-3">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <div>
+                          <p className="font-medium text-sm">{doc.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(doc.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => downloadDocument(doc.name)}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteDocument(doc.name)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                No hay documentos subidos para este lead
               </div>
             )}
           </TabsContent>

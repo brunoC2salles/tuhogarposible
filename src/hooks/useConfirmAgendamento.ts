@@ -27,113 +27,145 @@ export function useConfirmAgendamento() {
     setIsConfirming(true);
     
     try {
+      // VALIDACIONES PREVIAS
+      if (!formData.valor_inmueble_deseado || formData.valor_inmueble_deseado < 50000) {
+        throw new Error('El valor del inmueble debe ser al menos 50.000€');
+      }
+
+      if (!formData.ingresos_mensuales || formData.ingresos_mensuales < 500) {
+        throw new Error('Los ingresos mensuales deben ser al menos 500€');
+      }
+
       // Calcular menor_de_35
       const menorDe35 = formData.edad < 35;
 
       // 1. CALCULAR SIMULAÇÃO DE CRÉDITO PESSOAL
-      const datosSimulacionPersonal: DatosSimulacion = {
-        ingresos: formData.ingresos_mensuales,
-        deudas: formData.deudas_actuales || 0,
-        entrada: formData.entrada_disponible || 0,
-        valorInmueble: formData.valor_inmueble_deseado,
-        plazoMeses: 96,
-        tasaAnual: 6,
-      };
+      let resultadosPersonal;
+      let datosSimulacionPersonal: DatosSimulacion;
+      
+      try {
+        datosSimulacionPersonal = {
+          ingresos: formData.ingresos_mensuales,
+          deudas: formData.deudas_actuales || 0,
+          entrada: formData.entrada_disponible || 0,
+          valorInmueble: formData.valor_inmueble_deseado,
+          plazoMeses: 96,
+          tasaAnual: 6,
+        };
 
-      const resultadosPersonal = calcularAmortizacionFrancesa(datosSimulacionPersonal);
-
-      // 2. CALCULAR SIMULAÇÃO HIPOTECÁRIA
-      const situacionLaboralNormalizada = 
-        formData.situacion_laboral === "pensionista" ? "empleado" :
-        formData.situacion_laboral === "desempleado" ? "empleado" :
-        formData.situacion_laboral as "autonomo" | "empleado";
-
-      const comunidadNormalizada = 
-        formData.comunidad_autonoma === "Comunidad de Madrid" ? "Madrid" :
-        formData.comunidad_autonoma === "Cataluña" ? "Cataluña" :
-        formData.comunidad_autonoma === "Andalucía" ? "Andalucía" :
-        formData.comunidad_autonoma === "Comunidad Valenciana" ? "Valencia" :
-        "Otros" as const;
-
-      const datosSimulacionHipoteca: DatosSimulacionHipoteca = {
-        edad: formData.edad,
-        precioVivienda: formData.valor_inmueble_deseado,
-        comunidadAutonoma: comunidadNormalizada,
-        familiaNumerosa: false,
-        menorDe35: menorDe35,
-        situacionLaboral: situacionLaboralNormalizada,
-        ingresosMensuales: formData.ingresos_mensuales,
-        creditosPendientes: formData.deudas_actuales || 0,
-        tasaAnual: 4,
-        porcentajeFinanciamiento: 100,
-      };
-
-      const resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
-
-      // 3. SALVAR NO BANCO
-      const submissionData = {
-        // Dados pessoais
-        nombre_completo: formData.nombre_completo,
-        email: formData.email,
-        telefono: formData.telefono,
-        edad: formData.edad,
-        
-        // Interesse imobiliário
-        comunidad_autonoma: formData.comunidad_autonoma,
-        ciudad_interes: formData.ciudad_interes,
-        valor_inmueble_deseado: formData.valor_inmueble_deseado,
-        
-        // Situação financeira
-        entrada_disponible: formData.entrada_disponible || 0,
-        ingresos_mensuales: formData.ingresos_mensuales,
-        situacion_laboral: formData.situacion_laboral,
-        deudas_actuales: formData.deudas_actuales || 0,
-        en_fichero_morosidad: formData.en_fichero_morosidad,
-        
-        // Compra
-        compra_solo_acompanado: formData.compra_solo_acompanado,
-        acompanante_nombre: formData.acompanante_nombre || null,
-        acompanante_relacion: formData.acompanante_relacion || null,
-        acompanante_aporte: formData.acompanante_aporte || null,
-        
-        // Qualificação
-        qualificado: qualificacaoResult.qualificado,
-        razon_no_qualificado: qualificacaoResult.razon_no_qualificado || null,
-        
-        // Simulações
-        menor_de_35: menorDe35,
-        familia_numerosa: false,
-        simulador_personal_data: resultadosPersonal as any,
-        simulador_hipotecario_data: resultadosHipoteca as any,
-        
-        // Agente
-        agente_asignado_id: agente.id,
-        
-        // Privacidade
-        acepta_privacidad: formData.acepta_privacidad,
-        
-        // Tidycal
-        tidycal_link: agente.tidycal_url,
-        tidycal_scheduled: true, // Usuário confirmou que agendou
-        tidycal_booking_id: null, // Não temos acesso
-        
-        // Status
-        processed: false,
-        lead_id: null,
-      };
-
-      const { data, error } = await supabase
-        .from("form_submissions")
-        .insert([submissionData])
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error submitting form:", error);
-        throw error;
+        resultadosPersonal = calcularAmortizacionFrancesa(datosSimulacionPersonal);
+      } catch (error) {
+        console.error('Error en simulación personal:', error);
+        throw new Error('Error al calcular simulación de crédito personal');
       }
 
-      console.log('[ConfirmAgendamento] Submission criado:', data.id, 'Lead ID:', data.lead_id);
+      // 2. CALCULAR SIMULAÇÃO HIPOTECÁRIA
+      let resultadosHipoteca;
+      let datosSimulacionHipoteca: DatosSimulacionHipoteca;
+      
+      try {
+        const situacionLaboralNormalizada = 
+          formData.situacion_laboral === "pensionista" ? "empleado" :
+          formData.situacion_laboral === "desempleado" ? "empleado" :
+          formData.situacion_laboral as "autonomo" | "empleado";
+
+        const comunidadNormalizada = 
+          formData.comunidad_autonoma === "Comunidad de Madrid" ? "Madrid" :
+          formData.comunidad_autonoma === "Cataluña" ? "Cataluña" :
+          formData.comunidad_autonoma === "Andalucía" ? "Andalucía" :
+          formData.comunidad_autonoma === "Comunidad Valenciana" ? "Valencia" :
+          "Otros" as const;
+
+        datosSimulacionHipoteca = {
+          edad: formData.edad,
+          precioVivienda: formData.valor_inmueble_deseado,
+          comunidadAutonoma: comunidadNormalizada,
+          familiaNumerosa: false,
+          menorDe35: menorDe35,
+          situacionLaboral: situacionLaboralNormalizada,
+          ingresosMensuales: formData.ingresos_mensuales,
+          creditosPendientes: formData.deudas_actuales || 0,
+          tasaAnual: 4,
+          porcentajeFinanciamiento: 100,
+        };
+
+        resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
+      } catch (error) {
+        console.error('Error en simulación hipotecaria:', error);
+        throw new Error('Error al calcular simulación hipotecaria');
+      }
+
+      // 3. SALVAR NO BANCO
+      let data;
+      try {
+        const submissionData = {
+          // Dados pessoais
+          nombre_completo: formData.nombre_completo,
+          email: formData.email,
+          telefono: formData.telefono,
+          edad: formData.edad,
+          
+          // Interesse imobiliário
+          comunidad_autonoma: formData.comunidad_autonoma,
+          ciudad_interes: formData.ciudad_interes,
+          valor_inmueble_deseado: formData.valor_inmueble_deseado,
+          
+          // Situação financeira
+          entrada_disponible: formData.entrada_disponible || 0,
+          ingresos_mensuales: formData.ingresos_mensuales,
+          situacion_laboral: formData.situacion_laboral,
+          deudas_actuales: formData.deudas_actuales || 0,
+          en_fichero_morosidad: formData.en_fichero_morosidad,
+          
+          // Compra
+          compra_solo_acompanado: formData.compra_solo_acompanado,
+          acompanante_nombre: formData.acompanante_nombre || null,
+          acompanante_relacion: formData.acompanante_relacion || null,
+          acompanante_aporte: formData.acompanante_aporte || null,
+          
+          // Qualificação
+          qualificado: qualificacaoResult.qualificado,
+          razon_no_qualificado: qualificacaoResult.razon_no_qualificado || null,
+          
+          // Simulações
+          menor_de_35: menorDe35,
+          familia_numerosa: false,
+          simulador_personal_data: resultadosPersonal as any,
+          simulador_hipotecario_data: resultadosHipoteca as any,
+          
+          // Agente
+          agente_asignado_id: agente.id,
+          
+          // Privacidade
+          acepta_privacidad: formData.acepta_privacidad,
+          
+          // Tidycal
+          tidycal_link: agente.tidycal_url,
+          tidycal_scheduled: true, // Usuário confirmou que agendou
+          tidycal_booking_id: null, // Não temos acesso
+          
+          // Status
+          processed: false,
+          lead_id: null,
+        };
+
+        const result = await supabase
+          .from("form_submissions")
+          .insert([submissionData])
+          .select()
+          .single();
+
+        if (result.error) {
+          console.error("Error submitting form:", result.error);
+          throw new Error(`Error al guardar los datos: ${result.error.message}`);
+        }
+        
+        data = result.data;
+        console.log('[ConfirmAgendamento] Submission criado:', data.id, 'Lead ID:', data.lead_id);
+      } catch (error) {
+        console.error('Error en guardado de datos:', error);
+        throw new Error('Error al guardar los datos en la base de datos');
+      }
 
       // 4. DISPARAR WEBHOOK COM PAYLOAD FLAT
       try {
@@ -261,7 +293,7 @@ export function useConfirmAgendamento() {
       console.error("Error in confirmAgendamento:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Error desconocido",
+        error: error instanceof Error ? error.message : "Error desconocido al procesar el formulario",
       };
     } finally {
       setIsConfirming(false);

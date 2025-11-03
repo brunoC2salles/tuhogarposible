@@ -578,10 +578,11 @@ export type Database = {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
       lead_source: "formulario_web" | "manual" | "tidycal_webhook"
       lead_stage:
-        | "nuevo_lead"
+        | "lead_cualificado"
+        | "mensaje_whatsapp"
         | "primera_llamada"
-        | "visita_agendada"
-        | "acuerdo"
+        | "reunion_contrato"
+        | "firma_pago"
         | "listo"
       tipo_inmueble:
         | "apartamento"
@@ -720,10 +721,11 @@ export const Constants = {
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
       lead_source: ["formulario_web", "manual", "tidycal_webhook"],
       lead_stage: [
-        "nuevo_lead",
+        "lead_cualificado",
+        "mensaje_whatsapp",
         "primera_llamada",
-        "visita_agendada",
-        "acuerdo",
+        "reunion_contrato",
+        "firma_pago",
         "listo",
       ],
       tipo_inmueble: [
