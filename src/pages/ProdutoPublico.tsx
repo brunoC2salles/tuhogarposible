@@ -335,11 +335,11 @@ export default function ProdutoPublico() {
 
       {/* Footer Fixo com Botão WhatsApp */}
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t shadow-lg">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-4 py-4 flex justify-center">
           <Button 
             asChild
             size="default"
-            className="bg-[#25D366] hover:bg-[#20BA5A] text-white px-6 mx-auto"
+            className="bg-[#25D366] hover:bg-[#20BA5A] text-white px-6 w-auto"
           >
             <a 
               href="https://wa.me/34621495705" 

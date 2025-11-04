@@ -20,12 +20,13 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Buscar todos os produtos Solvia com URL externa
+    // Buscar produtos Solvia com URL externa e campo images
     const { data: produtos, error: fetchError } = await supabase
       .from('inmuebles')
-      .select('id, url_externa, titulo, proveedor')
+      .select('id, url_externa, titulo, proveedor, images')
       .eq('proveedor', 'Solvia')
-      .not('url_externa', 'is', null);
+      .not('url_externa', 'is', null)
+      .not('images', 'is', null);
 
     if (fetchError) {
       throw fetchError;
@@ -42,7 +43,25 @@ serve(async (req) => {
       );
     }
 
-    console.log(`📦 ${produtos.length} produtos encontrados para processar`);
+    // Filtrar APENAS produtos com exatamente 1 imagem
+    const produtosComUmaImagem = produtos.filter(p => {
+      const images = p.images as string[] | null;
+      return images && Array.isArray(images) && images.length === 1;
+    });
+
+    if (produtosComUmaImagem.length === 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Todos os produtos Solvia já possuem múltiplas imagens',
+          total: produtos.length,
+          processed: 0
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`📦 ${produtosComUmaImagem.length} produtos encontrados com apenas 1 imagem (de ${produtos.length} totais)`);
 
     let processed = 0;
     let errors = 0;
@@ -50,12 +69,12 @@ serve(async (req) => {
 
     // Processar produtos em lotes de 5 para não sobrecarregar
     const batchSize = 5;
-    for (let i = 0; i < produtos.length; i += batchSize) {
-      const batch = produtos.slice(i, i + batchSize);
+    for (let i = 0; i < produtosComUmaImagem.length; i += batchSize) {
+      const batch = produtosComUmaImagem.slice(i, i + batchSize);
       
       const batchPromises = batch.map(async (produto) => {
         try {
-          console.log(`[${i + 1}/${produtos.length}] Processando: ${produto.titulo}`);
+          console.log(`[${i + 1}/${produtosComUmaImagem.length}] Processando: ${produto.titulo}`);
           
           // Chamar função de scraping para cada produto
           const response = await fetch(
@@ -113,7 +132,7 @@ serve(async (req) => {
       await Promise.all(batchPromises);
       
       // Delay entre lotes
-      if (i + batchSize < produtos.length) {
+      if (i + batchSize < produtosComUmaImagem.length) {
         console.log(`⏸️ Aguardando antes do próximo lote...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
@@ -121,11 +140,12 @@ serve(async (req) => {
 
     const summary = {
       success: true,
-      total: produtos.length,
+      total: produtosComUmaImagem.length,
+      totalInDatabase: produtos.length,
       processed,
       errors,
       results,
-      message: `Processamento concluído: ${processed} sucessos, ${errors} erros`
+      message: `Processamento concluído: ${processed} sucessos, ${errors} erros de ${produtosComUmaImagem.length} produtos com 1 imagem`
     };
 
     console.log('🎉 Scraping automático finalizado:', summary.message);
