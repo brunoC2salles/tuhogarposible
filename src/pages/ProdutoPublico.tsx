@@ -16,6 +16,7 @@ export default function ProdutoPublico() {
   const [notFound, setNotFound] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState<any>(null);
+  const [scrapingImages, setScrapingImages] = useState(false);
 
   useEffect(() => {
     if (!carouselApi) return;
@@ -24,6 +25,36 @@ export default function ProdutoPublico() {
       setCurrentImageIndex(carouselApi.selectedScrollSnap());
     });
   }, [carouselApi]);
+
+  // Função para scraping automático
+  const triggerAutoScraping = async (inmueble: Inmueble) => {
+    // Só scrapar se tiver exatamente 1 imagem E tiver url_externa
+    if (!inmueble.images || inmueble.images.length !== 1 || !inmueble.urlExterna) {
+      return;
+    }
+    
+    setScrapingImages(true);
+    console.log('🔄 Iniciando scraping automático para:', inmueble.titulo);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('scrape-product-images', {
+        body: { 
+          inmuebleId: inmueble.id, 
+          urlExterna: inmueble.urlExterna 
+        }
+      });
+      
+      if (data?.success && data.images) {
+        // Atualizar estado com novas imagens
+        setInmueble(prev => prev ? { ...prev, images: data.images } : null);
+        console.log('✅ Scraping completo:', data.totalImages, 'imagens');
+      }
+    } catch (err) {
+      console.error('❌ Erro no scraping automático:', err);
+    } finally {
+      setScrapingImages(false);
+    }
+  };
 
   useEffect(() => {
     const fetchInmueble = async () => {
@@ -64,6 +95,9 @@ export default function ProdutoPublico() {
             images: (data.images as string[]) || undefined,
           };
           setInmueble(converted);
+          
+          // Trigger scraping automático se necessário
+          triggerAutoScraping(converted);
         }
       } catch (err) {
         console.error('Error fetching inmueble:', err);
@@ -187,6 +221,16 @@ export default function ProdutoPublico() {
                         <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 shadow-lg">
                           <Images className="w-4 h-4" />
                           {images.length}
+                        </div>
+                      )}
+                      
+                      {/* Loading overlay durante scraping */}
+                      {scrapingImages && index === 0 && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                          <div className="text-white text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-2"></div>
+                            <p className="text-sm">Carregando más imágenes...</p>
+                          </div>
                         </div>
                       )}
                     </div>

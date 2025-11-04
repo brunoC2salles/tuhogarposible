@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.scrape-all-products]
 verify_jwt = false
+
+[functions.scraping-status]
+verify_jwt = false

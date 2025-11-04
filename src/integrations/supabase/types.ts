@@ -508,6 +508,50 @@ export type Database = {
           },
         ]
       }
+      scraping_progress: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          images_found: number | null
+          inmueble_id: string | null
+          last_attempt_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          images_found?: number | null
+          inmueble_id?: string | null
+          last_attempt_at?: string | null
+          status: string
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          images_found?: number | null
+          inmueble_id?: string | null
+          last_attempt_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_progress_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: true
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null

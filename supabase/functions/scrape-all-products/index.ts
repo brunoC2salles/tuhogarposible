@@ -13,70 +13,84 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 Iniciando scraping automático de todos os produtos Solvia');
+    console.log('🚀 Iniciando processamento em lote de produtos pendentes');
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Buscar produtos Solvia com URL externa e campo images
-    const { data: produtos, error: fetchError } = await supabase
-      .from('inmuebles')
-      .select('id, url_externa, titulo, proveedor, images')
-      .eq('proveedor', 'Solvia')
-      .not('url_externa', 'is', null)
-      .not('images', 'is', null);
+    // Buscar 50 produtos pendentes (batch size otimizado)
+    const { data: pendingItems, error: fetchError } = await supabase
+      .from('scraping_progress')
+      .select(`
+        id,
+        inmueble_id,
+        attempts,
+        inmuebles!inner (
+          id,
+          titulo,
+          url_externa
+        )
+      `)
+      .eq('status', 'pending')
+      .lt('attempts', 3) // Máximo 3 tentativas
+      .order('created_at', { ascending: true })
+      .limit(50);
 
     if (fetchError) {
       throw fetchError;
     }
 
-    if (!produtos || produtos.length === 0) {
+    if (!pendingItems || pendingItems.length === 0) {
+      // Buscar estatísticas finais
+      const { data: stats } = await supabase
+        .from('scraping_progress')
+        .select('status');
+      
+      const summary = stats?.reduce((acc, item) => {
+        acc[item.status] = (acc[item.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Nenhum produto Solvia encontrado para processar',
-          processed: 0
+          message: 'Nenhum produto pendente para processar',
+          stats: summary,
+          allCompleted: true
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Filtrar APENAS produtos com exatamente 1 imagem
-    const produtosComUmaImagem = produtos.filter(p => {
-      const images = p.images as string[] | null;
-      return images && Array.isArray(images) && images.length === 1;
-    });
-
-    if (produtosComUmaImagem.length === 0) {
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Todos os produtos Solvia já possuem múltiplas imagens',
-          total: produtos.length,
-          processed: 0
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`📦 ${produtosComUmaImagem.length} produtos encontrados com apenas 1 imagem (de ${produtos.length} totais)`);
+    console.log(`📦 Processando lote de ${pendingItems.length} produtos`);
 
     let processed = 0;
     let errors = 0;
     const results = [];
 
-    // Processar produtos em lotes de 5 para não sobrecarregar
+    // Processar em paralelo (5 por vez)
     const batchSize = 5;
-    for (let i = 0; i < produtosComUmaImagem.length; i += batchSize) {
-      const batch = produtosComUmaImagem.slice(i, i + batchSize);
+    for (let i = 0; i < pendingItems.length; i += batchSize) {
+      const batch = pendingItems.slice(i, i + batchSize);
       
-      const batchPromises = batch.map(async (produto) => {
+      const batchPromises = batch.map(async (item) => {
+        const inmueble = item.inmuebles as any;
+        
         try {
-          console.log(`[${i + 1}/${produtosComUmaImagem.length}] Processando: ${produto.titulo}`);
+          // Marcar como processing
+          await supabase
+            .from('scraping_progress')
+            .update({ 
+              status: 'processing',
+              last_attempt_at: new Date().toISOString()
+            })
+            .eq('id', item.id);
+
+          console.log(`[${i + 1}/${pendingItems.length}] Processando: ${inmueble.titulo}`);
           
-          // Chamar função de scraping para cada produto
+          // Chamar função de scraping
           const response = await fetch(
             `${Deno.env.get('SUPABASE_URL')}/functions/v1/scrape-product-images`,
             {
@@ -86,8 +100,8 @@ serve(async (req) => {
                 'Authorization': `Bearer ${Deno.env.get('SUPABASE_ANON_KEY')}`,
               },
               body: JSON.stringify({
-                inmuebleId: produto.id,
-                urlExterna: produto.url_externa
+                inmuebleId: inmueble.id,
+                urlExterna: inmueble.url_externa
               })
             }
           );
@@ -95,70 +109,93 @@ serve(async (req) => {
           const result = await response.json();
           
           if (result.success) {
+            // Marcar como completed
+            await supabase
+              .from('scraping_progress')
+              .update({ 
+                status: 'completed',
+                images_found: result.totalImages,
+                error_message: null
+              })
+              .eq('id', item.id);
+
             processed++;
             results.push({
-              id: produto.id,
-              titulo: produto.titulo,
+              id: inmueble.id,
+              titulo: inmueble.titulo,
               imagesFound: result.totalImages,
               status: 'success'
             });
-            console.log(`✅ ${produto.titulo}: ${result.totalImages} imagens`);
+            console.log(`✅ ${inmueble.titulo}: ${result.totalImages} imagens`);
           } else {
-            errors++;
-            results.push({
-              id: produto.id,
-              titulo: produto.titulo,
-              status: 'error',
-              error: result.error
-            });
-            console.log(`❌ ${produto.titulo}: Erro - ${result.error}`);
+            throw new Error(result.error || 'Scraping falhou');
           }
-          
-          // Pequeno delay para não sobrecarregar
-          await new Promise(resolve => setTimeout(resolve, 500));
           
         } catch (error) {
           errors++;
+          
+          // Incrementar attempts e marcar como failed se atingiu limite
+          const newAttempts = (item.attempts || 0) + 1;
+          const newStatus = newAttempts >= 3 ? 'failed' : 'pending';
+          
+          await supabase
+            .from('scraping_progress')
+            .update({ 
+              status: newStatus,
+              attempts: newAttempts,
+              error_message: error.message,
+              last_attempt_at: new Date().toISOString()
+            })
+            .eq('id', item.id);
+
           results.push({
-            id: produto.id,
-            titulo: produto.titulo,
+            id: inmueble.id,
+            titulo: inmueble.titulo,
             status: 'error',
-            error: error.message
+            error: error.message,
+            attempts: newAttempts
           });
-          console.error(`❌ Erro ao processar ${produto.titulo}:`, error);
+          console.error(`❌ Erro ao processar ${inmueble.titulo}:`, error);
         }
       });
 
       await Promise.all(batchPromises);
       
-      // Delay entre lotes
-      if (i + batchSize < produtosComUmaImagem.length) {
-        console.log(`⏸️ Aguardando antes do próximo lote...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+      // Pequeno delay entre sub-batches
+      if (i + batchSize < pendingItems.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
 
-    const summary = {
+    // Buscar estatísticas atualizadas
+    const { data: stats } = await supabase
+      .from('scraping_progress')
+      .select('status');
+    
+    const summary = stats?.reduce((acc, item) => {
+      acc[item.status] = (acc[item.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const response = {
       success: true,
-      total: produtosComUmaImagem.length,
-      totalInDatabase: produtos.length,
+      batchSize: pendingItems.length,
       processed,
       errors,
       results,
-      message: `Processamento concluído: ${processed} sucessos, ${errors} erros de ${produtosComUmaImagem.length} produtos com 1 imagem`
+      stats: summary,
+      message: `Lote concluído: ${processed} sucessos, ${errors} erros`
     };
 
-    console.log('🎉 Scraping automático finalizado:', summary.message);
+    console.log('🎉 Lote finalizado:', response.message);
 
     return new Response(
-      JSON.stringify(summary),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
+      JSON.stringify(response),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('❌ Erro crítico no scraping automático:', error);
+    console.error('❌ Erro crítico no processamento em lote:', error);
     return new Response(
       JSON.stringify({
         success: false,
