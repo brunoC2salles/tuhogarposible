@@ -36,19 +36,21 @@ serve(async (req) => {
 
     // Extrair apenas imagens do produto (cdnsolvproep.solvia.es)
     // Filtrar para pegar apenas as versões .ORIGINAL.jpg (melhor qualidade)
-    const imagePattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded\\+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
+    const imagePattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
     const matches = html.match(imagePattern);
 
     if (!matches || matches.length === 0) {
       console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando outras resoluções');
       
       // Fallback: pegar 722x503 se não houver ORIGINAL
-      const fallbackPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded\\+img_[A-F0-9-]+\.722x503\.jpg/gi;
+      const fallbackPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
       const fallbackMatches = html.match(fallbackPattern);
       
       if (fallbackMatches && fallbackMatches.length > 0) {
         const cleanImages = Array.from(new Set(
-          fallbackMatches.map(url => url.replace(/\\/g, '/'))
+          fallbackMatches.map(url => 
+            url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+          )
         ));
         
         console.log(`📸 ${cleanImages.length} imagens 722x503 encontradas`);
@@ -94,7 +96,9 @@ serve(async (req) => {
 
     // Limpar URLs e remover duplicatas
     const cleanImages = Array.from(new Set(
-      matches.map(url => url.replace(/\\/g, '/'))
+      matches.map(url => 
+        url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+      )
     ));
 
     console.log(`📸 ${cleanImages.length} imagens ORIGINAL encontradas`);
