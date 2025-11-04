@@ -21,6 +21,7 @@ export interface DatabaseInmueble {
   area_m2?: number;
   url_externa?: string;
   image_url?: string;
+  images?: string[];
 }
 
 export interface CreateInmuebleData {
@@ -38,6 +39,7 @@ export interface CreateInmuebleData {
   area_m2?: number;
   url_externa?: string;
   image_url?: string;
+  images?: string[];
 }
 
 export const useInmuebles = () => {
@@ -69,8 +71,14 @@ export const useInmuebles = () => {
 
       if (error) throw error;
 
-      setInmuebles(data || []);
-      console.log('[useInmuebles] ✅ Fetched', data?.length || 0, 'items, total:', count);
+      // Convert Json type to string[] for images
+      const converted = (data || []).map(item => ({
+        ...item,
+        images: Array.isArray(item.images) ? item.images as string[] : undefined
+      }));
+
+      setInmuebles(converted);
+      console.log('[useInmuebles] ✅ Fetched', converted.length, 'items, total:', count);
       
       return { data: data || [], total: count || 0, page, pageSize };
     } catch (err: any) {
@@ -94,7 +102,13 @@ export const useInmuebles = () => {
 
       if (error) throw error;
 
-      setInmuebles(prev => [newInmueble, ...prev]);
+      // Convert Json type to string[] for images
+      const converted = {
+        ...newInmueble,
+        images: Array.isArray(newInmueble.images) ? newInmueble.images as string[] : undefined
+      };
+
+      setInmuebles(prev => [converted, ...prev]);
       toast.success('Inmueble creado correctamente');
       console.log('[Inmuebles] Created:', newInmueble.id);
       return { data: newInmueble, error: null };
@@ -116,8 +130,14 @@ export const useInmuebles = () => {
 
       if (error) throw error;
 
+      // Convert Json type to string[] for images
+      const converted = {
+        ...data,
+        images: Array.isArray(data.images) ? data.images as string[] : undefined
+      };
+
       setInmuebles(prev => prev.map(inmueble => 
-        inmueble.id === id ? data : inmueble
+        inmueble.id === id ? converted : inmueble
       ));
       toast.success('Inmueble actualizado correctamente');
       console.log('[Inmuebles] Updated:', id);

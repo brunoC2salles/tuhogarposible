@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Building2, Eye, Calendar, Edit, BedDouble, Bath, Maximize, ExternalLink } from "lucide-react";
+import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
+import { InmuebleDetailsModal } from "./InmuebleDetailsModal";
 
 interface InmuebleCardProps {
   inmueble: Inmueble;
@@ -25,7 +26,7 @@ export function InmuebleCard({
   visitasAgendadas = 0,
   visitasExistentes = []
 }: InmuebleCardProps) {
-  const [showDetails, setShowDetails] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showVisitaModal, setShowVisitaModal] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -44,7 +45,10 @@ export function InmuebleCard({
 
   return (
     <>
-      <Card className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden">
+      <Card 
+        className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden cursor-pointer"
+        onClick={() => setShowDetailsModal(true)}
+      >
         {inmueble.imageUrl && (
           <div className="w-full h-48 overflow-hidden relative">
             <img 
@@ -121,55 +125,18 @@ export function InmuebleCard({
                 </div>
               )}
             </div>
-
-            {showDetails && (
-              <div className="mt-4 pt-3 border-t animate-fade-in">
-                <div className="space-y-2 text-sm">
-                  {inmueble.codigoInventario && (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Código de Inventario:</span>
-                      <span className="font-mono">{inmueble.codigoInventario}</span>
-                    </div>
-                  )}
-                  {inmueble.urlExterna && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-muted-foreground">Link externo:</span>
-                      <a 
-                        href={inmueble.urlExterna} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline flex items-center gap-1"
-                      >
-                        Ver <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">ID del inmueble:</span>
-                    <span className="font-mono text-xs">{inmueble.id.slice(-8)}</span>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </CardContent>
 
         <CardFooter className="pt-0 flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex-1"
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            {showDetails ? "Ocultar" : "Ver más"}
-          </Button>
-          
           {showEditButton && onEdit && (
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => onEdit(inmueble)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(inmueble);
+              }}
               className="flex-1"
             >
               <Edit className="w-4 h-4 mr-1" />
@@ -180,7 +147,10 @@ export function InmuebleCard({
           {showSolicitarVisita && inmueble.disponible && (
             <Button 
               size="sm" 
-              onClick={() => setShowVisitaModal(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowVisitaModal(true);
+              }}
               className="flex-1"
               disabled={visitasAgendadas >= 2}
             >
@@ -190,6 +160,17 @@ export function InmuebleCard({
           )}
         </CardFooter>
       </Card>
+
+      {showDetailsModal && (
+        <InmuebleDetailsModal
+          inmueble={inmueble}
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          onSolicitarVisita={handleSolicitarVisita}
+          visitasAgendadas={visitasAgendadas}
+          visitasExistentes={visitasExistentes}
+        />
+      )}
 
       {showVisitaModal && (
         <SolicitarVisitaModal

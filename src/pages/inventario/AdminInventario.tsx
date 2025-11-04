@@ -433,6 +433,19 @@ const AdminInventario = () => {
             const urlParts = item.url.split('-');
             codigoInventario = urlParts[urlParts.length - 1];
           }
+
+          // Processar múltiplas imagens
+          let images: string[] | undefined;
+          if (item.images && Array.isArray(item.images)) {
+            // Se JSON tem campo 'images' (array)
+            images = item.images;
+          } else if (item.image_urls && Array.isArray(item.image_urls)) {
+            // Se JSON tem campo 'image_urls' (array alternativo)
+            images = item.image_urls;
+          } else if (item.image_url && typeof item.image_url === 'string') {
+            // Se JSON tem apenas 'image_url' (string única), converter para array
+            images = [item.image_url];
+          }
           
           const inmueble: CreateInmuebleData = {
             titulo: item.title || '',
@@ -447,6 +460,7 @@ const AdminInventario = () => {
             area_m2: item.area_m2 || undefined,
             url_externa: item.url || '',
             image_url: item.image_url || '',
+            images: images,
             codigo_inventario: codigoInventario,
           };
           

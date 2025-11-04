@@ -163,7 +163,13 @@ const AgenteInventario = () => {
       
       if (error) throw error;
       
-      setInmueblesFiltrados(data || []);
+      // Convert Json type to string[] for images
+      const converted = (data || []).map(item => ({
+        ...item,
+        images: Array.isArray(item.images) ? item.images as string[] : undefined
+      }));
+      
+      setInmueblesFiltrados(converted);
       setTotalInmuebles(count || 0);
       
       console.log("[Inventario] Filtrados server-side:", count, "inmuebles, página", currentPage);

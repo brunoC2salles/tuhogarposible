@@ -41,6 +41,7 @@ export interface Lead {
   created_at: string;
   updated_at: string;
   last_stage_change_at: string;
+  agente_nombre?: string;
 }
 
 export interface LeadInmueble {

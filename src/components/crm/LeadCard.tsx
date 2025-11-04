@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -103,6 +103,13 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
         <div className="text-xs text-muted-foreground pt-1">
           {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
         </div>
+
+        {lead.agente_nombre && (
+          <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground pt-2 border-t mt-2">
+            <UserCircle className="h-3 w-3" />
+            <span>{lead.agente_nombre}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

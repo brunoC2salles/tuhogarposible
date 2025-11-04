@@ -19,7 +19,10 @@ export const useLeads = () => {
       
       let query = supabase
         .from('leads')
-        .select('*')
+        .select(`
+          *,
+          agente:profiles!agente_asignado_id(nombre)
+        `)
         .order('created_at', { ascending: false });
 
       // Agentes veem apenas seus leads, admins veem todos
@@ -32,10 +35,13 @@ export const useLeads = () => {
       if (error) throw error;
 
       // Converter dados do banco para o tipo Lead
-      const converted = (data || []).map(item => ({
+      const converted = (data || []).map((item: any) => ({
         ...item,
         simulador_personal_data: item.simulador_personal_data as any,
         simulador_hipotecario_data: item.simulador_hipotecario_data as any,
+        agente_nombre: Array.isArray(item.agente) && item.agente.length > 0 
+          ? item.agente[0].nombre 
+          : undefined,
       })) as Lead[];
 
       setLeads(converted);

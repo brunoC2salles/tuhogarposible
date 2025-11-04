@@ -16,6 +16,7 @@ export interface Inmueble {
   areaM2?: number;
   urlExterna?: string;
   imageUrl?: string;
+  images?: string[];
 }
 
 export interface Agente {

@@ -211,6 +211,7 @@ export type Database = {
           disponible: boolean
           id: string
           image_url: string | null
+          images: Json | null
           precio: number
           proveedor: string
           quartos: number | null
@@ -231,6 +232,7 @@ export type Database = {
           disponible?: boolean
           id?: string
           image_url?: string | null
+          images?: Json | null
           precio: number
           proveedor: string
           quartos?: number | null
@@ -251,6 +253,7 @@ export type Database = {
           disponible?: boolean
           id?: string
           image_url?: string | null
+          images?: Json | null
           precio?: number
           proveedor?: string
           quartos?: number | null
