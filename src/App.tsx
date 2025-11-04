@@ -20,6 +20,7 @@ import AgentSettings from "./pages/AgentSettings";
 import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
 import AgenteDetails from "./pages/AgenteDetails";
+import ProdutoPublico from "./pages/ProdutoPublico";
 
 const queryClient = new QueryClient();
 
@@ -101,6 +102,7 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route path="/produto/:id" element={<ProdutoPublico />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

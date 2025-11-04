@@ -21,7 +21,7 @@ export const useLeads = () => {
         .from('leads')
         .select(`
           *,
-          agente:profiles!agente_asignado_id(nombre)
+          profiles!agente_asignado_id(nombre)
         `)
         .order('created_at', { ascending: false });
 
@@ -39,9 +39,7 @@ export const useLeads = () => {
         ...item,
         simulador_personal_data: item.simulador_personal_data as any,
         simulador_hipotecario_data: item.simulador_hipotecario_data as any,
-        agente_nombre: Array.isArray(item.agente) && item.agente.length > 0 
-          ? item.agente[0].nombre 
-          : undefined,
+        agente_nombre: item.profiles?.nombre,
       })) as Lead[];
 
       setLeads(converted);

@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize } from "lucide-react";
+import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
-import { InmuebleDetailsModal } from "./InmuebleDetailsModal";
+import { toast } from "sonner";
 
 interface InmuebleCardProps {
   inmueble: Inmueble;
@@ -26,7 +26,6 @@ export function InmuebleCard({
   visitasAgendadas = 0,
   visitasExistentes = []
 }: InmuebleCardProps) {
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showVisitaModal, setShowVisitaModal] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -43,12 +42,16 @@ export function InmuebleCard({
     setShowVisitaModal(false);
   };
 
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const link = `${window.location.origin}/produto/${inmueble.id}`;
+    navigator.clipboard.writeText(link);
+    toast.success('Link copiado al portapapeles');
+  };
+
   return (
     <>
-      <Card 
-        className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden cursor-pointer"
-        onClick={() => setShowDetailsModal(true)}
-      >
+      <Card className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden">
         {inmueble.imageUrl && (
           <div className="w-full h-48 overflow-hidden relative">
             <img 
@@ -158,19 +161,18 @@ export function InmuebleCard({
               {visitasAgendadas >= 2 ? "No disponible" : "Solicitar visita"}
             </Button>
           )}
+          
+          <Button 
+            variant="outline"
+            size="sm" 
+            onClick={handleCopyLink}
+            className="flex-1"
+          >
+            <Link className="w-4 h-4 mr-1" />
+            Copiar link
+          </Button>
         </CardFooter>
       </Card>
-
-      {showDetailsModal && (
-        <InmuebleDetailsModal
-          inmueble={inmueble}
-          isOpen={showDetailsModal}
-          onClose={() => setShowDetailsModal(false)}
-          onSolicitarVisita={handleSolicitarVisita}
-          visitasAgendadas={visitasAgendadas}
-          visitasExistentes={visitasExistentes}
-        />
-      )}
 
       {showVisitaModal && (
         <SolicitarVisitaModal
