@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Edit, UserCheck, UserX, ArrowLeft } from "lucide-react";
+import { Edit, UserCheck, UserX, ArrowLeft, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AgentStatisticsBadge } from "@/components/admin/AgentStatisticsBadge";
 
@@ -157,6 +157,41 @@ export default function AdminAgentes() {
     }
   };
 
+  const deleteAgent = async (agent: Agent) => {
+    const confirmed = confirm(
+      `⚠️ ATENCIÓN: Esta acción es IRREVERSIBLE.\n\n` +
+      `¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE al agente ${agent.nombre}?\n\n` +
+      `Los leads asignados a este agente se mantendrán en el sistema pero quedarán sin agente asignado.\n\n` +
+      `Esta acción NO se puede deshacer.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      // 1. Primero deletar user_roles
+      const { error: rolesError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", agent.id);
+
+      if (rolesError) throw rolesError;
+
+      // 2. Después deletar profile (cascada deletará auth.users)
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("id", agent.id);
+
+      if (profileError) throw profileError;
+
+      toast.success(`Agente ${agent.nombre} eliminado permanentemente. Sus leads se mantuvieron sin agente asignado.`);
+      fetchAgents();
+    } catch (error: any) {
+      console.error("Error deleting agent:", error);
+      toast.error(`Error al eliminar agente: ${error.message}`);
+    }
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center min-h-screen">Cargando...</div>;
   }
@@ -292,6 +327,14 @@ export default function AdminAgentes() {
                           ) : (
                             <UserCheck className="h-4 w-4" />
                           )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => deleteAgent(agent)}
+                          title="Eliminar agente permanentemente"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -264,7 +264,7 @@ export default function ProdutoPublico() {
         <div className="container mx-auto px-4 py-4">
           <Button 
             asChild
-            size="lg" 
+            size="default"
             className="w-full bg-[#25D366] hover:bg-[#20BA5A] text-white"
           >
             <a 

@@ -405,7 +405,15 @@ export type Database = {
           valor_inmueble_deseado?: number | null
           zona_interes?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_leads_agente_asignado"
+            columns: ["agente_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
