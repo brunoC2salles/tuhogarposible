@@ -7,13 +7,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle } from "lucide-react";
+import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle, Images } from "lucide-react";
 
 export default function ProdutoPublico() {
   const { id } = useParams<{ id: string }>();
   const [inmueble, setInmueble] = useState<Inmueble | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [carouselApi, setCarouselApi] = useState<any>(null);
+
+  useEffect(() => {
+    if (!carouselApi) return;
+    
+    carouselApi.on('select', () => {
+      setCurrentImageIndex(carouselApi.selectedScrollSnap());
+    });
+  }, [carouselApi]);
 
   useEffect(() => {
     const fetchInmueble = async () => {
@@ -152,7 +162,15 @@ export default function ProdutoPublico() {
         {/* Carrossel de Imagens */}
         {images.length > 0 ? (
           <div className="mb-8">
-            <Carousel className="w-full">
+            {/* Carrossel Principal */}
+            <Carousel 
+              className="w-full mb-4" 
+              setApi={setCarouselApi}
+              opts={{
+                align: "start",
+                loop: true,
+              }}
+            >
               <CarouselContent>
                 {images.map((imageUrl, index) => (
                   <CarouselItem key={index}>
@@ -163,20 +181,76 @@ export default function ProdutoPublico() {
                         className="w-full h-full object-cover"
                         loading="lazy"
                       />
+                      
+                      {/* Badge de galeria - CANTO SUPERIOR DIREITO */}
+                      {hasMultipleImages && (
+                        <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 shadow-lg">
+                          <Images className="w-4 h-4" />
+                          {images.length}
+                        </div>
+                      )}
                     </div>
                   </CarouselItem>
                 ))}
               </CarouselContent>
+              
+              {/* Setas TOTALMENTE SÓLIDAS com cor primary */}
               {hasMultipleImages && (
                 <>
-                  <CarouselPrevious className="left-4" />
-                  <CarouselNext className="right-4" />
+                  <CarouselPrevious className="left-4 h-12 w-12 bg-primary hover:bg-primary/90 border-0 text-primary-foreground shadow-lg" />
+                  <CarouselNext className="right-4 h-12 w-12 bg-primary hover:bg-primary/90 border-0 text-primary-foreground shadow-lg" />
                 </>
               )}
             </Carousel>
+            
+            {/* Preview de Thumbnails - EMBAIXO DA FOTO PRINCIPAL */}
             {hasMultipleImages && (
-              <p className="text-center text-sm text-muted-foreground mt-2">
-                {images.length} {images.length === 1 ? 'foto' : 'fotos'}
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-4 px-1">
+                {images.map((imageUrl, index) => (
+                  <button
+                    key={index}
+                    onClick={() => carouselApi?.scrollTo(index)}
+                    className={`flex-shrink-0 w-20 h-20 rounded-md overflow-hidden border-2 transition-all ${
+                      index === currentImageIndex 
+                        ? 'border-primary ring-2 ring-primary ring-offset-2' 
+                        : 'border-muted hover:border-primary/50'
+                    }`}
+                    aria-label={`Ver foto ${index + 1}`}
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Thumbnail ${index + 1}`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Indicadores de página (dots) - COR PRIMARY */}
+            {hasMultipleImages && (
+              <div className="flex justify-center items-center gap-2 mb-2">
+                {images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => carouselApi?.scrollTo(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      index === currentImageIndex 
+                        ? 'w-8 bg-primary' 
+                        : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                    }`}
+                    aria-label={`Ir para foto ${index + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* Contador de fotos - ABAIXO DOS DOTS */}
+            {hasMultipleImages && (
+              <p className="text-center text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+                <Images className="w-4 h-4" />
+                Foto {currentImageIndex + 1} de {images.length}
               </p>
             )}
           </div>
@@ -265,7 +339,7 @@ export default function ProdutoPublico() {
           <Button 
             asChild
             size="default"
-            className="w-full bg-[#25D366] hover:bg-[#20BA5A] text-white"
+            className="bg-[#25D366] hover:bg-[#20BA5A] text-white px-6 mx-auto"
           >
             <a 
               href="https://wa.me/34621495705" 
