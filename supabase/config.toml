@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.test-scrape-images]
 verify_jwt = false
+
+[functions.scrape-product-images]
+verify_jwt = false
+
+[functions.scrape-all-products]
+verify_jwt = false

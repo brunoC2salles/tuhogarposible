@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link } from "lucide-react";
+import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link, ExternalLink, Hash } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
 import { toast } from "sonner";
@@ -131,21 +131,53 @@ export function InmuebleCard({
           </div>
         </CardContent>
 
-        <CardFooter className="pt-0 flex gap-2">
-          {showEditButton && onEdit && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(inmueble);
-              }}
-              className="flex-1"
-            >
-              <Edit className="w-4 h-4 mr-1" />
-              Editar
-            </Button>
+        <CardFooter className="pt-0 flex flex-col gap-2">
+          {(inmueble.codigoInventario || inmueble.urlExterna) && (
+            <div className="flex items-center gap-2 w-full pb-2 border-b">
+              {inmueble.codigoInventario && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Hash className="w-3 h-3" />
+                  <span className="font-mono">{inmueble.codigoInventario}</span>
+                </div>
+              )}
+              
+              {inmueble.urlExterna && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="ml-auto h-7 text-xs"
+                >
+                  <a 
+                    href={inmueble.urlExterna} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Ver en {inmueble.proveedor}
+                  </a>
+                </Button>
+              )}
+            </div>
           )}
+          
+          <div className="flex gap-2 w-full">
+            {showEditButton && onEdit && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(inmueble);
+                }}
+                className="flex-1"
+              >
+                <Edit className="w-4 h-4 mr-1" />
+                Editar
+              </Button>
+            )}
           
           {showSolicitarVisita && inmueble.disponible && (
             <Button 
@@ -162,15 +194,16 @@ export function InmuebleCard({
             </Button>
           )}
           
-          <Button 
-            variant="outline"
-            size="sm" 
-            onClick={handleCopyLink}
-            className="flex-1"
-          >
-            <Link className="w-4 h-4 mr-1" />
-            Copiar link
-          </Button>
+            <Button 
+              variant="outline"
+              size="sm" 
+              onClick={handleCopyLink}
+              className="flex-1"
+            >
+              <Link className="w-4 h-4 mr-1" />
+              Copiar link
+            </Button>
+          </div>
         </CardFooter>
       </Card>
 
