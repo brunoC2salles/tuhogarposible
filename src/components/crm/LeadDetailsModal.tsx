@@ -245,7 +245,7 @@ export const LeadDetailsModal = ({
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Monto Máximo Crédito</p>
-                    <p className="font-medium text-primary">{formatCurrency(lead.simulador_hipotecario_data.montoMaximoCredito)}</p>
+                    <p className="font-medium text-primary">{formatCurrency(lead.simulador_hipotecario_data.montoFinanciable)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Capital Propio</p>

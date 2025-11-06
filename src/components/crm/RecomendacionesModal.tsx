@@ -47,7 +47,7 @@ export const RecomendacionesModal = ({ open, onClose, lead }: RecomendacionesMod
           <p className="text-sm text-muted-foreground">
             Basado en: {lead.ciudad_interes && `Ciudad: ${lead.ciudad_interes}`}
             {lead.zona_interes && `, Zona: ${lead.zona_interes}`}
-            {lead.simulador_hipotecario_data && ` • Capacidad: ${formatCurrency(lead.simulador_hipotecario_data.montoMaximoCredito)}`}
+            {lead.simulador_hipotecario_data && ` • Capacidad: ${formatCurrency(lead.simulador_hipotecario_data.montoFinanciable)}`}
           </p>
         </DialogHeader>
 
@@ -60,7 +60,7 @@ export const RecomendacionesModal = ({ open, onClose, lead }: RecomendacionesMod
                 const linked = isLinked(inmueble.id);
                 const precio = Number(inmueble.precio);
                 const withinBudget = lead.simulador_hipotecario_data
-                  ? precio <= lead.simulador_hipotecario_data.montoMaximoCredito * 1.1
+                  ? precio <= lead.simulador_hipotecario_data.montoFinanciable * 1.1
                   : true;
 
                 return (

@@ -21,7 +21,6 @@ export interface SimuladorHipotecarioData {
   cuotaMensual: number;
   relacionCuotaIngreso: number;
   capacidadEndeudamiento: number;
-  montoMaximoCredito: number;
 }
 
 export interface Lead {

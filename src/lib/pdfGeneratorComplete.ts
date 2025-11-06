@@ -200,7 +200,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
         head: [['Concepto', 'Valor']],
         body: [
           ['Valor inmueble', formatEuro(simuladorHipotecaDisplay.valorInmueble)],
-          ['Monto máximo crédito', formatEuro(simuladorHipotecaDisplay.montoMaximoCredito)],
+          ['Monto máximo crédito', formatEuro(simuladorHipotecaDisplay.montoFinanciable)],
           ['Cuota mensual', formatEuro(simuladorHipotecaDisplay.cuotaMensual)],
           ['Capital propio necesario', formatEuro(simuladorHipotecaDisplay.capitalPropioNecesario)],
         ],

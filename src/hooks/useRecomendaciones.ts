@@ -48,7 +48,7 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
 
         // Se tem simulador hipotecário, limitar ao máximo de crédito
         if (lead.simulador_hipotecario_data) {
-          const maxCreditValue = lead.simulador_hipotecario_data.montoMaximoCredito * 1.1;
+          const maxCreditValue = lead.simulador_hipotecario_data.montoFinanciable * 1.1;
           const maxValueFinal = Math.min(maxValueWithMargin, maxCreditValue);
 
           filteredData = filteredData.filter(inmueble => {
