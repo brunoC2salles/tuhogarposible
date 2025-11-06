@@ -187,7 +187,8 @@ export async function generateLeadCompletePDF(lead: Lead) {
     if (simuladorHipotecaDisplay) {
       if (currentY > pageHeight - 100) {
         doc.addPage();
-        currentY = margin;
+        currentY = addPageHeader(margin);
+      }
       }
 
       doc.line(margin, currentY, pageWidth - margin, currentY);
