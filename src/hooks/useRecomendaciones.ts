@@ -96,7 +96,7 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
     if (enabled && lead) {
       fetchRecomendaciones();
     }
-  }, [lead?.id, enabled]);
+  }, [lead, enabled]);
 
   return {
     recomendaciones,
