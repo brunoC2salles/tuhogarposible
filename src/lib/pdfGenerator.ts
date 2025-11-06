@@ -20,13 +20,12 @@ export function generateSimulacionPDF(
   const margin = 20;
   let currentY = margin;
 
-  // Logo
-  doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(41, 98, 255);
-  doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
-  currentY += 20;
+  // Logo centralizada
+  const logoWidth = 30;
+  const logoHeight = 30;
+  const logoX = (pageWidth - logoWidth) / 2;
+  doc.addImage(logo, 'PNG', logoX, currentY, logoWidth, logoHeight);
+  currentY += logoHeight + 10;
 
   // Título
   doc.setFontSize(16);
@@ -195,13 +194,12 @@ export function generateSimulacionHipotecariaPDF(
   const margin = 20;
   let currentY = margin;
 
-  // Logo
-  doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(41, 98, 255);
-  doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
-  currentY += 20;
+  // Logo centralizada
+  const logoWidth = 30;
+  const logoHeight = 30;
+  const logoX = (pageWidth - logoWidth) / 2;
+  doc.addImage(logo, 'PNG', logoX, currentY, logoWidth, logoHeight);
+  currentY += logoHeight + 10;
 
   // Título
   doc.setFontSize(16);

@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, TestTube, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
@@ -25,6 +27,17 @@ const AdminSettings = () => {
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
+  
+  // Scraping states
+  const [scrapingStats, setScrapingStats] = useState({
+    total: 0,
+    pending: 0,
+    completed: 0,
+    failed: 0,
+    progress: 0
+  });
+  const [scrapingProcessing, setScrapingProcessing] = useState(false);
+  const [scrapingMessage, setScrapingMessage] = useState('');
 
   // Atualizar local URL quando carregado
   useState(() => {
@@ -32,6 +45,43 @@ const AdminSettings = () => {
       setLocalWebhookUrl(webhookUrl);
     }
   });
+
+  // Buscar stats de scraping ao carregar
+  useEffect(() => {
+    fetchScrapingStats();
+  }, []);
+
+  const fetchScrapingStats = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('scraping-status');
+      if (data?.success) {
+        setScrapingStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching scraping stats:', err);
+    }
+  };
+
+  const handleProcessBatch = async () => {
+    setScrapingProcessing(true);
+    setScrapingMessage('');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('scrape-all-products');
+      
+      if (data?.success) {
+        toast.success(`${data.processed} productos procesados exitosamente`);
+        setScrapingMessage(data.message);
+        fetchScrapingStats(); // Atualizar stats
+      } else {
+        toast.error('Error al procesar lote');
+      }
+    } catch (err) {
+      toast.error('Error al conectar con el servidor');
+    } finally {
+      setScrapingProcessing(false);
+    }
+  };
 
   const handleSaveWebhook = async () => {
     if (!localWebhookUrl.trim()) {
@@ -257,6 +307,63 @@ const AdminSettings = () => {
               <p>• Formato de fecha: DD/MM/YYYY</p>
               <p>• Codificación: UTF-8 (compatible con Excel y Google Sheets)</p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Scraping de Imagens */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Scraping de Imágenes</CardTitle>
+            <CardDescription>
+              Procesar imágenes de los productos en lote desde las URLs externas
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Estatísticas */}
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Total</p>
+                <p className="text-2xl font-bold">{scrapingStats.total}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Pendientes</p>
+                <p className="text-2xl font-bold text-orange-600">{scrapingStats.pending}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Completados</p>
+                <p className="text-2xl font-bold text-green-600">{scrapingStats.completed}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Errores</p>
+                <p className="text-2xl font-bold text-red-600">{scrapingStats.failed}</p>
+              </div>
+            </div>
+
+            {/* Progresso */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progreso</span>
+                <span>{scrapingStats.progress}%</span>
+              </div>
+              <Progress value={scrapingStats.progress} />
+            </div>
+
+            {/* Botão de Processamento */}
+            <Button 
+              onClick={handleProcessBatch} 
+              disabled={scrapingProcessing || scrapingStats.pending === 0}
+            >
+              <ImageIcon className="h-4 w-4 mr-2" />
+              {scrapingProcessing ? 'Procesando...' : 'Procesar Lote (50 productos)'}
+            </Button>
+
+            {/* Mensagem de status */}
+            {scrapingMessage && (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{scrapingMessage}</AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </main>

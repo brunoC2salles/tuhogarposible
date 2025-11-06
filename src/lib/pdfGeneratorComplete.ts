@@ -86,13 +86,17 @@ export async function generateLeadCompletePDF(lead: Lead) {
     const margin = 20;
     let currentY = margin;
 
-    // Logo e título
-    doc.addImage(logo, 'PNG', margin, currentY, 15, 15);
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(41, 98, 255);
-    doc.text('TU HOGAR POSIBLE', margin + 20, currentY + 10);
-    currentY += 20;
+    // Função para adicionar logo no topo de cada página
+    const addPageHeader = (yPosition: number = margin) => {
+      const logoWidth = 30;
+      const logoHeight = 30;
+      const logoX = (pageWidth - logoWidth) / 2;
+      doc.addImage(logo, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+      return yPosition + logoHeight + 10;
+    };
+
+    // Logo centralizada
+    currentY = addPageHeader(currentY);
 
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
@@ -220,7 +224,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
     if (inmuebles.length > 0) {
       if (currentY > pageHeight - 100) {
         doc.addPage();
-        currentY = margin;
+        currentY = addPageHeader(margin);
       }
 
       doc.line(margin, currentY, pageWidth - margin, currentY);
@@ -275,7 +279,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
     if (historico && historico.length > 0) {
       if (currentY > pageHeight - 100) {
         doc.addPage();
-        currentY = margin;
+        currentY = addPageHeader(margin);
       }
 
       doc.line(margin, currentY, pageWidth - margin, currentY);
@@ -308,7 +312,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
     if (lead.notas) {
       if (currentY > pageHeight - 60) {
         doc.addPage();
-        currentY = margin;
+        currentY = addPageHeader(margin);
       }
 
       doc.line(margin, currentY, pageWidth - margin, currentY);
@@ -329,7 +333,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
     // DISCLAIMER
     if (currentY > pageHeight - 40) {
       doc.addPage();
-      currentY = margin;
+      currentY = addPageHeader(margin);
     }
 
     doc.line(margin, currentY, pageWidth - margin, currentY);
