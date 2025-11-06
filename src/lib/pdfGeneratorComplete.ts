@@ -189,7 +189,6 @@ export async function generateLeadCompletePDF(lead: Lead) {
         doc.addPage();
         currentY = addPageHeader(margin);
       }
-      }
 
       doc.line(margin, currentY, pageWidth - margin, currentY);
       currentY += 10;
