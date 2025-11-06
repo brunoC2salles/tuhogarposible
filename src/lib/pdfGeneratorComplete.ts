@@ -231,31 +231,41 @@ export async function generateLeadCompletePDF(lead: Lead) {
       doc.text(`INMUEBLES VINCULADOS (${inmuebles.length})`, margin, currentY);
       currentY += 10;
 
-      const inmueblesData = inmuebles.map((inm: any) => {
-        const productUrl = `${window.location.origin}/produto/${inm.id}`;
-        return [
-          inm.codigo_inventario || inm.id.slice(0, 8),
-          inm.tipo,
-          formatEuro(Number(inm.precio)),
-          `${inm.ciudad}, ${inm.region}`,
-          productUrl
-        ];
-      });
+      const inmueblesData = inmuebles.map((inm: any) => [
+        inm.codigo_inventario || inm.id.slice(0, 8),
+        inm.tipo,
+        formatEuro(Number(inm.precio)),
+        `${inm.ciudad}, ${inm.region}`,
+      ]);
 
       autoTable(doc, {
         startY: currentY,
-        head: [['Código', 'Tipo', 'Precio', 'Ubicación', 'Link Público']],
+        head: [['Código', 'Tipo', 'Precio', 'Ubicación']],
         body: inmueblesData,
         theme: 'grid',
         headStyles: { fillColor: [41, 98, 255] },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 45 },
-          4: { cellWidth: 'auto', textColor: [0, 102, 204], fontSize: 8 }
+          0: { cellWidth: 25, textColor: [0, 102, 204], fontStyle: 'bold' },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 35 },
+          3: { cellWidth: 'auto' }
         },
-        margin: { left: margin, right: margin }
+        margin: { left: margin, right: margin },
+        didDrawCell: (data) => {
+          // Tornar coluna "Código" clicável
+          if (data.column.index === 0 && data.cell.section === 'body') {
+            const inmueble = inmuebles[data.row.index];
+            const productUrl = `https://inventariotuhogarposible.vercel.app/produto/${inmueble.id}`;
+            
+            doc.link(
+              data.cell.x,
+              data.cell.y,
+              data.cell.width,
+              data.cell.height,
+              { url: productUrl }
+            );
+          }
+        }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 10;
