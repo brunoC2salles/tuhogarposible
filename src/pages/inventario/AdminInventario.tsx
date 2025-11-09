@@ -390,6 +390,242 @@ const AdminInventario = () => {
     return typeMap[jsonType?.toLowerCase() || ''] || 'apartamento';
   };
 
+  // ============================================
+  // 🔧 PARSERS UNIVERSAIS - COMPATIBILIDADE TOTAL
+  // ============================================
+
+  // 1️⃣ Parser de Preço (aceita número ou string formatada)
+  const parsePrice = (priceValue: any): number => {
+    if (typeof priceValue === 'number') return priceValue;
+    
+    if (typeof priceValue === 'string') {
+      const cleaned = priceValue.replace(/[€\s\.]/g, '').replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    return 0;
+  };
+
+  // 2️⃣ Parser de Área (aceita número ou string com unidade)
+  const parseArea = (areaValue: any): number | undefined => {
+    if (typeof areaValue === 'number') return areaValue;
+    if (!areaValue) return undefined;
+    
+    if (typeof areaValue === 'string') {
+      const cleaned = areaValue.replace(/m[2²]|\s/gi, '').replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    
+    return undefined;
+  };
+
+  // 3️⃣ Parser de Números Simples (quartos/banheiros)
+  const parseSimpleNumber = (value: any): number | undefined => {
+    if (typeof value === 'number') return value;
+    if (!value || value === '-') return undefined;
+    
+    if (typeof value === 'string') {
+      const parsed = parseInt(value.trim());
+      return isNaN(parsed) ? undefined : parsed;
+    }
+    
+    return undefined;
+  };
+
+  // 4️⃣ Auto-detectar Tipo de Propriedade
+  const detectPropertyType = (title: string = '', url: string = ''): CreateInmuebleData['tipo'] => {
+    const text = `${title} ${url}`.toLowerCase();
+    
+    if (text.includes('piso') || text.includes('apartamento') || 
+        text.includes('duplex') || text.includes('dúplex') || text.includes('ático')) {
+      return 'apartamento';
+    }
+    
+    if (text.includes('chalet') || text.includes('casa') || 
+        text.includes('adosado') || text.includes('unifamiliar')) {
+      return 'casa';
+    }
+    
+    if (text.includes('local') || text.includes('garaje') || 
+        text.includes('nave') || text.includes('comercial')) {
+      return 'local_comercial';
+    }
+    
+    if (text.includes('terreno') || text.includes('parcela') || 
+        text.includes('solar') || text.includes('suelo')) {
+      return 'terreno';
+    }
+    
+    if (text.includes('oficina') || text.includes('despacho')) {
+      return 'oficina';
+    }
+    
+    return 'apartamento';
+  };
+
+  // 5️⃣ Gerar chave única do produto (proveedor + codigo_inventario)
+  const generateProductKey = (proveedor: string, codigoInventario?: string): string => {
+    return `${proveedor}:${codigoInventario || 'unknown'}`;
+  };
+
+  // ============================================
+  // 🔄 SINCRONIZAÇÃO INTELIGENTE DE INVENTÁRIO
+  // ============================================
+  const syncInventory = async (newProducts: CreateInmuebleData[], proveedor: string) => {
+    console.log(`[Sync] Iniciando sincronização para proveedor: ${proveedor}`);
+    console.log(`[Sync] Novos produtos recebidos: ${newProducts.length}`);
+    
+    try {
+      // 1️⃣ Buscar produtos existentes do proveedor
+      const { data: existingProducts, error: fetchError } = await supabase
+        .from('inmuebles')
+        .select('id, codigo_inventario, proveedor, precio, quartos, banheiros, area_m2, titulo, direccion, image_url, images')
+        .eq('proveedor', proveedor);
+
+      if (fetchError) throw fetchError;
+
+      console.log(`[Sync] Produtos existentes no BD: ${existingProducts?.length || 0}`);
+
+      // 2️⃣ Buscar produtos protegidos (com reservas ou leads)
+      const { data: protectedIds, error: protectedError } = await supabase
+        .rpc('get_protected_inmuebles', { provider: proveedor });
+
+      if (protectedError) throw protectedError;
+
+      const protectedSet = new Set(protectedIds?.map((p: any) => p.inmueble_id) || []);
+      console.log(`[Sync] Produtos protegidos: ${protectedSet.size}`);
+
+      // 3️⃣ Criar mapas para identificação
+      const existingMap = new Map(
+        (existingProducts || []).map(p => [
+          generateProductKey(p.proveedor, p.codigo_inventario),
+          p
+        ])
+      );
+
+      const newProductsMap = new Map(
+        newProducts.map(p => [
+          generateProductKey(p.proveedor, p.codigo_inventario),
+          p
+        ])
+      );
+
+      // 4️⃣ Classificar produtos
+      const toAdd: CreateInmuebleData[] = [];
+      const toUpdate: { id: string; updates: Partial<CreateInmuebleData> }[] = [];
+      const toDisable: string[] = [];
+
+      // Identificar novos e atualizações
+      for (const [key, newProduct] of newProductsMap.entries()) {
+        const existing = existingMap.get(key);
+        
+        if (!existing) {
+          // Produto novo
+          toAdd.push(newProduct);
+        } else {
+          // Verificar se precisa atualizar
+          const needsUpdate = 
+            existing.precio !== newProduct.precio ||
+            existing.quartos !== newProduct.quartos ||
+            existing.banheiros !== newProduct.banheiros ||
+            existing.area_m2 !== newProduct.area_m2 ||
+            existing.titulo !== newProduct.titulo ||
+            existing.direccion !== newProduct.direccion ||
+            existing.image_url !== newProduct.image_url;
+
+          if (needsUpdate) {
+            toUpdate.push({
+              id: existing.id,
+              updates: newProduct
+            });
+          }
+        }
+      }
+
+      // Identificar produtos para desabilitar (não no JSON novo e não protegidos)
+      for (const [key, existing] of existingMap.entries()) {
+        if (!newProductsMap.has(key) && !protectedSet.has(existing.id)) {
+          toDisable.push(existing.id);
+        }
+      }
+
+      console.log(`[Sync] Classificação:`, {
+        toAdd: toAdd.length,
+        toUpdate: toUpdate.length,
+        toDisable: toDisable.length,
+        protected: protectedSet.size
+      });
+
+      // 5️⃣ Executar operações em lotes
+      let addedCount = 0;
+      let updatedCount = 0;
+      let disabledCount = 0;
+
+      // Adicionar novos (batches de 100)
+      if (toAdd.length > 0) {
+        const BATCH_SIZE = 100;
+        for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
+          const batch = toAdd.slice(i, i + BATCH_SIZE);
+          
+          const { data, error } = await supabase
+            .from('inmuebles')
+            .insert(batch)
+            .select();
+
+          if (error) {
+            console.error('[Sync] Erro ao adicionar batch:', error);
+          } else {
+            addedCount += data.length;
+            toast.info(`➕ Adicionando: ${addedCount}/${toAdd.length}`, { id: 'sync-progress' });
+          }
+        }
+      }
+
+      // Atualizar existentes (batches de 50)
+      if (toUpdate.length > 0) {
+        for (const { id, updates } of toUpdate) {
+          const { error } = await supabase
+            .from('inmuebles')
+            .update(updates)
+            .eq('id', id);
+
+          if (!error) {
+            updatedCount++;
+            if (updatedCount % 10 === 0) {
+              toast.info(`🔄 Atualizando: ${updatedCount}/${toUpdate.length}`, { id: 'sync-progress' });
+            }
+          }
+        }
+      }
+
+      // Desabilitar removidos (batch único)
+      if (toDisable.length > 0) {
+        const { error } = await supabase
+          .from('inmuebles')
+          .update({ disponible: false })
+          .in('id', toDisable);
+
+        if (!error) {
+          disabledCount = toDisable.length;
+        }
+      }
+
+      return {
+        added: addedCount,
+        updated: updatedCount,
+        disabled: disabledCount,
+        protected: protectedSet.size,
+        errors: 0
+      };
+
+    } catch (err: any) {
+      console.error('[Sync] Erro na sincronização:', err);
+      throw err;
+    }
+  };
+
   const handleJSONUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -414,16 +650,18 @@ const AdminInventario = () => {
         const item = items[i];
         
         try {
-          // Validación de campos obligatorios
-          if (!item.price_eur || !item.address) {
+          // ✅ Validação UNIVERSAL - detecta ambos os formatos
+          const precioRaw = item.price || item.price_eur;
+          if (!precioRaw || !item.address) {
             errors.push(`Item ${i + 1}: Preço ou endereço ausente`);
             continue;
           }
           
           const { ciudad, region, direccion } = parseAddress(item.address);
           
-          if (!ciudad || !region) {
-            errors.push(`Item ${i + 1}: No se pudo extraer ciudad/región de "${item.address}"`);
+          // ⚠️ Validação mais flexível - permite endereços parciais
+          if (!ciudad && !region && !direccion) {
+            errors.push(`Item ${i + 1}: Endereço completamente inválido: "${item.address}"`);
             continue;
           }
           
@@ -434,32 +672,40 @@ const AdminInventario = () => {
             codigoInventario = urlParts[urlParts.length - 1];
           }
 
-          // Processar múltiplas imagens
+          // ✅ Processar imagens - TODOS OS FORMATOS
           let images: string[] | undefined;
           if (item.images && Array.isArray(item.images)) {
-            // Se JSON tem campo 'images' (array)
             images = item.images;
           } else if (item.image_urls && Array.isArray(item.image_urls)) {
-            // Se JSON tem campo 'image_urls' (array alternativo)
             images = item.image_urls;
           } else if (item.image_url && typeof item.image_url === 'string') {
-            // Se JSON tem apenas 'image_url' (string única), converter para array
             images = [item.image_url];
+          } else if (item.image && typeof item.image === 'string') {
+            // ✨ NOVO: suporte ao campo "image" (formato novo)
+            images = [item.image];
           }
+
+          // ✅ Pegar primeira imagem para compatibilidade
+          const firstImage = images?.[0] || item.image_url || item.image || '';
+
+          // ✅ Detectar proveedor do JSON (source ou portal)
+          const proveedor = jsonData.source || jsonData.portal || 'Solvia';
           
           const inmueble: CreateInmuebleData = {
             titulo: item.title || '',
-            ciudad,
-            region,
-            tipo: mapPropertyType(item.property_type),
-            precio: item.price_eur,
+            ciudad: ciudad || 'N/D',
+            region: region || 'N/D',
+            tipo: item.property_type 
+              ? mapPropertyType(item.property_type)
+              : detectPropertyType(item.title, item.url),
+            precio: parsePrice(precioRaw),
             direccion,
-            proveedor: 'Solvia',
-            quartos: item.rooms || undefined,
-            banheiros: item.bathrooms || undefined,
-            area_m2: item.area_m2 || undefined,
+            proveedor: proveedor,
+            quartos: parseSimpleNumber(item.rooms),
+            banheiros: parseSimpleNumber(item.bathrooms),
+            area_m2: parseArea(item.area || item.area_m2),
             url_externa: item.url || '',
-            image_url: item.image_url || '',
+            image_url: firstImage,
             images: images,
             codigo_inventario: codigoInventario,
           };
@@ -485,48 +731,38 @@ const AdminInventario = () => {
         return;
       }
       
-      // Batch import optimization - 100 items per batch
-      const BATCH_SIZE = 100;
-      let successCount = 0;
-      let failCount = 0;
+      // 🔄 SINCRONIZAÇÃO INTELIGENTE DE INVENTÁRIO
+      const proveedor = jsonData.source || jsonData.portal || 'Solvia';
+      console.log(`[JSON Import] Iniciando sincronização para: ${proveedor}`);
       
-      for (let i = 0; i < validItems.length; i += BATCH_SIZE) {
-        const batch = validItems.slice(i, i + BATCH_SIZE);
-        
-        try {
-          // Insert entire batch in a single query
-          const { data, error } = await supabase
-            .from('inmuebles')
-            .insert(batch)
-            .select();
-          
-          if (error) throw error;
-          
-          successCount += data.length;
-          
-          // Update progress
-          const progress = Math.round((successCount / validItems.length) * 100);
-          toast.info(`📦 Importando: ${progress}% (${successCount}/${validItems.length})`, {
-            id: 'batch-progress'
-          });
-          
-        } catch (err: any) {
-          console.error('[JSON Import] Batch error:', err);
-          failCount += batch.length;
-        }
-      }
+      const syncResult = await syncInventory(validItems, proveedor);
       
-      // Refresh the list after import
+      // Refresh the list after sync
       await fetchInmuebles();
       
-      toast.success(`✅ ${successCount} inmuebles importados con éxito!`, {
-        id: 'batch-progress'
-      });
-      if (failCount > 0) {
-        toast.error(`❌ ${failCount} inmuebles fallaron en la importación`);
-      }
+      // Toast detalhado com resumo
+      const summaryLines = [
+        `✅ ${syncResult.added} novos produtos adicionados`,
+        `🔄 ${syncResult.updated} produtos atualizados`,
+        `❌ ${syncResult.disabled} produtos desabilitados`,
+        syncResult.protected > 0 ? `🛡️ ${syncResult.protected} produtos protegidos (mantidos)` : null
+      ].filter(Boolean);
+
+      toast.success(
+        <div className="space-y-1">
+          <div className="font-bold">Sincronização concluída!</div>
+          {summaryLines.map((line, i) => (
+            <div key={i} className="text-sm">{line}</div>
+          ))}
+        </div>,
+        { 
+          id: 'sync-progress',
+          duration: 6000
+        }
+      );
       
-      console.log('[JSON Import] Concluído:', { successCount, failCount });
+      console.log('[JSON Import] Sincronização concluída:', syncResult);
+      
       
     } catch (error: any) {
       console.error('[JSON Import] Error:', error);

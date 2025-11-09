@@ -617,6 +617,12 @@ export type Database = {
     }
     Functions: {
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
+      get_protected_inmuebles: {
+        Args: { provider: string }
+        Returns: {
+          inmueble_id: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
