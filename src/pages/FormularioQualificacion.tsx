@@ -276,7 +276,7 @@ export default function FormularioQualificacion() {
 
             {/* Seção 2: Interesse Imobiliário */}
             <div className="bg-card p-6 rounded-lg border space-y-4">
-              <h2 className="text-xl font-semibold text-foreground mb-4">Interes en vivienda en:</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-4">Interés de la localidad de la vivienda en:</h2>
               
               <FormField
                 control={form.control}
