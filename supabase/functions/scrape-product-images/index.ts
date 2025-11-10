@@ -73,31 +73,20 @@ serve(async (req) => {
       console.log('🏢 Detectado: Clickalia');
       console.log(`📄 Tamanho do HTML: ${html.length} caracteres`);
       
-      // Extrair imagens do Clickalia (large ou xlarge têm melhor qualidade)
-      const clikaliaPattern = /https:\/\/img\.clikalia\.es\/properties\/[^"'\s]+\/(large|xlarge)\/[^"'\s]+\.jpg/gi;
+      // NOVO PATTERN: Buscar imagens do Google Cloud Storage
+      const clikaliaPattern = /https:\/\/storage\.googleapis\.com\/es-api-clikoffice-infra-esp-pro\/[^"'\s]+\.(jpg|jpeg|png|webp)/gi;
       const clikaliaMatches = html.match(clikaliaPattern);
       
-      console.log(`📸 Encontradas ${clikaliaMatches?.length || 0} imagens large/xlarge no Clickalia`);
+      console.log(`📸 Encontradas ${clikaliaMatches?.length || 0} imagens no Google Storage`);
       
       if (clikaliaMatches && clikaliaMatches.length > 0) {
         cleanImages = Array.from(new Set(
           clikaliaMatches.map(url => url.trim())
         ));
+        
+        console.log(`✅ ${cleanImages.length} imagens únicas extraídas da Clickalia`);
       } else {
-        console.log('⚠️ Nenhuma imagem large/xlarge encontrada no Clickalia, tentando medium');
-        
-        // Fallback: pegar medium se não houver large/xlarge
-        const mediumPattern = /https:\/\/img\.clikalia\.es\/properties\/[^"'\s]+\/medium\/[^"'\s]+\.jpg/gi;
-        const mediumMatches = html.match(mediumPattern);
-        
-        if (mediumMatches && mediumMatches.length > 0) {
-          console.log(`📸 Encontradas ${mediumMatches.length} imagens medium no Clickalia`);
-          cleanImages = Array.from(new Set(
-            mediumMatches.map(url => url.trim())
-          ));
-        } else {
-          console.log('❌ Nenhuma imagem encontrada no Clickalia (nem large, nem medium)');
-        }
+        console.log('❌ Nenhuma imagem encontrada no Clickalia');
       }
       
     } else {

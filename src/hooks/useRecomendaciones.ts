@@ -23,14 +23,23 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
         .select('*')
         .eq('disponible', true);
 
-      // Filtrar por cidade se especificada
-      if (lead.ciudad_interes) {
+      // Construir filtro combinado para cidade e zona
+      if (lead.ciudad_interes && lead.zona_interes) {
+        // Se tem AMBOS: (ciudad = X) OR (region = Y OR direccion = Y)
+        query = query.or(
+          `ciudad.ilike.%${lead.ciudad_interes}%,` +
+          `region.ilike.%${lead.zona_interes}%,` +
+          `direccion.ilike.%${lead.zona_interes}%`
+        );
+      } else if (lead.ciudad_interes) {
+        // Se tem só CIDADE
         query = query.ilike('ciudad', `%${lead.ciudad_interes}%`);
-      }
-
-      // Filtrar por zona/região se especificada
-      if (lead.zona_interes) {
-        query = query.or(`region.ilike.%${lead.zona_interes}%,direccion.ilike.%${lead.zona_interes}%`);
+      } else if (lead.zona_interes) {
+        // Se tem só ZONA
+        query = query.or(
+          `region.ilike.%${lead.zona_interes}%,` +
+          `direccion.ilike.%${lead.zona_interes}%`
+        );
       }
 
       const { data, error } = await query;
