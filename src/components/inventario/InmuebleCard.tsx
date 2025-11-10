@@ -131,7 +131,7 @@ export function InmuebleCard({
           </div>
         </CardContent>
 
-        <CardFooter className="pt-0 flex flex-col gap-2">
+        <CardFooter className="pt-0 px-4 pb-4 flex flex-col gap-2">
           {(inmueble.codigoInventario || inmueble.urlExterna) && (
             <div className="flex items-center gap-2 w-full pb-2 border-b">
               {inmueble.codigoInventario && (
@@ -199,12 +199,12 @@ export function InmuebleCard({
               size="sm" 
               onClick={(e) => {
                 e.stopPropagation();
-                window.location.href = `/produto/${inmueble.id}`;
+                window.open(`/produto/${inmueble.id}`, '_blank', 'noopener,noreferrer');
               }}
               className="flex-1"
             >
               <ExternalLink className="w-4 h-4 mr-1" />
-              Abrir produto
+              Abrir
             </Button>
           </div>
         </CardFooter>

@@ -437,7 +437,7 @@ export default function FormularioQualificacion() {
                 name="entrada_disponible"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>¿Cuánto tienes disponible para entrada?</FormLabel>
+                    <FormLabel>¿Cuanto tienes ahorrado?</FormLabel>
                     <FormControl>
                       <Input
                         type="number"

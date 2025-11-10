@@ -71,10 +71,13 @@ serve(async (req) => {
       
     } else if (isClickalia) {
       console.log('🏢 Detectado: Clickalia');
+      console.log(`📄 Tamanho do HTML: ${html.length} caracteres`);
       
       // Extrair imagens do Clickalia (large ou xlarge têm melhor qualidade)
       const clikaliaPattern = /https:\/\/img\.clikalia\.es\/properties\/[^"'\s]+\/(large|xlarge)\/[^"'\s]+\.jpg/gi;
       const clikaliaMatches = html.match(clikaliaPattern);
+      
+      console.log(`📸 Encontradas ${clikaliaMatches?.length || 0} imagens large/xlarge no Clickalia`);
       
       if (clikaliaMatches && clikaliaMatches.length > 0) {
         cleanImages = Array.from(new Set(
@@ -88,9 +91,12 @@ serve(async (req) => {
         const mediumMatches = html.match(mediumPattern);
         
         if (mediumMatches && mediumMatches.length > 0) {
+          console.log(`📸 Encontradas ${mediumMatches.length} imagens medium no Clickalia`);
           cleanImages = Array.from(new Set(
             mediumMatches.map(url => url.trim())
           ));
+        } else {
+          console.log('❌ Nenhuma imagem encontrada no Clickalia (nem large, nem medium)');
         }
       }
       

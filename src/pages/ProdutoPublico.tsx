@@ -28,13 +28,21 @@ export default function ProdutoPublico() {
 
   // Função para scraping automático
   const triggerAutoScraping = async (inmueble: Inmueble) => {
-    // Só scrapar se tiver exatamente 1 imagem E tiver url_externa
-    if (!inmueble.images || inmueble.images.length !== 1 || !inmueble.urlExterna) {
+    // Verificar se precisa fazer scraping:
+    // 1. Não tem URL externa → não pode scrapar
+    if (!inmueble.urlExterna) {
       return;
     }
     
+    // 2. Já tem múltiplas imagens (2+) → provavelmente já foi scrapeado
+    if (inmueble.images && inmueble.images.length > 1) {
+      return;
+    }
+    
+    // 3. Se chegou aqui: tem 0 ou 1 imagem → SCRAPAR!
     setScrapingImages(true);
     console.log('🔄 Iniciando scraping automático para:', inmueble.titulo);
+    console.log('📊 Imagens atuais:', inmueble.images?.length || 0);
     
     try {
       const { data, error } = await supabase.functions.invoke('scrape-product-images', {
@@ -44,10 +52,17 @@ export default function ProdutoPublico() {
         }
       });
       
+      if (error) {
+        console.error('❌ Erro na resposta do scraping:', error);
+        return;
+      }
+      
       if (data?.success && data.images) {
         // Atualizar estado com novas imagens
         setInmueble(prev => prev ? { ...prev, images: data.images } : null);
-        console.log('✅ Scraping completo:', data.totalImages, 'imagens');
+        console.log('✅ Scraping completo:', data.totalImages, 'imagens encontradas');
+      } else {
+        console.warn('⚠️ Scraping não retornou imagens:', data);
       }
     } catch (err) {
       console.error('❌ Erro no scraping automático:', err);

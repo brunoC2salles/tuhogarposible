@@ -14,6 +14,12 @@ interface LeadCardProps {
 }
 
 export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProps) => {
+  const formatPhoneForWhatsApp = (phone: string) => {
+    // Remove todos os caracteres não numéricos
+    // Como o telefone JÁ VEM com código de país, apenas limpa formatação
+    return phone.replace(/\D/g, '');
+  };
+
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
     return new Intl.NumberFormat('es-CL', {
@@ -62,7 +68,15 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
       <CardContent className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-muted-foreground">
           <Phone className="h-3 w-3 flex-shrink-0" />
-          <span className="truncate">{lead.telefono}</span>
+          <a 
+            href={`https://wa.me/${formatPhoneForWhatsApp(lead.telefono)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="truncate hover:text-green-600 hover:underline transition-colors cursor-pointer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {lead.telefono}
+          </a>
         </div>
 
         <div className="flex items-center gap-2 text-muted-foreground">
