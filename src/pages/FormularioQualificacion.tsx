@@ -83,12 +83,12 @@ export default function FormularioQualificacion() {
       nombre_completo: "",
       email: "",
       telefono: "",
-      edad: 0,
+      edad: undefined,
       comunidad_autonoma: "",
       ciudad_interes: "",
-      valor_inmueble_deseado: 0,
-      ingresos_mensuales: 0,
-      entrada_disponible: 0,
+      valor_inmueble_deseado: undefined,
+      ingresos_mensuales: undefined,
+      entrada_disponible: undefined,
       situacion_laboral: "empleado",
       tiene_credito_vigente: false,
       deudas_actuales: 0,
@@ -265,7 +265,7 @@ export default function FormularioQualificacion() {
                         type="number"
                         placeholder="Tu edad"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -276,7 +276,7 @@ export default function FormularioQualificacion() {
 
             {/* Seção 2: Interesse Imobiliário */}
             <div className="bg-card p-6 rounded-lg border space-y-4">
-              <h2 className="text-xl font-semibold text-foreground mb-4">Interés Inmobiliario</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-4">Interes en vivienda en:</h2>
               
               <FormField
                 control={form.control}
@@ -308,7 +308,7 @@ export default function FormularioQualificacion() {
                 name="ciudad_interes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>¿Qué ciudad? *</FormLabel>
+                    <FormLabel>¿En qué ciudad? *</FormLabel>
                     <FormControl>
                       <Input placeholder="Nombre de la ciudad" {...field} />
                     </FormControl>
@@ -326,9 +326,9 @@ export default function FormularioQualificacion() {
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Ej: 150000"
+                        placeholder="Valor del inmueble deseado (€)"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -350,9 +350,9 @@ export default function FormularioQualificacion() {
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="1500"
+                        placeholder="Ingresos mensuales (€)"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />
@@ -441,9 +441,9 @@ export default function FormularioQualificacion() {
                     <FormControl>
                       <Input
                         type="number"
-                        placeholder="Ej: 0"
+                        placeholder="Valor de entrada disponible (€)"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
                     <FormMessage />

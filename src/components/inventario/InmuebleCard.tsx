@@ -197,11 +197,14 @@ export function InmuebleCard({
             <Button 
               variant="outline"
               size="sm" 
-              onClick={handleCopyLink}
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = `/produto/${inmueble.id}`;
+              }}
               className="flex-1"
             >
-              <Link className="w-4 h-4 mr-1" />
-              Copiar link
+              <ExternalLink className="w-4 h-4 mr-1" />
+              Abrir produto
             </Button>
           </div>
         </CardFooter>

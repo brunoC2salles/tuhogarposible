@@ -34,56 +34,84 @@ serve(async (req) => {
 
     const html = await response.text();
 
-    // Extrair apenas imagens do produto (cdnsolvproep.solvia.es)
-    // Filtrar para pegar apenas as versões .ORIGINAL.jpg (melhor qualidade)
-    const imagePattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
-    const matches = html.match(imagePattern);
+    // Detectar fornecedor pela URL
+    const isSolvia = urlExterna.includes('solvia.es');
+    const isClickalia = urlExterna.includes('clikalia.es');
 
-    if (!matches || matches.length === 0) {
-      console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando outras resoluções');
+    let cleanImages: string[] = [];
+
+    if (isSolvia) {
+      console.log('🏢 Detectado: Solvia');
       
-      // Fallback: pegar 722x503 se não houver ORIGINAL
-      const fallbackPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
-      const fallbackMatches = html.match(fallbackPattern);
-      
-      if (fallbackMatches && fallbackMatches.length > 0) {
-        const cleanImages = Array.from(new Set(
-          fallbackMatches.map(url => 
+      // Extrair imagens do Solvia (ORIGINAL.jpg tem melhor qualidade)
+      const imagePattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
+      const matches = html.match(imagePattern);
+
+      if (!matches || matches.length === 0) {
+        console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando 722x503');
+        
+        // Fallback: pegar 722x503 se não houver ORIGINAL
+        const fallbackPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
+        const fallbackMatches = html.match(fallbackPattern);
+        
+        if (fallbackMatches && fallbackMatches.length > 0) {
+          cleanImages = Array.from(new Set(
+            fallbackMatches.map(url => 
+              url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+            )
+          ));
+        }
+      } else {
+        cleanImages = Array.from(new Set(
+          matches.map(url => 
             url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
           )
         ));
-        
-        console.log(`📸 ${cleanImages.length} imagens 722x503 encontradas`);
-        
-        // Atualizar banco de dados
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
-
-        const { error: updateError } = await supabase
-          .from('inmuebles')
-          .update({ images: cleanImages })
-          .eq('id', inmuebleId);
-
-        if (updateError) {
-          console.error('❌ Erro ao atualizar banco:', updateError);
-          throw updateError;
-        }
-
-        console.log('✅ Banco atualizado com sucesso');
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            inmuebleId,
-            totalImages: cleanImages.length,
-            images: cleanImages,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
       
+    } else if (isClickalia) {
+      console.log('🏢 Detectado: Clickalia');
+      
+      // Extrair imagens do Clickalia (large ou xlarge têm melhor qualidade)
+      const clikaliaPattern = /https:\/\/img\.clikalia\.es\/properties\/[^"'\s]+\/(large|xlarge)\/[^"'\s]+\.jpg/gi;
+      const clikaliaMatches = html.match(clikaliaPattern);
+      
+      if (clikaliaMatches && clikaliaMatches.length > 0) {
+        cleanImages = Array.from(new Set(
+          clikaliaMatches.map(url => url.trim())
+        ));
+      } else {
+        console.log('⚠️ Nenhuma imagem large/xlarge encontrada no Clickalia, tentando medium');
+        
+        // Fallback: pegar medium se não houver large/xlarge
+        const mediumPattern = /https:\/\/img\.clikalia\.es\/properties\/[^"'\s]+\/medium\/[^"'\s]+\.jpg/gi;
+        const mediumMatches = html.match(mediumPattern);
+        
+        if (mediumMatches && mediumMatches.length > 0) {
+          cleanImages = Array.from(new Set(
+            mediumMatches.map(url => url.trim())
+          ));
+        }
+      }
+      
+    } else {
+      console.log('⚠️ Fornecedor desconhecido, usando extração genérica');
+      
+      // Fallback genérico: buscar qualquer .jpg de alta resolução
+      const genericPattern = /https:\/\/[^"'\s]+\/(original|large|xlarge|high)\/[^"'\s]+\.jpg/gi;
+      const genericMatches = html.match(genericPattern);
+      
+      if (genericMatches && genericMatches.length > 0) {
+        cleanImages = Array.from(new Set(
+          genericMatches.map(url => url.trim())
+        ));
+      }
+    }
+
+    // Limitar a 15 imagens
+    cleanImages = cleanImages.slice(0, 15);
+
+    if (cleanImages.length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
@@ -93,13 +121,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Limpar URLs e remover duplicatas
-    const cleanImages = Array.from(new Set(
-      matches.map(url => 
-        url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
-      )
-    ));
 
     console.log(`📸 ${cleanImages.length} imagens ORIGINAL encontradas`);
 
