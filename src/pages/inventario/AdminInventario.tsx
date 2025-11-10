@@ -15,6 +15,7 @@ import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
 import { SearchBarAutocomplete } from "@/components/inventario/SearchBarAutocomplete";
+import { ScrapingModal } from "@/components/inventario/ScrapingModal";
 import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
@@ -952,6 +953,8 @@ const AdminInventario = () => {
                     </span>
                   </Button>
                 </Label>
+                
+                <ScrapingModal />
                 
                 <Dialog open={showCreateInmueble} onOpenChange={setShowCreateInmueble}>
                   <DialogTrigger asChild>
