@@ -21,6 +21,8 @@ import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
 import AgenteDetails from "./pages/AgenteDetails";
 import ProdutoPublico from "./pages/ProdutoPublico";
+import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
+import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
 
 const queryClient = new QueryClient();
 
@@ -103,6 +105,22 @@ const App = () => (
               } 
             />
             <Route path="/produto/:id" element={<ProdutoPublico />} />
+            <Route 
+              path="/academia"
+              element={
+                <ProtectedRoute>
+                  <AcademiaAgentes />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/financiero"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ControleFinanceiro />
+                </ProtectedRoute>
+              } 
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

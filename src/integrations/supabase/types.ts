@@ -76,6 +76,48 @@ export type Database = {
           },
         ]
       }
+      document_templates: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          file_path: string
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          tipo: string
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          file_path: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          tipo: string
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       form_submissions: {
         Row: {
           acepta_privacidad: boolean
@@ -192,6 +234,57 @@ export type Database = {
           },
           {
             foreignKeyName: "form_submissions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_contracts: {
+        Row: {
+          datos_contrato: Json
+          file_path: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          inmueble_id: string | null
+          lead_id: string | null
+          notas: string | null
+          tipo_contrato: string
+        }
+        Insert: {
+          datos_contrato: Json
+          file_path?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          inmueble_id?: string | null
+          lead_id?: string | null
+          notas?: string | null
+          tipo_contrato: string
+        }
+        Update: {
+          datos_contrato?: Json
+          file_path?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          inmueble_id?: string | null
+          lead_id?: string | null
+          notas?: string | null
+          tipo_contrato?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_contracts_inmueble_id_fkey"
+            columns: ["inmueble_id"]
+            isOneToOne: false
+            referencedRelation: "inmuebles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_contracts_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
@@ -551,6 +644,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      training_videos: {
+        Row: {
+          activo: boolean | null
+          categoria: string
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          duracion_minutos: number | null
+          id: string
+          orden: number | null
+          titulo: string
+          updated_at: string | null
+          url_embed: string
+        }
+        Insert: {
+          activo?: boolean | null
+          categoria: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          duracion_minutos?: number | null
+          id?: string
+          orden?: number | null
+          titulo: string
+          updated_at?: string | null
+          url_embed: string
+        }
+        Update: {
+          activo?: boolean | null
+          categoria?: string
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          duracion_minutos?: number | null
+          id?: string
+          orden?: number | null
+          titulo?: string
+          updated_at?: string | null
+          url_embed?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
