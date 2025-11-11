@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, Shield, Calculator, LayoutDashboard, FileText } from "lucide-react";
+import { Building2, Users, Shield, Calculator, LayoutDashboard, FileText, WalletCards, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 
@@ -119,6 +119,44 @@ const Index = () => {
               <Link to="/formulario-qualificacion" target="_blank" rel="noopener noreferrer">
                 <Button className="w-full" size="lg">
                   Completar Formulario
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+                <WalletCards className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Controle Financiero</CardTitle>
+              <CardDescription className="text-lg">
+                Gestiona ingresos, comisiones y reportes financieros
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Link to="/financiero">
+                <Button className="w-full" size="lg">
+                  Acceder a Finanzas
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+                <GraduationCap className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Academia de Agentes</CardTitle>
+              <CardDescription className="text-lg">
+                Tutoriales, documentos y generador de contratos
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Link to="/academia">
+                <Button className="w-full" size="lg">
+                  Acceder a la Academia
                 </Button>
               </Link>
             </CardContent>
