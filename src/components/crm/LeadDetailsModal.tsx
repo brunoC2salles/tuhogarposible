@@ -8,12 +8,13 @@ import { Lead, STAGE_LABELS, LeadHistorico } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, Clock, User, Building2, FileText, Upload, Download, Trash2 } from 'lucide-react';
+import { Calculator, Home, Clock, User, Building2, FileText, Upload, Download, Trash2, Link2 } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
+import { GenerateContractLinkModal } from '@/components/contratos/GenerateContractLinkModal';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -35,6 +36,7 @@ export const LeadDetailsModal = ({
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
   const [historico, setHistorico] = useState<LeadHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [contractLinkModalOpen, setContractLinkModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -196,7 +198,11 @@ export const LeadDetailsModal = ({
           </TabsContent>
 
           <TabsContent value="simulators" className="space-y-4">
-            <div className="flex justify-end mb-4">
+            <div className="flex gap-2 justify-end mb-4">
+              <Button variant="outline" onClick={() => setContractLinkModalOpen(true)}>
+                <Link2 className="h-4 w-4 mr-2" />
+                Gerar Link de Contrato
+              </Button>
               <Button onClick={() => onOpenSimulators(lead)}>
                 <Calculator className="h-4 w-4 mr-2" />
                 Ejecutar Simuladores
@@ -395,7 +401,24 @@ export const LeadDetailsModal = ({
             )}
           </TabsContent>
         </Tabs>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileSelect}
+          accept="application/pdf"
+          className="hidden"
+        />
       </DialogContent>
+      
+      {lead && (
+        <GenerateContractLinkModal
+          open={contractLinkModalOpen}
+          onClose={() => setContractLinkModalOpen(false)}
+          leadId={lead.id}
+          leadName={lead.nombre_completo}
+        />
+      )}
     </Dialog>
   );
 };

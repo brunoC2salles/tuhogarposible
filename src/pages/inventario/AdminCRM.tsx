@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog, Settings } from 'lucide-react';
+import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog, Settings, FileText } from 'lucide-react';
 import { STAGE_LABELS } from '@/types/crm';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const AdminCRM = () => {
   const navigate = useNavigate();
@@ -49,6 +50,11 @@ const AdminCRM = () => {
               </div>
             </div>
             <div className="flex gap-2">
+              <NotificationBell />
+              <Button variant="outline" onClick={() => navigate('/admin/contract-templates')}>
+                <FileText className="h-4 w-4 mr-2" />
+                Templates
+              </Button>
               <Button variant="outline" onClick={() => navigate('/admin/settings')}>
                 <Settings className="h-4 w-4 mr-2" />
                 Configuraciones

@@ -76,6 +76,42 @@ export type Database = {
           },
         ]
       }
+      contract_templates: {
+        Row: {
+          activo: boolean | null
+          campos_formulario: Json
+          created_at: string | null
+          created_by: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          template_content: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          campos_formulario?: Json
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          template_content: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          campos_formulario?: Json
+          created_at?: string | null
+          created_by?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          template_content?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           activo: boolean | null
@@ -508,6 +544,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           activo: boolean
@@ -546,6 +618,70 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      public_contract_links: {
+        Row: {
+          agente_id: string
+          completed_at: string | null
+          contract_generated_id: string | null
+          created_at: string | null
+          datos_completados: Json | null
+          expires_at: string
+          id: string
+          lead_id: string
+          status: string | null
+          template_id: string
+          token: string
+        }
+        Insert: {
+          agente_id: string
+          completed_at?: string | null
+          contract_generated_id?: string | null
+          created_at?: string | null
+          datos_completados?: Json | null
+          expires_at: string
+          id?: string
+          lead_id: string
+          status?: string | null
+          template_id: string
+          token: string
+        }
+        Update: {
+          agente_id?: string
+          completed_at?: string | null
+          contract_generated_id?: string | null
+          created_at?: string | null
+          datos_completados?: Json | null
+          expires_at?: string
+          id?: string
+          lead_id?: string
+          status?: string | null
+          template_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_contract_links_contract_generated_id_fkey"
+            columns: ["contract_generated_id"]
+            isOneToOne: false
+            referencedRelation: "generated_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_contract_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_contract_links_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reservas: {
         Row: {
@@ -769,6 +905,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      notify_admins: {
+        Args: {
+          p_link?: string
+          p_message: string
+          p_metadata?: Json
+          p_title: string
+          p_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
@@ -780,6 +926,11 @@ export type Database = {
         | "reunion_contrato"
         | "firma_pago"
         | "listo"
+      notification_type:
+        | "new_lead"
+        | "lead_stage_listo"
+        | "payment_deadline"
+        | "contract_signed"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -923,6 +1074,12 @@ export const Constants = {
         "reunion_contrato",
         "firma_pago",
         "listo",
+      ],
+      notification_type: [
+        "new_lead",
+        "lead_stage_listo",
+        "payment_deadline",
+        "contract_signed",
       ],
       tipo_inmueble: [
         "apartamento",

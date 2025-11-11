@@ -31,7 +31,6 @@ export const CATEGORIA_LABELS: Record<VideoCategory, string> = {
 
 export type DocumentType = 
   | 'contrato_compra' 
-  | 'contrato_alquiler' 
   | 'documento_general' 
   | 'plantilla';
 
@@ -51,7 +50,6 @@ export interface DocumentTemplate {
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   contrato_compra: 'Contrato de Compra',
-  contrato_alquiler: 'Contrato de Alquiler',
   documento_general: 'Documento General',
   plantilla: 'Plantilla'
 };

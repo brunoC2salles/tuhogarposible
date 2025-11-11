@@ -23,6 +23,8 @@ import AgenteDetails from "./pages/AgenteDetails";
 import ProdutoPublico from "./pages/ProdutoPublico";
 import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
 import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
+import AdminContractTemplates from "./pages/AdminContractTemplates";
+import ContratoPublico from "./pages/ContratoPublico";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +123,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/admin/contract-templates"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminContractTemplates />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/contrato/:token" element={<ContratoPublico />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

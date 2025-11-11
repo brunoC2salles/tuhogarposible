@@ -12,6 +12,7 @@ import { Lead } from '@/types/crm';
 import { Plus, ArrowLeft, Users, Building, LogOut, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const AgenteCRM = () => {
   const navigate = useNavigate();
@@ -65,6 +66,7 @@ const AgenteCRM = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <NotificationBell />
               <Button variant="outline" onClick={() => navigate('/agente/settings')}>
                 <Settings className="h-4 w-4 mr-2" />
                 Mi Perfil

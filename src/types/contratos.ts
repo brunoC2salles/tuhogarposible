@@ -46,3 +46,39 @@ export const TIPO_CONTRATO_LABELS: Record<TipoContrato, string> = {
   reserva: 'Reserva',
   arras: 'Arras'
 };
+
+// Tipos para sistema de contratos públicos
+export interface ContractTemplate {
+  id: string;
+  nombre: string;
+  descripcion?: string;
+  campos_formulario: CampoFormulario[];
+  template_content: string;
+  activo: boolean;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampoFormulario {
+  name: string;
+  label: string;
+  type: 'text' | 'email' | 'date' | 'number' | 'select';
+  required: boolean;
+  options?: string[];
+  placeholder?: string;
+}
+
+export interface PublicContractLink {
+  id: string;
+  token: string;
+  lead_id: string;
+  template_id: string;
+  agente_id: string;
+  status: 'pending' | 'completed' | 'expired';
+  datos_completados?: Record<string, any>;
+  contract_generated_id?: string;
+  expires_at: string;
+  completed_at?: string;
+  created_at: string;
+}
