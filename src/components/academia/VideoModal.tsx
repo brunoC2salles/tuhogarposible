@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { TrainingVideo } from "@/types/academia";
+import { convertToEmbedUrl } from "@/lib/videoUtils";
 
 interface VideoModalProps {
   video: TrainingVideo | null;
@@ -9,6 +10,8 @@ interface VideoModalProps {
 
 const VideoModal = ({ video, open, onClose }: VideoModalProps) => {
   if (!video) return null;
+
+  const embedUrl = convertToEmbedUrl(video.url_embed) || video.url_embed;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -21,7 +24,7 @@ const VideoModal = ({ video, open, onClose }: VideoModalProps) => {
         </DialogHeader>
         <div className="aspect-video">
           <iframe
-            src={video.url_embed}
+            src={embedUrl}
             className="w-full h-full rounded-lg"
             allowFullScreen
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

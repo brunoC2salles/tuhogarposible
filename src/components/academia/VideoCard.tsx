@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { TrainingVideo } from "@/types/academia";
+import { convertToEmbedUrl } from "@/lib/videoUtils";
 
 interface VideoCardProps {
   video: TrainingVideo;
@@ -20,14 +21,16 @@ interface VideoCardProps {
 const VideoCard = ({ video, onClick, isAdmin, onEdit, onDelete }: VideoCardProps) => {
   // Extrair thumbnail do YouTube e Vimeo
   const getThumbnail = (url: string) => {
+    const embedUrl = convertToEmbedUrl(url) || url;
+    
     // Detectar YouTube
-    const youtubeMatch = url.match(/(?:youtube\.com\/embed\/|youtu\.be\/)([^?&]+)/);
+    const youtubeMatch = embedUrl.match(/(?:youtube\.com\/embed\/|youtu\.be\/)([^?&]+)/);
     if (youtubeMatch?.[1]) {
       return `https://img.youtube.com/vi/${youtubeMatch[1]}/mqdefault.jpg`;
     }
     
     // Detectar Vimeo (retornar null, não temos API key)
-    const vimeoMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+    const vimeoMatch = embedUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
     if (vimeoMatch?.[1]) {
       return null; // Vimeo requer API key para thumbnails
     }
