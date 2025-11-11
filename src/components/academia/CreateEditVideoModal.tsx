@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { VideoCategory, CATEGORIA_LABELS, TrainingVideo } from "@/types/academia";
 
 interface CreateEditVideoModalProps {
@@ -20,12 +21,23 @@ const CreateEditVideoModal = ({ open, onClose, onSave, video }: CreateEditVideoM
     descripcion: video?.descripcion || '',
     url_embed: video?.url_embed || '',
     categoria: video?.categoria || 'uso_plataforma' as VideoCategory,
-    duracion_minutos: video?.duracion_minutos || 0,
     orden: video?.orden || 0
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar URL embed
+    const isYouTube = /youtube\.com\/embed\/|youtu\.be\//.test(formData.url_embed);
+    const isVimeo = /player\.vimeo\.com\/video\//.test(formData.url_embed);
+    
+    if (!isYouTube && !isVimeo) {
+      toast.error('La URL debe ser de YouTube o Vimeo en formato embed', {
+        description: 'Ejemplo: https://www.youtube.com/embed/VIDEO_ID'
+      });
+      return;
+    }
+    
     onSave({
       ...formData,
       activo: true,
@@ -55,11 +67,15 @@ const CreateEditVideoModal = ({ open, onClose, onSave, video }: CreateEditVideoM
             <Label htmlFor="url_embed">URL Embed (YouTube/Vimeo) *</Label>
             <Input
               id="url_embed"
-              placeholder="https://www.youtube.com/embed/..."
+              placeholder="https://www.youtube.com/embed/VIDEO_ID"
               value={formData.url_embed}
               onChange={(e) => setFormData({ ...formData, url_embed: e.target.value })}
               required
             />
+            <p className="text-xs text-muted-foreground mt-1.5">
+              <span className="font-medium">YouTube:</span> youtube.com/embed/VIDEO_ID{" | "}
+              <span className="font-medium">Vimeo:</span> player.vimeo.com/video/VIDEO_ID
+            </p>
           </div>
 
           <div>
@@ -91,26 +107,19 @@ const CreateEditVideoModal = ({ open, onClose, onSave, video }: CreateEditVideoM
             </div>
 
             <div>
-              <Label htmlFor="duracion">Duración (minutos)</Label>
+              <Label htmlFor="orden">Orden de visualización</Label>
               <Input
-                id="duracion"
+                id="orden"
                 type="number"
                 min="0"
-                value={formData.duracion_minutos}
-                onChange={(e) => setFormData({ ...formData, duracion_minutos: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+                value={formData.orden}
+                onChange={(e) => setFormData({ ...formData, orden: parseInt(e.target.value) || 0 })}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Los videos se ordenan de menor a mayor
+              </p>
             </div>
-          </div>
-
-          <div>
-            <Label htmlFor="orden">Orden</Label>
-            <Input
-              id="orden"
-              type="number"
-              min="0"
-              value={formData.orden}
-              onChange={(e) => setFormData({ ...formData, orden: parseInt(e.target.value) || 0 })}
-            />
           </div>
 
           <div className="flex justify-end gap-2">
