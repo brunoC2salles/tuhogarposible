@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PDFDocument, rgb, StandardFonts } from "https://cdn.skypack.dev/pdf-lib@1.17.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -172,14 +173,84 @@ serve(async (req) => {
 
     console.log('[Generate Contract] Contract record created:', contractData.id);
 
-    // 4. Gerar PDF simples (texto formatado)
+    // 4. Gerar PDF válido usando pdf-lib
     const pdfPath = `${lead.id}/contrato_${Date.now()}.pdf`;
-    const encoder = new TextEncoder();
-    const contractFile = encoder.encode(contractContent);
-
+    
+    // Criar documento PDF
+    const pdfDoc = await PDFDocument.create();
+    const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    
+    // Configurações do layout
+    const pageWidth = 595; // A4 width in points
+    const pageHeight = 842; // A4 height in points
+    const margin = 50;
+    const maxWidth = pageWidth - (margin * 2);
+    const fontSize = 11;
+    const lineHeight = 16;
+    
+    let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+    let yPosition = pageHeight - margin;
+    
+    // Dividir conteúdo em linhas
+    const lines = contractContent.split('\n');
+    
+    for (const line of lines) {
+      // Verificar se precisa de nova página
+      if (yPosition < margin + lineHeight) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        yPosition = pageHeight - margin;
+      }
+      
+      // Quebrar linha longa se necessário
+      const words = line.split(' ');
+      let currentLine = '';
+      
+      for (const word of words) {
+        const testLine = currentLine ? `${currentLine} ${word}` : word;
+        const textWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+        
+        if (textWidth > maxWidth && currentLine) {
+          // Desenhar linha atual e começar nova
+          currentPage.drawText(currentLine, {
+            x: margin,
+            y: yPosition,
+            size: fontSize,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          
+          yPosition -= lineHeight;
+          currentLine = word;
+          
+          // Verificar se precisa de nova página
+          if (yPosition < margin + lineHeight) {
+            currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+            yPosition = pageHeight - margin;
+          }
+        } else {
+          currentLine = testLine;
+        }
+      }
+      
+      // Desenhar última linha (ou linha vazia para espaçamento)
+      if (currentLine || !line) {
+        currentPage.drawText(currentLine, {
+          x: margin,
+          y: yPosition,
+          size: fontSize,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        yPosition -= lineHeight;
+      }
+    }
+    
+    // Gerar bytes do PDF
+    const pdfBytes = await pdfDoc.save();
+    
     const { error: uploadError } = await supabaseClient.storage
       .from('lead-documents')
-      .upload(pdfPath, contractFile, {
+      .upload(pdfPath, pdfBytes, {
         contentType: 'application/pdf',
         upsert: false
       });
