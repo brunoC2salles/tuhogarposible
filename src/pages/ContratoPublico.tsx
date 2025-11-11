@@ -9,10 +9,12 @@ import { toast } from 'sonner';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { CampoFormulario } from '@/types/contratos';
 import logoTuHogar from "@/assets/logo-tu-hogar.png";
+import { useAgentes } from '@/hooks/useAgentes';
 
 export default function ContratoPublico() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const { agentes, loading: loadingAgentes } = useAgentes();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
@@ -76,10 +78,9 @@ export default function ContratoPublico() {
           initialValues[campo.name] = fullData.leads.email;
         } else if (campo.name === 'telefono') {
           initialValues[campo.name] = fullData.leads.telefono;
-        } else if (campo.name === 'agente_nombre') {
-          initialValues[campo.name] = fullData.profiles?.nombre || '';
-        } else if (campo.name === 'agente_email') {
-          initialValues[campo.name] = fullData.profiles?.email || '';
+        } else if (campo.name === 'agente_id') {
+          // Pré-selecionar agente que criou o link
+          initialValues[campo.name] = fullData.agente_id;
         } else {
           initialValues[campo.name] = '';
         }
@@ -179,7 +180,23 @@ export default function ContratoPublico() {
                   {campo.required && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 
-                {campo.type === 'select' && campo.options ? (
+                {campo.type === 'agente_select' ? (
+                  <select
+                    id={campo.name}
+                    required={campo.required}
+                    value={formValues[campo.name] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [campo.name]: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    disabled={loadingAgentes}
+                  >
+                    <option value="">Seleccione un agente...</option>
+                    {agentes.map(agente => (
+                      <option key={agente.id} value={agente.id}>
+                        {agente.nombre}
+                      </option>
+                    ))}
+                  </select>
+                ) : campo.type === 'select' && campo.options ? (
                   <select
                     id={campo.name}
                     required={campo.required}

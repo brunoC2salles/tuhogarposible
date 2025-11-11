@@ -7,6 +7,7 @@ export interface AgenteProfile {
   nombre: string;
   email: string;
   telefono?: string;
+  dni_nie?: string;
   role: 'admin' | 'agente';
   activo: boolean;
 }
@@ -23,7 +24,7 @@ export const useAgentes = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, nombre, email, telefono, dni_nie, role, activo')
         .eq('activo', true)
         .order('nombre', { ascending: true });
 

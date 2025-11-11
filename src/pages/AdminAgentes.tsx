@@ -18,6 +18,7 @@ interface Agent {
   nombre: string;
   email: string;
   telefono?: string;
+  dni_nie?: string;
   tidycal_url?: string;
   region_round_robin?: string;
   activo: boolean;
@@ -40,6 +41,7 @@ export default function AdminAgentes() {
   const [editFormData, setEditFormData] = useState({
     nombre: "",
     telefono: "",
+    dni_nie: "",
     tidycal_url: "",
     region_round_robin: "",
     activo: true,
@@ -49,7 +51,7 @@ export default function AdminAgentes() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, tidycal_url, region_round_robin, activo, role")
+        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role")
         .eq("role", "agente")
         .order("nombre");
 
@@ -97,6 +99,7 @@ export default function AdminAgentes() {
     setEditFormData({
       nombre: agent.nombre,
       telefono: agent.telefono || "",
+      dni_nie: agent.dni_nie || "",
       tidycal_url: agent.tidycal_url || "",
       region_round_robin: agent.region_round_robin || "",
       activo: agent.activo,
@@ -112,6 +115,11 @@ export default function AdminAgentes() {
       return;
     }
 
+    if (!editFormData.dni_nie.trim()) {
+      toast.error("El DNI/NIE es obligatorio");
+      return;
+    }
+
     if (editFormData.tidycal_url && !editFormData.tidycal_url.startsWith("https://tidycal.com/")) {
       toast.error("La URL de Tidycal debe comenzar con https://tidycal.com/");
       return;
@@ -123,6 +131,7 @@ export default function AdminAgentes() {
         .update({
           nombre: editFormData.nombre.trim(),
           telefono: editFormData.telefono.trim() || null,
+          dni_nie: editFormData.dni_nie.trim(),
           tidycal_url: editFormData.tidycal_url.trim() || null,
           region_round_robin: editFormData.region_round_robin || null,
           activo: editFormData.activo,
@@ -262,6 +271,7 @@ export default function AdminAgentes() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead>DNI/NIE</TableHead>
                     <TableHead>URL Tidycal</TableHead>
                     <TableHead>Región</TableHead>
                     <TableHead>Estadísticas</TableHead>
@@ -279,6 +289,9 @@ export default function AdminAgentes() {
                       <TableCell className="font-medium">{agent.nombre}</TableCell>
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
+                      <TableCell>
+                        {agent.dni_nie || <span className="text-orange-500 font-medium">⚠️ Sin DNI/NIE</span>}
+                      </TableCell>
                       <TableCell className="max-w-[200px] truncate">
                         {agent.tidycal_url ? (
                           <a
@@ -341,7 +354,7 @@ export default function AdminAgentes() {
                   ))}
                   {filteredAgents.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                         No se encontraron agentes
                       </TableCell>
                     </TableRow>
@@ -380,6 +393,19 @@ export default function AdminAgentes() {
                   value={editFormData.telefono}
                   onChange={(e) => setEditFormData({ ...editFormData, telefono: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-dni">DNI/NIE *</Label>
+                <Input
+                  id="edit-dni"
+                  value={editFormData.dni_nie}
+                  onChange={(e) => setEditFormData({ ...editFormData, dni_nie: e.target.value })}
+                  placeholder="12345678X"
+                />
+                <p className="text-xs text-muted-foreground">
+                  ⚠️ El DNI/NIE es obligatorio para generar contratos
+                </p>
               </div>
 
               <div className="space-y-2">

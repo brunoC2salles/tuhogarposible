@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MESES_ES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function getMonthFromDate(dateString: string): string {
+  const date = new Date(dateString);
+  return MESES_ES[date.getMonth()];
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -92,16 +102,34 @@ serve(async (req) => {
     const agent = linkData.profiles;
     const template = linkData.contract_templates;
 
+    // Buscar dados do agente selecionado pelo lead
+    const selectedAgentId = formData.agente_id;
+    const { data: selectedAgent } = await supabaseClient
+      .from('profiles')
+      .select('nombre, dni_nie')
+      .eq('id', selectedAgentId)
+      .single();
+
+    if (!selectedAgent) {
+      throw new Error('Agente selecionado não encontrado');
+    }
+
+    // Calcular mês a partir da data de firma
+    const mes = getMonthFromDate(formData.fecha_firma);
+
     let contractContent = template.template_content;
     
     // Substituir todas as variáveis
-    contractContent = contractContent.replace(/<<mes>>/g, formData.mes || '');
-    contractContent = contractContent.replace(/<<ag-fiscal>>/g, formData.agente_dni || '');
+    contractContent = contractContent.replace(/<<mes>>/g, mes);
+    contractContent = contractContent.replace(/<<ag-fiscal>>/g, selectedAgent.dni_nie || '');
     contractContent = contractContent.replace(/<<nombre>>/g, formData.nombre_completo || '');
     contractContent = contractContent.replace(/<<Nombre>>/g, formData.nombre_completo || '');
     contractContent = contractContent.replace(/<<dirección>>/g, formData.direccion_actual || '');
     contractContent = contractContent.replace(/<<dni\/nie>>/g, formData.dni_nie || '');
-    contractContent = contractContent.replace(/<<Agente>>/g, formData.agente_nombre || '');
+    contractContent = contractContent.replace(/<<Agente>>/g, selectedAgent.nombre || '');
+    contractContent = contractContent.replace(/<<email>>/g, formData.email || '');
+    contractContent = contractContent.replace(/<<teléfono>>/g, lead.telefono || '');
+    contractContent = contractContent.replace(/<<fecha>>/g, formData.fecha_firma || '');
 
     // 3. Criar registro na tabela generated_contracts
     const { data: contractData, error: contractError } = await supabaseClient
@@ -111,11 +139,15 @@ serve(async (req) => {
         tipo_contrato: 'compra_venta',
         datos_contrato: {
           ...formData,
+          mes_calculado: mes,
           cliente_nombre: lead.nombre_completo,
           cliente_email: lead.email,
           cliente_telefono: lead.telefono,
-          agente_nombre: agent.nombre,
+          agente_id: selectedAgentId,
+          agente_nombre: selectedAgent.nombre,
+          agente_dni: selectedAgent.dni_nie,
           agente_email: agent.email,
+          agente_telefono: agent.telefono,
           template_used: template.nombre
         },
         generated_by: linkData.agente_id,

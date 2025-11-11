@@ -63,7 +63,7 @@ export interface ContractTemplate {
 export interface CampoFormulario {
   name: string;
   label: string;
-  type: 'text' | 'email' | 'date' | 'number' | 'select';
+  type: 'text' | 'email' | 'date' | 'number' | 'select' | 'agente_select';
   required: boolean;
   options?: string[];
   placeholder?: string;
