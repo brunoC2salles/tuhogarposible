@@ -1,12 +1,99 @@
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, AlertCircle } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2 } from "lucide-react";
+import { useDespesas } from "@/hooks/useDespesas";
+import { useFaturacoes } from "@/hooks/useFaturacoes";
+import { DespesaModal } from "@/components/financeiro/DespesaModal";
+import { FaturacaoModal } from "@/components/financeiro/FaturacaoModal";
+import type { DespesaOperacional, Faturacao } from "@/types/financeiro";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
+
+  const { despesas, isLoading: loadingDespesas, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
+  const { faturacoes, isLoading: loadingFaturacoes, createFaturacao, updateFaturacao, deleteFaturacao } = useFaturacoes();
+
+  const [despesaModalOpen, setDespesaModalOpen] = useState(false);
+  const [faturacaoModalOpen, setFaturacaoModalOpen] = useState(false);
+  const [editingDespesa, setEditingDespesa] = useState<DespesaOperacional | null>(null);
+  const [editingFaturacao, setEditingFaturacao] = useState<Faturacao | null>(null);
+
+  const totalDespesas = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
+  const totalFaturacoes = faturacoes.reduce((sum, f) => sum + Number(f.valor), 0);
+  const totalPendente = faturacoes.filter(f => f.status === 'pendente').reduce((sum, f) => sum + Number(f.valor), 0);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
+  };
+
+  const handleSaveDespesa = (despesa: Partial<DespesaOperacional>) => {
+    if (despesa.id) {
+      updateDespesa.mutate(despesa as any);
+    } else {
+      createDespesa.mutate(despesa as any);
+    }
+    setEditingDespesa(null);
+  };
+
+  const handleSaveFaturacao = (faturacao: Partial<Faturacao>) => {
+    if (faturacao.id) {
+      updateFaturacao.mutate(faturacao as any);
+    } else {
+      createFaturacao.mutate(faturacao as any);
+    }
+    setEditingFaturacao(null);
+  };
+
+  const handleEditDespesa = (despesa: DespesaOperacional) => {
+    setEditingDespesa(despesa);
+    setDespesaModalOpen(true);
+  };
+
+  const handleEditFaturacao = (faturacao: Faturacao) => {
+    setEditingFaturacao(faturacao);
+    setFaturacaoModalOpen(true);
+  };
+
+  const handleDeleteDespesa = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta despesa?')) {
+      deleteDespesa.mutate(id);
+    }
+  };
+
+  const handleDeleteFaturacao = (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta faturação?')) {
+      deleteFaturacao.mutate(id);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <div className="max-w-7xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Acesso Restrito</CardTitle>
+              <CardDescription>
+                Apenas administradores podem acessar o controle financeiro.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -15,69 +102,55 @@ const ControleFinanceiro = () => {
           <div>
             <h1 className="text-4xl font-bold text-foreground">Control Financiero</h1>
             <p className="text-muted-foreground mt-2">
-              {isAdmin 
-                ? "Vista general de comisiones y gastos operacionales" 
-                : "Mis comisiones y estado de pagos"}
+              Gestión completa de gastos operacionales y facturación
             </p>
           </div>
-          <Badge variant="outline" className="text-orange-500 border-orange-500">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            En Desarrollo
-          </Badge>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Resumen</TabsTrigger>
-            <TabsTrigger value="commissions">Comisiones</TabsTrigger>
-            {isAdmin && <TabsTrigger value="expenses">Gastos Operacionales</TabsTrigger>}
-            <TabsTrigger value="reports">Reportes</TabsTrigger>
+            <TabsTrigger value="expenses">Gastos Operacionales</TabsTrigger>
+            <TabsTrigger value="invoicing">Facturación</TabsTrigger>
           </TabsList>
 
-          {/* Tab: Resumen */}
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {isAdmin ? "Total Facturado" : "Mis Comisiones"}
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Facturado</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€ 0,00</div>
+                  <div className="text-2xl font-bold">{formatCurrency(totalFaturacoes)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sin datos registrados aún
+                    {faturacoes.length} faturações registradas
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    {isAdmin ? "Comisiones Pendientes" : "Pendiente de Cobro"}
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Total em Despesas</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">€ 0,00</div>
+                  <div className="text-2xl font-bold">{formatCurrency(totalDespesas)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Sin pagos pendientes
+                    {despesas.length} despesas registradas
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Operaciones Cerradas
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Pendente de Cobrança</CardTitle>
                   <FileText className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">0</div>
+                  <div className="text-2xl font-bold">{formatCurrency(totalPendente)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Este mes
+                    Faturações com status pendente
                   </p>
                 </CardContent>
               </Card>
@@ -85,82 +158,171 @@ const ControleFinanceiro = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>⚠️ Funcionalidad en Desarrollo</CardTitle>
-                <CardDescription>
-                  Esta sección está en construcción. Próximamente podrás:
-                </CardDescription>
+                <CardTitle>Balanço Geral</CardTitle>
+                <CardDescription>Resumo financeiro do período</CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li>✅ Registrar comisiones manualmente</li>
-                  <li>✅ Ver historial de pagos</li>
-                  <li>✅ Generar reportes personalizados</li>
-                  <li>✅ Exportar datos a Excel/PDF</li>
-                  {isAdmin && (
-                    <>
-                      <li>✅ Controlar gastos operacionales</li>
-                      <li>✅ Dashboard con gráficos analíticos</li>
-                    </>
-                  )}
-                </ul>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Receitas (Facturação):</span>
+                    <span className="text-sm font-bold text-green-600">{formatCurrency(totalFaturacoes)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Despesas Operacionais:</span>
+                    <span className="text-sm font-bold text-red-600">-{formatCurrency(totalDespesas)}</span>
+                  </div>
+                  <div className="border-t pt-2 mt-2 flex justify-between items-center">
+                    <span className="font-medium">Resultado:</span>
+                    <span className={`font-bold ${totalFaturacoes - totalDespesas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(totalFaturacoes - totalDespesas)}
+                    </span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Tab: Comisiones */}
-          <TabsContent value="commissions">
+          <TabsContent value="expenses">
             <Card>
               <CardHeader>
-                <CardTitle>Gestión de Comisiones</CardTitle>
-                <CardDescription>
-                  Registra y controla las comisiones por operación
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Gastos Operacionales</CardTitle>
+                    <CardDescription>Registro y control de todas las despesas</CardDescription>
+                  </div>
+                  <Button onClick={() => { setEditingDespesa(null); setDespesaModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Despesa
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="text-center py-12 text-muted-foreground">
-                <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Funcionalidad disponible próximamente</p>
-                <p className="text-sm mt-2">
-                  Mientras tanto, puedes registrar datos manualmente en tu sistema
-                </p>
+              <CardContent>
+                {loadingDespesas ? (
+                  <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+                ) : despesas.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">Nenhuma despesa registrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead>Método</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {despesas.map((despesa) => (
+                        <TableRow key={despesa.id}>
+                          <TableCell>{formatDate(despesa.data_despesa)}</TableCell>
+                          <TableCell>{despesa.descricao}</TableCell>
+                          <TableCell><Badge variant="outline">{despesa.categoria}</Badge></TableCell>
+                          <TableCell>{despesa.metodo_pagamento || '-'}</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(Number(despesa.valor))}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEditDespesa(despesa)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleDeleteDespesa(despesa.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Tab: Gastos (solo admin) */}
-          {isAdmin && (
-            <TabsContent value="expenses">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Gastos Operacionales</CardTitle>
-                  <CardDescription>
-                    Control de costos y gastos de la agencia
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-center py-12 text-muted-foreground">
-                  <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p>Funcionalidad disponible próximamente</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          )}
-
-          {/* Tab: Reportes */}
-          <TabsContent value="reports">
+          <TabsContent value="invoicing">
             <Card>
               <CardHeader>
-                <CardTitle>Reportes Financieros</CardTitle>
-                <CardDescription>
-                  Genera reportes personalizados de comisiones y ventas
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Facturación</CardTitle>
+                    <CardDescription>Gestión de facturas y cobros</CardDescription>
+                  </div>
+                  <Button onClick={() => { setEditingFaturacao(null); setFaturacaoModalOpen(true); }}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Faturação
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent className="text-center py-12 text-muted-foreground">
-                <TrendingUp className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Funcionalidad disponible próximamente</p>
+              <CardContent>
+                {loadingFaturacoes ? (
+                  <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+                ) : faturacoes.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">Nenhuma faturação registrada</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Nº Fatura</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Descrição</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {faturacoes.map((faturacao) => (
+                        <TableRow key={faturacao.id}>
+                          <TableCell>{formatDate(faturacao.data_faturacao)}</TableCell>
+                          <TableCell>{faturacao.numero_fatura || '-'}</TableCell>
+                          <TableCell>{faturacao.cliente_nome || '-'}</TableCell>
+                          <TableCell>{faturacao.descricao}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              faturacao.status === 'pago' ? 'default' : 
+                              faturacao.status === 'pendente' ? 'secondary' : 
+                              'destructive'
+                            }>
+                              {faturacao.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(Number(faturacao.valor))}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button size="sm" variant="outline" onClick={() => handleEditFaturacao(faturacao)}>
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleDeleteFaturacao(faturacao.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      <DespesaModal
+        open={despesaModalOpen}
+        onClose={() => { setDespesaModalOpen(false); setEditingDespesa(null); }}
+        onSave={handleSaveDespesa}
+        despesa={editingDespesa}
+      />
+
+      <FaturacaoModal
+        open={faturacaoModalOpen}
+        onClose={() => { setFaturacaoModalOpen(false); setEditingFaturacao(null); }}
+        onSave={handleSaveFaturacao}
+        faturacao={editingFaturacao}
+      />
     </div>
   );
 };

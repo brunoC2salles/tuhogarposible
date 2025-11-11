@@ -322,17 +322,18 @@ export default function AdminAgentes() {
                           {agent.activo ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(agent)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={agent.activo ? "destructive" : "default"}
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(agent)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={agent.activo ? "destructive" : "default"}
                           onClick={() => toggleAgentStatus(agent)}
                         >
                           {agent.activo ? (
@@ -341,14 +342,15 @@ export default function AdminAgentes() {
                             <UserCheck className="h-4 w-4" />
                           )}
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => deleteAgent(agent)}
-                          title="Eliminar agente permanentemente"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteAgent(agent)}
+                            title="Eliminar agente permanentemente"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

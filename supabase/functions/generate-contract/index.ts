@@ -54,12 +54,6 @@ serve(async (req) => {
           nombre,
           template_content,
           campos_formulario
-        ),
-        profiles:agente_id (
-          id,
-          nombre,
-          email,
-          telefono
         )
       `)
       .eq('token', token)
@@ -97,9 +91,24 @@ serve(async (req) => {
       );
     }
 
-    // 2. Gerar conteúdo do contrato com variáveis substituídas
+    // 2. Buscar dados do agente que criou o link
+    const { data: agentData, error: agentError } = await supabaseClient
+      .from('profiles')
+      .select('id, nombre, email, telefono, dni_nie')
+      .eq('id', linkData.agente_id)
+      .single();
+
+    if (agentError || !agentData) {
+      console.error('[Generate Contract] Agent not found:', agentError);
+      return new Response(
+        JSON.stringify({ error: 'Agente não encontrado' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 3. Gerar conteúdo do contrato com variáveis substituídas
     const lead = linkData.leads;
-    const agent = linkData.profiles;
+    const agent = agentData;
     const template = linkData.contract_templates;
 
     // Buscar dados do agente selecionado pelo lead

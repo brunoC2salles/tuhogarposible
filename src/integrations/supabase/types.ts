@@ -112,6 +112,48 @@ export type Database = {
         }
         Relationships: []
       }
+      despesas_operacionais: {
+        Row: {
+          categoria: string
+          comprovante_url: string | null
+          created_at: string | null
+          created_by: string | null
+          data_despesa: string
+          descricao: string
+          id: string
+          metodo_pagamento: string | null
+          notas: string | null
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          categoria: string
+          comprovante_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_despesa: string
+          descricao: string
+          id?: string
+          metodo_pagamento?: string | null
+          notas?: string | null
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          categoria?: string
+          comprovante_url?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_despesa?: string
+          descricao?: string
+          id?: string
+          metodo_pagamento?: string | null
+          notas?: string | null
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           activo: boolean | null
@@ -153,6 +195,62 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      faturacoes: {
+        Row: {
+          arquivo_fatura_url: string | null
+          cliente_nome: string | null
+          created_at: string | null
+          created_by: string | null
+          data_faturacao: string
+          descricao: string
+          id: string
+          lead_id: string | null
+          notas: string | null
+          numero_fatura: string | null
+          status: string | null
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          arquivo_fatura_url?: string | null
+          cliente_nome?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_faturacao: string
+          descricao: string
+          id?: string
+          lead_id?: string | null
+          notas?: string | null
+          numero_fatura?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor: number
+        }
+        Update: {
+          arquivo_fatura_url?: string | null
+          cliente_nome?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_faturacao?: string
+          descricao?: string
+          id?: string
+          lead_id?: string | null
+          notas?: string | null
+          numero_fatura?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturacoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       form_submissions: {
         Row: {
