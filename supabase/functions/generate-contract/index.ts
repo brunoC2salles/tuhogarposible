@@ -173,14 +173,14 @@ serve(async (req) => {
     console.log('[Generate Contract] Contract record created:', contractData.id);
 
     // 4. Gerar PDF simples (texto formatado)
-    const pdfPath = `${lead.id}/contrato_${Date.now()}.txt`;
+    const pdfPath = `${lead.id}/contrato_${Date.now()}.pdf`;
     const encoder = new TextEncoder();
     const contractFile = encoder.encode(contractContent);
 
     const { error: uploadError } = await supabaseClient.storage
       .from('lead-documents')
       .upload(pdfPath, contractFile, {
-        contentType: 'text/plain',
+        contentType: 'application/pdf',
         upsert: false
       });
 
