@@ -66,17 +66,19 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
       </CardHeader>
 
       <CardContent className="space-y-2 text-sm">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Phone className="h-3 w-3 flex-shrink-0" />
-          <a 
-            href={`https://wa.me/${formatPhoneForWhatsApp(lead.telefono)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="truncate hover:text-green-600 hover:underline transition-colors cursor-pointer"
-            onClick={(e) => e.stopPropagation()}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(`https://wa.me/${formatPhoneForWhatsApp(lead.telefono)}`, '_blank');
+            }}
+            className="text-green-600 border-green-600 hover:bg-green-50 text-xs h-7 flex-1"
           >
-            {lead.telefono}
-          </a>
+            <Phone className="h-3 w-3 mr-1" />
+            Llamar WhatsApp
+          </Button>
         </div>
 
         <div className="flex items-center gap-2 text-muted-foreground">

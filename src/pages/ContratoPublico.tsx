@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 import { CampoFormulario } from '@/types/contratos';
+import logoTuHogar from "@/assets/logo-tu-hogar.png";
 
 export default function ContratoPublico() {
   const { token } = useParams();
@@ -156,64 +157,70 @@ export default function ContratoPublico() {
   const campos = linkData.contract_templates.campos_formulario as CampoFormulario[];
 
   return (
-    <div className="min-h-screen bg-background p-4 py-12">
-      <div className="max-w-2xl mx-auto">
-        <Card>
-          <CardHeader>
-            <CardTitle>{linkData.contract_templates.nombre}</CardTitle>
-            <CardDescription>
-              {linkData.contract_templates.descripcion || 'Preencha os dados abaixo para gerar seu contrato'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {campos.map((campo) => (
-                <div key={campo.name} className="space-y-2">
-                  <Label htmlFor={campo.name}>
-                    {campo.label}
-                    {campo.required && <span className="text-destructive ml-1">*</span>}
-                  </Label>
-                  
-                  {campo.type === 'select' && campo.options ? (
-                    <select
-                      id={campo.name}
-                      required={campo.required}
-                      value={formValues[campo.name] || ''}
-                      onChange={(e) => setFormValues(prev => ({ ...prev, [campo.name]: e.target.value }))}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">Selecione...</option>
-                      {campo.options.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <Input
-                      id={campo.name}
-                      type={campo.type}
-                      required={campo.required}
-                      placeholder={campo.placeholder}
-                      value={formValues[campo.name] || ''}
-                      onChange={(e) => setFormValues(prev => ({ ...prev, [campo.name]: e.target.value }))}
-                    />
-                  )}
-                </div>
-              ))}
-
-              <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Gerando Contrato...
-                  </>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-2xl border-2 border-blue-500 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+          <div className="flex flex-col items-center mb-4">
+            <img src={logoTuHogar} alt="Tu hogar posible" className="w-64 mb-4 bg-white p-4 rounded-lg" />
+          </div>
+          <CardTitle className="text-2xl text-center text-white">
+            {linkData.contract_templates.nombre}
+          </CardTitle>
+          <CardDescription className="text-center text-blue-100 text-sm mt-2">
+            {linkData.contract_templates.descripcion || 'Obtén la casa de tus sueños, más accesible y 100% financiada'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {campos.map((campo) => (
+              <div key={campo.name} className="space-y-2">
+                <Label htmlFor={campo.name}>
+                  {campo.label}
+                  {campo.required && <span className="text-destructive ml-1">*</span>}
+                </Label>
+                
+                {campo.type === 'select' && campo.options ? (
+                  <select
+                    id={campo.name}
+                    required={campo.required}
+                    value={formValues[campo.name] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [campo.name]: e.target.value }))}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione...</option>
+                    {campo.options.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
                 ) : (
-                  'Gerar Contrato'
+                  <Input
+                    id={campo.name}
+                    type={campo.type}
+                    required={campo.required}
+                    placeholder={campo.placeholder}
+                    value={formValues[campo.name] || ''}
+                    onChange={(e) => setFormValues(prev => ({ ...prev, [campo.name]: e.target.value }))}
+                  />
                 )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+            ))}
+
+            <Button type="submit" disabled={submitting} className="w-full bg-blue-600 hover:bg-blue-700">
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generando Contrato...
+                </>
+              ) : (
+                'Firmar y Generar Contrato'
+              )}
+            </Button>
+          </form>
+          <div className="text-center text-sm text-muted-foreground mt-6 pt-6 border-t">
+            <p>© 2025 Tu Hogar Posible - Obtén la casa de tus sueños</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

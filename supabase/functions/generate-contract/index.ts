@@ -14,7 +14,7 @@ serve(async (req) => {
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
           persistSession: false
@@ -87,12 +87,23 @@ serve(async (req) => {
       );
     }
 
-    // 2. Processar dados do formulário e gerar PDF simples
+    // 2. Gerar conteúdo do contrato com variáveis substituídas
     const lead = linkData.leads;
     const agent = linkData.profiles;
     const template = linkData.contract_templates;
 
-    // Criar registro na tabela generated_contracts
+    let contractContent = template.template_content;
+    
+    // Substituir todas as variáveis
+    contractContent = contractContent.replace(/<<mes>>/g, formData.mes || '');
+    contractContent = contractContent.replace(/<<ag-fiscal>>/g, formData.agente_dni || '');
+    contractContent = contractContent.replace(/<<nombre>>/g, formData.nombre_completo || '');
+    contractContent = contractContent.replace(/<<Nombre>>/g, formData.nombre_completo || '');
+    contractContent = contractContent.replace(/<<dirección>>/g, formData.direccion_actual || '');
+    contractContent = contractContent.replace(/<<dni\/nie>>/g, formData.dni_nie || '');
+    contractContent = contractContent.replace(/<<Agente>>/g, formData.agente_nombre || '');
+
+    // 3. Criar registro na tabela generated_contracts
     const { data: contractData, error: contractError } = await supabaseClient
       .from('generated_contracts')
       .insert({
@@ -105,8 +116,6 @@ serve(async (req) => {
           cliente_telefono: lead.telefono,
           agente_nombre: agent.nombre,
           agente_email: agent.email,
-          agente_dni: formData.agente_dni || '',
-          fecha_contrato: formData.fecha_firma,
           template_used: template.nombre
         },
         generated_by: linkData.agente_id,
@@ -120,7 +129,34 @@ serve(async (req) => {
       throw contractError;
     }
 
-    // 3. Atualizar link como completado
+    console.log('[Generate Contract] Contract record created:', contractData.id);
+
+    // 4. Gerar PDF simples (texto formatado)
+    const pdfPath = `${lead.id}/contrato_${Date.now()}.txt`;
+    const encoder = new TextEncoder();
+    const contractFile = encoder.encode(contractContent);
+
+    const { error: uploadError } = await supabaseClient.storage
+      .from('lead-documents')
+      .upload(pdfPath, contractFile, {
+        contentType: 'text/plain',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('[Generate Contract] Upload error:', uploadError);
+      throw uploadError;
+    }
+
+    console.log('[Generate Contract] File uploaded:', pdfPath);
+
+    // 5. Atualizar contract com file_path
+    await supabaseClient
+      .from('generated_contracts')
+      .update({ file_path: pdfPath })
+      .eq('id', contractData.id);
+
+    // 6. Atualizar link como completado
     await supabaseClient
       .from('public_contract_links')
       .update({
@@ -131,6 +167,30 @@ serve(async (req) => {
       })
       .eq('id', linkData.id);
 
+    // 7. Criar notificação para o agente
+    await supabaseClient
+      .from('notifications')
+      .insert({
+        user_id: linkData.agente_id,
+        type: 'contract_signed',
+        title: 'Contrato Assinado',
+        message: `O lead "${lead.nombre_completo}" assinou o contrato.`,
+        link: '/crm',
+        metadata: { lead_id: lead.id, contract_id: contractData.id }
+      });
+
+    console.log('[Generate Contract] Agent notification created');
+
+    // 8. Notificar admins usando função SQL
+    await supabaseClient.rpc('notify_admins', {
+      p_type: 'contract_signed',
+      p_title: 'Contrato Assinado',
+      p_message: `O lead "${lead.nombre_completo}" assinou um contrato.`,
+      p_link: '/admin/crm',
+      p_metadata: { lead_id: lead.id, contract_id: contractData.id }
+    });
+
+    console.log('[Generate Contract] Admin notifications created');
     console.log('[Generate Contract] Contract generated successfully:', contractData.id);
 
     return new Response(

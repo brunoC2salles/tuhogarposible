@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { FileText } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -181,6 +182,22 @@ const AdminSettings = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Gestión de Contratos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestión de Contratos</CardTitle>
+            <CardDescription>
+              Configure y administre los templates de contratos públicos
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => navigate('/admin/contract-templates')}>
+              <FileText className="h-4 w-4 mr-2" />
+              Administrar Templates de Contratos
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Integração Make.com */}
         <Card>
           <CardHeader>

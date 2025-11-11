@@ -12,6 +12,7 @@ import { Calculator, Home, Clock, User, Building2, FileText, Upload, Download, T
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePublicContractLinks } from '@/hooks/usePublicContractLinks';
 import { toast } from 'sonner';
 import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
 import { GenerateContractLinkModal } from '@/components/contratos/GenerateContractLinkModal';
@@ -34,6 +35,7 @@ export const LeadDetailsModal = ({
   const { user } = useAuth();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
+  const { links: contractLinks, isLoading: loadingLinks, getPublicLink } = usePublicContractLinks(lead?.id);
   const [historico, setHistorico] = useState<LeadHistorico[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [contractLinkModalOpen, setContractLinkModalOpen] = useState(false);
@@ -199,10 +201,6 @@ export const LeadDetailsModal = ({
 
           <TabsContent value="simulators" className="space-y-4">
             <div className="flex gap-2 justify-end mb-4">
-              <Button variant="outline" onClick={() => setContractLinkModalOpen(true)}>
-                <Link2 className="h-4 w-4 mr-2" />
-                Gerar Link de Contrato
-              </Button>
               <Button onClick={() => onOpenSimulators(lead)}>
                 <Calculator className="h-4 w-4 mr-2" />
                 Ejecutar Simuladores
@@ -341,7 +339,88 @@ export const LeadDetailsModal = ({
           </TabsContent>
 
           <TabsContent value="documentos" className="space-y-4">
-            <div className="flex justify-end mb-4">
+            {/* Links de Contratos */}
+            {contractLinks && contractLinks.length > 0 && (
+              <div className="space-y-3 mb-6">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <Link2 className="h-4 w-4" />
+                  Links de Contrato Enviados
+                </h4>
+                {contractLinks.map((link: any) => (
+                  <Card key={link.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            Contrato de Mandato
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant={
+                              link.status === 'pending' ? 'secondary' :
+                              link.status === 'completed' ? 'default' : 'destructive'
+                            }>
+                              {link.status === 'pending' && '⏳ Pendiente'}
+                              {link.status === 'completed' && '✅ Completado'}
+                              {link.status === 'expired' && '❌ Expirado'}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(link.created_at), 'dd MMM yyyy', { locale: es })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {link.status === 'pending' && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                navigator.clipboard.writeText(getPublicLink(link.token));
+                                toast.success('Link copiado al portapapeles');
+                              }}
+                            >
+                              Copiar Link
+                            </Button>
+                          )}
+                          {link.status === 'completed' && link.contract_generated_id && (
+                            <Button 
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const { data } = await supabase
+                                    .from('generated_contracts')
+                                    .select('file_path')
+                                    .eq('id', link.contract_generated_id)
+                                    .single();
+                                  
+                                  if (data?.file_path) {
+                                    const { data: urlData } = await supabase.storage
+                                      .from('lead-documents')
+                                      .createSignedUrl(data.file_path, 60);
+                                    
+                                    if (urlData) window.open(urlData.signedUrl, '_blank');
+                                  }
+                                } catch (err) {
+                                  toast.error('Error al descargar PDF');
+                                }
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              Descargar PDF
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 mb-4">
+              <Button variant="outline" onClick={() => setContractLinkModalOpen(true)}>
+                <Link2 className="h-4 w-4 mr-2" />
+                Generar Link de Contrato
+              </Button>
               <input
                 ref={fileInputRef}
                 type="file"
