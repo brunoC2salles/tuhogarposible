@@ -13,6 +13,15 @@ export function qualificarLead(formData: FormularioQualificacionData): Qualifica
       ? formData.ingresos_mensuales + (formData.acompanante_aporte || 0)
       : formData.ingresos_mensuales;
 
+  // Critério 0: INVERSOR - desqualifica imediatamente
+  if (formData.finalidad_compra === "inversion") {
+    return {
+      qualificado: false,
+      razon_no_qualificado: "No cualificamos inversores",
+      ingresos_totales,
+    };
+  }
+
   // Critério 1: Ingresos mensuales >= 1050€
   if (ingresos_totales < 1050) {
     return {

@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Faturacao } from "@/types/financeiro";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAgentes } from "@/hooks/useAgentes";
 
 interface FaturacaoModalProps {
   open: boolean;
@@ -15,6 +17,10 @@ interface FaturacaoModalProps {
 }
 
 export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoModalProps) => {
+  const { profile } = useAuth();
+  const { agentes } = useAgentes();
+  const isAdmin = profile?.role === 'admin';
+  
   const [formData, setFormData] = useState<{
     descricao: string;
     valor: string;
@@ -22,6 +28,7 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
     cliente_nome: string;
     numero_fatura: string;
     status: 'pendente' | 'pago' | 'cancelado';
+    agente_id: string;
     notas: string;
   }>({
     descricao: "",
@@ -30,6 +37,7 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
     cliente_nome: "",
     numero_fatura: "",
     status: "pendente",
+    agente_id: "",
     notas: ""
   });
 
@@ -42,6 +50,7 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
         cliente_nome: faturacao.cliente_nome || "",
         numero_fatura: faturacao.numero_fatura || "",
         status: faturacao.status,
+        agente_id: faturacao.agente_id || "",
         notas: faturacao.notas || ""
       });
     } else {
@@ -52,6 +61,7 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
         cliente_nome: "",
         numero_fatura: "",
         status: "pendente",
+        agente_id: "",
         notas: ""
       });
     }
@@ -67,6 +77,7 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
       cliente_nome: formData.cliente_nome || undefined,
       numero_fatura: formData.numero_fatura || undefined,
       status: formData.status,
+      agente_id: formData.agente_id || undefined,
       notas: formData.notas || undefined
     });
     onClose();
@@ -145,6 +156,23 @@ export const FaturacaoModal = ({ open, onClose, onSave, faturacao }: FaturacaoMo
               </SelectContent>
             </Select>
           </div>
+
+          {isAdmin && (
+            <div>
+              <Label htmlFor="agente_id">Agente Responsável</Label>
+              <Select value={formData.agente_id} onValueChange={(val) => setFormData({ ...formData, agente_id: val })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um agente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Nenhum</SelectItem>
+                  {agentes.map((agente) => (
+                    <SelectItem key={agente.id} value={agente.id}>{agente.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="notas">Notas</Label>

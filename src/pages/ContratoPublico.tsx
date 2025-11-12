@@ -20,6 +20,7 @@ export default function ContratoPublico() {
   const [completed, setCompleted] = useState(false);
   const [linkData, setLinkData] = useState<any>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [contractData, setContractData] = useState<{ contractId: string; filePath: string } | null>(null);
 
   useEffect(() => {
     loadLinkData();
@@ -106,6 +107,7 @@ export default function ContratoPublico() {
 
       if (error) throw error;
 
+      setContractData({ contractId: data.contractId, filePath: data.filePath });
       setCompleted(true);
       toast.success('Contrato gerado com sucesso!');
     } catch (err: any) {
@@ -124,17 +126,39 @@ export default function ContratoPublico() {
     );
   }
 
+  const handleDownloadContract = async () => {
+    if (!contractData?.filePath) return;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('lead-documents')
+        .createSignedUrl(contractData.filePath, 3600);
+      
+      if (error) throw error;
+      
+      window.open(data.signedUrl, '_blank');
+    } catch (err: any) {
+      console.error('[Contrato Download] Error:', err);
+      toast.error('Error al descargar el contrato');
+    }
+  };
+
   if (completed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <CardTitle>Contrato Enviado!</CardTitle>
+            <CardTitle>¡Contrato Generado!</CardTitle>
             <CardDescription>
-              Seu contrato foi gerado com sucesso. O agente foi notificado e entrará em contato em breve.
+              Su contrato fue generado con éxito. El agente fue notificado y entrará en contacto en breve.
             </CardDescription>
           </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={handleDownloadContract} size="lg">
+              Descargar Contrato
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );

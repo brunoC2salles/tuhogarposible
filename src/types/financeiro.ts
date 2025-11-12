@@ -8,6 +8,7 @@ export interface DespesaOperacional {
   notas?: string;
   comprovante_url?: string;
   created_by?: string;
+  agente_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface Faturacao {
   notas?: string;
   arquivo_fatura_url?: string;
   created_by?: string;
+  agente_id?: string;
   created_at: string;
   updated_at: string;
 }

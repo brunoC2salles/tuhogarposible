@@ -309,6 +309,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         contractId: contractData.id,
+        filePath: pdfPath,
         message: 'Contrato gerado com sucesso'
       }),
       { 

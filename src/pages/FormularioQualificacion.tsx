@@ -87,6 +87,7 @@ export default function FormularioQualificacion() {
       comunidad_autonoma: "",
       ciudad_interes: "",
       valor_inmueble_deseado: undefined,
+      finalidad_compra: "vivienda_habitual",
       ingresos_mensuales: undefined,
       entrada_disponible: undefined,
       situacion_laboral: "empleado",
@@ -331,6 +332,29 @@ export default function FormularioQualificacion() {
                         onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="finalidad_compra"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>¿Para qué fin deseas comprar? *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona la finalidad" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="vivienda_habitual">Vivienda Habitual</SelectItem>
+                        <SelectItem value="segunda_residencia">Segunda Residencia</SelectItem>
+                        <SelectItem value="inversion">Inversión</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}

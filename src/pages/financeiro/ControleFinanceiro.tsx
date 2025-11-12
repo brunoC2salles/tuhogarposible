@@ -13,10 +13,14 @@ import { FaturacaoModal } from "@/components/financeiro/FaturacaoModal";
 import type { DespesaOperacional, Faturacao } from "@/types/financeiro";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAgentes } from "@/hooks/useAgentes";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
+  const { agentes } = useAgentes();
 
   const { despesas, isLoading: loadingDespesas, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
   const { faturacoes, isLoading: loadingFaturacoes, createFaturacao, updateFaturacao, deleteFaturacao } = useFaturacoes();
@@ -25,10 +29,20 @@ const ControleFinanceiro = () => {
   const [faturacaoModalOpen, setFaturacaoModalOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaOperacional | null>(null);
   const [editingFaturacao, setEditingFaturacao] = useState<Faturacao | null>(null);
+  const [filtroAgente, setFiltroAgente] = useState<string>("todos");
 
-  const totalDespesas = despesas.reduce((sum, d) => sum + Number(d.valor), 0);
-  const totalFaturacoes = faturacoes.reduce((sum, f) => sum + Number(f.valor), 0);
-  const totalPendente = faturacoes.filter(f => f.status === 'pendente').reduce((sum, f) => sum + Number(f.valor), 0);
+  // Filtrar dados por agente
+  const despesasFiltradas = filtroAgente === "todos" 
+    ? despesas 
+    : despesas.filter(d => d.agente_id === filtroAgente);
+  
+  const faturacoesFiltradas = filtroAgente === "todos"
+    ? faturacoes
+    : faturacoes.filter(f => f.agente_id === filtroAgente);
+
+  const totalDespesas = despesasFiltradas.reduce((sum, d) => sum + Number(d.valor), 0);
+  const totalFaturacoes = faturacoesFiltradas.reduce((sum, f) => sum + Number(f.valor), 0);
+  const totalPendente = faturacoesFiltradas.filter(f => f.status === 'pendente').reduce((sum, f) => sum + Number(f.valor), 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
@@ -36,6 +50,12 @@ const ControleFinanceiro = () => {
 
   const formatDate = (dateStr: string) => {
     return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
+  };
+
+  const getAgenteName = (agenteId?: string) => {
+    if (!agenteId) return '-';
+    const agente = agentes.find(a => a.id === agenteId);
+    return agente?.nombre || '-';
   };
 
   const handleSaveDespesa = (despesa: Partial<DespesaOperacional>) => {
@@ -105,6 +125,25 @@ const ControleFinanceiro = () => {
               Gestión completa de gastos operacionales y facturación
             </p>
           </div>
+          
+          {isAdmin && agentes.length > 0 && (
+            <div className="w-64">
+              <Label htmlFor="filtroAgente">Filtrar por Agente</Label>
+              <Select value={filtroAgente} onValueChange={setFiltroAgente}>
+                <SelectTrigger id="filtroAgente">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los Agentes</SelectItem>
+                  {agentes.map((agente) => (
+                    <SelectItem key={agente.id} value={agente.id}>
+                      {agente.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -199,8 +238,10 @@ const ControleFinanceiro = () => {
               <CardContent>
                 {loadingDespesas ? (
                   <p className="text-center py-8 text-muted-foreground">Carregando...</p>
-                ) : despesas.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">Nenhuma despesa registrada</p>
+                ) : despesasFiltradas.length === 0 ? (
+                   <p className="text-center py-8 text-muted-foreground">
+                     {filtroAgente === "todos" ? "Nenhuma despesa registrada" : "Nenhuma despesa para este agente"}
+                   </p>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -209,17 +250,19 @@ const ControleFinanceiro = () => {
                         <TableHead>Descrição</TableHead>
                         <TableHead>Categoria</TableHead>
                         <TableHead>Método</TableHead>
+                        {isAdmin && <TableHead>Agente</TableHead>}
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {despesas.map((despesa) => (
+                      {despesasFiltradas.map((despesa) => (
                         <TableRow key={despesa.id}>
                           <TableCell>{formatDate(despesa.data_despesa)}</TableCell>
                           <TableCell>{despesa.descricao}</TableCell>
                           <TableCell><Badge variant="outline">{despesa.categoria}</Badge></TableCell>
                           <TableCell>{despesa.metodo_pagamento || '-'}</TableCell>
+                          {isAdmin && <TableCell>{getAgenteName(despesa.agente_id)}</TableCell>}
                           <TableCell className="text-right font-medium">{formatCurrency(Number(despesa.valor))}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
@@ -257,8 +300,10 @@ const ControleFinanceiro = () => {
               <CardContent>
                 {loadingFaturacoes ? (
                   <p className="text-center py-8 text-muted-foreground">Carregando...</p>
-                ) : faturacoes.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">Nenhuma faturação registrada</p>
+                ) : faturacoesFiltradas.length === 0 ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {filtroAgente === "todos" ? "Nenhuma faturação registrada" : "Nenhuma faturação para este agente"}
+                  </p>
                 ) : (
                   <Table>
                     <TableHeader>
@@ -267,18 +312,20 @@ const ControleFinanceiro = () => {
                         <TableHead>Nº Fatura</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Descrição</TableHead>
+                        {isAdmin && <TableHead>Agente</TableHead>}
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {faturacoes.map((faturacao) => (
+                      {faturacoesFiltradas.map((faturacao) => (
                         <TableRow key={faturacao.id}>
                           <TableCell>{formatDate(faturacao.data_faturacao)}</TableCell>
                           <TableCell>{faturacao.numero_fatura || '-'}</TableCell>
                           <TableCell>{faturacao.cliente_nome || '-'}</TableCell>
                           <TableCell>{faturacao.descricao}</TableCell>
+                          {isAdmin && <TableCell>{getAgenteName(faturacao.agente_id)}</TableCell>}
                           <TableCell>
                             <Badge variant={
                               faturacao.status === 'pago' ? 'default' : 

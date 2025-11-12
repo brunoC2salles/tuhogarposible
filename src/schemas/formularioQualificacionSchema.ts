@@ -36,6 +36,10 @@ export const formularioQualificacionSchema = z.object({
     .min(50000, "El valor del inmueble debe ser al menos 50.000€")
     .max(5000000, "El valor del inmueble no puede exceder 5.000.000€"),
   
+  finalidad_compra: z.enum(["vivienda_habitual", "segunda_residencia", "inversion"], {
+    errorMap: () => ({ message: "Selecciona la finalidad de la compra" }),
+  }),
+  
   // Situação financeira
   ingresos_mensuales: z.number()
     .min(500, "Los ingresos mensuales deben ser al menos 500€"),
