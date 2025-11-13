@@ -53,16 +53,25 @@ export async function generateLeadCompletePDF(lead: Lead) {
 
     if (!simuladorHipotecaDisplay && lead.valor_inmueble_deseado) {
       const datosHipoteca = {
+        nombreCompleto: lead.nombre_completo,
+        edad: 30,
+        numeroTitulares: '1' as const,
         precioVivienda: lead.valor_inmueble_deseado,
         comunidadAutonoma: 'Madrid' as const,
         familiaNumerosa: false,
         menorDe35: false,
+        finalidadCompra: 'vivienda_habitual' as const,
+        tienePropiedades: false,
         situacionLaboral: 'empleado' as const,
+        tipoContrato: 'indefinido' as const,
+        antiguedadEmpresaAnios: 2,
+        antiguedadEmpresaMeses: 0,
         ingresosMensuales: 2000,
-        creditosPendientes: 0,
-        edad: 30,
-        tasaAnual: 3.5,
-        porcentajeFinanciamiento: 80,
+        ahorrosDisponibles: lead.valor_inmueble_deseado * 0.2,
+        plazoHipotecaAnios: 25,
+        tieneCreditos: false,
+        estadoCivil: 'soltero' as const,
+        tieneHijos: false,
       };
       const resultados = calcularSimulacionHipoteca(datosHipoteca);
       simuladorHipotecaDisplay = {

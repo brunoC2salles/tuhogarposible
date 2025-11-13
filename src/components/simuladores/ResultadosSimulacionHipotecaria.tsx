@@ -57,7 +57,7 @@ export function ResultadosSimulacionHipotecaria({
                 <p className="text-xl font-bold">{formatEuro(resultados.capitalPropioNecesario)}</p>
               </div>
               <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Monto a financiar ({datos.porcentajeFinanciamiento}%)</p>
+                <p className="text-sm text-muted-foreground mb-1">Monto a financiar ({resultados.porcentajeFinanciamiento.toFixed(2)}%)</p>
                 <p className="text-xl font-bold">{formatEuro(resultados.montoFinanciable)}</p>
               </div>
               <div className="p-4 bg-muted/50 rounded-lg">
@@ -72,13 +72,17 @@ export function ResultadosSimulacionHipotecaria({
             <h3 className="font-semibold mb-3">CONDICIONES FINANCIERAS</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Tipo de interés</p>
+                <p className="text-xl font-bold">{resultados.tasaAnualFija}% anual (fijo)</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <p className="text-sm text-muted-foreground mb-1">Ingresos totales</p>
+                <p className="text-xl font-bold">{formatEuro(resultados.ingresosTotales)}/mes</p>
+              </div>
+              <div className="p-4 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Plazo máximo</p>
                 <p className="text-xl font-bold">{plazoTexto}</p>
                 <p className="text-xs text-muted-foreground mt-1">({resultados.plazoMaximoMeses} meses)</p>
-              </div>
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-1">Tasa de interés</p>
-                <p className="text-xl font-bold">{datos.tasaAnual}% anual</p>
               </div>
               <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary">
                 <p className="text-sm text-muted-foreground mb-1">🔵 Cuota mensual</p>
@@ -87,7 +91,7 @@ export function ResultadosSimulacionHipotecaria({
               <div className="p-4 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Hipoteca máxima permitida</p>
                 <p className="text-xl font-bold">{formatEuro(resultados.hipotecaMaximaMensual)}/mes</p>
-                <p className="text-xs text-muted-foreground mt-1">(30% de ingresos - créditos)</p>
+                <p className="text-xs text-muted-foreground mt-1">(30% ingresos - créditos - hijos - pensión)</p>
               </div>
             </div>
           </div>

@@ -87,16 +87,55 @@ export function formatDateTime(): string {
 // ========== SIMULADOR HIPOTECARIO ==========
 
 export interface DatosSimulacionHipoteca {
+  // Dados dos titulares
+  nombreCompleto: string;
+  edad: number;
+  numeroTitulares: '1' | '2' | '3';
+  titulares?: Array<{
+    nombreCompleto: string;
+    edad: number;
+    relacionPrincipal: 'pareja' | 'marido_mujer' | 'padre_madre_hijo';
+    situacionLaboral: 'autonomo' | 'empleado';
+    tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
+    antiguedadEmpresaAnios: number;
+    antiguedadEmpresaMeses: number;
+    ingresosMensuales: number;
+  }>;
+  
+  // Dados da vivienda
   precioVivienda: number;
   comunidadAutonoma: 'Madrid' | 'Cataluña' | 'Andalucía' | 'Valencia' | 'Otros';
   familiaNumerosa: boolean;
   menorDe35: boolean;
+  finalidadCompra: 'vivienda_habitual' | 'segunda_residencia' | 'inversion';
+  dondeReside?: string;
+  dondeCompra?: string;
+  tienePropiedades: boolean;
+  propiedadesLibreCargas?: boolean;
+  
+  // Situação laboral do titular principal
   situacionLaboral: 'autonomo' | 'empleado';
+  tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
+  antiguedadEmpresaAnios: number;
+  antiguedadEmpresaMeses: number;
   ingresosMensuales: number;
-  creditosPendientes: number;
-  edad: number;
-  tasaAnual: number;
-  porcentajeFinanciamiento: number;
+  
+  // Situação financeira
+  ahorrosDisponibles: number;
+  plazoHipotecaAnios: number;
+  tieneCreditos: boolean;
+  creditos?: Array<{
+    tipo: 'personal' | 'reformas' | 'unificacion' | 'financiacion_compra';
+    cuotaMensual: number;
+  }>;
+  
+  // Dados pessoais
+  estadoCivil: 'soltero' | 'casado' | 'divorciado';
+  regimenMatrimonial?: 'gananciales' | 'separacion_bienes';
+  pagaPension?: boolean;
+  valorPension?: number;
+  tieneHijos: boolean;
+  numeroHijos?: number;
 }
 
 export interface ResultadosSimulacionHipoteca {
@@ -110,6 +149,12 @@ export interface ResultadosSimulacionHipoteca {
   aprobable: boolean;
   totalIntereses: number;
   montoTotalPagar: number;
+  // Novos campos
+  porcentajeFinanciamiento: number;
+  ingresosTotales: number;
+  gastosHijos: number;
+  gastosPension: number;
+  tasaAnualFija: number;
 }
 
 /**
