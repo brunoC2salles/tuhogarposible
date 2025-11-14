@@ -70,7 +70,7 @@ export function SimuladorCreditoHipotecario() {
 
   const onSubmit = (data: SimuladorHipotecaFormData) => {
     try {
-      const resultadosCalculados = calcularSimulacionHipoteca(data);
+      const resultadosCalculados = calcularSimulacionHipoteca(data as any);
       setResultados(resultadosCalculados);
       setDatosFormulario(data);
       setResultadosOpen(true);

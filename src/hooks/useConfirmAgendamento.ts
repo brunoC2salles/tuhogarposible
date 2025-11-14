@@ -77,16 +77,29 @@ export function useConfirmAgendamento() {
           "Otros" as const;
 
         datosSimulacionHipoteca = {
+          nombreCompleto: formData.nombre_completo,
           edad: formData.edad,
+          numeroTitulares: '1',
           precioVivienda: formData.valor_inmueble_deseado,
           comunidadAutonoma: comunidadNormalizada,
           familiaNumerosa: false,
           menorDe35: menorDe35,
+          finalidadCompra: 'vivienda_habitual',
+          tienePropiedades: false,
           situacionLaboral: situacionLaboralNormalizada,
+          tipoContrato: 'indefinido',
+          antiguedadEmpresaAnios: 1,
+          antiguedadEmpresaMeses: 0,
           ingresosMensuales: formData.ingresos_mensuales,
-          creditosPendientes: formData.deudas_actuales || 0,
-          tasaAnual: 4,
-          porcentajeFinanciamiento: 100,
+          ahorrosDisponibles: formData.entrada_disponible || 0,
+          plazoHipotecaAnios: 25,
+          tieneCreditos: (formData.deudas_actuales || 0) > 0,
+          creditos: (formData.deudas_actuales || 0) > 0 ? [{
+            tipo: 'personal',
+            cuotaMensual: formData.deudas_actuales || 0
+          }] : [],
+          estadoCivil: 'soltero',
+          tieneHijos: false
         };
 
         resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
@@ -230,9 +243,9 @@ export function useConfirmAgendamento() {
             simulacion_hipoteca_monto_maximo_credito: resultadosHipoteca.montoFinanciable,
             simulacion_hipoteca_cuota_mensual_estimada: resultadosHipoteca.cuotaMensual,
             simulacion_hipoteca_capital_propio_necesario: resultadosHipoteca.capitalPropioNecesario,
-            simulacion_hipoteca_porcentaje_financiamiento: datosSimulacionHipoteca.porcentajeFinanciamiento,
+            simulacion_hipoteca_porcentaje_financiamiento: resultadosHipoteca.porcentajeFinanciamiento,
             simulacion_hipoteca_plazo_anos: resultadosHipoteca.plazoMaximoAnios,
-            simulacion_hipoteca_tasa_anual: datosSimulacionHipoteca.tasaAnual,
+            simulacion_hipoteca_tasa_anual: resultadosHipoteca.tasaAnualFija,
             simulacion_hipoteca_gastos_impuestos: resultadosHipoteca.gastosImpuestos,
             simulacion_hipoteca_aprobado: resultadosHipoteca.aprobable,
             simulacion_hipoteca_razon_rechazo: !resultadosHipoteca.aprobable ? 'Cuota mensual supera capacidad de pago' : null,
