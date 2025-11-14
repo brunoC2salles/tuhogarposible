@@ -44,7 +44,7 @@ export const formularioQualificacionSchema = z.object({
   ingresos_mensuales: z.number()
     .min(500, "Los ingresos mensuales deben ser al menos 500€"),
   
-  situacion_laboral: z.enum(["empleado", "autonomo", "pensionista", "desempleado"], {
+  situacion_laboral: z.enum(["empleado", "autonomo", "pensionista", "desempleado", "inversor"], {
     errorMap: () => ({ message: "Selecciona una situación laboral válida" }),
   }),
   

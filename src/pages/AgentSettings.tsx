@@ -150,8 +150,9 @@ export default function AgentSettings() {
                   <SelectValue placeholder="Selecciona una región" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">No asignada al Round Robin</SelectItem>
                   <SelectItem value="Cataluña">Cataluña</SelectItem>
-                  <SelectItem value="Geral">Geral (todas las demás regiones)</SelectItem>
+                  <SelectItem value="General">General (todas las demás regiones)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground">

@@ -122,7 +122,7 @@ export default function FormularioQualificacion() {
       }
 
       // Se qualificado, APENAS buscar agente e abrir modal (NÃO salvar ainda!)
-      const region = data.comunidad_autonoma === "Cataluña" ? "Cataluña" : "Geral";
+      const region = data.comunidad_autonoma === "Cataluña" ? "Cataluña" : "General";
       
       const { data: agentData, error } = await supabase.functions.invoke('get-next-agent', {
         body: { region }
@@ -336,29 +336,6 @@ export default function FormularioQualificacion() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="finalidad_compra"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>¿Para qué fin deseas comprar? *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecciona la finalidad" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="vivienda_habitual">Vivienda Habitual</SelectItem>
-                        <SelectItem value="segunda_residencia">Segunda Residencia</SelectItem>
-                        <SelectItem value="inversion">Inversión</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             {/* Seção 3: Situação Financeira */}
@@ -396,12 +373,13 @@ export default function FormularioQualificacion() {
                           <SelectValue placeholder="Selecciona tu situación laboral" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="empleado">Empleado</SelectItem>
-                        <SelectItem value="autonomo">Emprendedor</SelectItem>
-                        <SelectItem value="pensionista">Pensionista</SelectItem>
-                        <SelectItem value="desempleado">Desempleado</SelectItem>
-                      </SelectContent>
+                    <SelectContent>
+                      <SelectItem value="empleado">Empleado</SelectItem>
+                      <SelectItem value="autonomo">Emprendedor</SelectItem>
+                      <SelectItem value="pensionista">Pensionista</SelectItem>
+                      <SelectItem value="desempleado">Desempleado</SelectItem>
+                      <SelectItem value="inversor">Inversor</SelectItem>
+                    </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>

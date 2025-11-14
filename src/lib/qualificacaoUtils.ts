@@ -14,10 +14,10 @@ export function qualificarLead(formData: FormularioQualificacionData): Qualifica
       : formData.ingresos_mensuales;
 
   // Critério 0: INVERSOR - desqualifica imediatamente
-  if (formData.finalidad_compra === "inversion") {
+  if (formData.situacion_laboral === "inversor") {
     return {
       qualificado: false,
-      razon_no_qualificado: "No cualificamos inversores",
+      razon_no_qualificado: "No cualificamos inversores en este momento",
       ingresos_totales,
     };
   }

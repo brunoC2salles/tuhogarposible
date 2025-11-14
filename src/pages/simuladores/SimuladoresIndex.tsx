@@ -13,7 +13,7 @@ const SimuladoresIndex = () => {
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Logo className="h-8 w-8" />
-              <span className="text-xl font-semibold">Imobiliária</span>
+              <span className="text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
             <Link to="/">
               <Button variant="outline" size="sm">

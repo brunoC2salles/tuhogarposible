@@ -241,11 +241,11 @@ export default function AdminAgentes() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    <SelectItem value="Cataluña">Cataluña</SelectItem>
-                    <SelectItem value="Geral">Geral</SelectItem>
-                  </SelectContent>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="Cataluña">Cataluña</SelectItem>
+                <SelectItem value="General">General</SelectItem>
+              </SelectContent>
                 </Select>
               </div>
               <div>
@@ -430,8 +430,9 @@ export default function AdminAgentes() {
                     <SelectValue placeholder="Selecciona región" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="">No asignada</SelectItem>
                     <SelectItem value="Cataluña">Cataluña</SelectItem>
-                    <SelectItem value="Geral">Geral</SelectItem>
+                    <SelectItem value="General">General</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
