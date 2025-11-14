@@ -211,73 +211,97 @@ export function calcularPlazoMaximo(edad: number): number {
 }
 
 /**
- * Calcula simulación completa de hipoteca
+ * Calcula simulación completa de hipoteca con nuevos parámetros
  */
-export function calcularSimulacionHipoteca(
-  datos: DatosSimulacionHipoteca
-): ResultadosSimulacionHipoteca {
-  const {
-    precioVivienda,
-    comunidadAutonoma,
-    familiaNumerosa,
-    menorDe35,
-    ingresosMensuales,
-    creditosPendientes,
-    edad,
-    tasaAnual,
-    porcentajeFinanciamiento
-  } = datos;
+export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): ResultadosSimulacionHipoteca {
+  // 1. TAXA FIXA
+  const tasaAnualFija = 3.5;
+  const tasaMensual = tasaAnualFija / 12 / 100;
   
-  // 1. Monto financiable: porcentaje configurado del precio
-  const montoFinanciable = precioVivienda * (porcentajeFinanciamiento / 100);
+  // 2. INGRESOS TOTALES (todos os titulares)
+  let ingresosTotales = datos.ingresosMensuales;
   
-  // 2. Gastos e impuestos
+  if (datos.numeroTitulares !== '1' && datos.titulares && datos.titulares.length > 0) {
+    ingresosTotales += datos.titulares.reduce((sum, t) => sum + t.ingresosMensuales, 0);
+  }
+  
+  // 3. CRÉDITOS PENDIENTES TOTALES
+  let creditosPendientesTotales = 0;
+  if (datos.tieneCreditos && datos.creditos && datos.creditos.length > 0) {
+    creditosPendientesTotales = datos.creditos.reduce((sum, c) => sum + c.cuotaMensual, 0);
+  }
+  
+  // 4. GASTOS POR HIJOS (300€ cada para o banco)
+  const gastosHijos = (datos.tieneHijos && datos.numeroHijos) ? datos.numeroHijos * 300 : 0;
+  
+  // 5. GASTOS POR PENSIÓN
+  const gastosPension = (datos.estadoCivil === 'divorciado' && datos.pagaPension && datos.valorPension) 
+    ? datos.valorPension 
+    : 0;
+  
+  // 6. GASTOS E IMPUESTOS DA HIPOTECA (por comunidad autónoma)
   const gastosImpuestos = calcularGastosHipoteca(
-    precioVivienda,
-    comunidadAutonoma,
-    familiaNumerosa,
-    menorDe35
+    datos.precioVivienda,
+    datos.comunidadAutonoma,
+    datos.familiaNumerosa,
+    datos.menorDe35
   );
   
-  // 3. Capital propio necesario: (100% - porcentaje financiamiento) + gastos
-  const porcentajeCapitalPropio = (100 - porcentajeFinanciamiento) / 100;
-  const capitalPropioNecesario = (precioVivienda * porcentajeCapitalPropio) + gastosImpuestos;
+  // 7. PORCENTAJE DE FINANCIAMIENTO AUTOMÁTICO
+  const porcentajeFinanciamiento = datos.ahorrosDisponibles >= datos.precioVivienda
+    ? 0
+    : Math.min(100, ((datos.precioVivienda - datos.ahorrosDisponibles) / datos.precioVivienda) * 100);
   
-  // 4. Plazo máximo según edad
-  const plazoMaximoAnios = calcularPlazoMaximo(edad);
-  const plazoMaximoMeses = Math.floor(plazoMaximoAnios * 12);
+  // 8. MONTO FINANCIABLE
+  const montoFinanciable = datos.precioVivienda * (porcentajeFinanciamiento / 100);
   
-  // 5. Hipoteca máxima mensual permitida: 30% ingresos - créditos
-  const hipotecaMaximaMensual = (ingresosMensuales * 0.3) - creditosPendientes;
+  // 9. CAPITAL PROPIO NECESÁRIO
+  const capitalPropioNecesario = datos.precioVivienda - montoFinanciable + gastosImpuestos;
   
-  // 6. Cuota mensual usando sistema francés
-  const tasaMensual = tasaAnual / 12 / 100;
-  let cuotaMensual: number;
+  // 10. PLAZO EFECTIVO
+  const edadMaxima = datos.numeroTitulares === '1' 
+    ? datos.edad 
+    : Math.max(datos.edad, ...(datos.titulares || []).map(t => t.edad));
   
-  if (tasaMensual === 0) {
-    cuotaMensual = montoFinanciable / plazoMaximoMeses;
-  } else {
-    const factor = Math.pow(1 + tasaMensual, plazoMaximoMeses);
+  const plazoMaximoPorEdad = calcularPlazoMaximo(edadMaxima);
+  const plazoEfectivoAnios = Math.min(datos.plazoHipotecaAnios, plazoMaximoPorEdad);
+  const plazoEfectivoMeses = plazoEfectivoAnios * 12;
+  
+  // 11. HIPOTECA MÁXIMA MENSUAL
+  const hipotecaMaximaMensual = Math.max(
+    0,
+    (ingresosTotales * 0.3) - creditosPendientesTotales - gastosHijos - gastosPension
+  );
+  
+  // 12. CUOTA MENSUAL (Sistema Francês)
+  let cuotaMensual = 0;
+  if (montoFinanciable > 0 && plazoEfectivoMeses > 0) {
+    const factor = Math.pow(1 + tasaMensual, plazoEfectivoMeses);
     cuotaMensual = montoFinanciable * (tasaMensual * factor) / (factor - 1);
   }
   
-  // 7. Cálculos derivados
-  const montoTotalPagar = cuotaMensual * plazoMaximoMeses;
+  // 13. TOTALES
+  const montoTotalPagar = cuotaMensual * plazoEfectivoMeses;
   const totalIntereses = montoTotalPagar - montoFinanciable;
   
-  // 8. Verificar si es aprobable
-  const aprobable = cuotaMensual <= hipotecaMaximaMensual;
+  // 14. APROBABLE
+  const aprobable = cuotaMensual <= hipotecaMaximaMensual && datos.ahorrosDisponibles >= capitalPropioNecesario;
   
   return {
     montoFinanciable,
     capitalPropioNecesario,
     gastosImpuestos,
     cuotaMensual,
-    plazoMaximoAnios,
-    plazoMaximoMeses,
+    plazoMaximoAnios: plazoEfectivoAnios,
+    plazoMaximoMeses: plazoEfectivoMeses,
     hipotecaMaximaMensual,
     aprobable,
     totalIntereses,
-    montoTotalPagar
+    montoTotalPagar,
+    porcentajeFinanciamiento,
+    ingresosTotales,
+    gastosHijos,
+    gastosPension,
+    tasaAnualFija
   };
 }

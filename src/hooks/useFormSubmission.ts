@@ -82,16 +82,29 @@ export function useFormSubmission() {
         "Otros" as const;
 
       const datosSimulacionHipoteca: DatosSimulacionHipoteca = {
+        nombreCompleto: formData.nombre_completo,
         edad: formData.edad,
+        numeroTitulares: '1',
         precioVivienda: formData.valor_inmueble_deseado,
         comunidadAutonoma: comunidadNormalizada,
         familiaNumerosa: false,
         menorDe35: menorDe35,
+        finalidadCompra: 'vivienda_habitual',
+        tienePropiedades: false,
         situacionLaboral: situacionLaboralNormalizada,
+        tipoContrato: 'indefinido',
+        antiguedadEmpresaAnios: 1,
+        antiguedadEmpresaMeses: 0,
         ingresosMensuales: formData.ingresos_mensuales,
-        creditosPendientes: formData.deudas_actuales || 0,
-        tasaAnual: 4,
-        porcentajeFinanciamiento: 100,
+        ahorrosDisponibles: formData.entrada_disponible || 0,
+        plazoHipotecaAnios: 25,
+        tieneCreditos: (formData.deudas_actuales || 0) > 0,
+        creditos: (formData.deudas_actuales || 0) > 0 ? [{
+          tipo: 'personal',
+          cuotaMensual: formData.deudas_actuales || 0
+        }] : [],
+        estadoCivil: 'soltero',
+        tieneHijos: false
       };
 
       const resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
