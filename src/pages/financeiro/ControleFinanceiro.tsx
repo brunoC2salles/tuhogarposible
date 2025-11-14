@@ -195,11 +195,11 @@ const ControleFinanceiro = () => {
               </Card>
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Balanço Geral</CardTitle>
-                <CardDescription>Resumo financeiro do período</CardDescription>
-              </CardHeader>
+          <Card>
+            <CardHeader>
+              <CardTitle>Balance General</CardTitle>
+              <CardDescription>Resumo financeiro do período</CardDescription>
+            </CardHeader>
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">

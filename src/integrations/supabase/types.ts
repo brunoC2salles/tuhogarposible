@@ -114,6 +114,7 @@ export type Database = {
       }
       despesas_operacionais: {
         Row: {
+          agente_id: string | null
           categoria: string
           comprovante_url: string | null
           created_at: string | null
@@ -127,6 +128,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          agente_id?: string | null
           categoria: string
           comprovante_url?: string | null
           created_at?: string | null
@@ -140,6 +142,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          agente_id?: string | null
           categoria?: string
           comprovante_url?: string | null
           created_at?: string | null
@@ -152,7 +155,15 @@ export type Database = {
           updated_at?: string | null
           valor?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "despesas_operacionais_agente_id_fkey"
+            columns: ["agente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       document_templates: {
         Row: {
@@ -198,6 +209,7 @@ export type Database = {
       }
       faturacoes: {
         Row: {
+          agente_id: string | null
           arquivo_fatura_url: string | null
           cliente_nome: string | null
           created_at: string | null
@@ -213,6 +225,7 @@ export type Database = {
           valor: number
         }
         Insert: {
+          agente_id?: string | null
           arquivo_fatura_url?: string | null
           cliente_nome?: string | null
           created_at?: string | null
@@ -228,6 +241,7 @@ export type Database = {
           valor: number
         }
         Update: {
+          agente_id?: string | null
           arquivo_fatura_url?: string | null
           cliente_nome?: string | null
           created_at?: string | null
@@ -243,6 +257,13 @@ export type Database = {
           valor?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "faturacoes_agente_id_fkey"
+            columns: ["agente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "faturacoes_lead_id_fkey"
             columns: ["lead_id"]
@@ -1032,6 +1053,7 @@ export type Database = {
         | "lead_stage_listo"
         | "payment_deadline"
         | "contract_signed"
+        | "contract_generated"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -1181,6 +1203,7 @@ export const Constants = {
         "lead_stage_listo",
         "payment_deadline",
         "contract_signed",
+        "contract_generated",
       ],
       tipo_inmueble: [
         "apartamento",

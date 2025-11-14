@@ -25,7 +25,7 @@ export function useFormSubmission() {
       let tidycalUrl = null;
 
       if (qualificacaoResult.qualificado) {
-        const region = formData.comunidad_autonoma === "Cataluña" ? "Cataluña" : "Geral";
+        const region = formData.comunidad_autonoma === "Cataluña" ? "Cataluña" : "General";
         
         try {
           const { data: agentData, error: agentError } = await supabase.functions.invoke(
