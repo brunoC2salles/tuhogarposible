@@ -20,7 +20,7 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, UserCircle } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, UserCircle, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
@@ -802,6 +802,12 @@ const AdminInventario = () => {
         </div>
         
         <div className="flex gap-2">
+          <Link to="/admin/dashboard">
+            <Button variant="outline">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Dashboard
+            </Button>
+          </Link>
           <Link to="/inventario/admin/crm">
             <Button variant="outline">
               <UserCircle className="w-4 h-4 mr-2" />
