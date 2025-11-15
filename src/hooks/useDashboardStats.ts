@@ -1,0 +1,202 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { LeadStage, STAGE_ORDER } from '@/types/crm';
+
+export interface FunnelData {
+  stage: string;
+  count: number;
+  percentage: number;
+}
+
+export interface AgentPerformance {
+  agentName: string;
+  totalLeads: number;
+  convertedLeads: number;
+  conversionRate: number;
+}
+
+export interface StageDistribution {
+  stage: string;
+  count: number;
+}
+
+export interface TimelineData {
+  date: string;
+  created: number;
+  converted: number;
+}
+
+export interface DashboardStats {
+  totalLeads: number;
+  newLeadsThisPeriod: number;
+  convertedLeads: number;
+  conversionRate: number;
+  activeAgents: number;
+  avgLeadsPerAgent: number;
+  funnelData: FunnelData[];
+  agentPerformance: AgentPerformance[];
+  stageDistribution: StageDistribution[];
+  timelineData: TimelineData[];
+}
+
+export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') => {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Calcular data de início baseado no período
+      const now = new Date();
+      let startDate: Date | null = null;
+      
+      switch (period) {
+        case '7d':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90d':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'all':
+          startDate = null;
+          break;
+      }
+
+      // Buscar todos os leads (com filtro de período se aplicável)
+      let leadsQuery = supabase
+        .from('leads')
+        .select('*, profiles!agente_asignado_id(nombre)');
+
+      if (startDate) {
+        leadsQuery = leadsQuery.gte('created_at', startDate.toISOString());
+      }
+
+      const { data: leads, error: leadsError } = await leadsQuery;
+
+      if (leadsError) throw leadsError;
+
+      // Buscar todos os leads (sem filtro) para cálculo de conversão total
+      const { data: allLeads, error: allLeadsError } = await supabase
+        .from('leads')
+        .select('*, profiles!agente_asignado_id(nombre)');
+
+      if (allLeadsError) throw allLeadsError;
+
+      // Buscar agentes ativos
+      const { data: agents, error: agentsError } = await supabase
+        .from('profiles')
+        .select('id, nombre')
+        .eq('activo', true);
+
+      if (agentsError) throw agentsError;
+
+      // Calcular estatísticas
+      const totalLeads = allLeads?.length || 0;
+      const newLeadsThisPeriod = leads?.length || 0;
+      const convertedLeads = allLeads?.filter(l => l.stage === 'listo').length || 0;
+      const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+      const activeAgents = agents?.length || 0;
+      const avgLeadsPerAgent = activeAgents > 0 ? totalLeads / activeAgents : 0;
+
+      // Dados do funil (baseado em todos os leads)
+      const stageCounts = STAGE_ORDER.map(stage => ({
+        stage,
+        count: allLeads?.filter(l => l.stage === stage).length || 0
+      }));
+
+      const funnelData: FunnelData[] = stageCounts.map((s, index) => ({
+        stage: s.stage,
+        count: s.count,
+        percentage: index === 0 ? 100 : totalLeads > 0 ? (s.count / totalLeads) * 100 : 0
+      }));
+
+      // Performance por agente (baseado em todos os leads)
+      const agentMap = new Map<string, { total: number; converted: number }>();
+      
+      allLeads?.forEach(lead => {
+        const agentName = (lead as any).profiles?.nombre || 'Sin asignar';
+        const current = agentMap.get(agentName) || { total: 0, converted: 0 };
+        current.total += 1;
+        if (lead.stage === 'listo') {
+          current.converted += 1;
+        }
+        agentMap.set(agentName, current);
+      });
+
+      const agentPerformance: AgentPerformance[] = Array.from(agentMap.entries())
+        .map(([agentName, data]) => ({
+          agentName,
+          totalLeads: data.total,
+          convertedLeads: data.converted,
+          conversionRate: data.total > 0 ? (data.converted / data.total) * 100 : 0
+        }))
+        .sort((a, b) => b.totalLeads - a.totalLeads)
+        .slice(0, 10); // Top 10 agentes
+
+      // Distribuição por etapa
+      const stageDistribution: StageDistribution[] = STAGE_ORDER.map(stage => ({
+        stage,
+        count: allLeads?.filter(l => l.stage === stage).length || 0
+      }));
+
+      // Timeline (baseado no período selecionado)
+      const timelineMap = new Map<string, { created: number; converted: number }>();
+      
+      leads?.forEach(lead => {
+        const date = new Date(lead.created_at).toISOString().split('T')[0];
+        const current = timelineMap.get(date) || { created: 0, converted: 0 };
+        current.created += 1;
+        if (lead.stage === 'listo') {
+          current.converted += 1;
+        }
+        timelineMap.set(date, current);
+      });
+
+      const timelineData: TimelineData[] = Array.from(timelineMap.entries())
+        .map(([date, data]) => ({
+          date,
+          created: data.created,
+          converted: data.converted
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      setStats({
+        totalLeads,
+        newLeadsThisPeriod,
+        convertedLeads,
+        conversionRate,
+        activeAgents,
+        avgLeadsPerAgent,
+        funnelData,
+        agentPerformance,
+        stageDistribution,
+        timelineData
+      });
+
+    } catch (err: any) {
+      console.error('[Dashboard] Error fetching stats:', err);
+      setError(err.message);
+      toast.error('Error al cargar estadísticas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, [period]);
+
+  return {
+    stats,
+    loading,
+    error,
+    refetch: fetchStats
+  };
+};
