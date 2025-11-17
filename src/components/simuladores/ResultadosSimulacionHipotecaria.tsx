@@ -125,11 +125,64 @@ export function ResultadosSimulacionHipotecaria({
           </div>
 
           {/* Detalles adicionales */}
-          <div className="text-sm text-muted-foreground space-y-1 border-t pt-4">
-            <p><strong>Comunidad:</strong> {datos.comunidadAutonoma}</p>
-            <p><strong>Familia numerosa:</strong> {datos.familiaNumerosa ? 'Sí' : 'No'}</p>
-            <p><strong>Menor de 35 años:</strong> {datos.menorDe35 ? 'Sí' : 'No'}</p>
-            <p><strong>Situación laboral:</strong> {datos.situacionLaboral === 'autonomo' ? 'Autónomo' : 'Empleado'}</p>
+          <div className="text-sm text-muted-foreground space-y-2 border-t pt-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="font-semibold mb-1">Datos de la Vivienda</p>
+                <p><strong>Comunidad:</strong> {datos.comunidadAutonoma}</p>
+                <p><strong>Familia numerosa:</strong> {datos.familiaNumerosa ? 'Sí' : 'No'}</p>
+                <p><strong>Menor de 35 años:</strong> {datos.menorDe35 ? 'Sí' : 'No'}</p>
+                <p><strong>Finalidad:</strong> {datos.finalidadCompra.replace(/_/g, ' ')}</p>
+              </div>
+              <div>
+                <p className="font-semibold mb-1">Situación Laboral</p>
+                <p><strong>Titular principal:</strong> {datos.situacionLaboral === 'autonomo' ? 'Autónomo' : 'Empleado'}</p>
+                <p><strong>Tipo de contrato:</strong> {datos.tipoContrato.replace(/_/g, ' ')}</p>
+                <p><strong>Antigüedad empresa:</strong> {datos.antiguedadEmpresaAnios}a {datos.antiguedadEmpresaMeses}m</p>
+                <p><strong>Antigüedad continuada:</strong> {datos.antiguedadContinuadaAnios}a {datos.antiguedadContinuadaMeses}m</p>
+              </div>
+            </div>
+            
+            {datos.numeroTitulares !== '1' && datos.titulares && datos.titulares.length > 0 && (
+              <div className="mt-3">
+                <p className="font-semibold mb-1">Titulares Adicionales</p>
+                {datos.titulares.map((titular, index) => (
+                  <div key={index} className="ml-4 mb-2">
+                    <p><strong>Titular {index + 2}:</strong> {titular.nombreCompleto} ({titular.edad} años)</p>
+                    <p className="text-xs">
+                      {titular.situacionLaboral === 'autonomo' ? 'Autónomo' : 'Empleado'} • 
+                      Ingresos: {formatEuro(titular.ingresosMensuales)}/mes • 
+                      Antigüedad continuada: {titular.antiguedadContinuadaAnios}a {titular.antiguedadContinuadaMeses}m
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {datos.tieneCreditos && datos.creditos && datos.creditos.length > 0 && (
+              <div className="mt-3">
+                <p className="font-semibold mb-1">Créditos Pendientes</p>
+                {datos.creditos.map((credito, index) => (
+                  <p key={index} className="ml-4 text-xs">
+                    • {credito.tipo.replace(/_/g, ' ')}: {formatEuro(credito.cuotaMensual)}/mes
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 grid grid-cols-2 gap-4">
+              <div>
+                <p className="font-semibold mb-1">Datos Personales</p>
+                <p><strong>Estado civil:</strong> {datos.estadoCivil}</p>
+                {datos.estadoCivil === 'casado' && datos.regimenMatrimonial && (
+                  <p><strong>Régimen:</strong> {datos.regimenMatrimonial.replace(/_/g, ' ')}</p>
+                )}
+                {datos.estadoCivil === 'divorciado' && datos.pagaPension && datos.valorPension && (
+                  <p><strong>Pensión:</strong> {formatEuro(datos.valorPension)}/mes</p>
+                )}
+                <p><strong>Hijos:</strong> {datos.tieneHijos && datos.numeroHijos ? `${datos.numeroHijos} (${formatEuro(resultados.gastosHijos)} gastos)` : 'No'}</p>
+              </div>
+            </div>
           </div>
 
           {/* Disclaimer */}
