@@ -167,65 +167,65 @@ const ControleFinanceiro = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Facturado</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Facturado</CardTitle>
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(totalFaturacoes)}</div>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-xl sm:text-2xl font-bold">{formatCurrency(totalFaturacoes)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {faturacoes.length} faturações registradas
+                    {faturacoes.length} faturações
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total em Despesas</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total em Despesas</CardTitle>
+                  <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(totalDespesas)}</div>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-xl sm:text-2xl font-bold">{formatCurrency(totalDespesas)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {despesas.length} despesas registradas
+                    {despesas.length} despesas
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Pendente de Cobrança</CardTitle>
-                  <FileText className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Pendente</CardTitle>
+                  <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(totalPendente)}</div>
+                <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+                  <div className="text-xl sm:text-2xl font-bold">{formatCurrency(totalPendente)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Faturações com status pendente
+                    Status pendente
                   </p>
                 </CardContent>
               </Card>
             </div>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Balance General</CardTitle>
-              <CardDescription>Resumo financeiro do período</CardDescription>
+            <CardHeader className="px-3 sm:px-6">
+              <CardTitle className="text-base sm:text-lg">Balance General</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Resumo financeiro do período</CardDescription>
             </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Receitas (Facturação):</span>
-                    <span className="text-sm font-bold text-green-600">{formatCurrency(totalFaturacoes)}</span>
+                    <span className="text-xs sm:text-sm font-medium">Receitas (Facturación):</span>
+                    <span className="text-xs sm:text-sm font-bold text-green-600">{formatCurrency(totalFaturacoes)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">Despesas Operacionais:</span>
-                    <span className="text-sm font-bold text-red-600">-{formatCurrency(totalDespesas)}</span>
+                    <span className="text-xs sm:text-sm font-medium">Despesas:</span>
+                    <span className="text-xs sm:text-sm font-bold text-red-600">-{formatCurrency(totalDespesas)}</span>
                   </div>
                   <div className="border-t pt-2 mt-2 flex justify-between items-center">
-                    <span className="font-medium">Resultado:</span>
-                    <span className={`font-bold ${totalFaturacoes - totalDespesas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <span className="text-sm sm:text-base font-medium">Resultado:</span>
+                    <span className={`text-sm sm:text-base font-bold ${totalFaturacoes - totalDespesas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {formatCurrency(totalFaturacoes - totalDespesas)}
                     </span>
                   </div>
@@ -236,61 +236,63 @@ const ControleFinanceiro = () => {
 
           <TabsContent value="expenses">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="px-3 sm:px-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>Gastos Operacionales</CardTitle>
-                    <CardDescription>Registro y control de todas las despesas</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Gastos Operacionales</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Registro y control de todas las despesas</CardDescription>
                   </div>
-                  <Button onClick={() => { setEditingDespesa(null); setDespesaModalOpen(true); }}>
+                  <Button onClick={() => { setEditingDespesa(null); setDespesaModalOpen(true); }} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Despesa
+                    <span className="hidden xs:inline">Adicionar </span>Despesa
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-0 sm:px-6">
                 {loadingDespesas ? (
-                  <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+                  <p className="text-center py-8 text-muted-foreground text-sm">Carregando...</p>
                 ) : despesasFiltradas.length === 0 ? (
-                   <p className="text-center py-8 text-muted-foreground">
+                   <p className="text-center py-8 text-muted-foreground text-sm">
                      {filtroAgente === "todos" ? "Nenhuma despesa registrada" : "Nenhuma despesa para este agente"}
                    </p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Categoria</TableHead>
-                        <TableHead>Método</TableHead>
-                        {isAdmin && <TableHead>Agente</TableHead>}
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {despesasFiltradas.map((despesa) => (
-                        <TableRow key={despesa.id}>
-                          <TableCell>{formatDate(despesa.data_despesa)}</TableCell>
-                          <TableCell>{despesa.descricao}</TableCell>
-                          <TableCell><Badge variant="outline">{despesa.categoria}</Badge></TableCell>
-                          <TableCell>{despesa.metodo_pagamento || '-'}</TableCell>
-                          {isAdmin && <TableCell>{getAgenteName(despesa.agente_id)}</TableCell>}
-                          <TableCell className="text-right font-medium">{formatCurrency(Number(despesa.valor))}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleEditDespesa(despesa)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDeleteDespesa(despesa.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Descrição</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Categoria</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Método</TableHead>
+                          {isAdmin && <TableHead className="text-xs whitespace-nowrap">Agente</TableHead>}
+                          <TableHead className="text-right text-xs whitespace-nowrap">Valor</TableHead>
+                          <TableHead className="text-right text-xs whitespace-nowrap">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {despesasFiltradas.map((despesa) => (
+                          <TableRow key={despesa.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{formatDate(despesa.data_despesa)}</TableCell>
+                            <TableCell className="text-xs max-w-[150px] truncate">{despesa.descricao}</TableCell>
+                            <TableCell className="text-xs"><Badge variant="outline" className="text-xs">{despesa.categoria}</Badge></TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">{despesa.metodo_pagamento || '-'}</TableCell>
+                            {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(despesa.agente_id)}</TableCell>}
+                            <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(despesa.valor))}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="sm" variant="outline" onClick={() => handleEditDespesa(despesa)} className="h-7 w-7 p-0">
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDeleteDespesa(despesa.id)} className="h-7 w-7 p-0">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -298,71 +300,73 @@ const ControleFinanceiro = () => {
 
           <TabsContent value="invoicing">
             <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
+              <CardHeader className="px-3 sm:px-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle>Facturación</CardTitle>
-                    <CardDescription>Gestión de facturas y cobros</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Facturación</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Gestión de facturas y cobros</CardDescription>
                   </div>
-                  <Button onClick={() => { setEditingFaturacao(null); setFaturacaoModalOpen(true); }}>
+                  <Button onClick={() => { setEditingFaturacao(null); setFaturacaoModalOpen(true); }} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Faturação
+                    <span className="hidden xs:inline">Adicionar </span>Faturação
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-0 sm:px-6">
                 {loadingFaturacoes ? (
-                  <p className="text-center py-8 text-muted-foreground">Carregando...</p>
+                  <p className="text-center py-8 text-muted-foreground text-sm">Carregando...</p>
                 ) : faturacoesFiltradas.length === 0 ? (
-                  <p className="text-center py-8 text-muted-foreground">
+                  <p className="text-center py-8 text-muted-foreground text-sm">
                     {filtroAgente === "todos" ? "Nenhuma faturação registrada" : "Nenhuma faturação para este agente"}
                   </p>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Data</TableHead>
-                        <TableHead>Nº Fatura</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        {isAdmin && <TableHead>Agente</TableHead>}
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {faturacoesFiltradas.map((faturacao) => (
-                        <TableRow key={faturacao.id}>
-                          <TableCell>{formatDate(faturacao.data_faturacao)}</TableCell>
-                          <TableCell>{faturacao.numero_fatura || '-'}</TableCell>
-                          <TableCell>{faturacao.cliente_nome || '-'}</TableCell>
-                          <TableCell>{faturacao.descricao}</TableCell>
-                          {isAdmin && <TableCell>{getAgenteName(faturacao.agente_id)}</TableCell>}
-                          <TableCell>
-                            <Badge variant={
-                              faturacao.status === 'pago' ? 'default' : 
-                              faturacao.status === 'pendente' ? 'secondary' : 
-                              'destructive'
-                            }>
-                              {faturacao.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">{formatCurrency(Number(faturacao.valor))}</TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button size="sm" variant="outline" onClick={() => handleEditFaturacao(faturacao)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="destructive" onClick={() => handleDeleteFaturacao(faturacao.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Nº Fatura</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Cliente</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Descrição</TableHead>
+                          {isAdmin && <TableHead className="text-xs whitespace-nowrap">Agente</TableHead>}
+                          <TableHead className="text-xs whitespace-nowrap">Status</TableHead>
+                          <TableHead className="text-right text-xs whitespace-nowrap">Valor</TableHead>
+                          <TableHead className="text-right text-xs whitespace-nowrap">Ações</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {faturacoesFiltradas.map((faturacao) => (
+                          <TableRow key={faturacao.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{formatDate(faturacao.data_faturacao)}</TableCell>
+                            <TableCell className="text-xs whitespace-nowrap">{faturacao.numero_fatura || '-'}</TableCell>
+                            <TableCell className="text-xs max-w-[120px] truncate">{faturacao.cliente_nome || '-'}</TableCell>
+                            <TableCell className="text-xs max-w-[150px] truncate">{faturacao.descricao}</TableCell>
+                            {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(faturacao.agente_id)}</TableCell>}
+                            <TableCell className="text-xs">
+                              <Badge variant={
+                                faturacao.status === 'pago' ? 'default' : 
+                                faturacao.status === 'pendente' ? 'secondary' : 
+                                'destructive'
+                              } className="text-xs">
+                                {faturacao.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(faturacao.valor))}</TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="sm" variant="outline" onClick={() => handleEditFaturacao(faturacao)} className="h-7 w-7 p-0">
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDeleteFaturacao(faturacao.id)} className="h-7 w-7 p-0">
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
