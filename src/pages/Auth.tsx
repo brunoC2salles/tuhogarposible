@@ -111,34 +111,7 @@ const Auth = () => {
       setIsSubmitting(false);
     }
   };
-  const handleCreateAdmin = async () => {
-    setIsSubmitting(true);
-    try {
-      const response = await fetch('https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/create-admin', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Usuario admin creado exitosamente', {
-          description: 'Ahora puedes iniciar sesión con las credenciales mostradas'
-        });
-      } else {
-        toast.error('Error al crear usuario admin', {
-          description: data.error || 'Error desconocido'
-        });
-      }
-    } catch (error) {
-      toast.error('Error de conexión', {
-        description: 'No se pudo crear el usuario admin'
-      });
-      console.error('[Auth] Create admin error:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  
   return <div className="min-h-screen bg-gradient-to-br from-sky-blue-light to-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
