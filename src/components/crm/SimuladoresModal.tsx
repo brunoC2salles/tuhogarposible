@@ -14,11 +14,17 @@ export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps)
   if (!lead) return null;
 
   const handleOpenPersonal = () => {
-    window.open('/simuladores/credito-personal', '_blank');
+    window.open(
+      `/simuladores/credito-personal?leadId=${lead.id}&leadNombre=${encodeURIComponent(lead.nombre_completo)}`, 
+      '_blank'
+    );
   };
 
   const handleOpenHipotecario = () => {
-    window.open('/simuladores/credito-hipotecario', '_blank');
+    window.open(
+      `/simuladores/credito-hipotecario?leadId=${lead.id}&leadNombre=${encodeURIComponent(lead.nombre_completo)}`, 
+      '_blank'
+    );
   };
 
   return (

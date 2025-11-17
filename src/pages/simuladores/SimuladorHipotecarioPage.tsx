@@ -1,10 +1,13 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { SimuladorCreditoHipotecario } from '@/components/simuladores/SimuladorCreditoHipotecario';
 
 const SimuladorHipotecarioPage = () => {
+  const [searchParams] = useSearchParams();
+  const leadNombre = searchParams.get('leadNombre');
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -33,6 +36,17 @@ const SimuladorHipotecarioPage = () => {
             <p className="text-muted-foreground">
               Preencha os dados abaixo para calcular as condições da sua hipoteca
             </p>
+
+            {leadNombre && (
+              <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+                <p className="text-sm text-primary font-medium">
+                  🎯 Simulação para o lead: <strong>{decodeURIComponent(leadNombre)}</strong>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Após calcular, você poderá salvar os resultados diretamente no lead.
+                </p>
+              </div>
+            )}
           </div>
 
           <SimuladorCreditoHipotecario />

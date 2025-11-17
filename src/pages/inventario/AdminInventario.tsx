@@ -832,7 +832,7 @@ const AdminInventario = () => {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inmuebles.length}</div>
+              <div className="text-2xl font-bold">{totalInmuebles}</div>
             </CardContent>
           </Card>
           
