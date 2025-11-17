@@ -21,7 +21,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (!isAdmin) {
-      navigate('/agente/crm');
+      navigate('/inventario/agente/crm');
     }
   }, [isAdmin, navigate]);
 
@@ -70,7 +70,7 @@ export default function Dashboard() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => navigate('/admin/crm')}
+                onClick={() => navigate('/inventario/admin/crm')}
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
