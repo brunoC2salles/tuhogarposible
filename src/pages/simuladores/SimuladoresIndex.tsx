@@ -9,16 +9,16 @@ const SimuladoresIndex = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <Logo className="h-8 w-8" />
-              <span className="text-xl font-semibold">Tu Hogar Posible</span>
+        <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
+              <Logo className="h-6 w-6 sm:h-8 sm:w-8" />
+              <span className="text-base sm:text-lg md:text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
             <Link to="/">
               <Button variant="outline" size="sm">
-                <Home className="mr-2 h-4 w-4" />
-                Voltar ao Início
+                <Home className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span className="text-xs sm:text-sm">Voltar ao Início</span>
               </Button>
             </Link>
           </div>
@@ -26,18 +26,18 @@ const SimuladoresIndex = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-12">
+      <main className="container mx-auto px-2 sm:px-4 py-6 sm:py-8 md:py-12">
         <div className="max-w-4xl mx-auto">
           {/* Page Title */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">Simuladores Financeiros</h1>
-            <p className="text-lg text-muted-foreground">
+          <div className="text-center mb-8 sm:mb-10 md:mb-12">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Simuladores Financeiros</h1>
+            <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-2">
               Escolha o tipo de crédito que deseja simular
             </p>
           </div>
 
           {/* Simulator Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Personal Credit Card */}
             <Card className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary">
               <Link to="/simuladores/credito-personal" className="block">

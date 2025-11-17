@@ -192,15 +192,15 @@ export default function FormularioQualificacion() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto py-8 px-4">
+      <div className="container max-w-3xl mx-auto py-4 sm:py-6 md:py-8 px-2 sm:px-4">
         {/* Logo e Mensagem de Boas-Vindas */}
-        <div className="text-center mb-8 space-y-4">
-          <Logo size="lg" className="mx-auto" />
+        <div className="text-center mb-6 sm:mb-8 space-y-3 sm:space-y-4">
+          <Logo size="lg" className="mx-auto h-12 w-12 sm:h-16 sm:w-16" />
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground px-2">
               ¡Bienvenido a Tu Hogar Posible!
             </h1>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-2">
               Agradecemos su interés y confiamos en poder ayudarle a encontrar su nuevo hogar. Complete cuidadosamente el formulario a continuación para que podamos dirigirle al mejor agente y la mejor oportunidad.
             </p>
           </div>
@@ -208,10 +208,10 @@ export default function FormularioQualificacion() {
 
         {/* Formulário */}
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 sm:space-y-8">
             {/* Seção 1: Dados Pessoais */}
-            <div className="bg-card p-6 rounded-lg border space-y-4">
-              <h2 className="text-xl font-semibold text-foreground mb-4">Datos Personales</h2>
+            <div className="bg-card p-3 sm:p-4 md:p-6 rounded-lg border space-y-3 sm:space-y-4">
+              <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">Datos Personales</h2>
               
               <FormField
                 control={form.control}

@@ -145,7 +145,7 @@ export default function ContratoPublico() {
 
   if (completed) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-2 sm:p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
