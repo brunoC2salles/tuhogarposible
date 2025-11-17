@@ -117,7 +117,7 @@ export const LeadDetailsModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl">{lead.nombre_completo}</DialogTitle>
           <div className="flex items-center gap-2 pt-2">
@@ -145,7 +145,7 @@ export const LeadDetailsModal = ({
                   Datos de Contacto
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
                   <p className="font-medium">{lead.email}</p>
@@ -164,7 +164,7 @@ export const LeadDetailsModal = ({
                   Preferencias
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div>
                   <p className="text-sm text-muted-foreground">Ciudad</p>
                   <p className="font-medium">{lead.ciudad_interes || '-'}</p>

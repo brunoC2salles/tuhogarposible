@@ -11,13 +11,19 @@ interface ResultadosSimulacionHipotecariaProps {
   onOpenChange: (open: boolean) => void;
   datos: SimuladorHipotecaFormData;
   resultados: ResultadosSimulacionHipoteca;
+  onSalvarNoLead?: () => void;
+  salvandoNoLead?: boolean;
+  leadNombre?: string;
 }
 
 export function ResultadosSimulacionHipotecaria({
   open,
   onOpenChange,
   datos,
-  resultados
+  resultados,
+  onSalvarNoLead,
+  salvandoNoLead,
+  leadNombre
 }: ResultadosSimulacionHipotecariaProps) {
   const handleExportPDF = () => {
     generateSimulacionHipotecariaPDF(datos, resultados);
@@ -193,12 +199,19 @@ export function ResultadosSimulacionHipotecaria({
           </div>
 
           {/* Botones de Acción */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              <X className="mr-2 h-4 w-4" />
-              Cerrar
-            </Button>
-            <Button onClick={handleExportPDF}>
+          <div className="flex flex-col gap-2">
+            {onSalvarNoLead && leadNombre && (
+              <Button 
+                onClick={onSalvarNoLead} 
+                disabled={salvandoNoLead}
+                className="w-full"
+                size="lg"
+              >
+                {salvandoNoLead ? 'Salvando...' : `Salvar no Lead: ${leadNombre}`}
+              </Button>
+            )}
+            
+            <Button onClick={handleExportPDF} variant="outline" className="w-full" size="lg">
               <Download className="mr-2 h-4 w-4" />
               Exportar a PDF
             </Button>

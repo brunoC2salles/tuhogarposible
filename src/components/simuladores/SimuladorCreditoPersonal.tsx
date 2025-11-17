@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +10,18 @@ import { Calculator } from "lucide-react";
 import { simuladorCreditoSchema, type SimuladorCreditoFormData } from "@/schemas/simuladorSchema";
 import { calcularAmortizacionFrancesa, type ResultadosSimulacion as ResultadosType } from "@/lib/simuladorUtils";
 import { ResultadosSimulacion } from "./ResultadosSimulacion";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function SimuladorCreditoPersonal() {
+  const [searchParams] = useSearchParams();
+  const leadId = searchParams.get('leadId');
+  const leadNombre = searchParams.get('leadNombre');
+  
   const [resultadosOpen, setResultadosOpen] = useState(false);
   const [resultados, setResultados] = useState<ResultadosType | null>(null);
   const [datosFormulario, setDatosFormulario] = useState<SimuladorCreditoFormData | null>(null);
+  const [salvandoNoLead, setSalvandoNoLead] = useState(false);
 
   const {
     register,
@@ -45,6 +52,43 @@ export function SimuladorCreditoPersonal() {
     } catch (error) {
       console.error("Error al calcular simulación:", error);
       toast.error("Error al calcular la simulación");
+    }
+  };
+
+  const handleSalvarNoLead = async () => {
+    if (!leadId || !resultados || !datosFormulario) {
+      toast.error('Nenhum resultado disponível para salvar');
+      return;
+    }
+
+    try {
+      setSalvandoNoLead(true);
+      
+      const simuladorData = {
+        montoSolicitado: resultados.montoFinanciar,
+        plazoMeses: datosFormulario.plazoMeses,
+        tasaInteres: datosFormulario.tasaAnual,
+        cuotaMensual: resultados.cuotaMensual,
+        totalPagar: resultados.montoTotalPagar,
+        totalIntereses: resultados.totalIntereses
+      };
+
+      const { error } = await supabase
+        .from('leads')
+        .update({ 
+          simulador_personal_data: simuladorData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast.success(`Simulação salva no lead ${leadNombre}!`);
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      toast.error('Erro ao salvar simulação no lead');
+    } finally {
+      setSalvandoNoLead(false);
     }
   };
 
@@ -227,6 +271,9 @@ export function SimuladorCreditoPersonal() {
           onOpenChange={setResultadosOpen}
           datos={datosFormulario}
           resultados={resultados}
+          onSalvarNoLead={leadId ? handleSalvarNoLead : undefined}
+          salvandoNoLead={salvandoNoLead}
+          leadNombre={leadNombre ? decodeURIComponent(leadNombre) : undefined}
         />
       )}
     </div>

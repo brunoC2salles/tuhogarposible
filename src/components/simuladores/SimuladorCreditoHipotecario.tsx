@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,12 +15,18 @@ import { Home, Plus, Trash2, Info } from "lucide-react";
 import { simuladorHipotecaSchema, type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { calcularSimulacionHipoteca, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosSimulacionHipotecaria } from "./ResultadosSimulacionHipotecaria";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export function SimuladorCreditoHipotecario() {
+  const [searchParams] = useSearchParams();
+  const leadId = searchParams.get('leadId');
+  const leadNombre = searchParams.get('leadNombre');
+  
   const [resultadosOpen, setResultadosOpen] = useState(false);
   const [resultados, setResultados] = useState<ResultadosSimulacionHipoteca | null>(null);
   const [datosFormulario, setDatosFormulario] = useState<SimuladorHipotecaFormData | null>(null);
+  const [salvandoNoLead, setSalvandoNoLead] = useState(false);
 
   const form = useForm<SimuladorHipotecaFormData>({
     resolver: zodResolver(simuladorHipotecaSchema),
@@ -78,6 +85,47 @@ export function SimuladorCreditoHipotecario() {
     } catch (error) {
       console.error("Error al calcular simulación:", error);
       toast.error("Error al calcular la simulación hipotecaria");
+    }
+  };
+
+  const handleSalvarNoLead = async () => {
+    if (!leadId || !resultados || !datosFormulario) {
+      toast.error('Nenhum resultado disponível para salvar');
+      return;
+    }
+
+    try {
+      setSalvandoNoLead(true);
+      
+      const simuladorData = {
+        valorInmueble: datosFormulario.precioVivienda,
+        porcentajeFinanciamiento: resultados.porcentajeFinanciamiento,
+        montoFinanciable: resultados.montoFinanciable,
+        capitalPropioNecesario: resultados.capitalPropioNecesario,
+        tasaInteres: resultados.tasaAnualFija,
+        plazoAnios: resultados.plazoMaximoAnios,
+        ingresoMensual: resultados.ingresosTotales,
+        cuotaMensual: resultados.cuotaMensual,
+        relacionCuotaIngreso: (resultados.cuotaMensual / resultados.ingresosTotales) * 100,
+        capacidadEndeudamiento: resultados.ingresosTotales * 0.35
+      };
+
+      const { error } = await supabase
+        .from('leads')
+        .update({ 
+          simulador_hipotecario_data: simuladorData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', leadId);
+
+      if (error) throw error;
+
+      toast.success(`Simulação salva no lead ${leadNombre}!`);
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      toast.error('Erro ao salvar simulação no lead');
+    } finally {
+      setSalvandoNoLead(false);
     }
   };
 
@@ -225,6 +273,9 @@ export function SimuladorCreditoHipotecario() {
           onOpenChange={setResultadosOpen}
           datos={datosFormulario}
           resultados={resultados}
+          onSalvarNoLead={leadId ? handleSalvarNoLead : undefined}
+          salvandoNoLead={salvandoNoLead}
+          leadNombre={leadNombre ? decodeURIComponent(leadNombre) : undefined}
         />
       )}
     </div>
