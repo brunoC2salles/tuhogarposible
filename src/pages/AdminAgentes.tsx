@@ -283,8 +283,6 @@ export default function AdminAgentes() {
                   {filteredAgents.map((agent) => (
                     <TableRow 
                       key={agent.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/agentes/${agent.id}`)}
                     >
                       <TableCell className="font-medium">{agent.nombre}</TableCell>
                       <TableCell>{agent.email}</TableCell>
