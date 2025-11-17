@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2 } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft } from "lucide-react";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useFaturacoes } from "@/hooks/useFaturacoes";
 import { DespesaModal } from "@/components/financeiro/DespesaModal";
@@ -19,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = profile?.role === 'admin';
   const { agentes } = useAgentes();
 
@@ -119,11 +121,20 @@ const ControleFinanceiro = () => {
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-foreground">Control Financiero</h1>
-            <p className="text-muted-foreground mt-2">
-              Gestión completa de gastos operacionales y facturación
-            </p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/admin/dashboard')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold text-foreground">Control Financiero</h1>
+              <p className="text-muted-foreground mt-2">
+                Gestión completa de gastos operacionales y facturación
+              </p>
+            </div>
           </div>
           
           {isAdmin && agentes.length > 0 && (
