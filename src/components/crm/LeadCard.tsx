@@ -31,41 +31,41 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
 
   return (
     <Card className="hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base font-semibold leading-tight">
+          <CardTitle className="text-sm sm:text-base font-semibold leading-tight">
             {lead.nombre_completo}
           </CardTitle>
           <div className="flex gap-1">
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => onViewDetails(lead)}
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8"
+              className="h-7 w-7 sm:h-8 sm:w-8"
               onClick={() => onEdit(lead)}
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               size="icon"
               variant="ghost"
-              className="h-8 w-8 text-destructive hover:text-destructive"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
               onClick={() => onDelete(lead.id)}
             >
-              <Trash className="h-4 w-4" />
+              <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-2 text-sm">
+      <CardContent className="space-y-2 text-xs sm:text-sm px-3 sm:px-6 pb-3 sm:pb-6">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -77,19 +77,19 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
             className="text-green-600 border-green-600 hover:bg-green-50 text-xs h-7 flex-1"
           >
             <Phone className="h-3 w-3 mr-1" />
-            Llamar WhatsApp
+            <span className="hidden xs:inline">Llamar </span>WhatsApp
           </Button>
         </div>
 
         <div className="flex items-center gap-2 text-muted-foreground">
           <Mail className="h-3 w-3 flex-shrink-0" />
-          <span className="truncate">{lead.email}</span>
+          <span className="truncate text-xs">{lead.email}</span>
         </div>
 
         {lead.ciudad_interes && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <MapPin className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">
+            <span className="truncate text-xs">
               {lead.ciudad_interes}
               {lead.zona_interes && ` - ${lead.zona_interes}`}
             </span>
@@ -99,11 +99,11 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
         {lead.valor_inmueble_deseado && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-3 w-3 flex-shrink-0" />
-            <span className="truncate">{formatCurrency(lead.valor_inmueble_deseado)}</span>
+            <span className="truncate text-xs">{formatCurrency(lead.valor_inmueble_deseado)}</span>
           </div>
         )}
 
-        <div className="flex flex-wrap gap-1 pt-2">
+        <div className="flex flex-wrap gap-1 pt-1 sm:pt-2">
           {lead.simulador_personal_data && (
             <Badge variant="secondary" className="text-xs">
               Crédito Personal
