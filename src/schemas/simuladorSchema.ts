@@ -67,6 +67,8 @@ export const simuladorHipotecaSchema = z.object({
     tipoContrato: z.enum(['fijo_discontinuo', 'indefinido', 'temporal']),
     antiguedadEmpresaAnios: z.number().int().min(0),
     antiguedadEmpresaMeses: z.number().int().min(0).max(11),
+    antiguedadContinuadaAnios: z.number().int().min(0),
+    antiguedadContinuadaMeses: z.number().int().min(0).max(11),
     ingresosMensuales: z.number().min(1, 'Ingresos deben ser positivos')
   })).optional(),
   
@@ -103,6 +105,15 @@ export const simuladorHipotecaSchema = z.object({
   antiguedadEmpresaAnios: z.number().int().min(0, 'Antigüedad no puede ser negativa'),
   antiguedadEmpresaMeses: z.number().int().min(0).max(11, 'Meses debe ser entre 0 y 11'),
   
+  antiguedadContinuadaAnios: z.number()
+    .int('Antigüedad continuada en años debe ser entero')
+    .min(0, 'Antigüedad continuada no puede ser negativa'),
+  
+  antiguedadContinuadaMeses: z.number()
+    .int('Meses debe ser entero')
+    .min(0, 'Meses no pueden ser negativos')
+    .max(11, 'Meses debe ser entre 0 y 11'),
+  
   ingresosMensuales: z.number()
     .min(1, 'Ingresos mensuales deben ser positivos'),
   
@@ -113,7 +124,7 @@ export const simuladorHipotecaSchema = z.object({
   plazoHipotecaAnios: z.number()
     .int('Plazo debe ser entero')
     .min(10, 'Plazo mínimo: 10 años')
-    .max(30, 'Plazo máximo: 30 años'),
+    .max(40, 'Plazo máximo: 40 años'),
   
   tieneCreditos: z.boolean(),
   
@@ -217,6 +228,14 @@ export const simuladorHipotecaSchema = z.object({
 }, {
   message: 'Debe indicar el número de hijos',
   path: ['numeroHijos']
+})
+.refine(data => {
+  const totalAnios = data.antiguedadContinuadaAnios + (data.antiguedadContinuadaMeses / 12);
+  const totalEmpresa = data.antiguedadEmpresaAnios + (data.antiguedadEmpresaMeses / 12);
+  return totalAnios >= totalEmpresa;
+}, {
+  message: 'Antigüedad continuada debe ser mayor o igual a antigüedad en empresa actual',
+  path: ['antiguedadContinuadaAnios']
 });
 
 export type SimuladorHipotecaFormData = z.infer<typeof simuladorHipotecaSchema>;

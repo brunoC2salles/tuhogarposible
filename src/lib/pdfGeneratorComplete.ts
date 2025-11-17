@@ -66,6 +66,8 @@ export async function generateLeadCompletePDF(lead: Lead) {
         tipoContrato: 'indefinido' as const,
         antiguedadEmpresaAnios: 2,
         antiguedadEmpresaMeses: 0,
+        antiguedadContinuadaAnios: 2,
+        antiguedadContinuadaMeses: 0,
         ingresosMensuales: 2000,
         ahorrosDisponibles: lead.valor_inmueble_deseado * 0.2,
         plazoHipotecaAnios: 25,

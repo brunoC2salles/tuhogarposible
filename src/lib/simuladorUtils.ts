@@ -99,6 +99,8 @@ export interface DatosSimulacionHipoteca {
     tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
     antiguedadEmpresaAnios: number;
     antiguedadEmpresaMeses: number;
+    antiguedadContinuadaAnios: number;
+    antiguedadContinuadaMeses: number;
     ingresosMensuales: number;
   }>;
   
@@ -118,6 +120,8 @@ export interface DatosSimulacionHipoteca {
   tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
   antiguedadEmpresaAnios: number;
   antiguedadEmpresaMeses: number;
+  antiguedadContinuadaAnios: number;
+  antiguedadContinuadaMeses: number;
   ingresosMensuales: number;
   
   // Situação financeira
