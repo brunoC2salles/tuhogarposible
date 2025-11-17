@@ -431,14 +431,14 @@ export default function AdminAgentes() {
               <div className="space-y-2">
                 <Label htmlFor="edit-region">Región Round-Robin</Label>
                 <Select
-                  value={editFormData.region_round_robin}
-                  onValueChange={(value) => setEditFormData({ ...editFormData, region_round_robin: value })}
+                  value={editFormData.region_round_robin || "none"}
+                  onValueChange={(value) => setEditFormData({ ...editFormData, region_round_robin: value === "none" ? null : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona región" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No asignada</SelectItem>
+                    <SelectItem value="none">No asignada</SelectItem>
                     <SelectItem value="Cataluña">Cataluña</SelectItem>
                     <SelectItem value="General">General</SelectItem>
                   </SelectContent>

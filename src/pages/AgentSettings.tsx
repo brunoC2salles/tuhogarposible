@@ -143,14 +143,14 @@ export default function AgentSettings() {
             <div className="space-y-2">
               <Label htmlFor="region">Región Round-Robin</Label>
               <Select
-                value={formData.region_round_robin}
-                onValueChange={(value) => setFormData({ ...formData, region_round_robin: value })}
+                value={formData.region_round_robin || "none"}
+                onValueChange={(value) => setFormData({ ...formData, region_round_robin: value === "none" ? null : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una región" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No asignada al Round Robin</SelectItem>
+                  <SelectItem value="none">No asignada al Round Robin</SelectItem>
                   <SelectItem value="Cataluña">Cataluña</SelectItem>
                   <SelectItem value="General">General (todas las demás regiones)</SelectItem>
                 </SelectContent>
