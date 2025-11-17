@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -5,6 +6,7 @@ import { Lead } from '@/types/crm';
 import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface LeadCardProps {
   lead: Lead;
@@ -14,10 +16,56 @@ interface LeadCardProps {
 }
 
 export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProps) => {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swiping, setSwiping] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+
+  const MIN_SWIPE_DISTANCE = 50;
+
   const formatPhoneForWhatsApp = (phone: string) => {
     // Remove todos os caracteres não numéricos
     // Como o telefone JÁ VEM com código de país, apenas limpa formatação
     return phone.replace(/\D/g, '');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+    
+    if (!touchStart) return;
+    
+    const distance = touchStart - e.targetTouches[0].clientX;
+    
+    if (Math.abs(distance) > MIN_SWIPE_DISTANCE) {
+      setSwiping(true);
+      setSwipeDirection(distance > 0 ? 'left' : 'right');
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > MIN_SWIPE_DISTANCE;
+    const isRightSwipe = distance < -MIN_SWIPE_DISTANCE;
+    
+    if (isLeftSwipe) {
+      onDelete(lead.id);
+    }
+    
+    if (isRightSwipe) {
+      onEdit(lead);
+    }
+    
+    setTouchStart(null);
+    setTouchEnd(null);
+    setSwiping(false);
+    setSwipeDirection(null);
   };
 
   const formatCurrency = (value?: number) => {
@@ -30,7 +78,27 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
   };
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card 
+      className={cn(
+        "hover:shadow-md transition-all duration-300 relative",
+        swiping && swipeDirection === 'left' && "translate-x-[-20px] bg-destructive/10",
+        swiping && swipeDirection === 'right' && "translate-x-[20px] bg-primary/10"
+      )}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {swiping && swipeDirection === 'left' && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-destructive z-10">
+          <Trash className="h-5 w-5" />
+        </div>
+      )}
+      {swiping && swipeDirection === 'right' && (
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-primary z-10">
+          <Edit className="h-5 w-5" />
+        </div>
+      )}
+      
       <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-start justify-between gap-2">
           <CardTitle className="text-sm sm:text-base font-semibold leading-tight">

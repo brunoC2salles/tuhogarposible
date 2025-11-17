@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { usePublicContractLinks } from '@/hooks/usePublicContractLinks';
 import { toast } from 'sonner';
 import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
 import { GenerateContractLinkModal } from '@/components/contratos/GenerateContractLinkModal';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -32,6 +34,7 @@ export const LeadDetailsModal = ({
   onOpenSimulators,
   onOpenRecomendaciones,
 }: LeadDetailsModalProps) => {
+  const isMobile = useIsMobile();
   const { user } = useAuth();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
@@ -115,27 +118,27 @@ export const LeadDetailsModal = ({
 
   if (!lead) return null;
 
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{lead.nombre_completo}</DialogTitle>
-          <div className="flex items-center gap-2 pt-2">
+  const ModalContent = () => (
+    <>
+      <div className="flex items-center justify-between mb-4 px-4 sm:px-0">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-2">
             <Badge>{STAGE_LABELS[lead.stage]}</Badge>
-            <span className="text-sm text-muted-foreground">
-              Creado: {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
+            <span className="text-xs sm:text-sm text-muted-foreground">
+              {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
             </span>
           </div>
-        </DialogHeader>
+        </div>
+      </div>
 
-        <Tabs defaultValue="info" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="info">Información</TabsTrigger>
-            <TabsTrigger value="simulators">Simuladores</TabsTrigger>
-            <TabsTrigger value="inmuebles">Inmuebles ({inmuebles.length})</TabsTrigger>
-            <TabsTrigger value="documentos">Documentos ({documents.length})</TabsTrigger>
-            <TabsTrigger value="historico">Historial</TabsTrigger>
-          </TabsList>
+      <Tabs defaultValue="info" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 h-auto">
+          <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
+          <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
+          <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles ({inmuebles.length})</TabsTrigger>
+          <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
+          <TabsTrigger value="historico" className="text-xs sm:text-sm">Historial</TabsTrigger>
+        </TabsList>
 
           <TabsContent value="info" className="space-y-4">
             <Card>
@@ -480,15 +483,45 @@ export const LeadDetailsModal = ({
             )}
           </TabsContent>
         </Tabs>
+      </>
+  );
 
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileSelect}
-          accept="application/pdf"
-          className="hidden"
-        />
-      </DialogContent>
+  if (isMobile) {
+    return (
+      <>
+        <Drawer open={open} onOpenChange={onClose}>
+          <DrawerContent className="max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle>{lead.nombre_completo}</DrawerTitle>
+            </DrawerHeader>
+            <div className="overflow-y-auto pb-6 px-4">
+              <ModalContent />
+            </div>
+          </DrawerContent>
+        </Drawer>
+        
+        {lead && (
+          <GenerateContractLinkModal
+            open={contractLinkModalOpen}
+            onClose={() => setContractLinkModalOpen(false)}
+            leadId={lead.id}
+            leadName={lead.nombre_completo}
+          />
+        )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className="w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl sm:text-2xl">{lead.nombre_completo}</DialogTitle>
+          </DialogHeader>
+          <ModalContent />
+        </DialogContent>
+      </Dialog>
       
       {lead && (
         <GenerateContractLinkModal
@@ -498,6 +531,6 @@ export const LeadDetailsModal = ({
           leadName={lead.nombre_completo}
         />
       )}
-    </Dialog>
+    </>
   );
 };
