@@ -11,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Edit, UserCheck, UserX, ArrowLeft, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { AgentStatisticsBadge } from "@/components/admin/AgentStatisticsBadge";
 
 interface Agent {
   id: string;
@@ -316,8 +315,6 @@ export default function AdminAgentes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {/* TEMPORARIAMENTE COMENTADO PARA DEBUG */}
-                        {/* <AgentStatisticsBadge agentId={agent.id} /> */}
                         <span className="text-muted-foreground text-sm">-</span>
                       </TableCell>
                       <TableCell>
@@ -337,14 +334,14 @@ export default function AdminAgentes() {
                           <Button
                             size="sm"
                             variant={agent.activo ? "destructive" : "default"}
-                          onClick={() => toggleAgentStatus(agent)}
-                        >
-                          {agent.activo ? (
-                            <UserX className="h-4 w-4" />
-                          ) : (
-                            <UserCheck className="h-4 w-4" />
-                          )}
-                        </Button>
+                            onClick={() => toggleAgentStatus(agent)}
+                          >
+                            {agent.activo ? (
+                              <UserX className="h-4 w-4" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
+                          </Button>
                           <Button
                             size="sm"
                             variant="destructive"
