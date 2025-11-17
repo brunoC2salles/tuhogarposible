@@ -118,8 +118,9 @@ export const LeadDetailsModal = ({
 
   if (!lead) return null;
 
-  const ModalContent = () => (
-    <>
+  const ModalContent: React.FC = () => {
+    return (
+      <>
       <div className="flex items-center justify-between mb-4 px-4 sm:px-0">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -484,7 +485,8 @@ export const LeadDetailsModal = ({
           </TabsContent>
         </Tabs>
       </>
-  );
+    );
+  };
 
   if (isMobile) {
     return (
