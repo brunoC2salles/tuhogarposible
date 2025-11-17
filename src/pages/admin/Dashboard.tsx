@@ -64,25 +64,25 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
       {/* Header */}
       <div className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="container mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => navigate('/inventario/admin/crm')}
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Dashboard Analítico</h1>
-                <p className="text-sm text-muted-foreground">
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">Dashboard Analítico</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground truncate">
                   Métricas y estadísticas de rendimiento
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
               <NotificationBell />
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.email}</p>
@@ -98,14 +98,14 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="container mx-auto p-2 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         {/* Period Selector */}
         <Tabs value={period} onValueChange={(v) => setPeriod(v as any)} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-4">
-            <TabsTrigger value="7d">7 días</TabsTrigger>
-            <TabsTrigger value="30d">30 días</TabsTrigger>
-            <TabsTrigger value="90d">90 días</TabsTrigger>
-            <TabsTrigger value="all">Todo</TabsTrigger>
+          <TabsList className="grid w-full max-w-md grid-cols-2 sm:grid-cols-4 gap-1">
+            <TabsTrigger value="7d" className="text-xs sm:text-sm">7 días</TabsTrigger>
+            <TabsTrigger value="30d" className="text-xs sm:text-sm">30 días</TabsTrigger>
+            <TabsTrigger value="90d" className="text-xs sm:text-sm">90 días</TabsTrigger>
+            <TabsTrigger value="all" className="text-xs sm:text-sm">Todo</TabsTrigger>
           </TabsList>
         </Tabs>
 

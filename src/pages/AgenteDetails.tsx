@@ -119,25 +119,25 @@ export default function AgenteDetails() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4">
+    <div className="container mx-auto p-2 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin/agentes')}>
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">{agent.nombre}</h1>
-          <div className="flex items-center gap-2 mt-2">
-            <Badge variant={agent.activo ? "default" : "secondary"}>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">{agent.nombre}</h1>
+          <div className="flex items-center gap-2 mt-1 sm:mt-2 flex-wrap">
+            <Badge variant={agent.activo ? "default" : "secondary"} className="text-xs">
               {agent.activo ? 'Activo' : 'Inactivo'}
             </Badge>
             {agent.region_round_robin && (
-              <Badge variant="outline">{agent.region_round_robin}</Badge>
+              <Badge variant="outline" className="text-xs">{agent.region_round_robin}</Badge>
             )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">

@@ -118,28 +118,29 @@ const ControleFinanceiro = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/admin/dashboard')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-4xl font-bold text-foreground">Control Financiero</h1>
-              <p className="text-muted-foreground mt-2">
-                Gestión completa de gastos operacionales y facturación
-              </p>
+    <div className="min-h-screen bg-background">
+      <div className="border-b bg-card">
+        <div className="container mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/admin/dashboard')}
+              >
+                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <div className="flex-1 min-w-0">
+                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground truncate">Control Financiero</h1>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Gestión completa de gastos operacionales y facturación
+                </p>
+              </div>
             </div>
-          </div>
           
           {isAdmin && agentes.length > 0 && (
-            <div className="w-64">
-              <Label htmlFor="filtroAgente">Filtrar por Agente</Label>
+            <div className="w-full sm:w-64">
+              <Label htmlFor="filtroAgente" className="text-xs sm:text-sm">Filtrar por Agente</Label>
               <Select value={filtroAgente} onValueChange={setFiltroAgente}>
                 <SelectTrigger id="filtroAgente">
                   <SelectValue />
@@ -156,8 +157,9 @@ const ControleFinanceiro = () => {
             </div>
           )}
         </div>
+      </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
             <TabsTrigger value="overview">Resumen</TabsTrigger>
             <TabsTrigger value="expenses">Gastos Operacionales</TabsTrigger>

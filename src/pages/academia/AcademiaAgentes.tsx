@@ -73,9 +73,9 @@ const AcademiaAgentes = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-2 sm:p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
           <Button 
             variant="outline" 
             size="icon"
@@ -84,16 +84,16 @@ const AcademiaAgentes = () => {
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">Academia de Agentes</h1>
-            <p className="text-muted-foreground">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2">Academia de Agentes</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Recursos de capacitación y documentación para el equipo
             </p>
           </div>
         </div>
 
         <Tabs defaultValue="videos" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
             <TabsTrigger value="videos" className="flex items-center gap-2">
               <Video className="w-4 h-4" />
               Tutoriales en Video
