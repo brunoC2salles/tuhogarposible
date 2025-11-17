@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -373,7 +374,14 @@ export default function AdminAgentes() {
             <DialogHeader>
               <DialogTitle>Editar Agente</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <form 
+              id="edit-form" 
+              onSubmit={(e) => { 
+                e.preventDefault(); 
+                handleSaveEdit(); 
+              }} 
+              className="space-y-4 py-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="edit-nombre">Nombre *</Label>
                 <Input
@@ -438,20 +446,26 @@ export default function AdminAgentes() {
               </div>
 
               <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
+                <Checkbox
                   id="edit-activo"
                   checked={editFormData.activo}
-                  onChange={(e) => setEditFormData({ ...editFormData, activo: e.target.checked })}
-                  className="h-4 w-4"
+                  onCheckedChange={(checked) => setEditFormData({ ...editFormData, activo: checked === true })}
                 />
                 <Label htmlFor="edit-activo">Agente activo</Label>
               </div>
-
-              <Button onClick={handleSaveEdit} className="w-full">
+            </form>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setEditModal({ open: false, agent: null })}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" form="edit-form">
                 Guardar Cambios
               </Button>
-            </div>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
