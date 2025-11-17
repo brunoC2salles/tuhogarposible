@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useContractTemplates } from '@/hooks/useContractTemplates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { ContractTemplate, CampoFormulario } from '@/types/contratos';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 
 export default function AdminContractTemplates() {
+  const navigate = useNavigate();
   const { templates, isLoading, createTemplate, updateTemplate, deleteTemplate } = useContractTemplates();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
@@ -98,11 +100,20 @@ export default function AdminContractTemplates() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Templates de Contratos</h1>
-          <p className="text-muted-foreground">
-            Gerencie os templates para contratos públicos
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/admin/dashboard')}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Templates de Contratos</h1>
+            <p className="text-muted-foreground">
+              Gerencie os templates para contratos públicos
+            </p>
+          </div>
         </div>
         <Button onClick={() => handleOpenModal()}>
           <Plus className="mr-2 h-4 w-4" />
