@@ -25,6 +25,7 @@ interface Agent {
 }
 
 export default function AdminAgentes() {
+  console.log('[AdminAgentes] Component rendering');
   const navigate = useNavigate();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
@@ -48,6 +49,7 @@ export default function AdminAgentes() {
   });
 
   const fetchAgents = async () => {
+    console.log('[AdminAgentes] Fetching agents...');
     try {
       const { data, error } = await supabase
         .from("profiles")
@@ -56,10 +58,11 @@ export default function AdminAgentes() {
         .order("nombre");
 
       if (error) throw error;
+      console.log('[AdminAgentes] Agents fetched successfully:', data?.length || 0);
       setAgents(data || []);
       setFilteredAgents(data || []);
     } catch (error: any) {
-      console.error("Error fetching agents:", error);
+      console.error("[AdminAgentes] Error fetching agents:", error);
       toast.error("Error al cargar agentes");
     } finally {
       setIsLoading(false);
@@ -313,7 +316,9 @@ export default function AdminAgentes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <AgentStatisticsBadge agentId={agent.id} />
+                        {/* TEMPORARIAMENTE COMENTADO PARA DEBUG */}
+                        {/* <AgentStatisticsBadge agentId={agent.id} /> */}
+                        <span className="text-muted-foreground text-sm">-</span>
                       </TableCell>
                       <TableCell>
                         <Badge variant={agent.activo ? "default" : "secondary"}>
