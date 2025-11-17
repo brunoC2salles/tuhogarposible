@@ -72,7 +72,7 @@ export const DespesaModal = ({ open, onClose, onSave, despesa }: DespesaModalPro
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>{despesa ? "Editar Despesa" : "Nova Despesa"}</DialogTitle>
         </DialogHeader>
@@ -87,7 +87,7 @@ export const DespesaModal = ({ open, onClose, onSave, despesa }: DespesaModalPro
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="valor">Valor (€) *</Label>
               <Input
@@ -111,7 +111,7 @@ export const DespesaModal = ({ open, onClose, onSave, despesa }: DespesaModalPro
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <Label htmlFor="categoria">Categoria *</Label>
               <Select value={formData.categoria} onValueChange={(val) => setFormData({ ...formData, categoria: val })}>
@@ -143,12 +143,12 @@ export const DespesaModal = ({ open, onClose, onSave, despesa }: DespesaModalPro
           {isAdmin && (
             <div>
               <Label htmlFor="agente_id">Agente Responsável</Label>
-              <Select value={formData.agente_id} onValueChange={(val) => setFormData({ ...formData, agente_id: val })}>
+              <Select value={formData.agente_id || "none"} onValueChange={(val) => setFormData({ ...formData, agente_id: val === "none" ? "" : val })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um agente" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   {agentes.map((agente) => (
                     <SelectItem key={agente.id} value={agente.id}>{agente.nombre}</SelectItem>
                   ))}
