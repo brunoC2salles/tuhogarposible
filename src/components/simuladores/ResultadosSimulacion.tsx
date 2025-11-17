@@ -11,13 +11,19 @@ interface ResultadosSimulacionProps {
   onOpenChange: (open: boolean) => void;
   datos: SimuladorCreditoFormData;
   resultados: ResultadosType;
+  onSalvarNoLead?: () => void;
+  salvandoNoLead?: boolean;
+  leadNombre?: string;
 }
 
 export function ResultadosSimulacion({ 
   open, 
   onOpenChange, 
   datos, 
-  resultados 
+  resultados,
+  onSalvarNoLead,
+  salvandoNoLead,
+  leadNombre
 }: ResultadosSimulacionProps) {
   const handleExportPDF = () => {
     generateSimulacionPDF(datos, resultados);
@@ -115,15 +121,28 @@ export function ResultadosSimulacion({
           </div>
 
           {/* Botones de Acción */}
-          <div className="flex gap-3 justify-end pt-4 border-t">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              <X className="mr-2 h-4 w-4" />
-              Cerrar
-            </Button>
-            <Button onClick={handleExportPDF}>
-              <FileDown className="mr-2 h-4 w-4" />
-              Exportar a PDF
-            </Button>
+          <div className="flex flex-col gap-3 pt-4 border-t">
+            {onSalvarNoLead && leadNombre && (
+              <Button 
+                onClick={onSalvarNoLead} 
+                disabled={salvandoNoLead}
+                className="w-full"
+                size="lg"
+              >
+                {salvandoNoLead ? 'Salvando...' : `Salvar no Lead: ${leadNombre}`}
+              </Button>
+            )}
+            
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                <X className="mr-2 h-4 w-4" />
+                Cerrar
+              </Button>
+              <Button onClick={handleExportPDF}>
+                <FileDown className="mr-2 h-4 w-4" />
+                Exportar a PDF
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
