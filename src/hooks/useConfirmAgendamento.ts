@@ -28,9 +28,9 @@ export function useConfirmAgendamento() {
     
     try {
       // VALIDACIONES PREVIAS
-      if (!formData.valor_inmueble_deseado || formData.valor_inmueble_deseado < 50000) {
-        throw new Error('El valor del inmueble debe ser al menos 50.000€');
-      }
+    if (!formData.valor_inmueble_deseado || formData.valor_inmueble_deseado < 10000) {
+      throw new Error('El valor del inmueble debe ser al menos 10.000€');
+    }
 
       if (!formData.ingresos_mensuales || formData.ingresos_mensuales < 500) {
         throw new Error('Los ingresos mensuales deben ser al menos 500€');

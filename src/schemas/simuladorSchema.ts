@@ -69,7 +69,11 @@ export const simuladorHipotecaSchema = z.object({
     antiguedadEmpresaMeses: z.number().int().min(0).max(11),
     antiguedadContinuadaAnios: z.number().int().min(0),
     antiguedadContinuadaMeses: z.number().int().min(0).max(11),
-    ingresosMensuales: z.number().min(1, 'Ingresos deben ser positivos')
+    ingresosMensuales: z.number().min(1, 'Ingresos deben ser positivos'),
+    numeroPagas: z.number().int().min(12).max(15),
+    cobraBonusAnual: z.boolean(),
+    valorBonusAnual: z.number().min(0).optional(),
+    ahorrosDisponibles: z.number().min(0).optional()
   })).optional(),
   
   // Datos de la vivienda
@@ -116,6 +120,9 @@ export const simuladorHipotecaSchema = z.object({
   
   ingresosMensuales: z.number()
     .min(1, 'Ingresos mensuales deben ser positivos'),
+  numeroPagas: z.number().int().min(12).max(15),
+  cobraBonusAnual: z.boolean(),
+  valorBonusAnual: z.number().min(0).optional(),
   
   // Situación financiera
   ahorrosDisponibles: z.number()

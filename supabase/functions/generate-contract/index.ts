@@ -279,31 +279,43 @@ serve(async (req) => {
       })
       .eq('id', linkData.id);
 
-    // 7. Criar notificação para o agente
-    await supabaseClient
-      .from('notifications')
-      .insert({
-        user_id: linkData.agente_id,
-        type: 'contract_signed',
-        title: 'Contrato Firmado',
-        message: `El lead "${lead.nombre_completo}" firmó el contrato.`,
-        link: '/crm',
-        metadata: { lead_id: lead.id, contract_id: contractData.id }
-      });
+    // Notificar agente e admins
+    const { data: admins } = await supabaseClient
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'admin');
 
-    console.log('[Generate Contract] Agent notification created');
+    const notificationsToInsert = [];
 
-    // 8. Notificar admins usando função SQL
-    await supabaseClient.rpc('notify_admins', {
-      p_type: 'contract_signed',
-      p_title: 'Contrato Firmado',
-      p_message: `El lead "${lead.nombre_completo}" firmó un contrato.`,
-      p_link: '/admin/crm',
-      p_metadata: { lead_id: lead.id, contract_id: contractData.id }
+    // Notificação para o agente
+    notificationsToInsert.push({
+      user_id: linkData.agente_id,
+      type: 'contract_generated',
+      title: 'Contrato Creado',
+      message: `El lead "${lead.nombre_completo}" ha creado su contrato.`,
+      link: '/crm',
+      metadata: { lead_id: link Data.lead_id, contract_id: contractRecord.id }
     });
 
-    console.log('[Generate Contract] Admin notifications created');
-    console.log('[Generate Contract] Contract generated successfully:', contractData.id);
+    // Notificações para admins
+    if (admins && admins.length > 0) {
+      admins.forEach(admin => {
+        notificationsToInsert.push({
+          user_id: admin.user_id,
+          type: 'contract_generated',
+          title: 'Contrato Creado',
+          message: `El lead "${lead.nombre_completo}" ha creado su contrato.`,
+          link: '/admin/crm',
+          metadata: { lead_id: linkData.lead_id, contract_id: contractRecord.id }
+        });
+      });
+    }
+
+    // Inserir todas as notificações de uma vez
+    await supabaseClient.from('notifications').insert(notificationsToInsert);
+    console.log(`[Generate Contract] ${notificationsToInsert.length} notification(s) created`);
+
+    console.log('[Generate Contract] Contract generated successfully:', contractRecord.id);
 
     return new Response(
       JSON.stringify({
