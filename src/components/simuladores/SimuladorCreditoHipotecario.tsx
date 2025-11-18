@@ -56,6 +56,8 @@ export function SimuladorCreditoHipotecario() {
       tieneCreditos: false,
       creditos: [],
       estadoCivil: 'soltero',
+      pagaManutención: false,
+      valorManutención: undefined,
       tieneHijos: false
     }
   });
@@ -796,38 +798,7 @@ export function SimuladorCreditoHipotecario() {
                     </div>
                   )}
 
-                  {watchEstadoCivil === 'divorciado' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>¿Pagas Manutención? *</Label>
-                        <RadioGroup 
-                          value={watchPagaManutención ? "true" : "false"} 
-                          onValueChange={(v) => form.setValue("pagaManutención", v === "true")}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="false" id="no-manutencion" />
-                            <Label htmlFor="no-manutencion">No</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="true" id="si-manutencion" />
-                            <Label htmlFor="si-manutencion">Sí</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-                      {watchPagaManutención && (
-                        <div className="space-y-2">
-                          <Label>Valor de la Manutención (€/mes) *</Label>
-                          <Input 
-                            type="number" 
-                            {...form.register("valorManutención", { valueAsNumber: true })} 
-                            min="0"
-                          />
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {/* ¿Tiene hijos? */}
+                  {/* ¿Tiene hijos? - AGORA PRIMEIRO */}
                   <div className="space-y-2">
                     <Label>¿Tiene hijos? *</Label>
                     <RadioGroup
@@ -867,6 +838,39 @@ export function SimuladorCreditoHipotecario() {
                         </p>
                       )}
                     </div>
+                  )}
+
+                  {/* ¿Pagas Manutención? - AGORA DEPOIS DE HIJOS */}
+                  {watchEstadoCivil === 'divorciado' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>¿Pagas Manutención? *</Label>
+                        <RadioGroup 
+                          value={watchPagaManutención ? "true" : "false"} 
+                          onValueChange={(v) => form.setValue("pagaManutención", v === "true")}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="false" id="no-manutencion" />
+                            <Label htmlFor="no-manutencion">No</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="true" id="si-manutencion" />
+                            <Label htmlFor="si-manutencion">Sí</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      {watchPagaManutención && (
+                        <div className="space-y-2">
+                          <Label>Valor de la Manutención (€/mes) *</Label>
+                          <Input 
+                            type="number" 
+                            {...form.register("valorManutención", { valueAsNumber: true })} 
+                            min="0"
+                            placeholder="Valor mensual"
+                          />
+                        </div>
+                      )}
+                    </>
                   )}
                 </AccordionContent>
               </AccordionItem>
