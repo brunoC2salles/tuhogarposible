@@ -113,7 +113,7 @@ export function SimuladorCreditoPersonal() {
                   <Input
                     id="nombreCompleto"
                     {...register("nombreCompleto")}
-                    placeholder="Juan Pérez García"
+                    placeholder="Ingrese su nombre completo"
                   />
                   {errors.nombreCompleto && (
                     <p className="text-sm text-destructive">{errors.nombreCompleto.message}</p>
@@ -126,7 +126,7 @@ export function SimuladorCreditoPersonal() {
                     id="edad"
                     type="number"
                     {...register("edad", { valueAsNumber: true })}
-                    placeholder="30"
+                    placeholder="Edad (18-55 años)"
                     min="18"
                     max="55"
                   />
@@ -150,7 +150,7 @@ export function SimuladorCreditoPersonal() {
                     type="number"
                     step="0.01"
                     {...register("ingresosMensuales", { valueAsNumber: true })}
-                    placeholder="3000.00"
+                    placeholder="Ingrese sus ingresos mensuales"
                     min="1050"
                   />
                   {errors.ingresosMensuales && (
@@ -166,7 +166,7 @@ export function SimuladorCreditoPersonal() {
                     type="number"
                     step="0.01"
                     {...register("deudasActuales", { valueAsNumber: true })}
-                    placeholder="500.00"
+                    placeholder="Ingrese el total de sus deudas"
                     min="0"
                   />
                   {errors.deudasActuales && (
@@ -181,7 +181,7 @@ export function SimuladorCreditoPersonal() {
                     type="number"
                     step="0.01"
                     {...register("entrada", { valueAsNumber: true })}
-                    placeholder="0.00"
+                    placeholder="Ingrese el pago inicial"
                     min="0"
                   />
                   {errors.entrada && (
@@ -206,7 +206,7 @@ export function SimuladorCreditoPersonal() {
                     type="number"
                     step="0.01"
                     {...register("valorInmueble", { valueAsNumber: true })}
-                    placeholder="100000.00"
+                    placeholder="Valor del inmueble deseado"
                     min="1000"
                   />
                   {errors.valorInmueble && (
@@ -220,7 +220,7 @@ export function SimuladorCreditoPersonal() {
                     id="plazoMeses"
                     type="number"
                     {...register("plazoMeses", { valueAsNumber: true })}
-                    placeholder="72"
+                    placeholder="Plazo en meses (60-144)"
                     min="60"
                     max="144"
                   />

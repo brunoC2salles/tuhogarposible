@@ -285,8 +285,8 @@ serve(async (req) => {
       .insert({
         user_id: linkData.agente_id,
         type: 'contract_signed',
-        title: 'Contrato Assinado',
-        message: `O lead "${lead.nombre_completo}" assinou o contrato.`,
+        title: 'Contrato Firmado',
+        message: `El lead "${lead.nombre_completo}" firmó el contrato.`,
         link: '/crm',
         metadata: { lead_id: lead.id, contract_id: contractData.id }
       });
@@ -296,8 +296,8 @@ serve(async (req) => {
     // 8. Notificar admins usando função SQL
     await supabaseClient.rpc('notify_admins', {
       p_type: 'contract_signed',
-      p_title: 'Contrato Assinado',
-      p_message: `O lead "${lead.nombre_completo}" assinou um contrato.`,
+      p_title: 'Contrato Firmado',
+      p_message: `El lead "${lead.nombre_completo}" firmó un contrato.`,
       p_link: '/admin/crm',
       p_metadata: { lead_id: lead.id, contract_id: contractData.id }
     });
@@ -310,7 +310,7 @@ serve(async (req) => {
         success: true,
         contractId: contractData.id,
         filePath: pdfPath,
-        message: 'Contrato gerado com sucesso'
+        message: 'Contrato generado con éxito'
       }),
       { 
         status: 200, 

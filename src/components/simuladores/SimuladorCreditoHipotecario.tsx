@@ -158,13 +158,13 @@ export function SimuladorCreditoHipotecario() {
                 <AccordionTrigger>1. Datos de los Titulares</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Nombre Completo *</Label>
-                      <Input {...form.register("nombreCompleto")} />
+            <div className="space-y-2">
+              <Label>Nombre Completo *</Label>
+              <Input {...form.register("nombreCompleto")} placeholder="Ingrese su nombre completo" />
                     </div>
                     <div className="space-y-2">
                       <Label>Edad *</Label>
-                      <Input type="number" {...form.register("edad", { valueAsNumber: true })} />
+                      <Input type="number" {...form.register("edad", { valueAsNumber: true })} min="18" max="65" placeholder="Edad (18-65 años)" />
                     </div>
                   </div>
                 </AccordionContent>
@@ -176,7 +176,7 @@ export function SimuladorCreditoHipotecario() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Precio de la Vivienda (€) *</Label>
-                      <Input type="number" {...form.register("precioVivienda", { valueAsNumber: true })} />
+                      <Input type="number" {...form.register("precioVivienda", { valueAsNumber: true })} min="1000" placeholder="Precio de la vivienda en euros" />
                     </div>
                     <div className="space-y-2">
                       <Label>Comunidad Autónoma *</Label>
@@ -329,9 +329,9 @@ export function SimuladorCreditoHipotecario() {
                   </div>
 
                   {/* Ingresos Mensuales */}
-                  <div className="space-y-2">
-                    <Label>Ingresos Mensuales (€) *</Label>
-                    <Input type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} />
+            <div className="space-y-2">
+              <Label>Ingresos Mensuales (€) *</Label>
+              <Input type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} placeholder="Ingresos mensuales netos" min="0" />
                   </div>
                 </AccordionContent>
               </AccordionItem>
@@ -339,9 +339,9 @@ export function SimuladorCreditoHipotecario() {
               <AccordionItem value="financiero">
                 <AccordionTrigger>4. Situación Financiera</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
-                  <div className="space-y-2">
-                    <Label>Ahorros Disponibles (€) *</Label>
-                    <Input type="number" {...form.register("ahorrosDisponibles", { valueAsNumber: true })} />
+            <div className="space-y-2">
+              <Label>Ahorros Disponibles (€) *</Label>
+              <Input type="number" {...form.register("ahorrosDisponibles", { valueAsNumber: true })} placeholder="Total de ahorros disponibles" min="0" />
                   </div>
                   <div className="space-y-2">
                     <Label>Plazo Deseado (años) *</Label>
