@@ -169,6 +169,280 @@ export function SimuladorCreditoHipotecario() {
                       <Input type="number" {...form.register("edad", { valueAsNumber: true })} min="18" max="65" placeholder="Edad (18-65 años)" />
                     </div>
                   </div>
+                  {/* Número de Titulares */}
+                  <div className="space-y-2">
+                    <Label>Número de Titulares *</Label>
+                    <RadioGroup 
+                      value={watchNumeroTitulares} 
+                      onValueChange={(v) => form.setValue("numeroTitulares", v as any)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="1" id="titular-1" />
+                        <Label htmlFor="titular-1">1 Titular</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="2" id="titular-2" />
+                        <Label htmlFor="titular-2">2 Titulares</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Formulário para Segundo Titular */}
+                  {watchNumeroTitulares === '2' && (
+                    <div className="space-y-4 mt-6 border-t pt-4">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          Complete los datos del segundo titular. <strong>Importante:</strong> Solo se considerarán los ingresos de titulares con contrato indefinido.
+                        </AlertDescription>
+                      </Alert>
+                      
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => appendTitular({
+                          nombreCompleto: '',
+                          edad: 30,
+                          relacionPrincipal: 'pareja',
+                          situacionLaboral: 'empleado',
+                          tipoContrato: 'indefinido',
+                          antiguedadEmpresaAnios: 0,
+                          antiguedadEmpresaMeses: 0,
+                          antiguedadContinuadaAnios: 0,
+                          antiguedadContinuadaMeses: 0,
+                          ingresosMensuales: 0,
+                          numeroPagas: 12,
+                          cobraBonusAnual: false,
+                          valorBonusAnual: 0,
+                          ahorrosDisponibles: 0
+                        })}
+                        disabled={titularesFields.length >= 1}
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Agregar Segundo Titular
+                      </Button>
+
+                      {titularesFields.map((field, index) => (
+                        <div key={field.id} className="border p-4 rounded-lg space-y-4 bg-muted/30">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-semibold text-lg">Titular {index + 2}</h4>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => removeTitular(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          
+                          {/* CAMPOS BÁSICOS */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Nombre Completo *</Label>
+                              <Input {...form.register(`titulares.${index}.nombreCompleto`)} placeholder="Nombre completo" />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label>Edad *</Label>
+                              <Input 
+                                type="number" 
+                                {...form.register(`titulares.${index}.edad`, { valueAsNumber: true })} 
+                                min="18" 
+                                max="65"
+                                placeholder="Edad"
+                              />
+                            </div>
+                          </div>
+                          
+                          {/* Relación con Titular Principal */}
+                          <div className="space-y-2">
+                            <Label>Relación con Titular Principal *</Label>
+                            <Select 
+                              value={form.watch(`titulares.${index}.relacionPrincipal`)} 
+                              onValueChange={(v) => form.setValue(`titulares.${index}.relacionPrincipal`, v as any)}
+                            >
+                              <SelectTrigger><SelectValue placeholder="Seleccione relación" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="pareja">Pareja</SelectItem>
+                                <SelectItem value="marido_mujer">Marido/Mujer</SelectItem>
+                                <SelectItem value="padre_madre_hijo">Padre/Madre/Hijo</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <h5 className="font-medium mb-3">Situación Laboral</h5>
+                            
+                            {/* Situación Laboral */}
+                            <div className="space-y-2 mb-4">
+                              <Label>Situación Laboral *</Label>
+                              <RadioGroup 
+                                value={form.watch(`titulares.${index}.situacionLaboral`)} 
+                                onValueChange={(v) => form.setValue(`titulares.${index}.situacionLaboral`, v as any)}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="empleado" id={`empleado-${index}`} />
+                                  <Label htmlFor={`empleado-${index}`}>Empleado</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="autonomo" id={`autonomo-${index}`} />
+                                  <Label htmlFor={`autonomo-${index}`}>Autónomo</Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
+                            
+                            {/* Tipo de Contrato */}
+                            <div className="space-y-2 mb-4">
+                              <Label>Tipo de Contrato *</Label>
+                              <Select 
+                                value={form.watch(`titulares.${index}.tipoContrato`)} 
+                                onValueChange={(v) => form.setValue(`titulares.${index}.tipoContrato`, v as any)}
+                              >
+                                <SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="indefinido">Indefinido</SelectItem>
+                                  <SelectItem value="temporal">Temporal</SelectItem>
+                                  <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Alerta se temporal */}
+                            {form.watch(`titulares.${index}.tipoContrato`) === 'temporal' && (
+                              <Alert variant="destructive" className="mb-4">
+                                <Info className="h-4 w-4" />
+                                <AlertDescription>
+                                  <strong>Atención:</strong> Los contratos temporales no son considerados por los bancos. Solo se computarán los ingresos de titulares con contrato indefinido.
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                            
+                            {/* Antigüedad Empresa */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="space-y-2">
+                                <Label>Antigüedad Empresa (Años)</Label>
+                                <Input 
+                                  type="number" 
+                                  {...form.register(`titulares.${index}.antiguedadEmpresaAnios`, { valueAsNumber: true })} 
+                                  min="0"
+                                  placeholder="Años"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Antigüedad Empresa (Meses)</Label>
+                                <Input 
+                                  type="number" 
+                                  {...form.register(`titulares.${index}.antiguedadEmpresaMeses`, { valueAsNumber: true })} 
+                                  min="0" 
+                                  max="11"
+                                  placeholder="Meses"
+                                />
+                              </div>
+                            </div>
+                            
+                            {/* Antigüedad Continuada */}
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="space-y-2">
+                                <Label>Antigüedad Continuada (Años)</Label>
+                                <Input 
+                                  type="number" 
+                                  {...form.register(`titulares.${index}.antiguedadContinuadaAnios`, { valueAsNumber: true })} 
+                                  min="0"
+                                  placeholder="Años"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Antigüedad Continuada (Meses)</Label>
+                                <Input 
+                                  type="number" 
+                                  {...form.register(`titulares.${index}.antiguedadContinuadaMeses`, { valueAsNumber: true })} 
+                                  min="0" 
+                                  max="11"
+                                  placeholder="Meses"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <h5 className="font-medium mb-3">Situación Financiera</h5>
+                            
+                            {/* Ingresos Mensuales NETO */}
+                            <div className="space-y-2 mb-4">
+                              <Label>Ingresos Mensuales NETO (€) *</Label>
+                              <Input 
+                                type="number" 
+                                {...form.register(`titulares.${index}.ingresosMensuales`, { valueAsNumber: true })} 
+                                placeholder="Ingresos netos mensuales"
+                                min="0"
+                              />
+                              <p className="text-xs text-muted-foreground">Indique ingresos netos (después de impuestos)</p>
+                            </div>
+                            
+                            {/* Número de Pagas */}
+                            <div className="space-y-2 mb-4">
+                              <Label>Número de Pagas Anuales *</Label>
+                              <Select 
+                                value={form.watch(`titulares.${index}.numeroPagas`)?.toString()} 
+                                onValueChange={(v) => form.setValue(`titulares.${index}.numeroPagas`, parseInt(v))}
+                              >
+                                <SelectTrigger><SelectValue placeholder="Seleccione" /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="12">12 pagas</SelectItem>
+                                  <SelectItem value="13">13 pagas</SelectItem>
+                                  <SelectItem value="14">14 pagas</SelectItem>
+                                  <SelectItem value="15">15+ pagas</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            {/* Bonus Anual */}
+                            <div className="space-y-2 mb-4">
+                              <Label>¿Cobra bonus anual por objetivos?</Label>
+                              <RadioGroup 
+                                value={form.watch(`titulares.${index}.cobraBonusAnual`) ? "true" : "false"} 
+                                onValueChange={(v) => form.setValue(`titulares.${index}.cobraBonusAnual`, v === "true")}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="false" id={`no-bonus-${index}`} />
+                                  <Label htmlFor={`no-bonus-${index}`}>No</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="true" id={`si-bonus-${index}`} />
+                                  <Label htmlFor={`si-bonus-${index}`}>Sí</Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
+                            
+                            {/* Valor Bonus (condicional) */}
+                            {form.watch(`titulares.${index}.cobraBonusAnual`) && (
+                              <div className="space-y-2 mb-4">
+                                <Label>Valor del Bonus Anual (€)</Label>
+                                <Input 
+                                  type="number" 
+                                  {...form.register(`titulares.${index}.valorBonusAnual`, { valueAsNumber: true })} 
+                                  placeholder="Valor del bonus"
+                                  min="0"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Ahorros Disponibles */}
+                            <div className="space-y-2">
+                              <Label>Ahorros Disponibles (€) *</Label>
+                              <Input 
+                                type="number" 
+                                {...form.register(`titulares.${index}.ahorrosDisponibles`, { valueAsNumber: true })} 
+                                placeholder="Total de ahorros disponibles"
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
 
@@ -330,11 +604,66 @@ export function SimuladorCreditoHipotecario() {
                     </div>
                   </div>
 
-                  {/* Ingresos Mensuales */}
-            <div className="space-y-2">
-              <Label>Ingresos Mensuales (€) *</Label>
-              <Input type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} placeholder="Ingresos mensuales netos" min="0" />
+                  {/* Ingresos Mensuales NETO */}
+                  <div className="space-y-2">
+                    <Label>Ingresos Mensuales NETO (€) *</Label>
+                    <Input 
+                      type="number" 
+                      {...form.register("ingresosMensuales", { valueAsNumber: true })} 
+                      placeholder="Ingresos netos mensuales" 
+                      min="0" 
+                    />
+                    <p className="text-xs text-muted-foreground">Indique sus ingresos netos (después de impuestos)</p>
                   </div>
+
+                  {/* Número de Pagas */}
+                  <div className="space-y-2">
+                    <Label>Número de Pagas Anuales *</Label>
+                    <Select 
+                      value={form.watch("numeroPagas")?.toString()} 
+                      onValueChange={(v) => form.setValue("numeroPagas", parseInt(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione número de pagas" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="12">12 pagas</SelectItem>
+                        <SelectItem value="13">13 pagas</SelectItem>
+                        <SelectItem value="14">14 pagas</SelectItem>
+                        <SelectItem value="15">15+ pagas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Bonus Anual */}
+                  <div className="space-y-2">
+                    <Label>¿Cobra bonus anual por objetivos?</Label>
+                    <RadioGroup 
+                      value={form.watch("cobraBonusAnual") ? "true" : "false"} 
+                      onValueChange={(v) => form.setValue("cobraBonusAnual", v === "true")}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="false" id="no-bonus" />
+                        <Label htmlFor="no-bonus">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="true" id="si-bonus" />
+                        <Label htmlFor="si-bonus">Sí</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {form.watch("cobraBonusAnual") && (
+                    <div className="space-y-2">
+                      <Label>Valor del Bonus Anual (€)</Label>
+                      <Input 
+                        type="number" 
+                        {...form.register("valorBonusAnual", { valueAsNumber: true })} 
+                        placeholder="Valor del bonus anual"
+                        min="0"
+                      />
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
 
