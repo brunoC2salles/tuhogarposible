@@ -91,6 +91,12 @@ export interface DatosSimulacionHipoteca {
   nombreCompleto: string;
   edad: number;
   numeroTitulares: '1' | '2' | '3';
+  
+  // Campos de pagas y bonus del titular principal
+  numeroPagas: number;
+  cobraBonusAnual: boolean;
+  valorBonusAnual?: number;
+  
   titulares?: Array<{
     nombreCompleto: string;
     edad: number;
@@ -102,6 +108,10 @@ export interface DatosSimulacionHipoteca {
     antiguedadContinuadaAnios: number;
     antiguedadContinuadaMeses: number;
     ingresosMensuales: number;
+    numeroPagas: number;
+    cobraBonusAnual: boolean;
+    valorBonusAnual?: number;
+    ahorrosDisponibles: number;
   }>;
   
   // Dados da vivienda
@@ -123,9 +133,6 @@ export interface DatosSimulacionHipoteca {
   antiguedadContinuadaAnios: number;
   antiguedadContinuadaMeses: number;
   ingresosMensuales: number;
-  numeroPagas: number;
-  cobraBonusAnual: boolean;
-  valorBonusAnual?: number;
   
   // Situação financeira
   ahorrosDisponibles: number;
