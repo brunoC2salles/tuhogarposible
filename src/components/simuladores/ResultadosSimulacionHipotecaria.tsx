@@ -97,7 +97,7 @@ export function ResultadosSimulacionHipotecaria({
               <div className="p-4 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground mb-1">Hipoteca máxima permitida</p>
                 <p className="text-xl font-bold">{formatEuro(resultados.hipotecaMaximaMensual)}/mes</p>
-                <p className="text-xs text-muted-foreground mt-1">(30% ingresos - créditos - hijos - pensión)</p>
+                <p className="text-xs text-muted-foreground mt-1">(35% ingresos - créditos - hijos - manutención)</p>
               </div>
             </div>
           </div>
@@ -117,12 +117,31 @@ export function ResultadosSimulacionHipotecaria({
             </div>
           </div>
 
-          {/* Badge de Aprobación */}
-          <div className="flex justify-center">
+          {/* Badge de Aprobação */}
+          <div className="flex flex-col items-center gap-3">
             {resultados.aprobable ? (
-              <Badge className="text-base px-6 py-2 bg-green-500 hover:bg-green-600">
-                ✓ HIPOTECA APROBABLE
-              </Badge>
+              <>
+                <Badge className="text-base px-6 py-2 bg-green-500 hover:bg-green-600">
+                  ✓ HIPOTECA APROBABLE
+                </Badge>
+                {!resultados.capitalPropioSuficiente && (
+                  <div className="p-4 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm max-w-2xl">
+                    <p className="font-semibold text-amber-800 dark:text-amber-200 mb-2">⚠️ Capital Propio Insuficiente</p>
+                    <p className="text-amber-700 dark:text-amber-300">
+                      <strong>Capital propio necesario:</strong> {formatEuro(resultados.capitalPropioNecesario)}
+                    </p>
+                    <p className="text-amber-700 dark:text-amber-300">
+                      <strong>Ahorros disponibles:</strong> {formatEuro(datos.ahorrosDisponibles)}
+                    </p>
+                    <p className="text-amber-700 dark:text-amber-300 mt-2">
+                      <strong>Faltan:</strong> {formatEuro(resultados.capitalPropioNecesario - datos.ahorrosDisponibles)}
+                    </p>
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                      La hipoteca es aprobable por capacidad de pago, pero necesitarás más capital propio para cubrir entrada e impuestos.
+                    </p>
+                  </div>
+                )}
+              </>
             ) : (
               <Badge variant="destructive" className="text-base px-6 py-2">
                 ✗ HIPOTECA NO APROBABLE
