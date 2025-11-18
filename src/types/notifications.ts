@@ -18,9 +18,9 @@ export interface Notification {
 }
 
 export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
-  new_lead: 'Novo Lead',
-  lead_stage_listo: 'Lead Pronto',
-  payment_deadline: 'Prazo de Pagamento',
-  contract_signed: 'Contrato Assinado',
-  contract_generated: 'Contrato Gerado'
+  new_lead: 'Nuevo Lead',
+  lead_stage_listo: 'Lead Listo',
+  payment_deadline: 'Plazo de Pago',
+  contract_signed: 'Contrato Firmado',
+  contract_generated: 'Contrato Generado'
 };

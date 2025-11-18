@@ -3,10 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, Home, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 
 interface LeadCardProps {
   lead: Lead;
@@ -20,6 +21,8 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swiping, setSwiping] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  
+  const { inmuebles } = useLeadInmuebles(lead.id);
 
   const MIN_SWIPE_DISTANCE = 50;
 
@@ -183,6 +186,35 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
             </Badge>
           )}
         </div>
+
+        {inmuebles.length > 0 && (
+          <div className="mt-2 pt-2 border-t">
+            <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Home className="h-3 w-3" />
+              Inmuebles vinculados ({inmuebles.length})
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {inmuebles.slice(0, 2).map((inmueble) => (
+                <a
+                  key={inmueble.id}
+                  href={`/produto/${inmueble.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {inmueble.titulo || inmueble.direccion}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ))}
+              {inmuebles.length > 2 && (
+                <span className="text-xs text-muted-foreground">
+                  +{inmuebles.length - 2} más
+                </span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="text-xs text-muted-foreground pt-1">
           {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
