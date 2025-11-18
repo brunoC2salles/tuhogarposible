@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Home, Plus, Trash2, Info } from "lucide-react";
+import { Home, Plus, Trash2, Info, Calculator } from "lucide-react";
 import { simuladorHipotecaSchema, type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { calcularSimulacionHipoteca, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosSimulacionHipotecaria } from "./ResultadosSimulacionHipotecaria";
@@ -46,6 +46,8 @@ export function SimuladorCreditoHipotecario() {
       tipoContrato: 'indefinido',
       antiguedadEmpresaAnios: 2,
       antiguedadEmpresaMeses: 0,
+      antiguedadContinuadaAnios: 2,
+      antiguedadContinuadaMeses: 0,
       ingresosMensuales: 2000,
       ahorrosDisponibles: 30000,
       plazoHipotecaAnios: 25,
@@ -90,7 +92,7 @@ export function SimuladorCreditoHipotecario() {
 
   const handleSalvarNoLead = async () => {
     if (!leadId || !resultados || !datosFormulario) {
-      toast.error('Nenhum resultado disponível para salvar');
+      toast.error('Ningún resultado disponible para guardar');
       return;
     }
 
@@ -120,10 +122,10 @@ export function SimuladorCreditoHipotecario() {
 
       if (error) throw error;
 
-      toast.success(`Simulação salva no lead ${leadNombre}!`);
+      toast.success(`Simulación guardada en el lead ${leadNombre}!`);
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      toast.error('Erro ao salvar simulação no lead');
+      toast.error('Error al guardar simulación en el lead');
     } finally {
       setSalvandoNoLead(false);
     }
@@ -140,6 +142,12 @@ export function SimuladorCreditoHipotecario() {
           <p className="text-sm text-muted-foreground">
             Tipo de interés fijo: <strong>3.5% anual</strong>
           </p>
+          <Alert className="mt-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              Complete todos los campos marcados con <strong>*</strong> para calcular su hipoteca.
+            </AlertDescription>
+          </Alert>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -184,12 +192,143 @@ export function SimuladorCreditoHipotecario() {
                       </Select>
                     </div>
                   </div>
+
+                  {/* Finalidad de Compra */}
+                  <div className="space-y-2">
+                    <Label>Finalidad de la Compra *</Label>
+                    <Select value={watchFinalidadCompra} onValueChange={(v) => form.setValue("finalidadCompra", v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="vivienda_habitual">Vivienda Habitual</SelectItem>
+                        <SelectItem value="segunda_residencia">Segunda Residencia</SelectItem>
+                        <SelectItem value="inversion">Inversión</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* ¿Tiene propiedades? */}
+                  <div className="space-y-2">
+                    <Label>¿Tiene otras propiedades? *</Label>
+                    <RadioGroup 
+                      value={watchTienePropiedades ? "true" : "false"} 
+                      onValueChange={(v) => form.setValue("tienePropiedades", v === "true")}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="false" id="no-prop" />
+                        <Label htmlFor="no-prop">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="true" id="si-prop" />
+                        <Label htmlFor="si-prop">Sí</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {watchTienePropiedades && (
+                    <div className="space-y-2">
+                      <Label>¿Propiedades libres de cargas? *</Label>
+                      <RadioGroup 
+                        value={form.watch("propiedadesLibreCargas") ? "true" : "false"} 
+                        onValueChange={(v) => form.setValue("propiedadesLibreCargas", v === "true")}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="true" id="libre-si" />
+                          <Label htmlFor="libre-si">Sí</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="false" id="libre-no" />
+                          <Label htmlFor="libre-no">No</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
+
+                  {/* Familia Numerosa y Menor de 35 */}
+                  <div className="flex gap-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="familiaNumerosa" 
+                        checked={form.watch("familiaNumerosa")}
+                        onCheckedChange={(checked) => form.setValue("familiaNumerosa", checked as boolean)}
+                      />
+                      <Label htmlFor="familiaNumerosa" className="font-normal">
+                        ¿Familia numerosa?
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="menorDe35" 
+                        checked={form.watch("menorDe35")}
+                        onCheckedChange={(checked) => form.setValue("menorDe35", checked as boolean)}
+                      />
+                      <Label htmlFor="menorDe35" className="font-normal">
+                        ¿Menor de 35 años?
+                      </Label>
+                    </div>
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="laboral">
                 <AccordionTrigger>3. Situación Laboral</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
+                  {/* Situação Laboral */}
+                  <div className="space-y-2">
+                    <Label>Situación Laboral *</Label>
+                    <RadioGroup 
+                      value={watchSituacionLaboral} 
+                      onValueChange={(v) => form.setValue("situacionLaboral", v as any)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="empleado" id="empleado" />
+                        <Label htmlFor="empleado">Empleado</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="autonomo" id="autonomo" />
+                        <Label htmlFor="autonomo">Autónomo</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* Tipo de Contrato */}
+                  <div className="space-y-2">
+                    <Label>Tipo de Contrato *</Label>
+                    <Select value={form.watch("tipoContrato")} onValueChange={(v) => form.setValue("tipoContrato", v as any)}>
+                      <SelectTrigger><SelectValue placeholder="Seleccione tipo de contrato" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="indefinido">Indefinido</SelectItem>
+                        <SelectItem value="temporal">Temporal</SelectItem>
+                        <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Antigüedad Empresa */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Antigüedad Empresa (Años) *</Label>
+                      <Input type="number" {...form.register("antiguedadEmpresaAnios", { valueAsNumber: true })} min="0" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Antigüedad Empresa (Meses) *</Label>
+                      <Input type="number" {...form.register("antiguedadEmpresaMeses", { valueAsNumber: true })} min="0" max="11" />
+                    </div>
+                  </div>
+
+                  {/* Antigüedad Continuada (CRÍTICO - ESTAVA FALTANDO!) */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Antigüedad Continuada (Años) *</Label>
+                      <Input type="number" {...form.register("antiguedadContinuadaAnios", { valueAsNumber: true })} min="0" />
+                      <p className="text-xs text-muted-foreground">Antigüedad trabajando continuamente (puede incluir varios empleos)</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Antigüedad Continuada (Meses) *</Label>
+                      <Input type="number" {...form.register("antiguedadContinuadaMeses", { valueAsNumber: true })} min="0" max="11" />
+                    </div>
+                  </div>
+
+                  {/* Ingresos Mensuales */}
                   <div className="space-y-2">
                     <Label>Ingresos Mensuales (€) *</Label>
                     <Input type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} />
@@ -208,16 +347,160 @@ export function SimuladorCreditoHipotecario() {
                     <Label>Plazo Deseado (años) *</Label>
                     <Input type="number" {...form.register("plazoHipotecaAnios", { valueAsNumber: true })} min="10" max="30" />
                   </div>
+
+                  {/* ¿Tiene créditos? */}
+                  <div className="space-y-2">
+                    <Label>¿Tiene créditos activos? *</Label>
+                    <RadioGroup 
+                      value={watchTieneCreditos ? "true" : "false"} 
+                      onValueChange={(v) => form.setValue("tieneCreditos", v === "true")}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="false" id="no-cred" />
+                        <Label htmlFor="no-cred">No</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="true" id="si-cred" />
+                        <Label htmlFor="si-cred">Sí</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {watchTieneCreditos && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <Label>Créditos Activos *</Label>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => appendCredito({ tipo: 'personal', cuotaMensual: 0 })}
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Agregar Crédito
+                        </Button>
+                      </div>
+                      {creditosFields.map((field, index) => (
+                        <div key={field.id} className="border p-4 rounded-lg space-y-3">
+                          <div className="flex justify-between items-center">
+                            <h4 className="font-medium">Crédito {index + 1}</h4>
+                            <Button 
+                              type="button" 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => removeCredito(index)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label>Tipo</Label>
+                              <Select 
+                                value={form.watch(`creditos.${index}.tipo`)} 
+                                onValueChange={(v) => form.setValue(`creditos.${index}.tipo`, v as any)}
+                              >
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="personal">Personal</SelectItem>
+                                  <SelectItem value="reformas">Reformas</SelectItem>
+                                  <SelectItem value="unificacion">Unificación</SelectItem>
+                                  <SelectItem value="financiacion_compra">Financiación Compra</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Cuota Mensual (€)</Label>
+                              <Input 
+                                type="number" 
+                                {...form.register(`creditos.${index}.cuotaMensual`, { valueAsNumber: true })} 
+                                min="0"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="personal">
                 <AccordionTrigger>5. Datos Personales</AccordionTrigger>
                 <AccordionContent className="space-y-4 pt-4">
+                  {/* Estado Civil */}
+                  <div className="space-y-2">
+                    <Label>Estado Civil *</Label>
+                    <RadioGroup 
+                      value={watchEstadoCivil} 
+                      onValueChange={(v) => form.setValue("estadoCivil", v as any)}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="soltero" id="soltero" />
+                        <Label htmlFor="soltero">Soltero/a</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="casado" id="casado" />
+                        <Label htmlFor="casado">Casado/a</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="divorciado" id="divorciado" />
+                        <Label htmlFor="divorciado">Divorciado/a</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {watchEstadoCivil === 'casado' && (
+                    <div className="space-y-2">
+                      <Label>Régimen Matrimonial *</Label>
+                      <Select 
+                        value={form.watch("regimenMatrimonial")} 
+                        onValueChange={(v) => form.setValue("regimenMatrimonial", v as any)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Seleccione régimen" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gananciales">Gananciales</SelectItem>
+                          <SelectItem value="separacion_bienes">Separación de Bienes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {watchEstadoCivil === 'divorciado' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>¿Paga pensión? *</Label>
+                        <RadioGroup 
+                          value={watchPagaPension ? "true" : "false"} 
+                          onValueChange={(v) => form.setValue("pagaPension", v === "true")}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="false" id="no-pension" />
+                            <Label htmlFor="no-pension">No</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="true" id="si-pension" />
+                            <Label htmlFor="si-pension">Sí</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      {watchPagaPension && (
+                        <div className="space-y-2">
+                          <Label>Valor de la Pensión (€/mes) *</Label>
+                          <Input 
+                            type="number" 
+                            {...form.register("valorPension", { valueAsNumber: true })} 
+                            min="0"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* ¿Tiene hijos? */}
                   <div className="space-y-2">
                     <Label>¿Tiene hijos? *</Label>
                     <RadioGroup
-                      value={form.watch("tieneHijos") ? "si" : "no"}
+                      value={watchTieneHijos ? "si" : "no"}
                       onValueChange={(value) => {
                         const hasChildren = value === "si";
                         form.setValue("tieneHijos", hasChildren);
@@ -238,7 +521,7 @@ export function SimuladorCreditoHipotecario() {
                     </RadioGroup>
                   </div>
                   
-                  {form.watch("tieneHijos") && (
+                  {watchTieneHijos && (
                     <div className="space-y-2">
                       <Label>¿Cuántos hijos? *</Label>
                       <Input
@@ -261,7 +544,23 @@ export function SimuladorCreditoHipotecario() {
 
             <div className="flex gap-3 justify-end pt-6">
               <Button type="button" variant="outline" onClick={() => form.reset()}>Limpiar</Button>
-              <Button type="submit">Calcular Hipoteca</Button>
+              <Button 
+                type="submit" 
+                disabled={!form.formState.isValid}
+                className={!form.formState.isValid ? 'opacity-50 cursor-not-allowed' : ''}
+              >
+                {form.formState.isValid ? (
+                  <>
+                    <Calculator className="mr-2 h-4 w-4" />
+                    Calcular Hipoteca
+                  </>
+                ) : (
+                  <>
+                    <Info className="mr-2 h-4 w-4" />
+                    Complete todos los campos
+                  </>
+                )}
+              </Button>
             </div>
           </form>
         </CardContent>

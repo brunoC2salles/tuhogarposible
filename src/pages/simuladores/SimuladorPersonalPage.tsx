@@ -21,7 +21,7 @@ const SimuladorPersonalPage = () => {
             <Link to="/simuladores">
               <Button variant="outline" size="sm">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Voltar aos Simuladores
+                Volver a los Simuladores
               </Button>
             </Link>
           </div>
@@ -34,16 +34,16 @@ const SimuladorPersonalPage = () => {
           <div className="mb-6">
             <h1 className="text-3xl font-bold mb-2">Simulador de Crédito Personal</h1>
             <p className="text-muted-foreground">
-              Preencha os dados abaixo para calcular as condições do seu crédito pessoal
+              Complete los datos a continuación para calcular las condiciones de su crédito personal
             </p>
             
             {leadNombre && (
               <div className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-lg">
                 <p className="text-sm text-primary font-medium">
-                  🎯 Simulação para o lead: <strong>{decodeURIComponent(leadNombre)}</strong>
+                  🎯 Simulación para el lead: <strong>{decodeURIComponent(leadNombre)}</strong>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Após calcular, você poderá salvar os resultados diretamente no lead.
+                  Después de calcular, podrá guardar los resultados directamente en el lead.
                 </p>
               </div>
             )}

@@ -3,35 +3,35 @@ import { z } from 'zod';
 export const simuladorCreditoSchema = z.object({
   nombreCompleto: z.string()
     .trim()
-    .min(3, 'Nome deve ter no mínimo 3 caracteres')
-    .max(100, 'Nome muito longo'),
+    .min(3, 'Nombre debe tener mínimo 3 caracteres')
+    .max(100, 'Nombre demasiado largo'),
   
   edad: z.number()
-    .min(18, 'Idade mínima: 18 anos')
-    .max(55, 'Idade máxima: 55 anos'),
+    .min(18, 'Edad mínima: 18 años')
+    .max(55, 'Edad máxima: 55 años'),
   
   ingresosMensuales: z.number()
     .min(1050, 'Ingresos mínimos: 1050€'),
   
   deudasActuales: z.number()
-    .min(0, 'Deudas não pode ser negativo'),
+    .min(0, 'Deudas no pueden ser negativas'),
   
   entrada: z.number()
-    .min(0, 'Entrada não pode ser negativa'),
+    .min(0, 'Entrada no puede ser negativa'),
   
   valorInmueble: z.number()
-    .min(1000, 'Valor do imóvel deve ser maior que 1000€'),
+    .min(1000, 'Valor del inmueble debe ser mayor a 1000€'),
   
   plazoMeses: z.number()
-    .int('Prazo deve ser inteiro')
-    .min(60, 'Prazo mínimo: 60 meses (5 anos)')
-    .max(144, 'Prazo máximo: 144 meses (12 anos)'),
+    .int('Plazo debe ser entero')
+    .min(60, 'Plazo mínimo: 60 meses (5 años)')
+    .max(144, 'Plazo máximo: 144 meses (12 años)'),
   
   tasaAnual: z.number()
-    .min(3, 'Taxa mínima: 3%')
-    .max(12, 'Taxa máxima: 12%')
+    .min(3, 'Tasa mínima: 3%')
+    .max(12, 'Tasa máxima: 12%')
 }).refine(data => data.entrada <= data.valorInmueble, {
-  message: 'Entrada não pode ser maior que o valor do imóvel',
+  message: 'Entrada no puede ser mayor que el valor del inmueble',
   path: ['entrada']
 });
 
