@@ -57,7 +57,7 @@ export function SimuladorCreditoPersonal() {
 
   const handleSalvarNoLead = async () => {
     if (!leadId || !resultados || !datosFormulario) {
-      toast.error('Nenhum resultado disponível para salvar');
+      toast.error('Ningún resultado disponible para guardar');
       return;
     }
 
@@ -83,10 +83,10 @@ export function SimuladorCreditoPersonal() {
 
       if (error) throw error;
 
-      toast.success(`Simulação salva no lead ${leadNombre}!`);
+      toast.success(`Simulación guardada en el lead ${leadNombre}!`);
     } catch (error) {
       console.error('Erro ao salvar:', error);
-      toast.error('Erro ao salvar simulação no lead');
+      toast.error('Error al guardar simulación en el lead');
     } finally {
       setSalvandoNoLead(false);
     }

@@ -36,7 +36,7 @@ export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps)
 
         <div className="space-y-6">
           <p className="text-sm text-muted-foreground">
-            Escolha o tipo de simulação que deseja executar. Os simuladores abrirão em uma nova aba.
+            Elija el tipo de simulación que desea ejecutar. Los simuladores se abrirán en una nueva pestaña.
           </p>
           
           <div className="grid gap-4">
@@ -49,7 +49,7 @@ export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps)
                     <h3 className="font-semibold">Crédito Personal</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Simule crédito pessoal com prazos de 5 a 12 anos
+                    Simule crédito personal con plazos de 5 a 12 años
                   </p>
                   <Button onClick={handleOpenPersonal} className="w-full" variant="outline">
                     <ExternalLink className="mr-2 h-4 w-4" />
@@ -68,7 +68,7 @@ export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps)
                     <h3 className="font-semibold">Crédito Hipotecário</h3>
                   </div>
                   <p className="text-sm text-muted-foreground mb-3">
-                    Simule hipoteca com benefícios fiscais incluídos
+                    Simule hipoteca con beneficios fiscales incluidos
                   </p>
                   <Button onClick={handleOpenHipotecario} className="w-full" variant="outline">
                     <ExternalLink className="mr-2 h-4 w-4" />
@@ -81,8 +81,8 @@ export const SimuladoresModal = ({ open, onClose, lead }: SimuladoresModalProps)
           
           <div className="bg-muted/50 rounded-lg p-4">
             <p className="text-xs text-muted-foreground">
-              <strong>Nota:</strong> Os simuladores abrirão em páginas separadas. Para integrar os resultados ao lead, 
-              use a funcionalidade de edição após concluir as simulações.
+              <strong>Nota:</strong> Los simuladores se abrirán en páginas separadas. Para integrar los resultados al lead, 
+              use la funcionalidad de edición después de completar las simulaciones.
             </p>
           </div>
         </div>

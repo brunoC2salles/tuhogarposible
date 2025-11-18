@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X } from "lucide-react";
+import { Download, X, Save, Loader2 } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionHipotecariaPDF } from "@/lib/pdfGenerator";
@@ -204,10 +204,20 @@ export function ResultadosSimulacionHipotecaria({
               <Button 
                 onClick={onSalvarNoLead} 
                 disabled={salvandoNoLead}
-                className="w-full"
+                className="w-full bg-green-600 hover:bg-green-700"
                 size="lg"
               >
-                {salvandoNoLead ? 'Salvando...' : `Salvar no Lead: ${leadNombre}`}
+                {salvandoNoLead ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Guardar en Lead: {leadNombre}
+                  </>
+                )}
               </Button>
             )}
             
