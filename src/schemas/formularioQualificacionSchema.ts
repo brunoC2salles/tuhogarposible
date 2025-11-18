@@ -33,7 +33,7 @@ export const formularioQualificacionSchema = z.object({
     .max(100, "La ciudad no puede exceder 100 caracteres"),
   
   valor_inmueble_deseado: z.number()
-    .min(50000, "El valor del inmueble debe ser al menos 50.000€")
+    .min(10000, "El valor del inmueble debe ser al menos 10.000€")
     .max(5000000, "El valor del inmueble no puede exceder 5.000.000€"),
   
   finalidad_compra: z.enum(["vivienda_habitual", "segunda_residencia", "inversion"], {

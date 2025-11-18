@@ -123,6 +123,9 @@ export interface DatosSimulacionHipoteca {
   antiguedadContinuadaAnios: number;
   antiguedadContinuadaMeses: number;
   ingresosMensuales: number;
+  numeroPagas: number;
+  cobraBonusAnual: boolean;
+  valorBonusAnual?: number;
   
   // Situação financeira
   ahorrosDisponibles: number;
@@ -218,15 +221,119 @@ export function calcularPlazoMaximo(edad: number): number {
  * Calcula simulación completa de hipoteca con nuevos parámetros
  */
 export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): ResultadosSimulacionHipoteca {
+  console.log('[Hipoteca] Iniciando cálculo de simulação hipotecária');
+  console.log('[Hipoteca] Datos:', datos);
+
+  // 1. VALIDAÇÕES INICIAIS
+  if (datos.precioVivienda <= 0) {
+    throw new Error('El precio de la vivienda debe ser mayor a 0');
+  }
+  if (datos.ingresosMensuales <= 0) {
+    throw new Error('Los ingresos mensuales deben ser mayores a 0');
+  }
+
   // 1. TAXA FIXA
   const tasaAnualFija = 3.5;
   const tasaMensual = tasaAnualFija / 12 / 100;
   
-  // 2. INGRESOS TOTALES (todos os titulares)
-  let ingresosTotales = datos.ingresosMensuales;
-  
+  // Função auxiliar para calcular ingresos anualizados
+  const calcularIngresosAnualizados = (
+    ingresosMensuales: number,
+    numeroPagas: number,
+    cobraBonusAnual: boolean,
+    valorBonusAnual?: number
+  ): number => {
+    const ingresosPagas = (ingresosMensuales * numeroPagas) / 12;
+    const bonus = (cobraBonusAnual && valorBonusAnual) ? valorBonusAnual / 12 : 0;
+    return ingresosPagas + bonus;
+  };
+
+  // 2. INGRESOS TOTALES (com pagas e bonus + verificação de contratos temporales)
+  let ingresosTotales = 0;
+
+  // TITULAR PRINCIPAL
+  if (datos.tipoContrato === 'temporal') {
+    console.warn('[Hipoteca] Titular principal com contrato temporal - ingresos não computados');
+    
+    // Se só tem 1 titular temporal, não é viável
+    if (datos.numeroTitulares === '1') {
+      const gastosHipoteca = calcularGastosHipoteca(
+        datos.precioVivienda,
+        datos.comunidadAutonoma,
+        datos.familiaNumerosa,
+        datos.menorDe35
+      );
+      
+      return {
+        montoFinanciable: 0,
+        capitalPropioNecesario: datos.precioVivienda + gastosHipoteca,
+        gastosImpuestos: gastosHipoteca,
+        cuotaMensual: 0,
+        plazoMaximoAnios: 0,
+        plazoMaximoMeses: 0,
+        hipotecaMaximaMensual: 0,
+        aprobable: false,
+        totalIntereses: 0,
+        montoTotalPagar: 0,
+        porcentajeFinanciamiento: 0,
+        ingresosTotales: 0,
+        gastosHijos: 0,
+        gastosPension: 0,
+        tasaAnualFija: 3.5
+      };
+    }
+  } else {
+    // Titular principal tem contrato válido
+    ingresosTotales = calcularIngresosAnualizados(
+      datos.ingresosMensuales,
+      datos.numeroPagas,
+      datos.cobraBonusAnual,
+      datos.valorBonusAnual
+    );
+  }
+
+  // TITULARES ADICIONAIS (só conta indefinidos e fijo_discontinuo)
   if (datos.numeroTitulares !== '1' && datos.titulares && datos.titulares.length > 0) {
-    ingresosTotales += datos.titulares.reduce((sum, t) => sum + t.ingresosMensuales, 0);
+    datos.titulares.forEach(titular => {
+      if (titular.tipoContrato === 'indefinido' || titular.tipoContrato === 'fijo_discontinuo') {
+        ingresosTotales += calcularIngresosAnualizados(
+          titular.ingresosMensuales,
+          titular.numeroPagas,
+          titular.cobraBonusAnual,
+          titular.valorBonusAnual
+        );
+      } else {
+        console.warn('[Hipoteca] Titular adicional com contrato temporal - ingresos não computados');
+      }
+    });
+  }
+
+  // Se nenhum titular válido, não aprovável
+  if (ingresosTotales === 0) {
+    const gastosHipoteca = calcularGastosHipoteca(
+      datos.precioVivienda,
+      datos.comunidadAutonoma,
+      datos.familiaNumerosa,
+      datos.menorDe35
+    );
+    
+    return {
+      montoFinanciable: 0,
+      capitalPropioNecesario: datos.precioVivienda + gastosHipoteca,
+      gastosImpuestos: gastosHipoteca,
+      cuotaMensual: 0,
+      plazoMaximoAnios: 0,
+      plazoMaximoMeses: 0,
+      hipotecaMaximaMensual: 0,
+      aprobable: false,
+      totalIntereses: 0,
+      montoTotalPagar: 0,
+      porcentajeFinanciamiento: 0,
+      ingresosTotales: 0,
+      gastosHijos: 0,
+      gastosPension: 0,
+      tasaAnualFija: 3.5
+    };
   }
   
   // 3. CRÉDITOS PENDIENTES TOTALES
@@ -271,10 +378,10 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const plazoEfectivoAnios = Math.min(datos.plazoHipotecaAnios, plazoMaximoPorEdad);
   const plazoEfectivoMeses = plazoEfectivoAnios * 12;
   
-  // 11. HIPOTECA MÁXIMA MENSUAL
+  // 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos)
   const hipotecaMaximaMensual = Math.max(
     0,
-    (ingresosTotales * 0.3) - creditosPendientesTotales - gastosHijos - gastosPension
+    (ingresosTotales * 0.35) - creditosPendientesTotales - gastosHijos - gastosPension
   );
   
   // 12. CUOTA MENSUAL (Sistema Francês)
