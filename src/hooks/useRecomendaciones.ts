@@ -48,29 +48,15 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
 
       let filteredData = data || [];
 
-      // Filtrar por valor: sempre usar ±20% do valor desejado, respeitando limite de crédito
+      // Filtrar por valor: sem limite inferior, limite superior 135% do valor desejado
       if (lead.valor_inmueble_deseado) {
         const desiredValue = lead.valor_inmueble_deseado;
-        const margin = 0.2;
-        const minValue = desiredValue * (1 - margin);
-        const maxValueWithMargin = desiredValue * (1 + margin);
+        const maxValue = desiredValue * 1.35; // 135% do valor desejado
 
-        // Se tem simulador hipotecário, limitar ao máximo de crédito
-        if (lead.simulador_hipotecario_data) {
-          const maxCreditValue = lead.simulador_hipotecario_data.montoFinanciable * 1.1;
-          const maxValueFinal = Math.min(maxValueWithMargin, maxCreditValue);
-
-          filteredData = filteredData.filter(inmueble => {
-            const price = Number(inmueble.precio);
-            return price >= minValue && price <= maxValueFinal;
-          });
-        } else {
-          // Sem simulador: apenas ±20%
-          filteredData = filteredData.filter(inmueble => {
-            const price = Number(inmueble.precio);
-            return price >= minValue && price <= maxValueWithMargin;
-          });
-        }
+        filteredData = filteredData.filter(inmueble => {
+          const price = Number(inmueble.precio);
+          return price <= maxValue;
+        });
 
         // Ordenar por proximidade ao valor desejado
         filteredData.sort((a, b) => {

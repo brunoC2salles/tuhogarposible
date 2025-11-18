@@ -146,8 +146,8 @@ export const simuladorHipotecaSchema = z.object({
   }),
   
   regimenMatrimonial: z.enum(['gananciales', 'separacion_bienes']).optional(),
-  pagaPension: z.boolean().optional(),
-  valorPension: z.number().min(0).optional(),
+  pagaManutención: z.boolean().optional(),
+  valorManutención: z.number().min(0).optional(),
   
   tieneHijos: z.boolean(),
   numeroHijos: z.number().int().min(1).optional()
@@ -210,22 +210,22 @@ export const simuladorHipotecaSchema = z.object({
   path: ['regimenMatrimonial']
 })
 .refine(data => {
-  if (data.estadoCivil === 'divorciado' && data.pagaPension === undefined) {
+  if (data.estadoCivil === 'divorciado' && data.pagaManutención === undefined) {
     return false;
   }
   return true;
 }, {
-  message: 'Debe indicar si paga pensión',
-  path: ['pagaPension']
+  message: 'Debe indicar si paga manutención',
+  path: ['pagaManutención']
 })
 .refine(data => {
-  if (data.estadoCivil === 'divorciado' && data.pagaPension && !data.valorPension) {
+  if (data.estadoCivil === 'divorciado' && data.pagaManutención && !data.valorManutención) {
     return false;
   }
   return true;
 }, {
-  message: 'Debe indicar el valor de la pensión',
-  path: ['valorPension']
+  message: 'Debe indicar el valor de la manutención',
+  path: ['valorManutención']
 })
 .refine(data => {
   if (data.tieneHijos && (!data.numeroHijos || data.numeroHijos < 1)) {

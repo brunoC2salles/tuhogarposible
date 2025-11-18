@@ -128,7 +128,16 @@ export default function FormularioQualificacion() {
         body: { region }
       });
 
-      if (error) throw error;
+      if (error || !agentData?.agente) {
+        // Se não conseguir atribuir agente, registrar erro detalhado mas permitir continuidade
+        console.error('[FormularioQualificacion] Erro ao buscar agente:', error);
+        console.error('[FormularioQualificacion] Região:', region);
+        console.error('[FormularioQualificacion] Resposta:', agentData);
+        
+        // Mostrar mensagem mais específica ao usuário
+        toast.error("No hay agentes disponibles en este momento. Por favor, inténtelo más tarde o contacte directamente por WhatsApp.");
+        return;
+      }
 
       // Armazenar dados temporariamente
       setTempFormData(data);

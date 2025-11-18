@@ -183,8 +183,8 @@ export function ResultadosSimulacionHipotecaria({
                 {datos.estadoCivil === 'casado' && datos.regimenMatrimonial && (
                   <p><strong>Régimen:</strong> {datos.regimenMatrimonial.replace(/_/g, ' ')}</p>
                 )}
-                {datos.estadoCivil === 'divorciado' && datos.pagaPension && datos.valorPension && (
-                  <p><strong>Pensión:</strong> {formatEuro(datos.valorPension)}/mes</p>
+                {datos.estadoCivil === 'divorciado' && datos.pagaManutención && datos.valorManutención && (
+                  <p><strong>Manutención:</strong> {formatEuro(datos.valorManutención)}/mes</p>
                 )}
                 <p><strong>Hijos:</strong> {datos.tieneHijos && datos.numeroHijos ? `${datos.numeroHijos} (${formatEuro(resultados.gastosHijos)} gastos)` : 'No'}</p>
               </div>

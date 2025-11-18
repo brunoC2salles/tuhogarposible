@@ -75,7 +75,7 @@ export function SimuladorCreditoHipotecario() {
   const watchFinalidadCompra = form.watch('finalidadCompra');
   const watchTienePropiedades = form.watch('tienePropiedades');
   const watchEstadoCivil = form.watch('estadoCivil');
-  const watchPagaPension = form.watch('pagaPension');
+  const watchPagaManutención = form.watch('pagaManutención');
   const watchTieneHijos = form.watch('tieneHijos');
   const watchSituacionLaboral = form.watch('situacionLaboral');
 
@@ -799,27 +799,27 @@ export function SimuladorCreditoHipotecario() {
                   {watchEstadoCivil === 'divorciado' && (
                     <>
                       <div className="space-y-2">
-                        <Label>¿Paga pensión? *</Label>
+                        <Label>¿Pagas Manutención? *</Label>
                         <RadioGroup 
-                          value={watchPagaPension ? "true" : "false"} 
-                          onValueChange={(v) => form.setValue("pagaPension", v === "true")}
+                          value={watchPagaManutención ? "true" : "false"} 
+                          onValueChange={(v) => form.setValue("pagaManutención", v === "true")}
                         >
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="false" id="no-pension" />
-                            <Label htmlFor="no-pension">No</Label>
+                            <RadioGroupItem value="false" id="no-manutencion" />
+                            <Label htmlFor="no-manutencion">No</Label>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="true" id="si-pension" />
-                            <Label htmlFor="si-pension">Sí</Label>
+                            <RadioGroupItem value="true" id="si-manutencion" />
+                            <Label htmlFor="si-manutencion">Sí</Label>
                           </div>
                         </RadioGroup>
                       </div>
-                      {watchPagaPension && (
+                      {watchPagaManutención && (
                         <div className="space-y-2">
-                          <Label>Valor de la Pensión (€/mes) *</Label>
+                          <Label>Valor de la Manutención (€/mes) *</Label>
                           <Input 
                             type="number" 
-                            {...form.register("valorPension", { valueAsNumber: true })} 
+                            {...form.register("valorManutención", { valueAsNumber: true })} 
                             min="0"
                           />
                         </div>
