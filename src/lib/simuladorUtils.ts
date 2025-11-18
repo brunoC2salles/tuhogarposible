@@ -146,8 +146,8 @@ export interface DatosSimulacionHipoteca {
   // Dados pessoais
   estadoCivil: 'soltero' | 'casado' | 'divorciado';
   regimenMatrimonial?: 'gananciales' | 'separacion_bienes';
-  pagaPension?: boolean;
-  valorPension?: number;
+  pagaManutención?: boolean;
+  valorManutención?: number;
   tieneHijos: boolean;
   numeroHijos?: number;
 }
@@ -161,6 +161,7 @@ export interface ResultadosSimulacionHipoteca {
   plazoMaximoMeses: number;
   hipotecaMaximaMensual: number;
   aprobable: boolean;
+  capitalPropioSuficiente: boolean;
   totalIntereses: number;
   montoTotalPagar: number;
   // Novos campos
@@ -280,6 +281,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
         plazoMaximoMeses: 0,
         hipotecaMaximaMensual: 0,
         aprobable: false,
+        capitalPropioSuficiente: false,
         totalIntereses: 0,
         montoTotalPagar: 0,
         porcentajeFinanciamiento: 0,
@@ -333,6 +335,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
       plazoMaximoMeses: 0,
       hipotecaMaximaMensual: 0,
       aprobable: false,
+      capitalPropioSuficiente: false,
       totalIntereses: 0,
       montoTotalPagar: 0,
       porcentajeFinanciamiento: 0,
@@ -352,9 +355,9 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   // 4. GASTOS POR HIJOS (300€ cada para o banco)
   const gastosHijos = (datos.tieneHijos && datos.numeroHijos) ? datos.numeroHijos * 300 : 0;
   
-  // 5. GASTOS POR PENSIÓN
-  const gastosPension = (datos.estadoCivil === 'divorciado' && datos.pagaPension && datos.valorPension) 
-    ? datos.valorPension 
+  // 5. GASTOS POR MANUTENCIÓN
+  const gastosPension = (datos.estadoCivil === 'divorciado' && datos.pagaManutención && datos.valorManutención) 
+    ? datos.valorManutención 
     : 0;
   
   // 6. GASTOS E IMPUESTOS DA HIPOTECA (por comunidad autónoma)
@@ -403,7 +406,12 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const totalIntereses = montoTotalPagar - montoFinanciable;
   
   // 14. APROBABLE
-  const aprobable = cuotaMensual <= hipotecaMaximaMensual && datos.ahorrosDisponibles >= capitalPropioNecesario;
+  // Separar critérios: aprovação por ingresos vs capital próprio
+  const aprobablePorIngresos = cuotaMensual <= hipotecaMaximaMensual;
+  const capitalPropioSuficiente = datos.ahorrosDisponibles >= capitalPropioNecesario;
+  
+  // Definir aprobable baseado principalmente na capacidade de pagamento
+  const aprobable = aprobablePorIngresos;
   
   return {
     montoFinanciable,
@@ -414,6 +422,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     plazoMaximoMeses: plazoEfectivoMeses,
     hipotecaMaximaMensual,
     aprobable,
+    capitalPropioSuficiente,
     totalIntereses,
     montoTotalPagar,
     porcentajeFinanciamiento,
