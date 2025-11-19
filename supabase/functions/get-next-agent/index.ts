@@ -22,9 +22,9 @@ Deno.serve(async (req) => {
     const { region } = await req.json()
 
     // Validar região
-    if (!region || !['Cataluña', 'Geral'].includes(region)) {
+    if (!region || !['Cataluña', 'General'].includes(region)) {
       return new Response(
-        JSON.stringify({ error: 'Región inválida. Use "Cataluña" o "Geral"' }),
+        JSON.stringify({ error: 'Región inválida. Use "Cataluña" o "General"' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
