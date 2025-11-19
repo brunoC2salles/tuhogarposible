@@ -128,14 +128,32 @@ export default function FormularioQualificacion() {
         body: { region }
       });
 
-      if (error || !agentData?.agente) {
-        // Se não conseguir atribuir agente, registrar erro detalhado mas permitir continuidade
+      console.log('[FormularioQualificacion] Resposta completa do agente:', JSON.stringify(agentData));
+
+      if (error || !agentData?.agent_id) {
+        // IMPORTANTE: NUNCA bloquear - salvar lead sem agente
         console.error('[FormularioQualificacion] Erro ao buscar agente:', error);
         console.error('[FormularioQualificacion] Região:', region);
         console.error('[FormularioQualificacion] Resposta:', agentData);
         
-        // Mostrar mensagem mais específica ao usuário
-        toast.error("No hay agentes disponibles en este momento. Por favor, inténtelo más tarde o contacte directamente por WhatsApp.");
+        console.warn('[FormularioQualificacion] Salvando lead SEM agente atribuído');
+        
+        // Salvar lead diretamente sem agente
+        const result = await confirmAgendamento(data, resultado, null);
+        
+        if (result.success) {
+          // Mostrar modal de lead salvo sem agendamento
+          setModalState({
+            open: true,
+            tipo: "agendamento_confirmado",
+          });
+          
+          toast.warning("Tu solicitud ha sido registrada. Nuestro equipo te contactará pronto.");
+          form.reset();
+        } else {
+          toast.error(result.error || "Error al guardar. Inténtalo de nuevo.");
+        }
+        
         return;
       }
 

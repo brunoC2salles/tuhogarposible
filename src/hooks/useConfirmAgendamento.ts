@@ -16,13 +16,15 @@ interface AgenteData {
   tidycal_url: string;
 }
 
+type AgenteDataOrNull = AgenteData | null;
+
 export function useConfirmAgendamento() {
   const [isConfirming, setIsConfirming] = useState(false);
 
   const confirmAgendamento = async (
     formData: FormularioQualificacionData,
     qualificacaoResult: QualificacionResult,
-    agente: AgenteData
+    agente: AgenteDataOrNull
   ) => {
     setIsConfirming(true);
     
@@ -151,15 +153,15 @@ export function useConfirmAgendamento() {
           simulador_personal_data: resultadosPersonal as any,
           simulador_hipotecario_data: resultadosHipoteca as any,
           
-          // Agente
-          agente_asignado_id: agente.id,
+          // Agente - pode ser null se não foi possível atribuir
+          agente_asignado_id: agente?.id || null,
           
           // Privacidade
           acepta_privacidad: formData.acepta_privacidad,
           
-          // Tidycal
-          tidycal_link: agente.tidycal_url,
-          tidycal_scheduled: true, // Usuário confirmou que agendou
+          // Tidycal - apenas se houver agente
+          tidycal_link: agente?.tidycal_url || null,
+          tidycal_scheduled: agente ? true : false,
           tidycal_booking_id: null, // Não temos acesso
           
           // Status
@@ -180,6 +182,12 @@ export function useConfirmAgendamento() {
         
         data = result.data;
         console.log('[ConfirmAgendamento] Submission criado:', data.id, 'Lead ID:', data.lead_id);
+        
+        // Se não há agente, notificar admins
+        if (!agente) {
+          console.warn('[ConfirmAgendamento] Lead salvo SEM agente - notificando admins');
+          // A notificação será criada automaticamente pelo trigger do banco
+        }
       } catch (error) {
         console.error('Error en guardado de datos:', error);
         throw new Error('Error al guardar los datos en la base de datos');

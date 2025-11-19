@@ -67,17 +67,30 @@ export function ResultadoQualificacionModal({
             <div className="flex justify-center">
               <CheckCircle className="h-16 w-16 text-green-600" />
             </div>
-            <DialogTitle className="text-center text-2xl">¡Listo!</DialogTitle>
+            <DialogTitle className="text-center text-2xl">
+              {tidycalLink ? "¡Listo!" : "¡Solicitud Registrada!"}
+            </DialogTitle>
             <DialogDescription className="text-center text-base space-y-4">
-              <p>Preste atención a la fecha de su llamada con nuestro agente. Si necesita reprogramarla, acceda al enlace de confirmación en su correo electrónico y no dude en hacerlo. Su presencia en la reunión es muy importante para nosotros. Esperamos que la pase bien hasta entonces.</p>
-              <p className="font-medium">Muchas gracias por tu confianza.</p>
-              <p className="font-medium">Un gran abrazo.</p>
-              <p className="font-semibold">Equipo de Tu Hogar Posible</p>
+              {tidycalLink ? (
+                <>
+                  <p>Preste atención a la fecha de su llamada con nuestro agente. Si necesita reprogramarla, acceda al enlace de confirmación en su correo electrónico y no dude en hacerlo. Su presencia en la reunión es muy importante para nosotros. Esperamos que la pase bien hasta entonces.</p>
+                  <p className="font-medium">Muchas gracias por tu confianza.</p>
+                  <p className="font-medium">Un gran abrazo.</p>
+                  <p className="font-semibold">Equipo de Tu Hogar Posible</p>
+                </>
+              ) : (
+                <>
+                  <p>Tu solicitud ha sido registrada con éxito.</p>
+                  <p>Nuestro equipo revisará tu información y te contactará en breve por WhatsApp o correo electrónico para ayudarte en tu búsqueda del hogar perfecto.</p>
+                  <p className="font-medium">Muchas gracias por tu confianza.</p>
+                  <p className="font-semibold">Equipo de Tu Hogar Posible</p>
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-center mt-4">
             <Button onClick={() => onOpenChange(false)}>
-              Finalizar
+              {tidycalLink ? "Finalizar" : "Entendido"}
             </Button>
           </div>
         </DialogContent>
