@@ -96,8 +96,6 @@ export const simuladorHipotecaSchema = z.object({
     required_error: 'Debe seleccionar la finalidad de la compra'
   }),
   
-  dondeReside: z.string().trim().min(2).optional(),
-  dondeCompra: z.string().trim().min(2).optional(),
   
   tienePropiedades: z.boolean(),
   propiedadesLibreCargas: z.boolean().optional(),
@@ -199,15 +197,6 @@ export const simuladorHipotecaSchema = z.object({
 }, {
   message: 'Debe indicar si las propiedades están libres de cargas',
   path: ['propiedadesLibreCargas']
-})
-.refine(data => {
-  if (data.finalidadCompra !== 'vivienda_habitual' && (!data.dondeReside || !data.dondeCompra)) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Debe indicar dónde reside y dónde compra',
-  path: ['dondeReside']
 })
 .refine(data => {
   if (data.estadoCivil === 'casado' && !data.regimenMatrimonial) {
