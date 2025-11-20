@@ -51,6 +51,7 @@ export function SimuladorCreditoHipotecario() {
       ingresosMensuales: undefined,
       numeroPagas: 12,
       cobraBonusAnual: false,
+      esResidenteFiscalEspana: true,
       ahorrosDisponibles: undefined,
       plazoHipotecaAnios: 25,
       tieneCreditos: false,
@@ -684,6 +685,33 @@ export function SimuladorCreditoHipotecario() {
                       />
                     </div>
                   )}
+
+                  {/* Residente Fiscal en España */}
+                  <div className="space-y-2">
+                    <Label>¿Eres residente fiscal en España? *</Label>
+                    <RadioGroup 
+                      value={form.watch("esResidenteFiscalEspana") ? "true" : "false"} 
+                      onValueChange={(v) => form.setValue("esResidenteFiscalEspana", v === "true")}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="true" id="si-residente" />
+                        <Label htmlFor="si-residente">Sí</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="false" id="no-residente" />
+                        <Label htmlFor="no-residente">No</Label>
+                      </div>
+                    </RadioGroup>
+                    
+                    {!form.watch("esResidenteFiscalEspana") && (
+                      <Alert className="mt-2">
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          Como no residente fiscal, el financiamiento máximo será del 70%
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 

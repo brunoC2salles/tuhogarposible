@@ -128,6 +128,10 @@ export const simuladorHipotecaSchema = z.object({
   numeroPagas: z.number().int().min(12).max(15),
   cobraBonusAnual: z.boolean(),
   valorBonusAnual: z.number().min(0).optional(),
+
+  esResidenteFiscalEspana: z.boolean({
+    required_error: 'Debe indicar si es residente fiscal en España'
+  }),
   
   // Situación financiera
   ahorrosDisponibles: z.number()

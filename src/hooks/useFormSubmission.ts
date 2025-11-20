@@ -87,6 +87,7 @@ export function useFormSubmission() {
         numeroPagas: 12,
         cobraBonusAnual: false,
         valorBonusAnual: 0,
+        esResidenteFiscalEspana: true,
         precioVivienda: formData.valor_inmueble_deseado,
         comunidadAutonoma: comunidadNormalizada,
         familiaNumerosa: false,

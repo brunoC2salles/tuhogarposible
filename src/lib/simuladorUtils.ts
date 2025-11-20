@@ -96,6 +96,8 @@ export interface DatosSimulacionHipoteca {
   numeroPagas: number;
   cobraBonusAnual: boolean;
   valorBonusAnual?: number;
+
+  esResidenteFiscalEspana: boolean;
   
   titulares?: Array<{
     nombreCompleto: string;
@@ -273,15 +275,67 @@ function determinarMejorContrato(
 }
 
 /**
- * Calcula o percentual de financiamento baseado no melhor tipo de contrato
- * - Funcionario: 100% (não precisa aportar entrada)
- * - Interino, fijo_discontinuo, indefinido: 90%
- * - Temporal: 0% (não aprovável)
+ * Calcula el porcentaje de financiamiento aplicando el MENOR porcentaje entre todas las limitaciones
+ * REGLAS:
+ * 1. No residente fiscal → máximo 70%
+ * 2. Inversión → máximo 50%
+ * 3. Segunda residencia → máximo 70%
+ * 4. Tipo de contrato:
+ *    - Funcionario: 100%
+ *    - Interino/Fijo Discontinuo/Indefinido: 90%
+ *    - Temporal: 0%
+ * 
+ * SE APLICA EL MENOR PORCENTAJE (ejemplo: no residente + inversión = 50%)
  */
-function calcularPorcentajeFinanciamiento(mejorContrato: string): number {
-  if (mejorContrato === 'funcionario') return 100;
-  if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return 90;
-  return 0; // temporal
+function calcularPorcentajeFinanciamiento(
+  mejorContrato: string,
+  finalidadCompra: 'vivienda_habitual' | 'segunda_residencia' | 'inversion',
+  esResidenteFiscal: boolean
+): number {
+  const limitaciones: number[] = [];
+
+  // 1. LIMITACIÓN POR RESIDENCIA FISCAL
+  if (!esResidenteFiscal) {
+    limitaciones.push(70);
+  }
+
+  // 2. LIMITACIÓN POR FINALIDAD DE COMPRA
+  if (finalidadCompra === 'inversion') {
+    limitaciones.push(50);
+  } else if (finalidadCompra === 'segunda_residencia') {
+    limitaciones.push(70);
+  }
+
+  // 3. LIMITACIÓN POR TIPO DE CONTRATO (solo si es vivienda habitual Y residente fiscal)
+  if (finalidadCompra === 'vivienda_habitual' && esResidenteFiscal) {
+    if (mejorContrato === 'funcionario') {
+      limitaciones.push(100);
+    } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
+      limitaciones.push(90);
+    } else {
+      limitaciones.push(0); // temporal
+    }
+  }
+
+  // Si no hay limitaciones específicas, aplicar regla de contrato
+  if (limitaciones.length === 0) {
+    if (mejorContrato === 'funcionario') return 100;
+    if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return 90;
+    return 0;
+  }
+
+  // APLICAR EL MENOR PORCENTAJE
+  const porcentajeFinal = Math.min(...limitaciones);
+  
+  console.log('[Financiamiento] Cálculo:', {
+    mejorContrato,
+    finalidadCompra,
+    esResidenteFiscal,
+    limitaciones,
+    porcentajeFinal
+  });
+
+  return porcentajeFinal;
 }
 
 /**
@@ -431,17 +485,19 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     datos.menorDe35
   );
   
-  // 7. PORCENTAJE DE FINANCIAMIENTO (baseado no melhor tipo de contrato)
-  const porcentajeFinanciamiento = calcularPorcentajeFinanciamiento(mejorContrato);
+  // 7. PORCENTAJE DE FINANCIAMIENTO (aplicando el menor entre todas las limitaciones)
+  const porcentajeFinanciamiento = calcularPorcentajeFinanciamiento(
+    mejorContrato,
+    datos.finalidadCompra,
+    datos.esResidenteFiscalEspana
+  );
   
   // 8. MONTO FINANCIABLE
   const montoFinanciable = datos.precioVivienda * (porcentajeFinanciamiento / 100);
   
   // 9. CAPITAL PROPIO NECESÁRIO
-  // Funcionário não precisa aportar entrada (10%), só gastos + ITP
-  const entradaNecesaria = mejorContrato === 'funcionario' 
-    ? 0 
-    : datos.precioVivienda * 0.10;
+  // Entrada necessária = valor que NÃO é financiado
+  const entradaNecesaria = datos.precioVivienda - montoFinanciable;
   
   const capitalPropioNecesario = entradaNecesaria + gastosImpuestos;
   

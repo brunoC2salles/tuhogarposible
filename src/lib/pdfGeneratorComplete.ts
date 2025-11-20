@@ -59,6 +59,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
         numeroPagas: 12,
         cobraBonusAnual: false,
         valorBonusAnual: 0,
+        esResidenteFiscalEspana: true,
         precioVivienda: lead.valor_inmueble_deseado,
         comunidadAutonoma: 'Comunidad de Madrid' as const,
         familiaNumerosa: false,
