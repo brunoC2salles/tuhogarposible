@@ -102,7 +102,7 @@ export interface DatosSimulacionHipoteca {
     edad: number;
     relacionPrincipal: 'pareja' | 'marido_mujer' | 'padre_madre_hijo';
     situacionLaboral: 'autonomo' | 'empleado';
-    tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
+    tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal' | 'interino' | 'funcionario';
     antiguedadEmpresaAnios: number;
     antiguedadEmpresaMeses: number;
     antiguedadContinuadaAnios: number;
@@ -116,7 +116,10 @@ export interface DatosSimulacionHipoteca {
   
   // Dados da vivienda
   precioVivienda: number;
-  comunidadAutonoma: 'Madrid' | 'Cataluña' | 'Andalucía' | 'Valencia' | 'Otros';
+  comunidadAutonoma: 'Andalucía' | 'Aragón' | 'Asturias' | 'Baleares' | 'Canarias' | 'Cantabria' | 
+    'Castilla-La Mancha' | 'Castilla y León' | 'Cataluña' | 'Ceuta' | 'Comunidad de Madrid' | 
+    'Comunidad Valenciana' | 'Extremadura' | 'Galicia' | 'La Rioja' | 'Melilla' | 'Murcia' | 
+    'Navarra' | 'País Vasco';
   familiaNumerosa: boolean;
   menorDe35: boolean;
   finalidadCompra: 'vivienda_habitual' | 'segunda_residencia' | 'inversion';
@@ -127,7 +130,7 @@ export interface DatosSimulacionHipoteca {
   
   // Situação laboral do titular principal
   situacionLaboral: 'autonomo' | 'empleado';
-  tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal';
+  tipoContrato: 'fijo_discontinuo' | 'indefinido' | 'temporal' | 'interino' | 'funcionario';
   antiguedadEmpresaAnios: number;
   antiguedadEmpresaMeses: number;
   antiguedadContinuadaAnios: number;
@@ -182,16 +185,30 @@ export function calcularGastosHipoteca(
   familiaNumerosa: boolean,
   menorDe35: boolean
 ): number {
-  // Tasas base por comunidad (según documento PDF)
+  // Tasas de ITP por comunidad autónoma (valores exactos 2024)
   const tasasComunidad: Record<string, number> = {
-    'Madrid': 0.06,      // 6%
-    'Cataluña': 0.10,    // 10%
-    'Andalucía': 0.08,   // 8%
-    'Valencia': 0.10,    // 10%
-    'Otros': 0.09        // 9%
+    'Andalucía': 0.07,
+    'Aragón': 0.08,
+    'Asturias': 0.08,
+    'Baleares': 0.08,
+    'Canarias': 0.065,
+    'Cantabria': 0.10,
+    'Castilla-La Mancha': 0.09,
+    'Castilla y León': 0.08,
+    'Cataluña': 0.10,
+    'Ceuta': 0.06,
+    'Comunidad de Madrid': 0.06,
+    'Comunidad Valenciana': 0.10,
+    'Extremadura': 0.08,
+    'Galicia': 0.08,
+    'La Rioja': 0.07,
+    'Melilla': 0.06,
+    'Murcia': 0.08,
+    'Navarra': 0.06,
+    'País Vasco': 0.04
   };
   
-  let tasa = tasasComunidad[comunidad] || 0.09;
+  let tasa = tasasComunidad[comunidad] || 0.08;
   
   // Aplicar descuentos
   if (familiaNumerosa) {
@@ -201,7 +218,9 @@ export function calcularGastosHipoteca(
     tasa *= 0.9; // 10% de descuento adicional
   }
   
-  return precio * tasa;
+  // ITP + gastos adicionais fixos de 2000€
+  const gastosAdicionais = 2000;
+  return (precio * tasa) + gastosAdicionais;
 }
 
 /**
@@ -223,6 +242,46 @@ export function calcularPlazoMaximo(edad: number): number {
     // Entre 50 y 60 años: de 20 a 10 años de plazo
     return 20 - ((edad - 50) * 10 / 10);
   }
+}
+
+/**
+ * Determina el mejor tipo de contrato entre todos los titulares
+ * Prioridad: Funcionario > Interino/Indefinido/Fijo Discontinuo > Temporal
+ */
+function determinarMejorContrato(
+  contratoMain: string, 
+  titulares?: Array<{ tipoContrato: string }>
+): string {
+  const todosContratos = [contratoMain];
+  
+  if (titulares && titulares.length > 0) {
+    todosContratos.push(...titulares.map(t => t.tipoContrato));
+  }
+  
+  // Verifica se tem funcionario
+  if (todosContratos.includes('funcionario')) {
+    return 'funcionario';
+  }
+  
+  // Verifica se tem interino, indefinido ou fijo_discontinuo
+  if (todosContratos.some(c => ['interino', 'indefinido', 'fijo_discontinuo'].includes(c))) {
+    return 'interino'; // Retorna interino como representante do grupo 90%
+  }
+  
+  // Se só tem temporal
+  return 'temporal';
+}
+
+/**
+ * Calcula o percentual de financiamento baseado no melhor tipo de contrato
+ * - Funcionario: 100% (não precisa aportar entrada)
+ * - Interino, fijo_discontinuo, indefinido: 90%
+ * - Temporal: 0% (não aprovável)
+ */
+function calcularPorcentajeFinanciamiento(mejorContrato: string): number {
+  if (mejorContrato === 'funcionario') return 100;
+  if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return 90;
+  return 0; // temporal
 }
 
 /**
@@ -256,6 +315,10 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     return ingresosPagas + bonus;
   };
 
+  // 0. DETERMINAR MELHOR CONTRATO ENTRE TODOS OS TITULARES
+  const mejorContrato = determinarMejorContrato(datos.tipoContrato, datos.titulares);
+  console.log(`[Hipoteca] Melhor contrato entre titulares: ${mejorContrato}`);
+  
   // 2. INGRESOS TOTALES (com pagas e bonus + verificação de contratos temporales)
   let ingresosTotales = 0;
 
@@ -368,16 +431,19 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     datos.menorDe35
   );
   
-  // 7. PORCENTAJE DE FINANCIAMIENTO AUTOMÁTICO
-  const porcentajeFinanciamiento = datos.ahorrosDisponibles >= datos.precioVivienda
-    ? 0
-    : Math.min(100, ((datos.precioVivienda - datos.ahorrosDisponibles) / datos.precioVivienda) * 100);
+  // 7. PORCENTAJE DE FINANCIAMIENTO (baseado no melhor tipo de contrato)
+  const porcentajeFinanciamiento = calcularPorcentajeFinanciamiento(mejorContrato);
   
   // 8. MONTO FINANCIABLE
   const montoFinanciable = datos.precioVivienda * (porcentajeFinanciamiento / 100);
   
   // 9. CAPITAL PROPIO NECESÁRIO
-  const capitalPropioNecesario = datos.precioVivienda - montoFinanciable + gastosImpuestos;
+  // Funcionário não precisa aportar entrada (10%), só gastos + ITP
+  const entradaNecesaria = mejorContrato === 'funcionario' 
+    ? 0 
+    : datos.precioVivienda * 0.10;
+  
+  const capitalPropioNecesario = entradaNecesaria + gastosImpuestos;
   
   // 10. PLAZO EFECTIVO
   const edadMaxima = datos.numeroTitulares === '1' 

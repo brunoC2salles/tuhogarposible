@@ -64,7 +64,7 @@ export const simuladorHipotecaSchema = z.object({
       required_error: 'Debe especificar la relación'
     }),
     situacionLaboral: z.enum(['autonomo', 'empleado']),
-    tipoContrato: z.enum(['fijo_discontinuo', 'indefinido', 'temporal']),
+    tipoContrato: z.enum(['indefinido', 'temporal', 'fijo_discontinuo', 'interino', 'funcionario']),
     antiguedadEmpresaAnios: z.number().int().min(0),
     antiguedadEmpresaMeses: z.number().int().min(0).max(11),
     antiguedadContinuadaAnios: z.number().int().min(0),
@@ -80,7 +80,12 @@ export const simuladorHipotecaSchema = z.object({
   precioVivienda: z.number()
     .min(10000, 'Precio de vivienda debe ser mayor a 10.000€'),
   
-  comunidadAutonoma: z.enum(['Madrid', 'Cataluña', 'Andalucía', 'Valencia', 'Otros'], {
+  comunidadAutonoma: z.enum([
+    'Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria',
+    'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'Ceuta',
+    'Comunidad de Madrid', 'Comunidad Valenciana', 'Extremadura', 'Galicia',
+    'La Rioja', 'Melilla', 'Murcia', 'Navarra', 'País Vasco'
+  ], {
     required_error: 'Debe seleccionar una comunidad autónoma'
   }),
   
@@ -102,7 +107,7 @@ export const simuladorHipotecaSchema = z.object({
     required_error: 'Debe seleccionar situación laboral'
   }),
   
-  tipoContrato: z.enum(['fijo_discontinuo', 'indefinido', 'temporal'], {
+  tipoContrato: z.enum(['indefinido', 'temporal', 'fijo_discontinuo', 'interino', 'funcionario'], {
     required_error: 'Debe seleccionar tipo de contrato'
   }),
   

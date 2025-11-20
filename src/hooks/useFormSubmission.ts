@@ -73,13 +73,12 @@ export function useFormSubmission() {
         formData.situacion_laboral === "desempleado" ? "empleado" :
         formData.situacion_laboral as "autonomo" | "empleado";
 
-      // Normalizar comunidade autônoma para o tipo aceito
       const comunidadNormalizada = 
-        formData.comunidad_autonoma === "Comunidad de Madrid" ? "Madrid" :
+        formData.comunidad_autonoma === "Comunidad de Madrid" ? "Comunidad de Madrid" :
         formData.comunidad_autonoma === "Cataluña" ? "Cataluña" :
         formData.comunidad_autonoma === "Andalucía" ? "Andalucía" :
-        formData.comunidad_autonoma === "Comunidad Valenciana" ? "Valencia" :
-        "Otros" as const;
+        formData.comunidad_autonoma === "Comunidad Valenciana" ? "Comunidad Valenciana" :
+        "Comunidad de Madrid" as const;
 
       const datosSimulacionHipoteca: DatosSimulacionHipoteca = {
         nombreCompleto: formData.nombre_completo,

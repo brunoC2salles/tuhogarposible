@@ -37,7 +37,7 @@ export function SimuladorCreditoHipotecario() {
       numeroTitulares: '1',
       titulares: [],
       precioVivienda: 150000,
-      comunidadAutonoma: 'Madrid',
+      comunidadAutonoma: 'Comunidad de Madrid',
       familiaNumerosa: false,
       menorDe35: false,
       finalidadCompra: 'vivienda_habitual',
@@ -303,9 +303,11 @@ export function SimuladorCreditoHipotecario() {
                               >
                                 <SelectTrigger><SelectValue placeholder="Seleccione tipo" /></SelectTrigger>
                                 <SelectContent>
+                                  <SelectItem value="funcionario">Funcionario</SelectItem>
                                   <SelectItem value="indefinido">Indefinido</SelectItem>
-                                  <SelectItem value="temporal">Temporal</SelectItem>
+                                  <SelectItem value="interino">Interino</SelectItem>
                                   <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
+                                  <SelectItem value="temporal">Temporal</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
@@ -461,11 +463,25 @@ export function SimuladorCreditoHipotecario() {
                       <Select value={form.watch("comunidadAutonoma")} onValueChange={(v) => form.setValue("comunidadAutonoma", v as any)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Madrid">Madrid</SelectItem>
-                          <SelectItem value="Cataluña">Cataluña</SelectItem>
                           <SelectItem value="Andalucía">Andalucía</SelectItem>
-                          <SelectItem value="Valencia">Valencia</SelectItem>
-                          <SelectItem value="Otros">Otros</SelectItem>
+                          <SelectItem value="Aragón">Aragón</SelectItem>
+                          <SelectItem value="Asturias">Asturias</SelectItem>
+                          <SelectItem value="Baleares">Baleares</SelectItem>
+                          <SelectItem value="Canarias">Canarias</SelectItem>
+                          <SelectItem value="Cantabria">Cantabria</SelectItem>
+                          <SelectItem value="Castilla-La Mancha">Castilla-La Mancha</SelectItem>
+                          <SelectItem value="Castilla y León">Castilla y León</SelectItem>
+                          <SelectItem value="Cataluña">Cataluña</SelectItem>
+                          <SelectItem value="Ceuta">Ceuta</SelectItem>
+                          <SelectItem value="Comunidad de Madrid">Comunidad de Madrid</SelectItem>
+                          <SelectItem value="Comunidad Valenciana">Comunidad Valenciana</SelectItem>
+                          <SelectItem value="Extremadura">Extremadura</SelectItem>
+                          <SelectItem value="Galicia">Galicia</SelectItem>
+                          <SelectItem value="La Rioja">La Rioja</SelectItem>
+                          <SelectItem value="Melilla">Melilla</SelectItem>
+                          <SelectItem value="Murcia">Murcia</SelectItem>
+                          <SelectItem value="Navarra">Navarra</SelectItem>
+                          <SelectItem value="País Vasco">País Vasco</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -574,9 +590,11 @@ export function SimuladorCreditoHipotecario() {
                     <Select value={form.watch("tipoContrato")} onValueChange={(v) => form.setValue("tipoContrato", v as any)}>
                       <SelectTrigger><SelectValue placeholder="Seleccione tipo de contrato" /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="funcionario">Funcionario</SelectItem>
                         <SelectItem value="indefinido">Indefinido</SelectItem>
-                        <SelectItem value="temporal">Temporal</SelectItem>
+                        <SelectItem value="interino">Interino</SelectItem>
                         <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
+                        <SelectItem value="temporal">Temporal</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
