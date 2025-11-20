@@ -72,11 +72,11 @@ export function useConfirmAgendamento() {
           formData.situacion_laboral as "autonomo" | "empleado";
 
         const comunidadNormalizada = 
-          formData.comunidad_autonoma === "Comunidad de Madrid" ? "Madrid" :
+          formData.comunidad_autonoma === "Comunidad de Madrid" ? "Comunidad de Madrid" :
           formData.comunidad_autonoma === "Cataluña" ? "Cataluña" :
           formData.comunidad_autonoma === "Andalucía" ? "Andalucía" :
-          formData.comunidad_autonoma === "Comunidad Valenciana" ? "Valencia" :
-          "Otros" as const;
+          formData.comunidad_autonoma === "Comunidad Valenciana" ? "Comunidad Valenciana" :
+          "Comunidad de Madrid" as const;
 
         datosSimulacionHipoteca = {
           nombreCompleto: formData.nombre_completo,
