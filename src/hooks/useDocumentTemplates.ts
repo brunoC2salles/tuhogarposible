@@ -25,6 +25,14 @@ export const useDocumentTemplates = (tipo?: DocumentType) => {
     }
   });
 
+  const sanitizeFileName = (fileName: string): string => {
+    return fileName
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9._-]/g, '_')
+      .replace(/_+/g, '_');
+  };
+
   const uploadDocument = useMutation({
     mutationFn: async ({ file, titulo, descripcion, tipo }: { 
       file: File; 
@@ -35,8 +43,8 @@ export const useDocumentTemplates = (tipo?: DocumentType) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Usuario no autenticado');
 
-      // Upload file to storage
-      const fileName = `${Date.now()}_${file.name}`;
+      // Upload file to storage with sanitized filename
+      const fileName = `${Date.now()}_${sanitizeFileName(file.name)}`;
       const { error: uploadError } = await supabase.storage
         .from('contract-templates')
         .upload(fileName, file);
