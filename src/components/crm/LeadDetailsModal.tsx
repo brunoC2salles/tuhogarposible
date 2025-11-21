@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
 import { GenerateContractLinkModal } from '@/components/contratos/GenerateContractLinkModal';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { DocumentChecklist } from '@/components/crm/DocumentChecklist';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -343,6 +344,9 @@ export const LeadDetailsModal = ({
           </TabsContent>
 
           <TabsContent value="documentos" className="space-y-4">
+            {/* Checklist de Documentos */}
+            <DocumentChecklist leadId={lead.id} />
+
             {/* Links de Contratos */}
             {contractLinks && contractLinks.length > 0 && (
               <div className="space-y-3 mb-6">

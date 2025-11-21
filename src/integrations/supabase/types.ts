@@ -521,6 +521,86 @@ export type Database = {
           },
         ]
       }
+      lead_document_checklist: {
+        Row: {
+          arras_vivienda_no_bancaria: boolean | null
+          contrato_trabajo: boolean | null
+          created_at: string | null
+          cuadro_amortizacion_hipoteca: boolean | null
+          cuadro_amortizacion_prestamos: boolean | null
+          cuatro_modelos_trimestrales: boolean | null
+          dni_nie_ambas_caras: boolean | null
+          dni_pais_origen: boolean | null
+          dos_ultimas_rentas_autonomo: boolean | null
+          fotos_vivienda: boolean | null
+          id: string
+          justificante_deuda_saldada: boolean | null
+          lead_id: string
+          movimientos_bancarios_6_meses: boolean | null
+          nota_simple: boolean | null
+          tres_recibos_hipoteca: boolean | null
+          tres_recibos_prestamos: boolean | null
+          tres_ultimas_nominas: boolean | null
+          ultima_renta: boolean | null
+          updated_at: string | null
+          vida_laboral: boolean | null
+        }
+        Insert: {
+          arras_vivienda_no_bancaria?: boolean | null
+          contrato_trabajo?: boolean | null
+          created_at?: string | null
+          cuadro_amortizacion_hipoteca?: boolean | null
+          cuadro_amortizacion_prestamos?: boolean | null
+          cuatro_modelos_trimestrales?: boolean | null
+          dni_nie_ambas_caras?: boolean | null
+          dni_pais_origen?: boolean | null
+          dos_ultimas_rentas_autonomo?: boolean | null
+          fotos_vivienda?: boolean | null
+          id?: string
+          justificante_deuda_saldada?: boolean | null
+          lead_id: string
+          movimientos_bancarios_6_meses?: boolean | null
+          nota_simple?: boolean | null
+          tres_recibos_hipoteca?: boolean | null
+          tres_recibos_prestamos?: boolean | null
+          tres_ultimas_nominas?: boolean | null
+          ultima_renta?: boolean | null
+          updated_at?: string | null
+          vida_laboral?: boolean | null
+        }
+        Update: {
+          arras_vivienda_no_bancaria?: boolean | null
+          contrato_trabajo?: boolean | null
+          created_at?: string | null
+          cuadro_amortizacion_hipoteca?: boolean | null
+          cuadro_amortizacion_prestamos?: boolean | null
+          cuatro_modelos_trimestrales?: boolean | null
+          dni_nie_ambas_caras?: boolean | null
+          dni_pais_origen?: boolean | null
+          dos_ultimas_rentas_autonomo?: boolean | null
+          fotos_vivienda?: boolean | null
+          id?: string
+          justificante_deuda_saldada?: boolean | null
+          lead_id?: string
+          movimientos_bancarios_6_meses?: boolean | null
+          nota_simple?: boolean | null
+          tres_recibos_hipoteca?: boolean | null
+          tres_recibos_prestamos?: boolean | null
+          tres_ultimas_nominas?: boolean | null
+          ultima_renta?: boolean | null
+          updated_at?: string | null
+          vida_laboral?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_document_checklist_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_historico: {
         Row: {
           changed_by: string
