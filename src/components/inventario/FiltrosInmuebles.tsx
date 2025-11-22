@@ -25,24 +25,24 @@ export function FiltrosInmuebles({
 }: FiltrosInmueblesProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [filtros, setFiltros] = useState<FiltrosBusqueda>({
-    precioMin: 0,
-    precioMax: 450000,
+    // Filtros vacíos por defecto - usuario decide si quiere filtrar
   });
 
   const handleFiltroChange = (key: keyof FiltrosBusqueda, value: any) => {
-    let nuevosFiltros = { ...filtros, [key]: value };
+    const nuevosFiltros: FiltrosBusqueda = { ...filtros };
     
-    // Validación de precio
-    if (key === "precioMin" && nuevosFiltros.precioMax && value > nuevosFiltros.precioMax) {
-      nuevosFiltros.precioMax = value;
-    }
-    if (key === "precioMax" && nuevosFiltros.precioMin && value < nuevosFiltros.precioMin) {
-      nuevosFiltros.precioMin = value;
+    // Remover filtro si es undefined, sino actualizar
+    if (value === undefined) {
+      const { [key]: _, ...rest } = nuevosFiltros;
+      setFiltros(rest);
+      onFiltrosChange(rest);
+    } else {
+      nuevosFiltros[key] = value as never;
+      setFiltros(nuevosFiltros);
+      onFiltrosChange(nuevosFiltros);
     }
     
-    setFiltros(nuevosFiltros);
-    onFiltrosChange(nuevosFiltros);
-    console.log("[Inventario] Filtros actualizados:", nuevosFiltros);
+    console.log("[Inventario] Filtros actualizados:", value === undefined ? 'filtro removido' : nuevosFiltros);
   };
 
   const handlePrecioChange = (valores: number[]) => {
@@ -56,10 +56,7 @@ export function FiltrosInmuebles({
   };
 
   const limpiarFiltros = () => {
-    const filtrosLimpios: FiltrosBusqueda = {
-      precioMin: 0,
-      precioMax: 450000,
-    };
+    const filtrosLimpios: FiltrosBusqueda = {};
     setFiltros(filtrosLimpios);
     onFiltrosChange(filtrosLimpios);
     console.log("[Inventario] Filtros limpiados");
@@ -159,12 +156,14 @@ export function FiltrosInmuebles({
                 id="precioMin"
                 type="number"
                 min={0}
-                max={450000}
                 step={1000}
-                value={filtros.precioMin || 0}
-                onChange={(e) => handleFiltroChange("precioMin", Number(e.target.value))}
+                value={filtros.precioMin ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleFiltroChange("precioMin", val === '' ? undefined : Number(val));
+                }}
                 className="pl-8"
-                placeholder="0"
+                placeholder="Sin mínimo"
               />
             </div>
           </div>
@@ -179,21 +178,23 @@ export function FiltrosInmuebles({
                 id="precioMax"
                 type="number"
                 min={0}
-                max={450000}
                 step={1000}
-                value={filtros.precioMax || 450000}
-                onChange={(e) => handleFiltroChange("precioMax", Number(e.target.value))}
+                value={filtros.precioMax ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  handleFiltroChange("precioMax", val === '' ? undefined : Number(val));
+                }}
                 className="pl-8"
-                placeholder="450000"
+                placeholder="Sin máximo"
               />
             </div>
           </div>
         </div>
         
         <div className="flex items-center justify-between text-sm text-muted-foreground pt-1">
-          <span>{formatPrice(filtros.precioMin || 0)}</span>
+          <span>{filtros.precioMin !== undefined ? formatPrice(filtros.precioMin) : 'Sin mínimo'}</span>
           <span className="text-xs">→</span>
-          <span>{formatPrice(filtros.precioMax || 450000)}</span>
+          <span>{filtros.precioMax !== undefined ? formatPrice(filtros.precioMax) : 'Sin máximo'}</span>
         </div>
       </div>
 
