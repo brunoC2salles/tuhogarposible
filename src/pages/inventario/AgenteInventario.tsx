@@ -144,9 +144,13 @@ const AgenteInventario = () => {
         query = query.eq('tipo', filtrosActivos.tipo as any);
       }
 
-      // Price filter
-      if (filtrosActivos.precioMin !== undefined && filtrosActivos.precioMax !== undefined) {
-        query = query.gte('precio', filtrosActivos.precioMin).lte('precio', filtrosActivos.precioMax);
+      // Price filter - aplicar min y max de forma independiente
+      if (filtrosActivos.precioMin !== undefined) {
+        query = query.gte('precio', filtrosActivos.precioMin);
+      }
+      
+      if (filtrosActivos.precioMax !== undefined) {
+        query = query.lte('precio', filtrosActivos.precioMax);
       }
 
       // Rooms filter
