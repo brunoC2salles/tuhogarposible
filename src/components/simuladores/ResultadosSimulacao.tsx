@@ -145,7 +145,7 @@ export function ResultadosSimulacion({
                 className="w-full"
                 size="lg"
               >
-                {salvandoNoLead ? 'Salvando...' : `Salvar no Lead: ${leadNombre}`}
+                {salvandoNoLead ? 'Guardando...' : `Guardar en Lead: ${leadNombre}`}
               </Button>
             )}
             

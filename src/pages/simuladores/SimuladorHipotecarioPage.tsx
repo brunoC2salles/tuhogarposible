@@ -15,7 +15,7 @@ const SimuladorHipotecarioPage = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <Logo className="h-8 w-8" />
+              <Logo size="sm" />
               <span className="text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
             <Link to="/simuladores">
