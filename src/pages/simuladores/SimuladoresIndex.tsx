@@ -12,13 +12,13 @@ const SimuladoresIndex = () => {
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <Link to="/" className="flex items-center gap-2 sm:gap-3 hover:opacity-80 transition-opacity">
-              <Logo className="h-6 w-6 sm:h-8 sm:w-8" />
+              <Logo size="sm" />
               <span className="text-base sm:text-lg md:text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
             <Link to="/">
               <Button variant="outline" size="sm">
                 <Home className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm">Voltar ao Início</span>
+                <span className="text-xs sm:text-sm">Volver al Inicio</span>
               </Button>
             </Link>
           </div>
@@ -30,9 +30,9 @@ const SimuladoresIndex = () => {
         <div className="max-w-4xl mx-auto">
           {/* Page Title */}
           <div className="text-center mb-8 sm:mb-10 md:mb-12">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Simuladores Financeiros</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Simuladores Financieros</h1>
             <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-2">
-              Escolha o tipo de crédito que deseja simular
+              Elige el tipo de crédito que deseas simular
             </p>
           </div>
 
@@ -49,30 +49,30 @@ const SimuladoresIndex = () => {
                     <CardTitle className="text-2xl">Crédito Personal</CardTitle>
                   </div>
                   <CardDescription className="text-base">
-                    Simule seu crédito pessoal com taxas competitivas
+                    Simula tu crédito personal con tasas competitivas
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 mb-4">
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Prazos de 5 a 12 anos</span>
+                      <span className="text-sm text-muted-foreground">Plazos de 5 a 12 años</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Taxas de juros personalizadas</span>
+                      <span className="text-sm text-muted-foreground">Tasas de interés personalizadas</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Cálculo de amortização francesa</span>
+                      <span className="text-sm text-muted-foreground">Cálculo de amortización francesa</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Análise de capacidade de pagamento</span>
+                      <span className="text-sm text-muted-foreground">Análisis de capacidad de pago</span>
                     </li>
                   </ul>
                   <Button className="w-full" size="lg">
-                    Iniciar Simulação
+                    Iniciar Simulación
                   </Button>
                 </CardContent>
               </Link>
@@ -89,30 +89,30 @@ const SimuladoresIndex = () => {
                     <CardTitle className="text-2xl">Crédito Hipotecário</CardTitle>
                   </div>
                   <CardDescription className="text-base">
-                    Simule sua hipoteca com condições especiais
+                    Simula tu hipoteca con condiciones especiales
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 mb-4">
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Financiamento até 100% do valor</span>
+                      <span className="text-sm text-muted-foreground">Financiamiento hasta el 100% del valor</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Benefícios fiscais incluídos</span>
+                      <span className="text-sm text-muted-foreground">Beneficios fiscales incluidos</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Condições especiais para família numerosa</span>
+                      <span className="text-sm text-muted-foreground">Condiciones especiales para familia numerosa</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-primary mt-1">✓</span>
-                      <span className="text-sm text-muted-foreground">Descontos para menores de 35 anos</span>
+                      <span className="text-sm text-muted-foreground">Descuentos para menores de 35 años</span>
                     </li>
                   </ul>
                   <Button className="w-full" size="lg">
-                    Iniciar Simulação
+                    Iniciar Simulación
                   </Button>
                 </CardContent>
               </Link>
@@ -122,9 +122,9 @@ const SimuladoresIndex = () => {
           {/* Additional Info */}
           <div className="mt-12 text-center">
             <p className="text-sm text-muted-foreground">
-              Os resultados são apenas simulações e não constituem uma oferta de crédito.
+              Los resultados son solo simulaciones y no constituyen una oferta de crédito.
               <br />
-              As condições finais estarão sujeitas à análise de crédito.
+              Las condiciones finales estarán sujetas al análisis de crédito.
             </p>
           </div>
         </div>
