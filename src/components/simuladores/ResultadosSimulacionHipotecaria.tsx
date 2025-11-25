@@ -99,6 +99,11 @@ export function ResultadosSimulacionHipotecaria({
                 <p className="text-xl font-bold">{formatEuro(resultados.hipotecaMaximaMensual)}/mes</p>
                 <p className="text-xs text-muted-foreground mt-1">(35% ingresos - créditos - hijos - manutención)</p>
               </div>
+              <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border-2 border-green-500">
+                <p className="text-sm text-muted-foreground mb-1">💰 Monto máximo a financiar</p>
+                <p className="text-2xl font-bold text-green-600">{formatEuro(resultados.montoMaximoFinanciable)}</p>
+                <p className="text-xs text-muted-foreground mt-1">(basado en su capacidad de pago mensual)</p>
+              </div>
             </div>
           </div>
 

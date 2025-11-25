@@ -165,6 +165,7 @@ export interface ResultadosSimulacionHipoteca {
   plazoMaximoAnios: number;
   plazoMaximoMeses: number;
   hipotecaMaximaMensual: number;
+  montoMaximoFinanciable: number;
   aprobable: boolean;
   capitalPropioSuficiente: boolean;
   totalIntereses: number;
@@ -397,6 +398,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
         plazoMaximoAnios: 0,
         plazoMaximoMeses: 0,
         hipotecaMaximaMensual: 0,
+        montoMaximoFinanciable: 0,
         aprobable: false,
         capitalPropioSuficiente: false,
         totalIntereses: 0,
@@ -451,6 +453,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
       plazoMaximoAnios: 0,
       plazoMaximoMeses: 0,
       hipotecaMaximaMensual: 0,
+      montoMaximoFinanciable: 0,
       aprobable: false,
       capitalPropioSuficiente: false,
       totalIntereses: 0,
@@ -516,6 +519,14 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     (ingresosTotales * 0.35) - creditosPendientesTotales - gastosHijos - gastosPension
   );
   
+  // 11.5. MONTO MÁXIMO FINANCIABLE (baseado na capacidade de pagamento mensal)
+  // Fórmula inversa do Sistema Francês: P = cuota × [(1 + r)^n - 1] / [r × (1 + r)^n]
+  let montoMaximoFinanciable = 0;
+  if (hipotecaMaximaMensual > 0 && plazoEfectivoMeses > 0 && tasaMensual > 0) {
+    const factor = Math.pow(1 + tasaMensual, plazoEfectivoMeses);
+    montoMaximoFinanciable = hipotecaMaximaMensual * (factor - 1) / (tasaMensual * factor);
+  }
+  
   // 12. CUOTA MENSUAL (Sistema Francês)
   let cuotaMensual = 0;
   if (montoFinanciable > 0 && plazoEfectivoMeses > 0) {
@@ -543,6 +554,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     plazoMaximoAnios: plazoEfectivoAnios,
     plazoMaximoMeses: plazoEfectivoMeses,
     hipotecaMaximaMensual,
+    montoMaximoFinanciable,
     aprobable,
     capitalPropioSuficiente,
     totalIntereses,
