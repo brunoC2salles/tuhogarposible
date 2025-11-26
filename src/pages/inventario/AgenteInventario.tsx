@@ -9,13 +9,26 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { ArrowLeft, Home, CheckCircle, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import Logo from "@/components/Logo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const getWeekNumber = (date: Date): number => {
   const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -291,31 +304,81 @@ const AgenteInventario = () => {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              {reservasPendientes > 0 && (
-                <Badge variant="default" className="flex items-center gap-1">
-                  <CheckCircle className="w-3 h-3" />
-                  <span className="hidden xs:inline">{reservasPendientes} visitas</span>
-                  <span className="xs:hidden">{reservasPendientes}</span>
-                </Badge>
-              )}
-              <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
-                <Button size="sm">
-                  <ExternalLink className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Colaboración Inmovilla</span>
+            {/* Botões Desktop */}
+            <TooltipProvider>
+              <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
+                {reservasPendientes > 0 && (
+                  <Badge variant="default" className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    {reservasPendientes} visitas pendientes
+                  </Badge>
+                )}
+                <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
+                  <Button size="sm">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Colaboración Inmovilla
+                  </Button>
+                </a>
+                <Link to="/inventario/agente/crm">
+                  <Button variant="outline" size="sm">
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    CRM
+                  </Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={signOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Cerrar Sesión
                 </Button>
-              </a>
-              <Link to="/inventario/agente/crm">
-                <Button variant="outline" size="sm">
-                  <UserCircle className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">CRM</span>
-                </Button>
-              </Link>
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Cerrar Sesión</span>
-              </Button>
-            </div>
+              </div>
+
+              {/* Menu Hambúrguer Mobile */}
+              <div className="flex sm:hidden items-center gap-2">
+                {reservasPendientes > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="default" className="flex items-center gap-1 cursor-help">
+                        <CheckCircle className="w-3 h-3" />
+                        {reservasPendientes}
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{reservasPendientes} visitas pendientes</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Menu className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <a 
+                        href="https://crm.inmovilla.com/panel/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center cursor-pointer"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Colaboración Inmovilla
+                      </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
+                        <UserCircle className="w-4 h-4 mr-2" />
+                        CRM
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut} className="flex items-center cursor-pointer">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Cerrar Sesión
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </TooltipProvider>
           </div>
         </div>
       </header>
