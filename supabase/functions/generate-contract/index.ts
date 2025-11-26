@@ -294,7 +294,7 @@ serve(async (req) => {
       title: 'Contrato Creado',
       message: `El lead "${lead.nombre_completo}" ha creado su contrato.`,
       link: '/crm',
-      metadata: { lead_id: link Data.lead_id, contract_id: contractRecord.id }
+      metadata: { lead_id: linkData.lead_id, contract_id: contractRecord.id }
     });
 
     // Notificações para admins
