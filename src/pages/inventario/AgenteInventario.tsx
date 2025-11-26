@@ -298,6 +298,12 @@ const AgenteInventario = () => {
                   {reservasPendientes} visitas pendientes
                 </Badge>
               )}
+              <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
+                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Colaboración con Inmovilla
+                </Button>
+              </a>
               <Link to="/inventario/agente/crm">
                 <Button variant="outline" size="sm">
                   <UserCircle className="w-4 h-4 mr-2" />
