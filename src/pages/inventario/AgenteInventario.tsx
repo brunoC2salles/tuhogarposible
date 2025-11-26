@@ -9,7 +9,7 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, CheckCircle, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -23,12 +23,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 const getWeekNumber = (date: Date): number => {
   const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -219,8 +213,6 @@ const AgenteInventario = () => {
     });
   };
 
-  const reservasPendientes = reservas.filter(r => r.estado === 'pendiente').length;
-
   // Server-side pagination calculations
   const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -305,18 +297,11 @@ const AgenteInventario = () => {
             </div>
 
             {/* Botões Desktop */}
-            <TooltipProvider>
-              <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
-                {reservasPendientes > 0 && (
-                  <Badge variant="default" className="flex items-center gap-1">
-                    <CheckCircle className="w-3 h-3" />
-                    {reservasPendientes} visitas pendientes
-                  </Badge>
-                )}
-                <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
+            <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
                   <Button size="sm">
                     <ExternalLink className="w-4 h-4 mr-2" />
-                    Colaboración Inmovilla
+                    Colaboración Inmobiliarias
                   </Button>
                 </a>
                 <Link to="/inventario/agente/crm">
@@ -333,19 +318,11 @@ const AgenteInventario = () => {
 
               {/* Menu Hambúrguer Mobile */}
               <div className="flex sm:hidden items-center gap-2">
-                {reservasPendientes > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="default" className="flex items-center gap-1 cursor-help">
-                        <CheckCircle className="w-3 h-3" />
-                        {reservasPendientes}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{reservasPendientes} visitas pendientes</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
+                <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
+                  <Button size="sm">
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </a>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -353,17 +330,6 @@ const AgenteInventario = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem asChild>
-                      <a 
-                        href="https://crm.inmovilla.com/panel/" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center cursor-pointer"
-                      >
-                        <ExternalLink className="w-4 h-4 mr-2" />
-                        Colaboración Inmovilla
-                      </a>
-                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
                         <UserCircle className="w-4 h-4 mr-2" />
@@ -378,7 +344,6 @@ const AgenteInventario = () => {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </TooltipProvider>
           </div>
         </div>
       </header>
