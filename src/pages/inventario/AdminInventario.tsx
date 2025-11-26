@@ -836,41 +836,41 @@ const AdminInventario = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <Link to="/">
                 <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Volver
+                  <ArrowLeft className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Volver</span>
                 </Button>
               </Link>
               <div className="flex items-center gap-3">
                 <Logo size="sm" />
                 <div>
-                  <h1 className="text-2xl font-bold">Panel de Administración</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Bienvenido, {profile?.nombre} - Gestiona inmuebles y reservas
+                  <h1 className="text-xl sm:text-2xl font-bold">Panel de Administración</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Bienvenido, {profile?.nombre} - Gestiona inmuebles
                   </p>
             </div>
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
           <Link to="/admin/dashboard">
-            <Button variant="outline">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Dashboard
+            <Button variant="outline" size="sm">
+              <BarChart3 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Dashboard</span>
             </Button>
           </Link>
           <Link to="/inventario/admin/crm">
-            <Button variant="outline">
-              <UserCircle className="w-4 h-4 mr-2" />
-              CRM
+            <Button variant="outline" size="sm">
+              <UserCircle className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">CRM</span>
             </Button>
           </Link>
-          <Button variant="outline" onClick={signOut}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar Sesión
+          <Button variant="outline" size="sm" onClick={signOut}>
+            <LogOut className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Cerrar Sesión</span>
           </Button>
         </div>
           </div>

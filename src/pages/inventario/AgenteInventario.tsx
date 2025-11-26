@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -272,47 +272,48 @@ const AgenteInventario = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <Link to="/">
                 <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Volver
+                  <ArrowLeft className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Volver</span>
                 </Button>
               </Link>
           <div className="flex items-center gap-3">
                 <Logo size="sm" />
                 <div>
-                  <h1 className="text-2xl font-bold">Portal del Agente</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Bienvenido, {profile?.nombre} - {totalInmuebles} inmuebles disponibles
+                  <h1 className="text-xl sm:text-2xl font-bold">Portal del Agente</h1>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
+                    Bienvenido, {profile?.nombre} - {totalInmuebles} inmuebles
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
               {reservasPendientes > 0 && (
                 <Badge variant="default" className="flex items-center gap-1">
                   <CheckCircle className="w-3 h-3" />
-                  {reservasPendientes} visitas pendientes
+                  <span className="hidden xs:inline">{reservasPendientes} visitas</span>
+                  <span className="xs:hidden">{reservasPendientes}</span>
                 </Badge>
               )}
               <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
                 <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Colaboración con Inmovilla
+                  <ExternalLink className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Colaboración Inmovilla</span>
                 </Button>
               </a>
               <Link to="/inventario/agente/crm">
                 <Button variant="outline" size="sm">
-                  <UserCircle className="w-4 h-4 mr-2" />
-                  CRM
+                  <UserCircle className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">CRM</span>
                 </Button>
               </Link>
               <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
+                <LogOut className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Cerrar Sesión</span>
               </Button>
             </div>
           </div>
@@ -484,12 +485,11 @@ const AgenteInventario = () => {
                              (page >= currentPage - 1 && page <= currentPage + 1);
                     })
                     .map((page, index, array) => (
-                      <>
+                      <React.Fragment key={`page-${page}`}>
                         {index > 0 && array[index - 1] !== page - 1 && (
-                          <span key={`ellipsis-${page}`} className="px-2 text-muted-foreground">...</span>
+                          <span className="px-2 text-muted-foreground">...</span>
                         )}
                         <Button
-                          key={page}
                           variant={currentPage === page ? "default" : "outline"}
                           size="sm"
                           onClick={() => setCurrentPage(page)}
@@ -497,7 +497,7 @@ const AgenteInventario = () => {
                         >
                           {page}
                         </Button>
-                      </>
+                      </React.Fragment>
                     ))
                   }
                 </div>
