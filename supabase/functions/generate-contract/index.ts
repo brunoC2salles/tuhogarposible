@@ -173,12 +173,13 @@ serve(async (req) => {
 
     console.log('[Generate Contract] Contract record created:', contractData.id);
 
-    // 4. Gerar PDF válido usando pdf-lib
+    // 4. Gerar PDF profissional usando pdf-lib
     const pdfPath = `${lead.id}/contrato_${Date.now()}.pdf`;
     
     // Criar documento PDF
     const pdfDoc = await PDFDocument.create();
     const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     
     // Configurações do layout
     const pageWidth = 595; // A4 width in points
@@ -186,31 +187,183 @@ serve(async (req) => {
     const margin = 50;
     const maxWidth = pageWidth - (margin * 2);
     const fontSize = 11;
-    const lineHeight = 16;
+    const lineHeight = 15;
     
     let currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
     let yPosition = pageHeight - margin;
     
-    // Dividir conteúdo em linhas
+    // Helper function to draw centered text
+    const drawCenteredText = (text: string, y: number, size: number, font: any) => {
+      const textWidth = font.widthOfTextAtSize(text, size);
+      const x = (pageWidth - textWidth) / 2;
+      currentPage.drawText(text, {
+        x,
+        y,
+        size,
+        font,
+        color: rgb(0, 0, 0),
+      });
+    };
+    
+    // Helper function to check if new page is needed
+    const checkNewPage = (requiredSpace = lineHeight) => {
+      if (yPosition < margin + requiredSpace) {
+        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
+        yPosition = pageHeight - margin;
+        return true;
+      }
+      return false;
+    };
+    
+    // Desenhar cabeçalho da primeira página
+    drawCenteredText('Tu hogar posible', yPosition, 18, helveticaBold);
+    yPosition -= 25;
+    
+    drawCenteredText('Obtén la casa de tus sueños, más accesible y 100% financiada', yPosition, 11, helveticaFont);
+    yPosition -= 30;
+    
+    // Linha horizontal decorativa
+    currentPage.drawLine({
+      start: { x: margin, y: yPosition },
+      end: { x: pageWidth - margin, y: yPosition },
+      thickness: 1,
+      color: rgb(0.7, 0.7, 0.7),
+    });
+    yPosition -= 25;
+    
+    // Processar conteúdo do contrato
     const lines = contractContent.split('\n');
     
     for (const line of lines) {
-      // Verificar se precisa de nova página
-      if (yPosition < margin + lineHeight) {
-        currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-        yPosition = pageHeight - margin;
+      checkNewPage(lineHeight * 2);
+      
+      // Detectar tipo de linha e aplicar formatação
+      const trimmedLine = line.trim();
+      
+      // Título principal (linhas com # no início)
+      if (trimmedLine.startsWith('#')) {
+        const titleText = trimmedLine.replace(/^#+\s*/, '');
+        
+        // Espaçamento antes de títulos principais
+        if (titleText === 'REUNIDOS' || titleText === 'CLÁUSULAS') {
+          yPosition -= 10;
+          checkNewPage(30);
+          
+          currentPage.drawText(titleText, {
+            x: margin,
+            y: yPosition,
+            size: 13,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 20;
+        } else if (titleText.match(/^\d+\./)) {
+          // Cláusulas numeradas (1. OBJETO, 2. NATURALEZA, etc.)
+          yPosition -= 8;
+          checkNewPage(25);
+          
+          currentPage.drawText(titleText, {
+            x: margin,
+            y: yPosition,
+            size: 12,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 18;
+        } else {
+          // Outros títulos
+          currentPage.drawText(titleText, {
+            x: margin,
+            y: yPosition,
+            size: 12,
+            font: helveticaBold,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= 18;
+        }
+        continue;
       }
       
-      // Quebrar linha longa se necessário
-      const words = line.split(' ');
-      let currentLine = '';
-      
-      for (const word of words) {
-        const testLine = currentLine ? `${currentLine} ${word}` : word;
-        const textWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+      // Detectar lista com marcadores (-)
+      if (trimmedLine.startsWith('-')) {
+        const bulletText = trimmedLine.substring(1).trim();
         
-        if (textWidth > maxWidth && currentLine) {
-          // Desenhar linha atual e começar nova
+        // Desenhar marcador
+        currentPage.drawText('•', {
+          x: margin + 10,
+          y: yPosition,
+          size: fontSize,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        
+        // Quebrar texto do item se necessário
+        const words = bulletText.split(' ');
+        let currentLine = '';
+        const bulletIndent = 25;
+        
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const textWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+          
+          if (textWidth > (maxWidth - bulletIndent) && currentLine) {
+            currentPage.drawText(currentLine, {
+              x: margin + bulletIndent,
+              y: yPosition,
+              size: fontSize,
+              font: helveticaFont,
+              color: rgb(0, 0, 0),
+            });
+            
+            yPosition -= lineHeight;
+            checkNewPage();
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        
+        if (currentLine) {
+          currentPage.drawText(currentLine, {
+            x: margin + bulletIndent,
+            y: yPosition,
+            size: fontSize,
+            font: helveticaFont,
+            color: rgb(0, 0, 0),
+          });
+          yPosition -= lineHeight;
+        }
+        
+        continue;
+      }
+      
+      // Texto normal - quebrar em múltiplas linhas se necessário
+      if (trimmedLine) {
+        const words = trimmedLine.split(' ');
+        let currentLine = '';
+        
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const textWidth = helveticaFont.widthOfTextAtSize(testLine, fontSize);
+          
+          if (textWidth > maxWidth && currentLine) {
+            currentPage.drawText(currentLine, {
+              x: margin,
+              y: yPosition,
+              size: fontSize,
+              font: helveticaFont,
+              color: rgb(0, 0, 0),
+            });
+            
+            yPosition -= lineHeight;
+            checkNewPage();
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        
+        if (currentLine) {
           currentPage.drawText(currentLine, {
             x: margin,
             y: yPosition,
@@ -218,30 +371,11 @@ serve(async (req) => {
             font: helveticaFont,
             color: rgb(0, 0, 0),
           });
-          
           yPosition -= lineHeight;
-          currentLine = word;
-          
-          // Verificar se precisa de nova página
-          if (yPosition < margin + lineHeight) {
-            currentPage = pdfDoc.addPage([pageWidth, pageHeight]);
-            yPosition = pageHeight - margin;
-          }
-        } else {
-          currentLine = testLine;
         }
-      }
-      
-      // Desenhar última linha (ou linha vazia para espaçamento)
-      if (currentLine || !line) {
-        currentPage.drawText(currentLine, {
-          x: margin,
-          y: yPosition,
-          size: fontSize,
-          font: helveticaFont,
-          color: rgb(0, 0, 0),
-        });
-        yPosition -= lineHeight;
+      } else {
+        // Linha vazia - espaçamento
+        yPosition -= lineHeight * 0.7;
       }
     }
     
@@ -294,7 +428,7 @@ serve(async (req) => {
       title: 'Contrato Creado',
       message: `El lead "${lead.nombre_completo}" ha creado su contrato.`,
       link: '/crm',
-      metadata: { lead_id: linkData.lead_id, contract_id: contractRecord.id }
+      metadata: { lead_id: linkData.lead_id, contract_id: contractData.id }
     });
 
     // Notificações para admins
@@ -306,7 +440,7 @@ serve(async (req) => {
           title: 'Contrato Creado',
           message: `El lead "${lead.nombre_completo}" ha creado su contrato.`,
           link: '/admin/crm',
-          metadata: { lead_id: linkData.lead_id, contract_id: contractRecord.id }
+          metadata: { lead_id: linkData.lead_id, contract_id: contractData.id }
         });
       });
     }
@@ -315,7 +449,7 @@ serve(async (req) => {
     await supabaseClient.from('notifications').insert(notificationsToInsert);
     console.log(`[Generate Contract] ${notificationsToInsert.length} notification(s) created`);
 
-    console.log('[Generate Contract] Contract generated successfully:', contractRecord.id);
+    console.log('[Generate Contract] Contract generated successfully:', contractData.id);
 
     return new Response(
       JSON.stringify({
