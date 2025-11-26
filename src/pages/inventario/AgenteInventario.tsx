@@ -300,7 +300,7 @@ const AgenteInventario = () => {
                 </Badge>
               )}
               <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
+                <Button size="sm">
                   <ExternalLink className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Colaboración Inmovilla</span>
                 </Button>
