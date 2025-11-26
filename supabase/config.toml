@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.scraping-status]
 verify_jwt = false
+
+[functions.sync-inmovilla]
+verify_jwt = false
