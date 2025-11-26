@@ -49,31 +49,31 @@ const AdminCRM = () => {
                 <p className="text-xs sm:text-sm text-muted-foreground truncate">Admin: {profile?.nombre}</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <NotificationBell />
-              <Button variant="outline" onClick={() => navigate('/admin/dashboard')}>
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Dashboard
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/dashboard')}>
+                <BarChart3 className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Dashboard</span>
               </Button>
-              <Button variant="outline" onClick={() => navigate('/admin/contract-templates')}>
-                <FileText className="h-4 w-4 mr-2" />
-                Templates
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/contract-templates')}>
+                <FileText className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Templates</span>
               </Button>
-              <Button variant="outline" onClick={() => navigate('/admin/settings')}>
-                <Settings className="h-4 w-4 mr-2" />
-                Configuraciones
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>
+                <Settings className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Config</span>
               </Button>
-              <Button variant="outline" onClick={() => navigate('/admin/agentes')}>
-                <UserCog className="h-4 w-4 mr-2" />
-                Gestión de Agentes
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/agentes')}>
+                <UserCog className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Agentes</span>
               </Button>
-              <Button variant="outline" onClick={() => navigate('/inventario/admin')}>
-                <Building className="h-4 w-4 mr-2" />
-                Inventario
+              <Button variant="outline" size="sm" onClick={() => navigate('/inventario/admin')}>
+                <Building className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Inventario</span>
               </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Salir
+              <Button variant="outline" size="sm" onClick={handleLogout}>
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Salir</span>
               </Button>
             </div>
           </div>
