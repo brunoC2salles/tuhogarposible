@@ -49,7 +49,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     credito: false,
     credito_valor: "300",
     hipoteca: false,
-    hipoteca_percent: "0.1"
+    hipoteca_percent: "0.1",
+    payment_due_date: ""
   });
 
   useEffect(() => {
@@ -73,7 +74,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         credito: invoice.credito,
         credito_valor: invoice.credito_valor?.toString() || "300",
         hipoteca: invoice.hipoteca,
-        hipoteca_percent: invoice.hipoteca_percent?.toString() || "0.1"
+        hipoteca_percent: invoice.hipoteca_percent?.toString() || "0.1",
+        payment_due_date: invoice.payment_due_date ? new Date(invoice.payment_due_date).toISOString().split('T')[0] : ""
       });
     } else {
       setFormData({
@@ -95,7 +97,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         credito: false,
         credito_valor: "300",
         hipoteca: false,
-        hipoteca_percent: "0.1"
+        hipoteca_percent: "0.1",
+        payment_due_date: ""
       });
     }
   }, [invoice, open]);
@@ -151,7 +154,7 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     e.preventDefault();
 
     if (!formData.lead_name || !formData.property_price || !formData.client_company_name ||
-        !formData.client_address || !formData.client_dni_nif || !formData.client_email) {
+        !formData.client_address || !formData.client_dni_nif || !formData.client_email || !formData.payment_due_date) {
       return;
     }
 
@@ -175,10 +178,11 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
       credito_valor: formData.credito ? parseFloat(formData.credito_valor) : undefined,
       hipoteca: formData.hipoteca,
       hipoteca_percent: formData.hipoteca ? parseFloat(formData.hipoteca_percent) : undefined,
+      payment_due_date: formData.payment_due_date,
       subtotal,
       iva_amount: ivaAmount,
       total,
-      status: 'draft'
+      status: 'generada'
     });
   };
 
@@ -292,6 +296,16 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
                   type="email"
                   value={formData.client_email}
                   onChange={(e) => setFormData({ ...formData, client_email: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="payment_due_date">Fecha de Vencimiento *</Label>
+                <Input
+                  id="payment_due_date"
+                  type="date"
+                  value={formData.payment_due_date}
+                  onChange={(e) => setFormData({ ...formData, payment_due_date: e.target.value })}
                   required
                 />
               </div>

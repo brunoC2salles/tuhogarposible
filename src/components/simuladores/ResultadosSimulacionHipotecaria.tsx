@@ -148,9 +148,22 @@ export function ResultadosSimulacionHipotecaria({
                 )}
               </>
             ) : (
-              <Badge variant="destructive" className="text-base px-6 py-2">
-                ✗ HIPOTECA NO APROBABLE
-              </Badge>
+              <>
+                <Badge variant="destructive" className="text-base px-6 py-2">
+                  ✗ HIPOTECA NO APROBABLE
+                </Badge>
+                {resultados.razonNoAprobado && (
+                  <div className="p-4 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg text-sm max-w-2xl">
+                    <p className="font-semibold text-red-800 dark:text-red-200 mb-2">❌ Razón de No Aprobación</p>
+                    <p className="text-red-700 dark:text-red-300">
+                      {resultados.razonNoAprobado}
+                    </p>
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                      Se requiere un mínimo de 3 meses de antigüedad tanto en la empresa como continuada para todos los titulares.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

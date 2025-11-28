@@ -29,6 +29,8 @@ export interface ProductInvoice {
   total: number;
   status: string;
   pdf_path?: string;
+  payment_due_date?: string;
+  paid_at?: string;
   created_at: string;
   created_by?: string;
   updated_at: string;
@@ -118,11 +120,34 @@ export const useProductInvoices = () => {
     onError: () => toast.error('Error al eliminar factura')
   });
 
+  const markAsPaid = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from('product_invoices')
+        .update({ 
+          status: 'pagada',
+          paid_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['product-invoices'] });
+      toast.success('Factura marcada como pagada');
+    },
+    onError: () => toast.error('Error al marcar factura como pagada')
+  });
+
   return {
     invoices: invoices || [],
     isLoading,
     createInvoice,
     updateInvoice,
-    deleteInvoice
+    deleteInvoice,
+    markAsPaid
   };
 };

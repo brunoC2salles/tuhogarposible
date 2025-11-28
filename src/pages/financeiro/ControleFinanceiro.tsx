@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft, Download } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft, Download, Loader2, Check } from "lucide-react";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useProductInvoices } from "@/hooks/useProductInvoices";
 import { DespesaModal } from "@/components/financeiro/DespesaModal";
@@ -28,7 +28,7 @@ const ControleFinanceiro = () => {
   const { agentes } = useAgentes();
 
   const { despesas, isLoading: loadingDespesas, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
-  const { invoices, isLoading: loadingInvoices, createInvoice, updateInvoice, deleteInvoice } = useProductInvoices();
+  const { invoices, isLoading: loadingInvoices, createInvoice, updateInvoice, deleteInvoice, markAsPaid } = useProductInvoices();
 
   const [despesaModalOpen, setDespesaModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -56,6 +56,30 @@ const ControleFinanceiro = () => {
 
   const formatDate = (dateStr: string) => {
     return format(new Date(dateStr), 'dd/MM/yyyy', { locale: ptBR });
+  };
+
+  const getInvoiceStatus = (invoice: ProductInvoice) => {
+    if (invoice.status === 'pagada' || invoice.paid_at) {
+      return { label: 'Pagada', color: 'bg-green-500' };
+    }
+    
+    if (invoice.payment_due_date) {
+      const dueDate = new Date(invoice.payment_due_date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      if (dueDate < today) {
+        return { label: 'Caducada', color: 'bg-red-500' };
+      }
+    }
+    
+    return { label: 'Generada', color: 'bg-yellow-500' };
+  };
+
+  const handleMarkAsPaid = async (invoiceId: string) => {
+    if (confirm('¿Marcar esta factura como pagada?')) {
+      await markAsPaid.mutateAsync(invoiceId);
+    }
   };
 
   const getAgenteName = (agenteId?: string) => {
@@ -345,43 +369,52 @@ const ControleFinanceiro = () => {
                           <TableHead className="text-xs whitespace-nowrap">Lead</TableHead>
                           <TableHead className="text-xs whitespace-nowrap">Cliente</TableHead>
                           {isAdmin && <TableHead className="text-xs whitespace-nowrap">Agente</TableHead>}
-                          <TableHead className="text-xs whitespace-nowrap">Status</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Estado</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Vencimiento</TableHead>
                           <TableHead className="text-right text-xs whitespace-nowrap">Total</TableHead>
                           <TableHead className="text-right text-xs whitespace-nowrap">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {invoicesFiltradas.map((invoice) => (
-                          <TableRow key={invoice.id}>
-                            <TableCell className="text-xs whitespace-nowrap">{invoice.invoice_number}</TableCell>
-                            <TableCell className="text-xs max-w-[120px] truncate">{invoice.lead_name}</TableCell>
-                            <TableCell className="text-xs max-w-[150px] truncate">{invoice.client_company_name}</TableCell>
-                            {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(invoice.agent_id)}</TableCell>}
-                            <TableCell className="text-xs">
-                              <Badge variant={
-                                invoice.status === 'generated' ? 'default' : 
-                                invoice.status === 'draft' ? 'secondary' : 
-                                'destructive'
-                              } className="text-xs">
-                                {invoice.status === 'draft' ? 'Borrador' : invoice.status === 'generated' ? 'Generada' : invoice.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(invoice.total))}</TableCell>
-                            <TableCell className="text-right whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1">
-                                <Button size="sm" variant="outline" onClick={() => handleGeneratePDF(invoice)} disabled={generatingPdf === invoice.id} className="h-7 w-7 p-0">
-                                  <Download className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => handleEditInvoice(invoice)} className="h-7 w-7 p-0">
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDeleteInvoice(invoice.id)} className="h-7 w-7 p-0">
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {invoicesFiltradas.map((invoice) => {
+                          const status = getInvoiceStatus(invoice);
+                          return (
+                            <TableRow key={invoice.id}>
+                              <TableCell className="text-xs whitespace-nowrap">{invoice.invoice_number}</TableCell>
+                              <TableCell className="text-xs max-w-[120px] truncate">{invoice.lead_name}</TableCell>
+                              <TableCell className="text-xs max-w-[150px] truncate">{invoice.client_company_name}</TableCell>
+                              {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(invoice.agent_id)}</TableCell>}
+                              <TableCell className="text-xs">
+                                <Badge className={status.color}>
+                                  {status.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-xs whitespace-nowrap">
+                                {invoice.payment_due_date ? format(new Date(invoice.payment_due_date), 'dd/MM/yyyy') : '-'}
+                              </TableCell>
+                              <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(invoice.total))}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-1">
+                                  {status.label !== 'Pagada' && (
+                                    <Button size="sm" variant="outline" onClick={() => handleMarkAsPaid(invoice.id)} className="h-7 px-2 bg-green-50 hover:bg-green-100">
+                                      <Check className="h-3 w-3 mr-1" />
+                                      <span className="text-xs">Pagar</span>
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="outline" onClick={() => handleGeneratePDF(invoice)} disabled={generatingPdf === invoice.id} className="h-7 w-7 p-0">
+                                    {generatingPdf === invoice.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                                  </Button>
+                                  <Button size="sm" variant="outline" onClick={() => handleEditInvoice(invoice)} className="h-7 w-7 p-0">
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
+                                  <Button size="sm" variant="destructive" onClick={() => handleDeleteInvoice(invoice.id)} className="h-7 w-7 p-0">
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
