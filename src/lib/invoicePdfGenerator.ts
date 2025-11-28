@@ -229,27 +229,27 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
 
     if (uploadError) {
       console.error('Erro ao fazer upload do PDF:', uploadError);
-      throw new Error(`Erro ao fazer upload: ${uploadError.message}`);
+      // Não bloquear a geração do PDF por falha no upload ao Storage
+    } else {
+      console.log('Upload realizado com sucesso:', uploadData);
+
+      // Atualizar registro com caminho do PDF somente se upload funcionar
+      console.log('Atualizando registro da fatura...');
+      const { error: updateError } = await supabase
+        .from('product_invoices')
+        .update({ 
+          pdf_path: fileName,
+          status: 'generated'
+        })
+        .eq('id', invoice.id);
+
+      if (updateError) {
+        console.error('Erro ao atualizar registro da fatura:', updateError);
+        // Também não bloquear por falha na atualização do registro
+      } else {
+        console.log('Registro atualizado com sucesso');
+      }
     }
-
-    console.log('Upload realizado com sucesso:', uploadData);
-
-    // Atualizar registro com caminho do PDF
-    console.log('Atualizando registro da fatura...');
-    const { error: updateError } = await supabase
-      .from('product_invoices')
-      .update({ 
-        pdf_path: fileName,
-        status: 'generated'
-      })
-      .eq('id', invoice.id);
-
-    if (updateError) {
-      console.error('Erro ao atualizar registro da fatura:', updateError);
-      throw new Error(`Erro ao atualizar registro: ${updateError.message}`);
-    }
-
-    console.log('Registro atualizado com sucesso');
 
     // Também baixar no navegador
     doc.save(`Factura_${invoice.invoice_number}.pdf`);
