@@ -17,6 +17,7 @@ export default function ProdutoPublico() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [carouselApi, setCarouselApi] = useState<any>(null);
   const [scrapingImages, setScrapingImages] = useState(false);
+  const [scrapingMessage, setScrapingMessage] = useState('');
 
   useEffect(() => {
     if (!carouselApi) return;
@@ -41,6 +42,7 @@ export default function ProdutoPublico() {
     
     // 3. Se chegou aqui: tem 0 ou 1 imagem → SCRAPAR!
     setScrapingImages(true);
+    setScrapingMessage('Buscando imágenes del producto...');
     console.log('🔄 Iniciando scraping automático para:', inmueble.titulo);
     console.log('📊 Imagens atuais:', inmueble.images?.length || 0);
     
@@ -54,18 +56,25 @@ export default function ProdutoPublico() {
       
       if (error) {
         console.error('❌ Erro na resposta do scraping:', error);
+        setScrapingMessage('');
         return;
       }
       
       if (data?.success && data.images) {
         // Atualizar estado com novas imagens
         setInmueble(prev => prev ? { ...prev, images: data.images } : null);
+        setScrapingMessage(`${data.totalImages} imágenes cargadas exitosamente`);
         console.log('✅ Scraping completo:', data.totalImages, 'imagens encontradas');
+        
+        // Limpar mensagem após 3 segundos
+        setTimeout(() => setScrapingMessage(''), 3000);
       } else {
         console.warn('⚠️ Scraping não retornou imagens:', data);
+        setScrapingMessage('');
       }
     } catch (err) {
       console.error('❌ Erro no scraping automático:', err);
+      setScrapingMessage('');
     } finally {
       setScrapingImages(false);
     }
@@ -149,6 +158,9 @@ export default function ProdutoPublico() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Cargando producto...</p>
+          {scrapingMessage && (
+            <p className="text-sm text-primary mt-2 animate-pulse">{scrapingMessage}</p>
+          )}
         </div>
       </div>
     );
@@ -244,7 +256,7 @@ export default function ProdutoPublico() {
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
                           <div className="text-white text-center">
                             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-2"></div>
-                            <p className="text-sm">Carregando más imágenes...</p>
+                            <p className="text-sm">{scrapingMessage || 'Cargando más imágenes...'}</p>
                           </div>
                         </div>
                       )}
