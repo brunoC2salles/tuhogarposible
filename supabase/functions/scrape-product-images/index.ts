@@ -43,30 +43,47 @@ serve(async (req) => {
     if (isSolvia) {
       console.log('🏢 Detectado: Solvia');
       
-      // Extrair imagens do Solvia (ORIGINAL.jpg tem melhor qualidade)
-      const imagePattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
-      const matches = html.match(imagePattern);
+      // Estratégia 1: Tentar ORIGINAL (melhor qualidade)
+      const originalPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
+      let matches = html.match(originalPattern);
 
-      if (!matches || matches.length === 0) {
-        console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando 722x503');
-        
-        // Fallback: pegar 722x503 se não houver ORIGINAL
-        const fallbackPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
-        const fallbackMatches = html.match(fallbackPattern);
-        
-        if (fallbackMatches && fallbackMatches.length > 0) {
-          cleanImages = Array.from(new Set(
-            fallbackMatches.map(url => 
-              url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
-            )
-          ));
-        }
-      } else {
+      if (matches && matches.length > 0) {
+        console.log(`✅ Encontradas ${matches.length} imagens ORIGINAL`);
         cleanImages = Array.from(new Set(
           matches.map(url => 
             url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
           )
         ));
+      } else {
+        console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando 722x503');
+        
+        // Estratégia 2: Fallback para 722x503
+        const mediumPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
+        matches = html.match(mediumPattern);
+        
+        if (matches && matches.length > 0) {
+          console.log(`✅ Encontradas ${matches.length} imagens 722x503`);
+          cleanImages = Array.from(new Set(
+            matches.map(url => 
+              url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+            )
+          ));
+        } else {
+          console.log('⚠️ Tentando pattern genérico .jpg');
+          
+          // Estratégia 3: Fallback genérico - qualquer imagem do CDN
+          const genericPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.[a-zA-Z0-9]+\.jpg/gi;
+          matches = html.match(genericPattern);
+          
+          if (matches && matches.length > 0) {
+            console.log(`✅ Encontradas ${matches.length} imagens com pattern genérico`);
+            cleanImages = Array.from(new Set(
+              matches.map(url => 
+                url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+              )
+            ));
+          }
+        }
       }
       
     } else if (isClickalia) {
