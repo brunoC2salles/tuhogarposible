@@ -83,7 +83,12 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
   doc.text(`Nº de factura    ${invoice.invoice_number}`, margin, currentY);
   currentY += 6;
   doc.text(`Fecha factura    ${invoiceDate.toLocaleDateString('es-ES')}`, margin, currentY);
-  currentY += 10;
+  currentY += 6;
+  if (invoice.payment_due_date) {
+    doc.text(`Fecha vencimiento    ${new Date(invoice.payment_due_date).toLocaleDateString('es-ES')}`, margin, currentY);
+    currentY += 6;
+  }
+  currentY += 4;
 
   // Tabela de serviços
   const tableData: any[] = [];

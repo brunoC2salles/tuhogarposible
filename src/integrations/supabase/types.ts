@@ -848,6 +848,8 @@ export type Database = {
           lead_id: string | null
           lead_name: string
           nota_simples: boolean | null
+          paid_at: string | null
+          payment_due_date: string | null
           pdf_path: string | null
           property_price: number
           status: string | null
@@ -879,6 +881,8 @@ export type Database = {
           lead_id?: string | null
           lead_name: string
           nota_simples?: boolean | null
+          paid_at?: string | null
+          payment_due_date?: string | null
           pdf_path?: string | null
           property_price: number
           status?: string | null
@@ -910,6 +914,8 @@ export type Database = {
           lead_id?: string | null
           lead_name?: string
           nota_simples?: boolean | null
+          paid_at?: string | null
+          payment_due_date?: string | null
           pdf_path?: string | null
           property_price?: number
           status?: string | null

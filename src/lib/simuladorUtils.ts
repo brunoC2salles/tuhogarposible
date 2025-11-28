@@ -190,6 +190,7 @@ export interface ResultadosSimulacionHipoteca {
   gastosHijos: number;
   gastosPension: number;
   tasaAnualFija: number;
+  razonNoAprobado?: string;
 }
 
 /**
