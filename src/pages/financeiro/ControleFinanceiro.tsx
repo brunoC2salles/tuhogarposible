@@ -6,17 +6,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft, Download } from "lucide-react";
 import { useDespesas } from "@/hooks/useDespesas";
-import { useFaturacoes } from "@/hooks/useFaturacoes";
+import { useProductInvoices } from "@/hooks/useProductInvoices";
 import { DespesaModal } from "@/components/financeiro/DespesaModal";
-import { FaturacaoModal } from "@/components/financeiro/FaturacaoModal";
-import type { DespesaOperacional, Faturacao } from "@/types/financeiro";
+import { ProductInvoiceModal } from "@/components/financeiro/ProductInvoiceModal";
+import type { DespesaOperacional } from "@/types/financeiro";
+import type { ProductInvoice } from "@/hooks/useProductInvoices";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAgentes } from "@/hooks/useAgentes";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { generateInvoicePDF } from "@/lib/invoicePdfGenerator";
+import { toast } from "sonner";
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
@@ -25,12 +28,13 @@ const ControleFinanceiro = () => {
   const { agentes } = useAgentes();
 
   const { despesas, isLoading: loadingDespesas, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
-  const { faturacoes, isLoading: loadingFaturacoes, createFaturacao, updateFaturacao, deleteFaturacao } = useFaturacoes();
+  const { invoices, isLoading: loadingInvoices, createInvoice, updateInvoice, deleteInvoice } = useProductInvoices();
 
   const [despesaModalOpen, setDespesaModalOpen] = useState(false);
-  const [faturacaoModalOpen, setFaturacaoModalOpen] = useState(false);
+  const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
   const [editingDespesa, setEditingDespesa] = useState<DespesaOperacional | null>(null);
-  const [editingFaturacao, setEditingFaturacao] = useState<Faturacao | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<ProductInvoice | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [filtroAgente, setFiltroAgente] = useState<string>("todos");
 
   // Filtrar dados por agente
@@ -38,13 +42,13 @@ const ControleFinanceiro = () => {
     ? despesas 
     : despesas.filter(d => d.agente_id === filtroAgente);
   
-  const faturacoesFiltradas = filtroAgente === "todos"
-    ? faturacoes
-    : faturacoes.filter(f => f.agente_id === filtroAgente);
+  const invoicesFiltradas = filtroAgente === "todos"
+    ? invoices
+    : invoices.filter(f => f.agent_id === filtroAgente);
 
   const totalDespesas = despesasFiltradas.reduce((sum, d) => sum + Number(d.valor), 0);
-  const totalFaturacoes = faturacoesFiltradas.reduce((sum, f) => sum + Number(f.valor), 0);
-  const totalPendente = faturacoesFiltradas.filter(f => f.status === 'pendente').reduce((sum, f) => sum + Number(f.valor), 0);
+  const totalInvoices = invoicesFiltradas.reduce((sum, f) => sum + Number(f.total), 0);
+  const totalPendente = invoicesFiltradas.filter(f => f.status === 'draft' || f.status === 'generated').reduce((sum, f) => sum + Number(f.total), 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(value);
@@ -69,13 +73,13 @@ const ControleFinanceiro = () => {
     setEditingDespesa(null);
   };
 
-  const handleSaveFaturacao = (faturacao: Partial<Faturacao>) => {
-    if (faturacao.id) {
-      updateFaturacao.mutate(faturacao as any);
+  const handleSaveInvoice = (invoice: Omit<ProductInvoice, 'id' | 'invoice_number' | 'created_at' | 'updated_at' | 'created_by'>) => {
+    if (editingInvoice) {
+      updateInvoice.mutate({ ...invoice, id: editingInvoice.id } as any);
     } else {
-      createFaturacao.mutate(faturacao as any);
+      createInvoice.mutate(invoice as any);
     }
-    setEditingFaturacao(null);
+    setEditingInvoice(null);
   };
 
   const handleEditDespesa = (despesa: DespesaOperacional) => {
@@ -83,9 +87,9 @@ const ControleFinanceiro = () => {
     setDespesaModalOpen(true);
   };
 
-  const handleEditFaturacao = (faturacao: Faturacao) => {
-    setEditingFaturacao(faturacao);
-    setFaturacaoModalOpen(true);
+  const handleEditInvoice = (invoice: ProductInvoice) => {
+    setEditingInvoice(invoice);
+    setInvoiceModalOpen(true);
   };
 
   const handleDeleteDespesa = (id: string) => {
@@ -94,9 +98,22 @@ const ControleFinanceiro = () => {
     }
   };
 
-  const handleDeleteFaturacao = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta faturação?')) {
-      deleteFaturacao.mutate(id);
+  const handleDeleteInvoice = (id: string) => {
+    if (confirm('¿Está seguro de eliminar esta factura?')) {
+      deleteInvoice.mutate(id);
+    }
+  };
+
+  const handleGeneratePDF = async (invoice: ProductInvoice) => {
+    try {
+      setGeneratingPdf(invoice.id);
+      await generateInvoicePDF(invoice);
+      toast.success('Factura generada y descargada');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error al generar factura');
+    } finally {
+      setGeneratingPdf(null);
     }
   };
 
@@ -174,9 +191,9 @@ const ControleFinanceiro = () => {
                   <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-                  <div className="text-xl sm:text-2xl font-bold">{formatCurrency(totalFaturacoes)}</div>
+                  <div className="text-xl sm:text-2xl font-bold">{formatCurrency(totalInvoices)}</div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {faturacoes.length} faturações
+                    {invoices.length} facturas
                   </p>
                 </CardContent>
               </Card>
@@ -217,7 +234,7 @@ const ControleFinanceiro = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-xs sm:text-sm font-medium">Receitas (Facturación):</span>
-                    <span className="text-xs sm:text-sm font-bold text-green-600">{formatCurrency(totalFaturacoes)}</span>
+                    <span className="text-xs sm:text-sm font-bold text-green-600">{formatCurrency(totalInvoices)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-xs sm:text-sm font-medium">Despesas:</span>
@@ -225,8 +242,8 @@ const ControleFinanceiro = () => {
                   </div>
                   <div className="border-t pt-2 mt-2 flex justify-between items-center">
                     <span className="text-sm sm:text-base font-medium">Resultado:</span>
-                    <span className={`text-sm sm:text-base font-bold ${totalFaturacoes - totalDespesas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(totalFaturacoes - totalDespesas)}
+                    <span className={`text-sm sm:text-base font-bold ${totalInvoices - totalDespesas >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(totalInvoices - totalDespesas)}
                     </span>
                   </div>
                 </div>
@@ -303,61 +320,62 @@ const ControleFinanceiro = () => {
               <CardHeader className="px-3 sm:px-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <CardTitle className="text-base sm:text-lg">Facturación</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Gestión de facturas y cobros</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Facturación de Productos</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Gestión de facturas y servicios</CardDescription>
                   </div>
-                  <Button onClick={() => { setEditingFaturacao(null); setFaturacaoModalOpen(true); }} size="sm">
+                  <Button onClick={() => { setEditingInvoice(null); setInvoiceModalOpen(true); }} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
-                    <span className="hidden xs:inline">Adicionar </span>Faturação
+                    Nueva Factura
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="px-0 sm:px-6">
-                {loadingFaturacoes ? (
-                  <p className="text-center py-8 text-muted-foreground text-sm">Carregando...</p>
-                ) : faturacoesFiltradas.length === 0 ? (
+                {loadingInvoices ? (
+                  <p className="text-center py-8 text-muted-foreground text-sm">Cargando...</p>
+                ) : invoicesFiltradas.length === 0 ? (
                   <p className="text-center py-8 text-muted-foreground text-sm">
-                    {filtroAgente === "todos" ? "Nenhuma faturação registrada" : "Nenhuma faturação para este agente"}
+                    {filtroAgente === "todos" ? "No hay facturas registradas" : "No hay facturas para este agente"}
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="text-xs whitespace-nowrap">Data</TableHead>
-                          <TableHead className="text-xs whitespace-nowrap">Nº Fatura</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Nº Factura</TableHead>
+                          <TableHead className="text-xs whitespace-nowrap">Lead</TableHead>
                           <TableHead className="text-xs whitespace-nowrap">Cliente</TableHead>
-                          <TableHead className="text-xs whitespace-nowrap">Descrição</TableHead>
                           {isAdmin && <TableHead className="text-xs whitespace-nowrap">Agente</TableHead>}
                           <TableHead className="text-xs whitespace-nowrap">Status</TableHead>
-                          <TableHead className="text-right text-xs whitespace-nowrap">Valor</TableHead>
-                          <TableHead className="text-right text-xs whitespace-nowrap">Ações</TableHead>
+                          <TableHead className="text-right text-xs whitespace-nowrap">Total</TableHead>
+                          <TableHead className="text-right text-xs whitespace-nowrap">Acciones</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {faturacoesFiltradas.map((faturacao) => (
-                          <TableRow key={faturacao.id}>
-                            <TableCell className="text-xs whitespace-nowrap">{formatDate(faturacao.data_faturacao)}</TableCell>
-                            <TableCell className="text-xs whitespace-nowrap">{faturacao.numero_fatura || '-'}</TableCell>
-                            <TableCell className="text-xs max-w-[120px] truncate">{faturacao.cliente_nome || '-'}</TableCell>
-                            <TableCell className="text-xs max-w-[150px] truncate">{faturacao.descricao}</TableCell>
-                            {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(faturacao.agente_id)}</TableCell>}
+                        {invoicesFiltradas.map((invoice) => (
+                          <TableRow key={invoice.id}>
+                            <TableCell className="text-xs whitespace-nowrap">{invoice.invoice_number}</TableCell>
+                            <TableCell className="text-xs max-w-[120px] truncate">{invoice.lead_name}</TableCell>
+                            <TableCell className="text-xs max-w-[150px] truncate">{invoice.client_company_name}</TableCell>
+                            {isAdmin && <TableCell className="text-xs whitespace-nowrap">{getAgenteName(invoice.agent_id)}</TableCell>}
                             <TableCell className="text-xs">
                               <Badge variant={
-                                faturacao.status === 'pago' ? 'default' : 
-                                faturacao.status === 'pendente' ? 'secondary' : 
+                                invoice.status === 'generated' ? 'default' : 
+                                invoice.status === 'draft' ? 'secondary' : 
                                 'destructive'
                               } className="text-xs">
-                                {faturacao.status}
+                                {invoice.status === 'draft' ? 'Borrador' : invoice.status === 'generated' ? 'Generada' : invoice.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(faturacao.valor))}</TableCell>
+                            <TableCell className="text-right font-medium text-xs whitespace-nowrap">{formatCurrency(Number(invoice.total))}</TableCell>
                             <TableCell className="text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1">
-                                <Button size="sm" variant="outline" onClick={() => handleEditFaturacao(faturacao)} className="h-7 w-7 p-0">
+                                <Button size="sm" variant="outline" onClick={() => handleGeneratePDF(invoice)} disabled={generatingPdf === invoice.id} className="h-7 w-7 p-0">
+                                  <Download className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleEditInvoice(invoice)} className="h-7 w-7 p-0">
                                   <Edit className="h-3 w-3" />
                                 </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDeleteFaturacao(faturacao.id)} className="h-7 w-7 p-0">
+                                <Button size="sm" variant="destructive" onClick={() => handleDeleteInvoice(invoice.id)} className="h-7 w-7 p-0">
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
@@ -381,11 +399,12 @@ const ControleFinanceiro = () => {
         despesa={editingDespesa}
       />
 
-      <FaturacaoModal
-        open={faturacaoModalOpen}
-        onClose={() => { setFaturacaoModalOpen(false); setEditingFaturacao(null); }}
-        onSave={handleSaveFaturacao}
-        faturacao={editingFaturacao}
+      <ProductInvoiceModal
+        open={invoiceModalOpen}
+        onClose={() => { setInvoiceModalOpen(false); setEditingInvoice(null); }}
+        onSave={handleSaveInvoice}
+        invoice={editingInvoice}
+        saving={createInvoice.isPending || updateInvoice.isPending}
       />
     </div>
   );

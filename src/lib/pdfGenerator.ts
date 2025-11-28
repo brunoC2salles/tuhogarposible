@@ -107,6 +107,7 @@ export function generateSimulacionPDF(
     startY: currentY,
     head: [['Concepto', 'Valor']],
     body: [
+      ['Máximo de Crédito Personal', formatEuro(resultados.montoMaximoCredito)],
       ['Cantidad solicitada', formatEuro(resultados.montoFinanciar)],
       ['Cuota mensual', formatEuro(resultados.cuotaMensual)],
       ['Total de intereses', formatEuro(resultados.totalIntereses)],

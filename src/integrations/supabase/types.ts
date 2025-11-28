@@ -601,6 +601,51 @@ export type Database = {
           },
         ]
       }
+      lead_external_links: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          lead_id: string
+          titulo: string | null
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          lead_id: string
+          titulo?: string | null
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          lead_id?: string
+          titulo?: string | null
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_external_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_external_links_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_historico: {
         Row: {
           changed_by: string
@@ -778,6 +823,124 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      product_invoices: {
+        Row: {
+          agent_id: string | null
+          beneficios: boolean | null
+          client_address: string
+          client_company_name: string
+          client_dni_nif: string
+          client_email: string
+          comision_vivienda: boolean | null
+          comision_vivienda_percent: number | null
+          created_at: string | null
+          created_by: string | null
+          credito: boolean | null
+          credito_valor: number | null
+          hipoteca: boolean | null
+          hipoteca_percent: number | null
+          id: string
+          inspeccion_tecnica: boolean | null
+          invoice_number: string
+          iva_amount: number
+          iva_incluido: boolean | null
+          lead_id: string | null
+          lead_name: string
+          nota_simples: boolean | null
+          pdf_path: string | null
+          property_price: number
+          status: string | null
+          subtotal: number
+          tasaciones: boolean | null
+          total: number
+          updated_at: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          beneficios?: boolean | null
+          client_address: string
+          client_company_name: string
+          client_dni_nif: string
+          client_email: string
+          comision_vivienda?: boolean | null
+          comision_vivienda_percent?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          credito?: boolean | null
+          credito_valor?: number | null
+          hipoteca?: boolean | null
+          hipoteca_percent?: number | null
+          id?: string
+          inspeccion_tecnica?: boolean | null
+          invoice_number: string
+          iva_amount: number
+          iva_incluido?: boolean | null
+          lead_id?: string | null
+          lead_name: string
+          nota_simples?: boolean | null
+          pdf_path?: string | null
+          property_price: number
+          status?: string | null
+          subtotal: number
+          tasaciones?: boolean | null
+          total: number
+          updated_at?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          beneficios?: boolean | null
+          client_address?: string
+          client_company_name?: string
+          client_dni_nif?: string
+          client_email?: string
+          comision_vivienda?: boolean | null
+          comision_vivienda_percent?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          credito?: boolean | null
+          credito_valor?: number | null
+          hipoteca?: boolean | null
+          hipoteca_percent?: number | null
+          id?: string
+          inspeccion_tecnica?: boolean | null
+          invoice_number?: string
+          iva_amount?: number
+          iva_incluido?: boolean | null
+          lead_id?: string | null
+          lead_name?: string
+          nota_simples?: boolean | null
+          pdf_path?: string | null
+          property_price?: number
+          status?: string | null
+          subtotal?: number
+          tasaciones?: boolean | null
+          total?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_invoices_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_invoices_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1090,6 +1253,7 @@ export type Database = {
     }
     Functions: {
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
+      get_next_invoice_number: { Args: never; Returns: string }
       get_protected_inmuebles: {
         Args: { provider: string }
         Returns: {
