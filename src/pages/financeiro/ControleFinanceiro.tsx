@@ -20,8 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateInvoicePDF } from "@/lib/invoicePdfGenerator";
 import { toast } from "sonner";
-import { RelatorioFinanceiroModal } from "@/components/financeiro/RelatorioFinanceiroModal";
-import { FileBarChart } from "lucide-react";
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
@@ -38,7 +36,6 @@ const ControleFinanceiro = () => {
   const [editingInvoice, setEditingInvoice] = useState<ProductInvoice | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   const [filtroAgente, setFiltroAgente] = useState<string>("todos");
-  const [relatorioModalOpen, setRelatorioModalOpen] = useState(false);
 
   // Filtrar dados por agente
   const despesasFiltradas = filtroAgente === "todos" 
@@ -180,14 +177,6 @@ const ControleFinanceiro = () => {
                   Gestión completa de gastos operacionales y facturación
                 </p>
               </div>
-              <Button
-                onClick={() => setRelatorioModalOpen(true)}
-                size="sm"
-                className="hidden md:flex"
-              >
-                <FileBarChart className="h-4 w-4 mr-2" />
-                Relatório Mensal
-              </Button>
             </div>
           
           {isAdmin && agentes.length > 0 && (
@@ -449,13 +438,6 @@ const ControleFinanceiro = () => {
         onSave={handleSaveInvoice}
         invoice={editingInvoice}
         saving={createInvoice.isPending || updateInvoice.isPending}
-      />
-
-      <RelatorioFinanceiroModal
-        open={relatorioModalOpen}
-        onClose={() => setRelatorioModalOpen(false)}
-        invoices={invoices}
-        despesas={despesas}
       />
     </div>
   );
