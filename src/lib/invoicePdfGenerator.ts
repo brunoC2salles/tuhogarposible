@@ -13,18 +13,21 @@ const FIXED_SERVICES: Record<string, { name: string; value: number }> = {
 };
 
 export async function generateInvoicePDF(invoice: ProductInvoice): Promise<string> {
-  const doc = new jsPDF();
-  
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 20;
-  let currentY = margin;
-
-  // Logo e cabeçalho da empresa
   try {
-    const logoWidth = 25;
-    const logoHeight = 25;
-    doc.addImage(logoApunto, 'JPEG', margin, currentY, logoWidth, logoHeight);
+    console.log('Iniciando geração de PDF para fatura:', invoice.invoice_number);
+    
+    const doc = new jsPDF();
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 20;
+    let currentY = margin;
+
+    // Logo e cabeçalho da empresa
+    try {
+      const logoWidth = 25;
+      const logoHeight = 25;
+      doc.addImage(logoApunto, 'JPEG', margin, currentY, logoWidth, logoHeight);
     
     // Nome da empresa ao lado do logo
     doc.setFontSize(14);
@@ -211,32 +214,50 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
   doc.setFontSize(8);
   doc.text('1 / 1', pageWidth - margin, pageHeight - 10, { align: 'right' });
 
-  // Salvar PDF no Supabase Storage
-  const pdfBlob = doc.output('blob');
-  const fileName = `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${invoice.invoice_number}.pdf`;
-  
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('invoices')
-    .upload(fileName, pdfBlob, {
-      contentType: 'application/pdf',
-      upsert: true
-    });
+    // Salvar PDF no Supabase Storage
+    console.log('Gerando blob do PDF...');
+    const pdfBlob = doc.output('blob');
+    const fileName = `${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${invoice.invoice_number}.pdf`;
+    
+    console.log('Fazendo upload do PDF para:', fileName);
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('invoices')
+      .upload(fileName, pdfBlob, {
+        contentType: 'application/pdf',
+        upsert: true
+      });
 
-  if (uploadError) throw uploadError;
+    if (uploadError) {
+      console.error('Erro ao fazer upload do PDF:', uploadError);
+      throw new Error(`Erro ao fazer upload: ${uploadError.message}`);
+    }
 
-  // Atualizar registro com caminho do PDF
-  const { error: updateError } = await supabase
-    .from('product_invoices')
-    .update({ 
-      pdf_path: fileName,
-      status: 'generated'
-    })
-    .eq('id', invoice.id);
+    console.log('Upload realizado com sucesso:', uploadData);
 
-  if (updateError) throw updateError;
+    // Atualizar registro com caminho do PDF
+    console.log('Atualizando registro da fatura...');
+    const { error: updateError } = await supabase
+      .from('product_invoices')
+      .update({ 
+        pdf_path: fileName,
+        status: 'generated'
+      })
+      .eq('id', invoice.id);
 
-  // Também baixar no navegador
-  doc.save(`Factura_${invoice.invoice_number}.pdf`);
+    if (updateError) {
+      console.error('Erro ao atualizar registro da fatura:', updateError);
+      throw new Error(`Erro ao atualizar registro: ${updateError.message}`);
+    }
 
-  return fileName;
+    console.log('Registro atualizado com sucesso');
+
+    // Também baixar no navegador
+    doc.save(`Factura_${invoice.invoice_number}.pdf`);
+
+    console.log('PDF gerado e baixado com sucesso');
+    return fileName;
+  } catch (error) {
+    console.error('Erro ao gerar PDF da fatura:', error);
+    throw error;
+  }
 }
