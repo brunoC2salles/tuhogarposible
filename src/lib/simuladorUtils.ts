@@ -13,6 +13,7 @@ export interface ResultadosSimulacion {
   totalIntereses: number;
   montoTotalPagar: number;
   cualificado: boolean;
+  montoMaximoCredito: number; // Novo campo
 }
 
 /**
@@ -52,12 +53,25 @@ export function calcularAmortizacionFrancesa(datos: DatosSimulacion): Resultados
   const capacidadPago = ingresos - deudas;
   const cualificado = capacidadPago >= 1050;
   
+  // NOVO: Calcular máximo de crédito pessoal baseado em 35% dos ingresos
+  const capacidadMensual = (ingresos * 0.35) - deudas;
+  let montoMaximoCredito = 0;
+  
+  if (capacidadMensual > 0 && tasaMensual > 0) {
+    // Fórmula inversa: P = C * [(1 + r)^n - 1] / [r * (1 + r)^n]
+    const factor = Math.pow(1 + tasaMensual, plazoMeses);
+    montoMaximoCredito = capacidadMensual * (factor - 1) / (tasaMensual * factor);
+  } else if (capacidadMensual > 0 && tasaMensual === 0) {
+    montoMaximoCredito = capacidadMensual * plazoMeses;
+  }
+  
   return {
     montoFinanciar: principal,
     cuotaMensual,
     totalIntereses,
     montoTotalPagar,
-    cualificado
+    cualificado,
+    montoMaximoCredito: Math.max(0, montoMaximoCredito)
   };
 }
 
