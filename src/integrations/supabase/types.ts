@@ -76,6 +76,89 @@ export type Database = {
           },
         ]
       }
+      agent_candidate_documents: {
+        Row: {
+          candidate_id: string
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_candidate_documents_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "agent_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_candidates: {
+        Row: {
+          ciudad: string | null
+          created_at: string | null
+          created_by: string | null
+          dni: string | null
+          email: string
+          id: string
+          last_stage_change_at: string | null
+          nombre_completo: string
+          notas: string | null
+          stage: Database["public"]["Enums"]["agent_candidate_stage"]
+          telefono: string
+          updated_at: string | null
+        }
+        Insert: {
+          ciudad?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dni?: string | null
+          email: string
+          id?: string
+          last_stage_change_at?: string | null
+          nombre_completo: string
+          notas?: string | null
+          stage?: Database["public"]["Enums"]["agent_candidate_stage"]
+          telefono: string
+          updated_at?: string | null
+        }
+        Update: {
+          ciudad?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          dni?: string | null
+          email?: string
+          id?: string
+          last_stage_change_at?: string | null
+          nombre_completo?: string
+          notas?: string | null
+          stage?: Database["public"]["Enums"]["agent_candidate_stage"]
+          telefono?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       contract_templates: {
         Row: {
           activo: boolean | null
@@ -272,6 +355,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      form_partial_submissions: {
+        Row: {
+          abandoned: boolean | null
+          abandoned_at: string | null
+          created_at: string | null
+          email: string | null
+          form_data: Json | null
+          id: string
+          nombre_completo: string | null
+          recovered: boolean | null
+          session_id: string
+          step_reached: number | null
+          telefono: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          abandoned?: boolean | null
+          abandoned_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          form_data?: Json | null
+          id?: string
+          nombre_completo?: string | null
+          recovered?: boolean | null
+          session_id: string
+          step_reached?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          abandoned?: boolean | null
+          abandoned_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          form_data?: Json | null
+          id?: string
+          nombre_completo?: string | null
+          recovered?: boolean | null
+          session_id?: string
+          step_reached?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       form_submissions: {
         Row: {
@@ -517,6 +645,44 @@ export type Database = {
             columns: ["agente_asignado"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_comments: {
+        Row: {
+          arquivo_nome: string | null
+          arquivo_url: string | null
+          comentario: string
+          created_at: string | null
+          id: string
+          lead_id: string
+          user_id: string
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          comentario: string
+          created_at?: string | null
+          id?: string
+          lead_id: string
+          user_id: string
+        }
+        Update: {
+          arquivo_nome?: string | null
+          arquivo_url?: string | null
+          comentario?: string
+          created_at?: string | null
+          id?: string
+          lead_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1289,6 +1455,16 @@ export type Database = {
       }
     }
     Enums: {
+      agent_candidate_stage:
+        | "nuevo_contacto"
+        | "mensaje_whatsapp"
+        | "primera_reunion"
+        | "segunda_reunion_presentacion"
+        | "reunion_dudas_albert"
+        | "dudas_contrato"
+        | "pago"
+        | "rellenar_perfil"
+        | "cerrado"
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
       lead_source: "formulario_web" | "manual" | "tidycal_webhook"
       lead_stage:
@@ -1438,6 +1614,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      agent_candidate_stage: [
+        "nuevo_contacto",
+        "mensaje_whatsapp",
+        "primera_reunion",
+        "segunda_reunion_presentacion",
+        "reunion_dudas_albert",
+        "dudas_contrato",
+        "pago",
+        "rellenar_perfil",
+        "cerrado",
+      ],
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
       lead_source: ["formulario_web", "manual", "tidycal_webhook"],
       lead_stage: [
