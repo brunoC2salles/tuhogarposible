@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog, Settings, FileText, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog, Settings, FileText, BarChart3, MessageSquare, UsersIcon } from 'lucide-react';
 import { STAGE_LABELS } from '@/types/crm';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
@@ -51,6 +51,12 @@ const AdminCRM = () => {
             </div>
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <NotificationBell />
+              <a href="https://app.slack.com/client/YOUR_WORKSPACE_ID" target="_blank" rel="noopener noreferrer">
+                <Button variant="outline" size="sm">
+                  <MessageSquare className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Slack</span>
+                </Button>
+              </a>
               <Button variant="outline" size="sm" onClick={() => navigate('/admin/dashboard')}>
                 <BarChart3 className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Dashboard</span>
@@ -62,6 +68,10 @@ const AdminCRM = () => {
               <Button variant="outline" size="sm" onClick={() => navigate('/admin/settings')}>
                 <Settings className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Config</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/reclutamiento')}>
+                <Users className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Reclutamiento</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/admin/agentes')}>
                 <UserCog className="h-4 w-4 sm:mr-2" />

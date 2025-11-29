@@ -7,11 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lead, STAGE_LABELS, LeadHistorico } from '@/types/crm';
+import { Lead, STAGE_LABELS } from '@/types/crm';
+import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, Clock, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink } from 'lucide-react';
+import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useLeadExternalLinks } from '@/hooks/useLeadExternalLinks';
@@ -44,39 +45,11 @@ export const LeadDetailsModal = ({
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink } = useLeadExternalLinks(lead?.id);
   const { links: contractLinks, isLoading: loadingLinks, getPublicLink } = usePublicContractLinks(lead?.id);
-  const [historico, setHistorico] = useState<LeadHistorico[]>([]);
-  const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [contractLinkModalOpen, setContractLinkModalOpen] = useState(false);
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (lead && open) {
-      fetchHistorico();
-    }
-  }, [lead?.id, open]);
-
-  const fetchHistorico = async () => {
-    if (!lead) return;
-
-    try {
-      setLoadingHistorico(true);
-      const { data, error } = await supabase
-        .from('lead_historico')
-        .select('*')
-        .eq('lead_id', lead.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setHistorico(data || []);
-    } catch (err) {
-      console.error('[LeadDetails] Error fetching historico:', err);
-    } finally {
-      setLoadingHistorico(false);
-    }
-  };
 
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
@@ -160,7 +133,7 @@ export const LeadDetailsModal = ({
           <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
           <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles ({inmuebles.length})</TabsTrigger>
           <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
-          <TabsTrigger value="historico" className="text-xs sm:text-sm">Historial</TabsTrigger>
+          <TabsTrigger value="comentarios" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
         </TabsList>
 
           <TabsContent value="info" className="space-y-4">
@@ -412,38 +385,8 @@ export const LeadDetailsModal = ({
             )}
           </TabsContent>
 
-          <TabsContent value="historico" className="space-y-4">
-            {loadingHistorico ? (
-              <div className="text-center text-muted-foreground py-8">Cargando...</div>
-            ) : historico.length > 0 ? (
-              <div className="space-y-3">
-                {historico.map((entry) => (
-                  <Card key={entry.id}>
-                    <CardContent className="flex items-start gap-3 p-4">
-                      <Clock className="h-4 w-4 text-muted-foreground mt-1 flex-shrink-0" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {entry.stage_anterior && (
-                            <>
-                              <Badge variant="outline">{STAGE_LABELS[entry.stage_anterior]}</Badge>
-                              <span className="text-muted-foreground">→</span>
-                            </>
-                          )}
-                          <Badge>{STAGE_LABELS[entry.stage_nuevo]}</Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(entry.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                No hay historial de movimientos
-              </div>
-            )}
+          <TabsContent value="comentarios" className="space-y-4">
+            <LeadComments leadId={lead.id} />
           </TabsContent>
 
           <TabsContent value="documentos" className="space-y-4">

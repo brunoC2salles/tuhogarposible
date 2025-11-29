@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Logo from "@/components/Logo";
@@ -53,6 +53,15 @@ const COMUNIDADES_AUTONOMAS = [
 ];
 
 export default function FormularioQualificacion() {
+  const [sessionId] = useState(() => {
+    let id = localStorage.getItem('form_session_id');
+    if (!id) {
+      id = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      localStorage.setItem('form_session_id', id);
+    }
+    return id;
+  });
+
   const [modalState, setModalState] = useState<{
     open: boolean;
     tipo: "desqualificado" | "qualificado_cataluna" | "qualificado_general" | "agendamento_confirmado";
@@ -104,6 +113,58 @@ export default function FormularioQualificacion() {
 
   const tieneCreditoVigente = form.watch("tiene_credito_vigente");
   const compraAcompanado = form.watch("compra_solo_acompanado") === "acompanado";
+
+  // Auto-save para rastrear abandono
+  const watchedFields = form.watch(['telefono', 'email', 'nombre_completo']);
+  
+  useEffect(() => {
+    const [telefono, email, nombreCompleto] = watchedFields;
+    
+    if (telefono || email || nombreCompleto) {
+      const savePartial = async () => {
+        try {
+          const formData = form.getValues();
+          await supabase.from('form_partial_submissions').upsert({
+            session_id: sessionId,
+            telefono: telefono || null,
+            email: email || null,
+            nombre_completo: nombreCompleto || null,
+            form_data: formData,
+            step_reached: 1,
+            abandoned: true,
+            updated_at: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error('Error saving partial form:', error);
+        }
+      };
+      
+      const timeoutId = setTimeout(savePartial, 1000);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [watchedFields, sessionId]);
+
+  // Detectar abandono ao sair da página
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      const formValues = form.getValues();
+      if (formValues.telefono || formValues.email) {
+        await supabase.from('form_partial_submissions').upsert({
+          session_id: sessionId,
+          telefono: formValues.telefono || null,
+          email: formValues.email || null,
+          nombre_completo: formValues.nombre_completo || null,
+          form_data: formValues,
+          abandoned: true,
+          abandoned_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [sessionId]);
 
   const onSubmit = async (data: FormularioQualificacionData) => {
     setIsSubmitting(true);
@@ -207,6 +268,12 @@ export default function FormularioQualificacion() {
       setTempFormData(null);
       setTempResultado(null);
       setTempAgenteData(null);
+      
+      // Limpar sessão de abandono
+      await supabase.from('form_partial_submissions')
+        .update({ abandoned: false, recovered: true })
+        .eq('session_id', sessionId);
+      localStorage.removeItem('form_session_id');
       
       // Resetar formulário
       form.reset();
