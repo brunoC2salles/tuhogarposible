@@ -22,6 +22,7 @@ interface Agent {
   tidycal_url?: string;
   region_round_robin?: string;
   activo: boolean;
+  comision_porcentaje?: number;
 }
 
 export default function AdminAgentes() {
@@ -46,6 +47,7 @@ export default function AdminAgentes() {
     tidycal_url: "",
     region_round_robin: "",
     activo: true,
+    comision_porcentaje: 0,
   });
 
   const fetchAgents = async () => {
@@ -53,7 +55,7 @@ export default function AdminAgentes() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role")
+        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role, comision_porcentaje")
         .eq("role", "agente")
         .order("nombre");
 
@@ -106,6 +108,7 @@ export default function AdminAgentes() {
       tidycal_url: agent.tidycal_url || "",
       region_round_robin: agent.region_round_robin || "",
       activo: agent.activo,
+      comision_porcentaje: agent.comision_porcentaje || 0,
     });
     setEditModal({ open: true, agent });
   };
@@ -138,6 +141,7 @@ export default function AdminAgentes() {
           tidycal_url: editFormData.tidycal_url.trim() || null,
           region_round_robin: editFormData.region_round_robin || null,
           activo: editFormData.activo,
+          comision_porcentaje: editFormData.comision_porcentaje,
         })
         .eq("id", editModal.agent.id);
 
@@ -277,7 +281,7 @@ export default function AdminAgentes() {
                     <TableHead>DNI/NIE</TableHead>
                     <TableHead>URL Tidycal</TableHead>
                     <TableHead>Región</TableHead>
-                    <TableHead>Estadísticas</TableHead>
+                    <TableHead>Comisión %</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -316,7 +320,7 @@ export default function AdminAgentes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <span className="text-muted-foreground text-sm">-</span>
+                        <Badge variant="secondary">{agent.comision_porcentaje || 0}%</Badge>
                       </TableCell>
                       <TableCell>
                         <Badge variant={agent.activo ? "default" : "secondary"}>
@@ -357,7 +361,7 @@ export default function AdminAgentes() {
                   ))}
                   {filteredAgents.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                         No se encontraron agentes
                       </TableCell>
                     </TableRow>
@@ -443,6 +447,23 @@ export default function AdminAgentes() {
                     <SelectItem value="General">General</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-comision">Porcentaje de Comisión (%)</Label>
+                <Input
+                  id="edit-comision"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={editFormData.comision_porcentaje}
+                  onChange={(e) => setEditFormData({ ...editFormData, comision_porcentaje: parseFloat(e.target.value) || 0 })}
+                  placeholder="0.00"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Porcentaje que el agente recibe del total facturado (0-100)
+                </p>
               </div>
 
               <div className="flex items-center space-x-2">

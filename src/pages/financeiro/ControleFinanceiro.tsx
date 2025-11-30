@@ -273,6 +273,58 @@ const ControleFinanceiro = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Comissões por Agente */}
+            <Card>
+              <CardHeader className="px-3 sm:px-6">
+                <CardTitle className="text-base sm:text-lg">Comissões por Agente</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Split de receita baseado em facturas pagas</CardDescription>
+              </CardHeader>
+              <CardContent className="px-3 sm:px-6">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Agente</TableHead>
+                        <TableHead className="text-xs text-right">% Comissão</TableHead>
+                        <TableHead className="text-xs text-right">Total Facturado</TableHead>
+                        <TableHead className="text-xs text-right">Comissão Agente</TableHead>
+                        <TableHead className="text-xs text-right">Receita Empresa</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {agentes.map((agente) => {
+                        const agenteInvoices = invoices.filter(
+                          (inv) => inv.agent_id === agente.id && (inv.status === 'pagada' || inv.paid_at)
+                        );
+                        const totalFacturado = agenteInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+                        const comisionPercentage = agente.comision_porcentaje || 0;
+                        const comisionAgente = totalFacturado * (comisionPercentage / 100);
+                        const receitaEmpresa = totalFacturado - comisionAgente;
+
+                        if (agenteInvoices.length === 0) return null;
+
+                        return (
+                          <TableRow key={agente.id}>
+                            <TableCell className="text-xs font-medium">{agente.nombre}</TableCell>
+                            <TableCell className="text-xs text-right">
+                              <Badge variant="secondary">{comisionPercentage}%</Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-right font-medium">{formatCurrency(totalFacturado)}</TableCell>
+                            <TableCell className="text-xs text-right text-blue-600 font-medium">
+                              {formatCurrency(comisionAgente)}
+                            </TableCell>
+                            <TableCell className="text-xs text-right text-green-600 font-medium">
+                              {formatCurrency(receitaEmpresa)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="expenses">
