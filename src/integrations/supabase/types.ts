@@ -1117,6 +1117,7 @@ export type Database = {
       profiles: {
         Row: {
           activo: boolean
+          comision_porcentaje: number
           created_at: string
           dni_nie: string | null
           email: string
@@ -1130,6 +1131,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          comision_porcentaje?: number
           created_at?: string
           dni_nie?: string | null
           email: string
@@ -1143,6 +1145,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          comision_porcentaje?: number
           created_at?: string
           dni_nie?: string | null
           email?: string

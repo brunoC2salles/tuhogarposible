@@ -78,7 +78,7 @@ const Reclutamiento = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/admin/crm')}
+                onClick={() => navigate('/inventario/admin/crm')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al CRM
