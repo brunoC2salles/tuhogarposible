@@ -24,11 +24,11 @@ export const useDocuSeal = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['generated-contracts'] });
-      toast.success('Contrato enviado para assinatura');
+      toast.success('Contrato enviado para firma');
     },
     onError: (error: any) => {
       console.error('Error sending for signature:', error);
-      toast.error('Erro ao enviar contrato: ' + (error.message || 'Erro desconhecido'));
+      toast.error('Error al enviar contrato: ' + (error.message || 'Error desconocido'));
     }
   });
 
