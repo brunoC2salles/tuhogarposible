@@ -1,0 +1,280 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFormAbandonments } from '@/hooks/useFormAbandonments';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Users, Settings, LogOut, MessageCircle, Phone, Mail, CheckCircle } from 'lucide-react';
+import Logo from '@/components/Logo';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { format } from 'date-fns';
+
+const AbandonosFormulario = () => {
+  const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
+  const { abandonments, loading, filters, setFilters, markAsRecovered } = useFormAbandonments();
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
+  const openWhatsApp = (telefono: string, nombre: string) => {
+    const message = encodeURIComponent(
+      `Hola ${nombre}, vimos que empezaste el proceso de cualificación en Tu Hogar Posible. ¿Podemos ayudarte a completarlo?`
+    );
+    window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
+  const handleMarkAsRecovered = async (id: string) => {
+    await markAsRecovered(id);
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Logo size="sm" />
+              <div>
+                <h1 className="text-2xl font-bold">Abandonos de Formulario</h1>
+                <p className="text-sm text-muted-foreground">
+                  Gestión de leads que abandonaron el proceso de cualificación
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/crm')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Volver al CRM
+              </Button>
+
+              <NotificationBell />
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/settings')}
+              >
+                <Settings className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Configuración</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/admin/agentes')}
+              >
+                <Users className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Agentes</span>
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>
+                    {profile?.nombre?.charAt(0).toUpperCase() || 'A'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-medium">{profile?.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+              >
+                <LogOut className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Salir</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Filters */}
+      <div className="container mx-auto px-4 py-6">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Filtros</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="startDate">Fecha Inicio</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endDate">Fecha Fin</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="recovered">Estado de Recuperación</Label>
+                <Select
+                  value={filters.recovered}
+                  onValueChange={(value: 'all' | 'true' | 'false') => 
+                    setFilters({ ...filters, recovered: value })
+                  }
+                >
+                  <SelectTrigger id="recovered">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="false">No Contactados</SelectItem>
+                    <SelectItem value="true">Contactados</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Total Abandonos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold">{abandonments.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">No Contactados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-destructive">
+                {abandonments.filter(a => !a.recovered).length}
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Contactados</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-3xl font-bold text-green-600">
+                {abandonments.filter(a => a.recovered).length}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Abandonments List */}
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Cargando abandonos...</p>
+          </div>
+        ) : abandonments.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">No hay abandonos con los filtros seleccionados</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {abandonments.map((abandonment) => (
+              <Card key={abandonment.id}>
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold">
+                          {abandonment.nombre_completo || 'Sin nombre'}
+                        </h3>
+                        {abandonment.recovered ? (
+                          <Badge variant="outline" className="bg-green-100 text-green-800">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Contactado
+                          </Badge>
+                        ) : (
+                          <Badge variant="destructive">Pendiente</Badge>
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        {abandonment.telefono && (
+                          <div className="flex items-center gap-1">
+                            <Phone className="h-4 w-4" />
+                            {abandonment.telefono}
+                          </div>
+                        )}
+                        {abandonment.email && (
+                          <div className="flex items-center gap-1">
+                            <Mail className="h-4 w-4" />
+                            {abandonment.email}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-4 text-sm">
+                        <span>
+                          Paso alcanzado: <strong>{abandonment.step_reached || 0}</strong>
+                        </span>
+                        {abandonment.abandoned_at && (
+                          <span>
+                            Abandonado: <strong>{format(new Date(abandonment.abandoned_at), 'dd/MM/yyyy HH:mm')}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      {abandonment.telefono && (
+                        <Button
+                          onClick={() => openWhatsApp(abandonment.telefono!, abandonment.nombre_completo || 'Lead')}
+                          className="w-full md:w-auto"
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2" />
+                          Contactar por WhatsApp
+                        </Button>
+                      )}
+                      {!abandonment.recovered && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleMarkAsRecovered(abandonment.id)}
+                          className="w-full md:w-auto"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Marcar como Contactado
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default AbandonosFormulario;

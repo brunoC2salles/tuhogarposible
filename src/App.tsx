@@ -27,6 +27,7 @@ import AdminContractTemplates from "./pages/AdminContractTemplates";
 import ContratoPublico from "./pages/ContratoPublico";
 import Dashboard from "./pages/admin/Dashboard";
 import Reclutamiento from "./pages/admin/Reclutamiento";
+import AbandonosFormulario from "./pages/admin/AbandonosFormulario";
 
 const queryClient = new QueryClient();
 
@@ -113,6 +114,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <Reclutamiento />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/abandonos"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AbandonosFormulario />
                 </ProtectedRoute>
               } 
             />
