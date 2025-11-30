@@ -305,7 +305,8 @@ export default function AdminContractTemplates() {
           </div>
         </div>
       </DialogContent>
-    </Dialog>
-  </AdminLayout>
+      </Dialog>
+      </div>
+    </AdminLayout>
   );
 }

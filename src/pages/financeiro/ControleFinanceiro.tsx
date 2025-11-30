@@ -475,5 +475,3 @@ const ControleFinanceiro = () => {
 };
 
 export default ControleFinanceiro;
-
-export default ControleFinanceiro;

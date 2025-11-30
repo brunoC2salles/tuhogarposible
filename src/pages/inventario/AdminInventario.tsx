@@ -20,7 +20,7 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, FileJson } from "lucide-react";
+import { Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, FileJson, X } from "lucide-react";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
 import { AdminLayout } from "@/components/admin/AdminLayout";
