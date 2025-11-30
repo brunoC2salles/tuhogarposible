@@ -9,10 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Users, Settings, LogOut, MessageCircle, Phone, Mail, CheckCircle } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Users, Settings, LogOut, MessageCircle, Phone, Mail, CheckCircle, Zap } from 'lucide-react';
 import Logo from '@/components/Logo';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const AbandonosFormulario = () => {
   const navigate = useNavigate();
@@ -29,6 +32,52 @@ const AbandonosFormulario = () => {
       `Hola ${nombre}, vimos que empezaste el proceso de cualificación en Tu Hogar Posible. ¿Podemos ayudarte a completarlo?`
     );
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${message}`, '_blank');
+  };
+
+  const triggerWebhook = async (abandonment: any) => {
+    try {
+      // Buscar URL do webhook
+      const { data: settings } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_abandonos_url')
+        .single();
+
+      const webhookUrl = settings?.value;
+      
+      if (!webhookUrl) {
+        toast.error('URL del webhook no configurada');
+        return;
+      }
+
+      // Preparar payload
+      const payload = {
+        trigger: 'form_abandonment',
+        timestamp: new Date().toISOString(),
+        lead: {
+          id: abandonment.id,
+          nombre_completo: abandonment.nombre_completo,
+          telefono: abandonment.telefono,
+          email: abandonment.email,
+          step_reached: abandonment.step_reached,
+          abandoned_at: abandonment.abandoned_at,
+          form_data: abandonment.form_data
+        }
+      };
+
+      // Enviar webhook
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+
+      toast.success('Automación disparada exitosamente');
+    } catch (error) {
+      console.error('Error triggering webhook:', error);
+      toast.error('Error al disparar automación');
+    }
   };
 
   const handleMarkAsRecovered = async (id: string) => {
@@ -55,7 +104,7 @@ const AbandonosFormulario = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate('/admin/crm')}
+                onClick={() => navigate('/inventario/admin/crm')}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al CRM
@@ -199,77 +248,133 @@ const AbandonosFormulario = () => {
           </Card>
         ) : (
           <div className="space-y-4">
-            {abandonments.map((abandonment) => (
-              <Card key={abandonment.id}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-semibold">
-                          {abandonment.nombre_completo || 'Sin nombre'}
-                        </h3>
-                        {abandonment.recovered ? (
-                          <Badge variant="outline" className="bg-green-100 text-green-800">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Contactado
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive">Pendiente</Badge>
-                        )}
+            {abandonments.map((abandonment) => {
+              const formData = abandonment.form_data || {};
+              
+              return (
+                <Card key={abandonment.id}>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {/* Header */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold">
+                            {abandonment.nombre_completo || 'Sin nombre'}
+                          </h3>
+                          {abandonment.recovered ? (
+                            <Badge variant="outline" className="bg-green-100 text-green-800">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Contactado
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive">Pendiente</Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Paso: <strong>{abandonment.step_reached || 0}</strong>
+                        </div>
                       </div>
-                      
-                      <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+
+                      {/* Contact Info */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {abandonment.telefono && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-4 w-4" />
-                            {abandonment.telefono}
+                          <div className="flex items-center gap-2">
+                            <Phone className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{abandonment.telefono}</span>
                           </div>
                         )}
                         {abandonment.email && (
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-4 w-4" />
-                            {abandonment.email}
+                          <div className="flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{abandonment.email}</span>
+                          </div>
+                        )}
+                        {abandonment.abandoned_at && (
+                          <div className="text-sm text-muted-foreground">
+                            Abandonado: <strong>{format(new Date(abandonment.abandoned_at), 'dd/MM/yyyy HH:mm')}</strong>
                           </div>
                         )}
                       </div>
 
-                      <div className="flex gap-4 text-sm">
-                        <span>
-                          Paso alcanzado: <strong>{abandonment.step_reached || 0}</strong>
-                        </span>
-                        {abandonment.abandoned_at && (
-                          <span>
-                            Abandonado: <strong>{format(new Date(abandonment.abandoned_at), 'dd/MM/yyyy HH:mm')}</strong>
-                          </span>
+                      <Separator />
+
+                      {/* Form Data Details */}
+                      {Object.keys(formData).length > 0 && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          {formData.comunidad_autonoma && (
+                            <div>
+                              <span className="text-muted-foreground">Comunidad: </span>
+                              <strong>{formData.comunidad_autonoma}</strong>
+                            </div>
+                          )}
+                          {formData.ciudad_interes && (
+                            <div>
+                              <span className="text-muted-foreground">Ciudad: </span>
+                              <strong>{formData.ciudad_interes}</strong>
+                            </div>
+                          )}
+                          {formData.situacion_laboral && (
+                            <div>
+                              <span className="text-muted-foreground">Situación Laboral: </span>
+                              <strong>{formData.situacion_laboral}</strong>
+                            </div>
+                          )}
+                          {formData.ingresos_mensuales && (
+                            <div>
+                              <span className="text-muted-foreground">Ingresos: </span>
+                              <strong>€{formData.ingresos_mensuales.toLocaleString()}</strong>
+                            </div>
+                          )}
+                          {formData.valor_inmueble_deseado && (
+                            <div>
+                              <span className="text-muted-foreground">Valor Deseado: </span>
+                              <strong>€{formData.valor_inmueble_deseado.toLocaleString()}</strong>
+                            </div>
+                          )}
+                          {formData.entrada_disponible && (
+                            <div>
+                              <span className="text-muted-foreground">Entrada: </span>
+                              <strong>€{formData.entrada_disponible.toLocaleString()}</strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <Separator />
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        {abandonment.telefono && (
+                          <Button
+                            onClick={() => openWhatsApp(abandonment.telefono!, abandonment.nombre_completo || 'Lead')}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            <MessageCircle className="h-4 w-4 mr-2" />
+                            WhatsApp
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          onClick={() => triggerWebhook(abandonment)}
+                        >
+                          <Zap className="h-4 w-4 mr-2" />
+                          Disparar Automação
+                        </Button>
+                        {!abandonment.recovered && (
+                          <Button
+                            variant="secondary"
+                            onClick={() => handleMarkAsRecovered(abandonment.id)}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Marcar como Contactado
+                          </Button>
                         )}
                       </div>
                     </div>
-
-                    <div className="flex flex-col gap-2">
-                      {abandonment.telefono && (
-                        <Button
-                          onClick={() => openWhatsApp(abandonment.telefono!, abandonment.nombre_completo || 'Lead')}
-                          className="w-full md:w-auto"
-                        >
-                          <MessageCircle className="h-4 w-4 mr-2" />
-                          Contactar por WhatsApp
-                        </Button>
-                      )}
-                      {!abandonment.recovered && (
-                        <Button
-                          variant="outline"
-                          onClick={() => handleMarkAsRecovered(abandonment.id)}
-                          className="w-full md:w-auto"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Marcar como Contactado
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
