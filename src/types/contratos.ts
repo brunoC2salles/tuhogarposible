@@ -38,6 +38,10 @@ export interface GeneratedContract {
   generated_by: string;
   generated_at: string;
   notas?: string;
+  signature_status?: 'pending' | 'sent' | 'signed' | 'declined';
+  signature_submission_id?: string;
+  signed_file_path?: string;
+  signed_at?: string;
 }
 
 export const TIPO_CONTRATO_LABELS: Record<TipoContrato, string> = {

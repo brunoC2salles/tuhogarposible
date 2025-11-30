@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, ArrowLeft, TrendingUp, Users, Target, Award } from 'lucide-react';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { TrendingUp, Users, Target, Award } from 'lucide-react';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
 import { ConversionFunnelChart } from '@/components/dashboard/ConversionFunnelChart';
 import { AgentPerformanceChart } from '@/components/dashboard/AgentPerformanceChart';
 import { LeadsByStageChart } from '@/components/dashboard/LeadsByStageChart';
 import { TimelineChart } from '@/components/dashboard/TimelineChart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AdminLayout } from '@/components/admin/AdminLayout';
+import { Button } from '@/components/ui/button';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { user, signOut, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [period, setPeriod] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
   const { stats, loading, error, refetch } = useDashboardStats(period);
 
@@ -25,14 +25,9 @@ export default function Dashboard() {
     }
   }, [isAdmin, navigate]);
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
+      <AdminLayout>
         <div className="container mx-auto p-6 space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -40,64 +35,30 @@ export default function Dashboard() {
           </div>
           <Skeleton className="h-96" />
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle>Error al cargar estadísticas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <Button onClick={() => refetch()}>Reintentar</Button>
-          </CardContent>
-        </Card>
-      </div>
+      <AdminLayout>
+        <div className="flex items-center justify-center h-[80vh]">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle>Error al cargar estadísticas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => refetch()}>Reintentar</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background">
-      {/* Header */}
-      <div className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/inventario/admin/crm')}
-              >
-                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold tracking-tight truncate">Dashboard Analítico</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                  Métricas y estadísticas de rendimiento
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <NotificationBell />
-              <div className="text-right">
-                <p className="text-sm font-medium">{user?.email}</p>
-                <p className="text-xs text-muted-foreground">Administrador</p>
-              </div>
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Salir
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
+    <AdminLayout>
       <div className="container mx-auto p-2 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
         {/* Period Selector */}
         <Tabs value={period} onValueChange={(v) => setPeriod(v as any)} className="w-full">
@@ -216,20 +177,20 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="timeline" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Línea de Tiempo</CardTitle>
-                <CardDescription>
-                  Evolución de leads creados y convertidos en el tiempo
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <TimelineChart data={stats?.timelineData || []} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Línea de Tiempo</CardTitle>
+              <CardDescription>
+                Evolución de leads creados y convertidos en el tiempo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TimelineChart data={stats?.timelineData || []} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
+  </AdminLayout>
   );
 }

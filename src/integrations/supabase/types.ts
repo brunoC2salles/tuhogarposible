@@ -534,6 +534,10 @@ export type Database = {
           inmueble_id: string | null
           lead_id: string | null
           notas: string | null
+          signature_status: string | null
+          signature_submission_id: string | null
+          signed_at: string | null
+          signed_file_path: string | null
           tipo_contrato: string
         }
         Insert: {
@@ -545,6 +549,10 @@ export type Database = {
           inmueble_id?: string | null
           lead_id?: string | null
           notas?: string | null
+          signature_status?: string | null
+          signature_submission_id?: string | null
+          signed_at?: string | null
+          signed_file_path?: string | null
           tipo_contrato: string
         }
         Update: {
@@ -556,6 +564,10 @@ export type Database = {
           inmueble_id?: string | null
           lead_id?: string | null
           notas?: string | null
+          signature_status?: string | null
+          signature_submission_id?: string | null
+          signed_at?: string | null
+          signed_file_path?: string | null
           tipo_contrato?: string
         }
         Relationships: [
