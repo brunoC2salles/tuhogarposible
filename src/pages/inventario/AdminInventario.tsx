@@ -20,11 +20,10 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, LogOut, X, FileJson, UserCircle, BarChart3 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, FileJson } from "lucide-react";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
-import Logo from "@/components/Logo";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 
 const getWeekNumber = (date: Date): number => {
   const startOfYear = new Date(date.getFullYear(), 0, 1);
@@ -833,51 +832,8 @@ const AdminInventario = () => {
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
-              <Link to="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Volver</span>
-                </Button>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Logo size="sm" />
-                <div>
-                  <h1 className="text-xl sm:text-2xl font-bold">Panel de Administración</h1>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    Bienvenido, {profile?.nombre} - Gestiona inmuebles
-                  </p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          <Link to="/admin/dashboard">
-            <Button variant="outline" size="sm">
-              <BarChart3 className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
-          </Link>
-          <Link to="/inventario/admin/crm">
-            <Button variant="outline" size="sm">
-              <UserCircle className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">CRM</span>
-            </Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={signOut}>
-            <LogOut className="w-4 h-4 sm:mr-2" />
-            <span className="hidden sm:inline">Cerrar Sesión</span>
-          </Button>
-        </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-8">
         {/* Dashboard Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -1356,8 +1312,8 @@ const AdminInventario = () => {
             isSubmitting={isSubmitting}
           />
         )}
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

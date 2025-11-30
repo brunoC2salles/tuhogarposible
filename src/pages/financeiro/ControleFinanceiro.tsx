@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, ArrowLeft, Download, Loader2, Check } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, Download, Loader2, Check } from "lucide-react";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useProductInvoices } from "@/hooks/useProductInvoices";
 import { DespesaModal } from "@/components/financeiro/DespesaModal";
@@ -20,10 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { generateInvoicePDF } from "@/lib/invoicePdfGenerator";
 import { toast } from "sonner";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 
 const ControleFinanceiro = () => {
   const { profile } = useAuth();
-  const navigate = useNavigate();
   const isAdmin = profile?.role === 'admin';
   const { agentes } = useAgentes();
 
@@ -143,8 +142,8 @@ const ControleFinanceiro = () => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background p-8">
-        <div className="max-w-7xl mx-auto">
+      <AdminLayout>
+        <div className="max-w-7xl mx-auto p-8">
           <Card>
             <CardHeader>
               <CardTitle>Acesso Restrito</CardTitle>
@@ -154,51 +153,31 @@ const ControleFinanceiro = () => {
             </CardHeader>
           </Card>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate('/admin/dashboard')}
-              >
-                <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-foreground truncate">Control Financiero</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  Gestión completa de gastos operacionales y facturación
-                </p>
-              </div>
-            </div>
-          
-          {isAdmin && agentes.length > 0 && (
-            <div className="w-full sm:w-64">
-              <Label htmlFor="filtroAgente" className="text-xs sm:text-sm">Filtrar por Agente</Label>
-              <Select value={filtroAgente} onValueChange={setFiltroAgente}>
-                <SelectTrigger id="filtroAgente">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los Agentes</SelectItem>
-                  {agentes.map((agente) => (
-                    <SelectItem key={agente.id} value={agente.id}>
-                      {agente.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-      </div>
+    <AdminLayout>
+      <div className="container mx-auto px-2 sm:px-4 md:px-6 py-4 sm:py-6">
+        {isAdmin && agentes.length > 0 && (
+          <div className="w-full sm:w-64 mb-6">
+            <Label htmlFor="filtroAgente" className="text-xs sm:text-sm">Filtrar por Agente</Label>
+            <Select value={filtroAgente} onValueChange={setFiltroAgente}>
+              <SelectTrigger id="filtroAgente">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos los Agentes</SelectItem>
+                {agentes.map((agente) => (
+                  <SelectItem key={agente.id} value={agente.id}>
+                    {agente.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
       <Tabs defaultValue="overview" className="space-y-6">
           <TabsList>
@@ -467,32 +446,34 @@ const ControleFinanceiro = () => {
                             </TableRow>
                           );
                         })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
 
-      <DespesaModal
-        open={despesaModalOpen}
-        onClose={() => { setDespesaModalOpen(false); setEditingDespesa(null); }}
-        onSave={handleSaveDespesa}
-        despesa={editingDespesa}
-      />
+    <DespesaModal
+      open={despesaModalOpen}
+      onClose={() => { setDespesaModalOpen(false); setEditingDespesa(null); }}
+      onSave={handleSaveDespesa}
+      despesa={editingDespesa}
+    />
 
-      <ProductInvoiceModal
-        open={invoiceModalOpen}
-        onClose={() => { setInvoiceModalOpen(false); setEditingInvoice(null); }}
-        onSave={handleSaveInvoice}
-        invoice={editingInvoice}
-        saving={createInvoice.isPending || updateInvoice.isPending}
-      />
-    </div>
+    <ProductInvoiceModal
+      open={invoiceModalOpen}
+      onClose={() => { setInvoiceModalOpen(false); setEditingInvoice(null); }}
+      onSave={handleSaveInvoice}
+      invoice={editingInvoice}
+      saving={createInvoice.isPending || updateInvoice.isPending}
+    />
+  </div>
+</AdminLayout>
   );
 };
+
+export default ControleFinanceiro;
 
 export default ControleFinanceiro;

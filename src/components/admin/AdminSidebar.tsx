@@ -72,7 +72,7 @@ const menuItems = [
     items: [
       {
         title: 'Slack',
-        url: 'https://app.slack.com/client/T086X0QRBAC/C086ZGZGVAD',
+        url: 'https://app.slack.com/client/T0A0EQF2XNF',
         icon: MessageSquare,
         external: true,
       },

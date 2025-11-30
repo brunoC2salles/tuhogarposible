@@ -23,6 +23,9 @@ import { generateLeadCompletePDF } from '@/lib/pdfGeneratorComplete';
 import { GenerateContractLinkModal } from '@/components/contratos/GenerateContractLinkModal';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DocumentChecklist } from '@/components/crm/DocumentChecklist';
+import { useGeneratedContracts } from '@/hooks/useGeneratedContracts';
+import { useDocuSeal } from '@/hooks/useDocuSeal';
+import { FileCheck, Send } from 'lucide-react';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -45,6 +48,8 @@ export const LeadDetailsModal = ({
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink } = useLeadExternalLinks(lead?.id);
   const { links: contractLinks, isLoading: loadingLinks, getPublicLink } = usePublicContractLinks(lead?.id);
+  const { contracts, getContractUrl } = useGeneratedContracts(lead?.id);
+  const { sendForSignature } = useDocuSeal();
   const [contractLinkModalOpen, setContractLinkModalOpen] = useState(false);
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
@@ -108,6 +113,34 @@ export const LeadDetailsModal = ({
       setExternalLinkUrl('');
       setExternalLinkTitle('');
       setShowExternalLinkForm(false);
+    }
+  };
+
+  const handleSendForSignature = async (contractId: string) => {
+    if (!lead) return;
+    
+    if (!lead.email) {
+      toast.error('El lead no tiene email registrado');
+      return;
+    }
+
+    await sendForSignature.mutateAsync({
+      contractId,
+      signerEmail: lead.email,
+      signerName: lead.nombre_completo
+    });
+  };
+
+  const getSignatureStatusBadge = (status?: string) => {
+    switch (status) {
+      case 'sent':
+        return <Badge variant="outline" className="bg-blue-50">Enviado</Badge>;
+      case 'signed':
+        return <Badge variant="outline" className="bg-green-50">Firmado</Badge>;
+      case 'declined':
+        return <Badge variant="outline" className="bg-red-50">Rechazado</Badge>;
+      default:
+        return <Badge variant="outline">Pendiente</Badge>;
     }
   };
 
@@ -392,6 +425,75 @@ export const LeadDetailsModal = ({
           <TabsContent value="documentos" className="space-y-4">
             {/* Checklist de Documentos */}
             <DocumentChecklist leadId={lead.id} />
+
+            {/* Contratos Generados */}
+            {contracts && contracts.length > 0 && (
+              <div className="space-y-3 mb-6">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <FileCheck className="h-4 w-4" />
+                  Contratos Generados
+                </h4>
+                {contracts.map((contract) => (
+                  <Card key={contract.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {contract.tipo_contrato === 'compra_venta' ? 'Compraventa' : 
+                             contract.tipo_contrato === 'alquiler' ? 'Alquiler' : 
+                             contract.tipo_contrato === 'reserva' ? 'Reserva' : contract.tipo_contrato}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getSignatureStatusBadge(contract.signature_status || undefined)}
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(contract.generated_at), 'dd MMM yyyy', { locale: es })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {(!contract.signature_status || contract.signature_status === 'pending') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSendForSignature(contract.id)}
+                              disabled={sendForSignature.isPending}
+                            >
+                              <Send className="h-4 w-4 mr-1" />
+                              Enviar para Firma
+                            </Button>
+                          )}
+                          {contract.signature_status === 'signed' && contract.signed_file_path && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                const url = await getContractUrl(contract.signed_file_path!);
+                                window.open(url, '_blank');
+                              }}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              PDF Firmado
+                            </Button>
+                          )}
+                          {contract.file_path && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={async () => {
+                                const url = await getContractUrl(contract.file_path!);
+                                window.open(url, '_blank');
+                              }}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
             {/* Links de Contratos */}
             {contractLinks && contractLinks.length > 0 && (

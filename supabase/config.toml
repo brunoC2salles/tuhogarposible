@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.sync-inmovilla]
 verify_jwt = false
+
+[functions.docuseal-api]
+verify_jwt = false

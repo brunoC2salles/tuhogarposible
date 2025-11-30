@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { ContractTemplate, CampoFormulario } from '@/types/contratos';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 export default function AdminContractTemplates() {
   const navigate = useNavigate();
@@ -98,30 +99,22 @@ export default function AdminContractTemplates() {
   };
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/admin/dashboard')}
-          >
-            <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-          </Button>
+    <AdminLayout>
+      <div className="container mx-auto p-2 sm:p-4 md:p-6 space-y-4 sm:space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">Templates de Contratos</h1>
             <p className="text-xs sm:text-sm text-muted-foreground truncate">
               Gerencie os templates para contratos públicos
             </p>
           </div>
+          <Button onClick={() => handleOpenModal()}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Template
+          </Button>
         </div>
-        <Button onClick={() => handleOpenModal()}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Template
-        </Button>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
           <p>Carregando...</p>
         ) : templates.length === 0 ? (
@@ -309,10 +302,10 @@ export default function AdminContractTemplates() {
               <Button onClick={handleSubmit} className="flex-1">
                 {editingTemplate ? 'Atualizar' : 'Criar'} Template
               </Button>
-            </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </AdminLayout>
   );
 }
