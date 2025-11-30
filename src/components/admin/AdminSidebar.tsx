@@ -23,13 +23,12 @@ import {
   PhoneOff,
   MessageSquare,
 } from 'lucide-react';
-import Logo from '@/components/Logo';
 
 const menuItems = [
   {
     group: 'Gestión',
     items: [
-      { title: 'Dashboard Central', url: '/admin', icon: Home },
+      { title: 'Página Inicial', url: '/', icon: Home },
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
       { title: 'Dashboard Analítico', url: '/admin/dashboard', icon: BarChart3 },
     ],
@@ -51,7 +50,7 @@ const menuItems = [
   {
     group: 'Financiero',
     items: [
-      { title: 'Control Financiero', url: '/financeiro', icon: DollarSign },
+      { title: 'Control Financiero', url: '/financiero', icon: DollarSign },
     ],
   },
   {
@@ -103,11 +102,6 @@ export function AdminSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
-        {/* Logo */}
-        <div className="p-4 flex items-center justify-center border-b">
-          <Logo size={state === 'collapsed' ? 'sm' : 'md'} />
-        </div>
-
         {/* Menu Groups */}
         {menuItems.map((section) => (
           <SidebarGroup key={section.group}>

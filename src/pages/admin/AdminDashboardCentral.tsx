@@ -138,45 +138,40 @@ const AdminDashboardCentral = () => {
 
   return (
     <AdminLayout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Panel de Administración</h1>
-          <p className="text-muted-foreground mt-1">Tu Hogar Posible</p>
+      <div className="container mx-auto px-4 py-6 max-h-[90vh] overflow-y-auto">
+        <div className="mb-4">
+          <h1 className="text-2xl font-bold">Panel de Administración</h1>
+          <p className="text-sm text-muted-foreground">Tu Hogar Posible</p>
         </div>
-        <div className="space-y-8">
-          {dashboardSections.map((section) => (
-            <div key={section.category}>
-              <h2 className="text-xl font-semibold mb-4 text-muted-foreground">
-                {section.category}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Card 
-                      key={item.title}
-                      className="cursor-pointer hover:shadow-lg transition-shadow"
-                      onClick={() => item.onClick ? item.onClick() : navigate(item.path)}
-                    >
-                      <CardHeader>
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg bg-muted ${item.color}`}>
-                            <Icon className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <CardTitle className="text-lg">{item.title}</CardTitle>
-                            <CardDescription className="text-xs">
-                              {item.description}
-                            </CardDescription>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+        
+        {/* Grid único compacto con 4 colunas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {dashboardSections.flatMap(section => 
+            section.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Card 
+                  key={item.title}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => item.onClick ? item.onClick() : navigate(item.path)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2">
+                      <div className={`p-2 rounded-lg bg-muted ${item.color}`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm truncate">{item.title}</h3>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
       </div>
     </AdminLayout>

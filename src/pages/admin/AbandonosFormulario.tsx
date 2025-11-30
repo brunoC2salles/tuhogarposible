@@ -89,9 +89,9 @@ const AbandonosFormulario = () => {
       });
 
       if (response.ok) {
-        toast.success('Automação disparada com sucesso');
+        toast.success('Automatización disparada con éxito');
       } else {
-        toast.warning('Webhook enviado, mas houve um problema na resposta');
+        toast.warning('Webhook enviado, pero hubo un problema en la respuesta');
       }
     } catch (error) {
       console.error('[Webhook] Error:', error);
@@ -228,6 +228,11 @@ const AbandonosFormulario = () => {
                             </Badge>
                           ) : (
                             <Badge variant="destructive">Pendiente</Badge>
+                          )}
+                          {abandonment.automation_triggered && (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                              Automatización enviada
+                            </Badge>
                           )}
                         </div>
                         <div className="text-sm text-muted-foreground">

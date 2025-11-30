@@ -15,6 +15,8 @@ export interface FormAbandonment {
   updated_at: string | null;
   abandoned_at: string | null;
   form_data: any | null;
+  automation_triggered: boolean | null;
+  automation_triggered_at: string | null;
 }
 
 interface Filters {

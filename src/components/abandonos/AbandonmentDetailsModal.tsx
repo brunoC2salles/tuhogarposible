@@ -197,7 +197,7 @@ export function AbandonmentDetailsModal({
           )}
           <Button variant="outline" onClick={() => onTriggerWebhook(abandonment)}>
             <Zap className="h-4 w-4 mr-2" />
-            Disparar Automação
+            Disparar Automatización
           </Button>
           {!abandonment.recovered && (
             <Button variant="secondary" onClick={() => onMarkRecovered(abandonment.id)}>

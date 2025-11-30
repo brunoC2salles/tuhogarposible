@@ -360,6 +360,8 @@ export type Database = {
         Row: {
           abandoned: boolean | null
           abandoned_at: string | null
+          automation_triggered: boolean | null
+          automation_triggered_at: string | null
           created_at: string | null
           email: string | null
           form_data: Json | null
@@ -374,6 +376,8 @@ export type Database = {
         Insert: {
           abandoned?: boolean | null
           abandoned_at?: string | null
+          automation_triggered?: boolean | null
+          automation_triggered_at?: string | null
           created_at?: string | null
           email?: string | null
           form_data?: Json | null
@@ -388,6 +392,8 @@ export type Database = {
         Update: {
           abandoned?: boolean | null
           abandoned_at?: string | null
+          automation_triggered?: boolean | null
+          automation_triggered_at?: string | null
           created_at?: string | null
           email?: string | null
           form_data?: Json | null
