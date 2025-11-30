@@ -1,31 +1,20 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useFormAbandonments } from '@/hooks/useFormAbandonments';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useFormAbandonments, FormAbandonment } from '@/hooks/useFormAbandonments';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Users, Settings, LogOut, MessageCircle, Phone, Mail, CheckCircle, Zap } from 'lucide-react';
-import Logo from '@/components/Logo';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { Phone, Mail, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AbandonmentDetailsModal } from '@/components/abandonos/AbandonmentDetailsModal';
 
 const AbandonosFormulario = () => {
-  const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
   const { abandonments, loading, filters, setFilters, markAsRecovered } = useFormAbandonments();
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
+  const [selectedAbandonment, setSelectedAbandonment] = useState<FormAbandonment | null>(null);
 
   const openWhatsApp = (telefono: string, nombre: string) => {
     const message = encodeURIComponent(
@@ -34,9 +23,8 @@ const AbandonosFormulario = () => {
     window.open(`https://wa.me/${telefono.replace(/\D/g, '')}?text=${message}`, '_blank');
   };
 
-  const triggerWebhook = async (abandonment: any) => {
+  const triggerWebhook = async (abandonment: FormAbandonment) => {
     try {
-      // Buscar URL do webhook
       const { data: settings } = await supabase
         .from('admin_settings')
         .select('value')
@@ -46,117 +34,87 @@ const AbandonosFormulario = () => {
       const webhookUrl = settings?.value;
       
       if (!webhookUrl) {
-        toast.error('URL del webhook no configurada');
+        toast.error('URL del webhook no configurada. Configure en Settings.');
         return;
       }
 
-      // Preparar payload
+      const formData = abandonment.form_data || {};
+      
+      // Payload completo y estructurado
       const payload = {
         trigger: 'form_abandonment',
         timestamp: new Date().toISOString(),
-        lead: {
-          id: abandonment.id,
+        session_id: abandonment.session_id,
+        abandoned_at: abandonment.abandoned_at,
+        contact: {
           nombre_completo: abandonment.nombre_completo,
           telefono: abandonment.telefono,
           email: abandonment.email,
-          step_reached: abandonment.step_reached,
-          abandoned_at: abandonment.abandoned_at,
-          form_data: abandonment.form_data
-        }
+        },
+        location: {
+          comunidad_autonoma: formData.comunidad_autonoma || null,
+          ciudad_interes: formData.ciudad_interes || null,
+          zona_interes: formData.zona_interes || null,
+        },
+        employment: {
+          situacion_laboral: formData.situacion_laboral || null,
+          ingresos_mensuales: formData.ingresos_mensuales || null,
+          edad: formData.edad || null,
+          menor_de_35: formData.menor_de_35 || null,
+          familia_numerosa: formData.familia_numerosa || null,
+        },
+        purchase_interest: {
+          valor_inmueble_deseado: formData.valor_inmueble_deseado || null,
+          entrada_disponible: formData.entrada_disponible || null,
+        },
+        financial: {
+          deudas_actuales: formData.deudas_actuales || null,
+          en_fichero_morosidad: formData.en_fichero_morosidad || null,
+        },
+        companion: {
+          compra_solo_acompanado: formData.compra_solo_acompanado || null,
+          acompanante_nombre: formData.acompanante_nombre || null,
+          acompanante_relacion: formData.acompanante_relacion || null,
+          acompanante_aporte: formData.acompanante_aporte || null,
+        },
+        step_reached: abandonment.step_reached,
       };
 
-      // Enviar webhook
-      await fetch(webhookUrl, {
+      console.log('[Webhook] Payload enviado:', payload);
+
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
-      toast.success('Automación disparada exitosamente');
+      if (response.ok) {
+        toast.success('Automação disparada com sucesso');
+      } else {
+        toast.warning('Webhook enviado, mas houve um problema na resposta');
+      }
     } catch (error) {
-      console.error('Error triggering webhook:', error);
+      console.error('[Webhook] Error:', error);
       toast.error('Error al disparar automación');
     }
   };
 
   const handleMarkAsRecovered = async (id: string) => {
     await markAsRecovered(id);
+    setSelectedAbandonment(null);
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <Logo size="sm" />
-              <div>
-                <h1 className="text-2xl font-bold">Abandonos de Formulario</h1>
-                <p className="text-sm text-muted-foreground">
-                  Gestión de leads que abandonaron el proceso de cualificación
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/inventario/admin/crm')}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Volver al CRM
-              </Button>
-
-              <NotificationBell />
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/admin/settings')}
-              >
-                <Settings className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Configuración</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/admin/agentes')}
-              >
-                <Users className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Agentes</span>
-              </Button>
-
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    {profile?.nombre?.charAt(0).toUpperCase() || 'A'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium">{profile?.nombre}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-              >
-                <LogOut className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Salir</span>
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Filters */}
+    <AdminLayout>
       <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Abandonos de Formulario</h1>
+          <p className="text-muted-foreground mt-1">
+            Gestión de leads que abandonaron el proceso de cualificación
+          </p>
+        </div>
+
+        {/* Filters */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Filtros</CardTitle>
@@ -249,10 +207,12 @@ const AbandonosFormulario = () => {
         ) : (
           <div className="space-y-4">
             {abandonments.map((abandonment) => {
-              const formData = abandonment.form_data || {};
-              
               return (
-                <Card key={abandonment.id}>
+                <Card
+                  key={abandonment.id}
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => setSelectedAbandonment(abandonment)}
+                >
                   <CardContent className="p-6">
                     <div className="space-y-4">
                       {/* Header */}
@@ -295,81 +255,6 @@ const AbandonosFormulario = () => {
                           </div>
                         )}
                       </div>
-
-                      <Separator />
-
-                      {/* Form Data Details */}
-                      {Object.keys(formData).length > 0 && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          {formData.comunidad_autonoma && (
-                            <div>
-                              <span className="text-muted-foreground">Comunidad: </span>
-                              <strong>{formData.comunidad_autonoma}</strong>
-                            </div>
-                          )}
-                          {formData.ciudad_interes && (
-                            <div>
-                              <span className="text-muted-foreground">Ciudad: </span>
-                              <strong>{formData.ciudad_interes}</strong>
-                            </div>
-                          )}
-                          {formData.situacion_laboral && (
-                            <div>
-                              <span className="text-muted-foreground">Situación Laboral: </span>
-                              <strong>{formData.situacion_laboral}</strong>
-                            </div>
-                          )}
-                          {formData.ingresos_mensuales && (
-                            <div>
-                              <span className="text-muted-foreground">Ingresos: </span>
-                              <strong>€{formData.ingresos_mensuales.toLocaleString()}</strong>
-                            </div>
-                          )}
-                          {formData.valor_inmueble_deseado && (
-                            <div>
-                              <span className="text-muted-foreground">Valor Deseado: </span>
-                              <strong>€{formData.valor_inmueble_deseado.toLocaleString()}</strong>
-                            </div>
-                          )}
-                          {formData.entrada_disponible && (
-                            <div>
-                              <span className="text-muted-foreground">Entrada: </span>
-                              <strong>€{formData.entrada_disponible.toLocaleString()}</strong>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <Separator />
-
-                      {/* Actions */}
-                      <div className="flex flex-wrap gap-2">
-                        {abandonment.telefono && (
-                          <Button
-                            onClick={() => openWhatsApp(abandonment.telefono!, abandonment.nombre_completo || 'Lead')}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <MessageCircle className="h-4 w-4 mr-2" />
-                            WhatsApp
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          onClick={() => triggerWebhook(abandonment)}
-                        >
-                          <Zap className="h-4 w-4 mr-2" />
-                          Disparar Automação
-                        </Button>
-                        {!abandonment.recovered && (
-                          <Button
-                            variant="secondary"
-                            onClick={() => handleMarkAsRecovered(abandonment.id)}
-                          >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Marcar como Contactado
-                          </Button>
-                        )}
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -377,8 +262,18 @@ const AbandonosFormulario = () => {
             })}
           </div>
         )}
+
+        {/* Modal de Detalhes */}
+        <AbandonmentDetailsModal
+          abandonment={selectedAbandonment}
+          open={!!selectedAbandonment}
+          onOpenChange={(open) => !open && setSelectedAbandonment(null)}
+          onWhatsApp={openWhatsApp}
+          onTriggerWebhook={triggerWebhook}
+          onMarkRecovered={handleMarkAsRecovered}
+        />
       </div>
-    </div>
+    </AdminLayout>
   );
 };
 

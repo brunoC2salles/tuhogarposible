@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Users, 
@@ -13,19 +12,10 @@ import {
   PhoneOff,
   MessageSquare
 } from 'lucide-react';
-import Logo from '@/components/Logo';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 const AdminDashboardCentral = () => {
   const navigate = useNavigate();
-  const { profile, user, signOut } = useAuth();
-
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
 
   const dashboardSections = [
     {
@@ -147,44 +137,12 @@ const AdminDashboardCentral = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Logo size="sm" />
-              <div>
-                <h1 className="text-2xl font-bold">Panel de Administración</h1>
-                <p className="text-sm text-muted-foreground">Tu Hogar Posible</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <NotificationBell />
-              
-              <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>
-                    {profile?.nombre?.charAt(0).toUpperCase() || 'A'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="hidden sm:block">
-                  <p className="text-sm font-medium">{profile?.nombre}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-              </div>
-
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                Salir
-              </Button>
-            </div>
-          </div>
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Panel de Administración</h1>
+          <p className="text-muted-foreground mt-1">Tu Hogar Posible</p>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
         <div className="space-y-8">
           {dashboardSections.map((section) => (
             <div key={section.category}>
@@ -220,8 +178,8 @@ const AdminDashboardCentral = () => {
             </div>
           ))}
         </div>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 

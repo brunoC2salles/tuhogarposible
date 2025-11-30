@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +28,6 @@ interface Agent {
 
 export default function AdminAgentes() {
   console.log('[AdminAgentes] Component rendering');
-  const navigate = useNavigate();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -213,16 +213,14 @@ export default function AdminAgentes() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-sky-blue-light p-6">
-      <div className="max-w-7xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/inventario/admin/crm")}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver al Dashboard
-        </Button>
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Gestión de Agentes</h1>
+          <p className="text-muted-foreground mt-1">
+            Administra los agentes y su configuración de Round-Robin
+          </p>
+        </div>
 
         <Card>
           <CardHeader>
@@ -374,7 +372,7 @@ export default function AdminAgentes() {
 
         {/* Modal de edição */}
         <Dialog open={editModal.open} onOpenChange={(open) => setEditModal({ ...editModal, open })}>
-          <DialogContent className="sm:max-w-[500px]">
+          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Editar Agente</DialogTitle>
             </DialogHeader>
@@ -490,6 +488,6 @@ export default function AdminAgentes() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

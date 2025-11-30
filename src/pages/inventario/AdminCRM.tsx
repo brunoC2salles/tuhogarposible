@@ -1,18 +1,10 @@
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth } from '@/contexts/AuthContext';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { ArrowLeft, Users, TrendingUp, CheckCircle, Building, LogOut, UserCog, Settings, FileText, BarChart3, MessageSquare, UsersIcon } from 'lucide-react';
-import { STAGE_LABELS } from '@/types/crm';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
-
-import AdminHeader from '@/components/admin/AdminHeader';
+import { Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 const AdminCRM = () => {
-  const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
   const { leads } = useLeads();
   const { agentes } = useAgentes();
 
@@ -32,19 +24,13 @@ const AdminCRM = () => {
     leadsActivos: leads.filter(l => l.agente_asignado_id === agente.id && l.stage !== 'listo').length,
   }));
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      <AdminHeader 
-        title="Dashboard CRM" 
-        subtitle={`Admin: ${profile?.nombre}`}
-      />
-
-      <main className="container mx-auto px-4 py-6 space-y-6">
+    <AdminLayout>
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="mb-4">
+          <h1 className="text-3xl font-bold">Dashboard CRM</h1>
+          <p className="text-muted-foreground mt-1">Métricas y estadísticas de leads</p>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -101,8 +87,8 @@ const AdminCRM = () => {
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
+      </div>
+    </AdminLayout>
   );
 };
 
