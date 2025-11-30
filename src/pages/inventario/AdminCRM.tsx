@@ -73,6 +73,10 @@ const AdminCRM = () => {
                 <Users className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Reclutamiento</span>
               </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/admin/abandonos')}>
+                <UsersIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Abandonos</span>
+              </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/admin/agentes')}>
                 <UserCog className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Agentes</span>

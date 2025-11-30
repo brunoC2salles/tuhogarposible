@@ -1480,6 +1480,7 @@ export type Database = {
         | "payment_deadline"
         | "contract_signed"
         | "contract_generated"
+        | "candidate_stage_change"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -1641,6 +1642,7 @@ export const Constants = {
         "payment_deadline",
         "contract_signed",
         "contract_generated",
+        "candidate_stage_change",
       ],
       tipo_inmueble: [
         "apartamento",
