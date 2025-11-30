@@ -28,6 +28,7 @@ import ContratoPublico from "./pages/ContratoPublico";
 import Dashboard from "./pages/admin/Dashboard";
 import Reclutamiento from "./pages/admin/Reclutamiento";
 import AbandonosFormulario from "./pages/admin/AbandonosFormulario";
+import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +75,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AdminCRM />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminDashboardCentral />
                 </ProtectedRoute>
               } 
             />
