@@ -17,13 +17,6 @@ export async function generateLeadCompletePDF(lead: Lead) {
 
     const inmuebles = leadInmuebles?.map(li => (li as any).inmueble).filter(Boolean) || [];
 
-    // Buscar histórico
-    const { data: historico } = await supabase
-      .from('lead_historico')
-      .select('*')
-      .eq('lead_id', lead.id)
-      .order('created_at', { ascending: false });
-
     // Calcular simulaciones se não existirem (apenas para exibição no PDF)
     let simuladorPersonalDisplay = lead.simulador_personal_data;
     let simuladorHipotecaDisplay = lead.simulador_hipotecario_data;
@@ -175,19 +168,46 @@ export async function generateLeadCompletePDF(lead: Lead) {
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('SIMULACIÓN DE CRÉDITO PERSONAL', margin, currentY);
-      currentY += 10;
+      currentY += 6;
 
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Sistema de amortización francés (cuota fija)', margin, currentY);
+      currentY += 8;
+      doc.setTextColor(0, 0, 0);
+
+      // TABLA 1: Condiciones del Préstamo
       autoTable(doc, {
         startY: currentY,
-        head: [['Concepto', 'Valor']],
+        head: [['CONDICIONES DEL PRÉSTAMO', 'VALOR']],
         body: [
           ['Monto solicitado', formatEuro(simuladorPersonalDisplay.montoSolicitado)],
-          ['Cuota mensual', formatEuro(simuladorPersonalDisplay.cuotaMensual)],
-          ['Total intereses', formatEuro(simuladorPersonalDisplay.totalIntereses)],
-          ['Monto total a pagar', formatEuro(simuladorPersonalDisplay.totalPagar)],
+          ['Plazo del préstamo', `${simuladorPersonalDisplay.plazoMeses} meses (${(simuladorPersonalDisplay.plazoMeses / 12).toFixed(1)} años)`],
+          ['Tasa de interés anual', `${simuladorPersonalDisplay.tasaInteres}%`],
         ],
         theme: 'grid',
-        headStyles: { fillColor: [41, 98, 255] },
+        headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold', fontSize: 10 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 90 },
+          1: { halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 6;
+
+      // TABLA 2: Resumen Financiero
+      autoTable(doc, {
+        startY: currentY,
+        head: [['RESUMEN FINANCIERO', 'VALOR']],
+        body: [
+          ['💰 Cuota mensual', formatEuro(simuladorPersonalDisplay.cuotaMensual)],
+          ['📊 Total de intereses', formatEuro(simuladorPersonalDisplay.totalIntereses)],
+          ['📝 Monto total a pagar', formatEuro(simuladorPersonalDisplay.totalPagar)],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold', fontSize: 10 },
         columnStyles: {
           0: { fontStyle: 'bold', cellWidth: 90 },
           1: { halign: 'right' }
@@ -212,19 +232,42 @@ export async function generateLeadCompletePDF(lead: Lead) {
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(0, 0, 0);
       doc.text('SIMULACIÓN DE CRÉDITO HIPOTECARIO', margin, currentY);
-      currentY += 10;
+      currentY += 8;
 
+      // TABLA 1: Datos de la Vivienda
       autoTable(doc, {
         startY: currentY,
-        head: [['Concepto', 'Valor']],
+        head: [['DATOS DE LA VIVIENDA', 'VALOR']],
         body: [
-          ['Valor inmueble', formatEuro(simuladorHipotecaDisplay.valorInmueble)],
-          ['Monto máximo crédito', formatEuro(simuladorHipotecaDisplay.montoFinanciable)],
-          ['Cuota mensual', formatEuro(simuladorHipotecaDisplay.cuotaMensual)],
+          ['Precio de la vivienda', formatEuro(simuladorHipotecaDisplay.valorInmueble)],
+          ['Porcentaje de financiamiento', `${simuladorHipotecaDisplay.porcentajeFinanciamiento || 80}%`],
+          ['Monto a financiar', formatEuro(simuladorHipotecaDisplay.montoFinanciable)],
           ['Capital propio necesario', formatEuro(simuladorHipotecaDisplay.capitalPropioNecesario)],
         ],
         theme: 'grid',
-        headStyles: { fillColor: [41, 98, 255] },
+        headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold', fontSize: 10 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 90 },
+          1: { halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 6;
+
+      // TABLA 2: Condiciones Financieras
+      const relacionCuotaIngreso = simuladorHipotecaDisplay.relacionCuotaIngreso || 0.35;
+      autoTable(doc, {
+        startY: currentY,
+        head: [['CONDICIONES FINANCIERAS', 'VALOR']],
+        body: [
+          ['Tasa de interés anual', `${simuladorHipotecaDisplay.tasaInteres || 3.5}% (fijo)`],
+          ['Plazo máximo', `${simuladorHipotecaDisplay.plazoAnios || 25} años`],
+          ['⭐ Cuota mensual', formatEuro(simuladorHipotecaDisplay.cuotaMensual)],
+          ['Capacidad de endeudamiento', `${(relacionCuotaIngreso * 100).toFixed(1)}% de ingresos`],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [34, 197, 94], fontStyle: 'bold', fontSize: 10 },
         columnStyles: {
           0: { fontStyle: 'bold', cellWidth: 90 },
           1: { halign: 'right' }
@@ -285,39 +328,6 @@ export async function generateLeadCompletePDF(lead: Lead) {
             );
           }
         }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 10;
-    }
-
-    // HISTORIAL DE ETAPAS
-    if (historico && historico.length > 0) {
-      if (currentY > pageHeight - 100) {
-        doc.addPage();
-        currentY = addPageHeader(margin);
-      }
-
-      doc.line(margin, currentY, pageWidth - margin, currentY);
-      currentY += 10;
-
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('HISTORIAL DE ETAPAS', margin, currentY);
-      currentY += 10;
-
-      const historicoData = historico.map(h => [
-        format(new Date(h.created_at), 'dd/MM/yyyy HH:mm', { locale: es }),
-        h.stage_anterior ? STAGE_LABELS[h.stage_anterior] : 'Inicio',
-        STAGE_LABELS[h.stage_nuevo],
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Fecha', 'Etapa Anterior', 'Nueva Etapa']],
-        body: historicoData,
-        theme: 'grid',
-        headStyles: { fillColor: [41, 98, 255] },
-        margin: { left: margin, right: margin }
       });
 
       currentY = (doc as any).lastAutoTable.finalY + 10;
