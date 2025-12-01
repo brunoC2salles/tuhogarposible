@@ -1508,7 +1508,7 @@ export type Database = {
         | "local_comercial"
         | "terreno"
         | "oficina"
-      user_role: "admin" | "agente"
+      user_role: "admin" | "agente" | "supervisor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1672,7 +1672,7 @@ export const Constants = {
         "terreno",
         "oficina",
       ],
-      user_role: ["admin", "agente"],
+      user_role: ["admin", "agente", "supervisor"],
     },
   },
 } as const
