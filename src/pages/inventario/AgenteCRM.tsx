@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare, MessagesSquare } from 'lucide-react';
+import { MessagesSquare } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -75,12 +75,6 @@ const AgenteCRM = () => {
                   <span className="hidden sm:inline">Chat</span>
                 </Button>
               </Link>
-              <a href="https://app.slack.com/client/YOUR_WORKSPACE_ID" target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="sm">
-                  <MessageSquare className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Slack</span>
-                </Button>
-              </a>
               <Button variant="outline" size="sm" onClick={() => navigate('/agente/settings')}>
                 <Settings className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mi Perfil</span>
