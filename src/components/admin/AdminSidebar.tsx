@@ -69,26 +69,19 @@ const menuItems = [
   {
     group: 'Comunicación',
     items: [
-      {
-        title: 'Slack',
-        url: 'https://app.slack.com/client/T0A0EQF2XNF',
-        icon: MessageSquare,
-        external: true,
-      },
+      { title: 'Chat Interno', url: '/chat', icon: MessageSquare },
+      { title: 'Slack', url: 'https://app.slack.com/client/T0A0EQF2XNF', icon: MessageSquare, external: true },
     ],
   },
 ];
 
-export function AdminSidebar() {
+export const AdminSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = useSidebar();
+  const { open: sidebarOpen } = useSidebar();
 
   const isActive = (url: string) => {
-    if (url === '/admin') {
-      return location.pathname === '/admin';
-    }
-    return location.pathname.startsWith(url);
+    return location.pathname === url;
   };
 
   const handleNavigation = (item: any) => {
@@ -100,9 +93,8 @@ export function AdminSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className={sidebarOpen ? 'w-64' : 'w-14'}>
       <SidebarContent>
-        {/* Menu Groups */}
         {menuItems.map((section) => (
           <SidebarGroup key={section.group}>
             <SidebarGroupLabel>{section.group}</SidebarGroupLabel>
@@ -112,7 +104,7 @@ export function AdminSidebar() {
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       onClick={() => handleNavigation(item)}
-                      isActive={!item.external && isActive(item.url)}
+                      isActive={isActive(item.url)}
                       tooltip={item.title}
                     >
                       <item.icon className="h-4 w-4" />
@@ -127,4 +119,4 @@ export function AdminSidebar() {
       </SidebarContent>
     </Sidebar>
   );
-}
+};

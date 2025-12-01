@@ -8,10 +8,11 @@ import { LogIn, Shield, AlertTriangle } from 'lucide-react';
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
+  allowedRoles?: ('admin' | 'agente' | 'supervisor')[];
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps) => {
-  const { user, profile, loading, isAdmin } = useAuth();
+const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles }: ProtectedRouteProps) => {
+  const { user, profile, loading, isAdmin, isAgente, isSupervisor } = useAuth();
   const [showReload, setShowReload] = useState(false);
 
   useEffect(() => {
@@ -43,6 +44,29 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/auth" replace />;
   }
 
+  // Check allowed roles if specified
+  if (allowedRoles && profile) {
+    const hasAccess = allowedRoles.includes(profile.role);
+    if (!hasAccess) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <Card className="max-w-md w-full">
+            <CardContent className="text-center py-12">
+              <Shield className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Acceso Restringido</h2>
+              <p className="text-muted-foreground mb-6">
+                No tienes permisos para acceder a esta sección.
+              </p>
+              <Button variant="outline" onClick={() => window.history.back()}>
+                Volver
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+  }
+
   if (requireAdmin && !isAdmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -57,12 +81,22 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
               <Button variant="outline" onClick={() => window.history.back()}>
                 Volver
               </Button>
-              <Button asChild>
-                <Link to="/inventario/agente">
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Portal Agente
-                </Link>
-              </Button>
+              {isAgente && (
+                <Button asChild>
+                  <Link to="/inventario/agente">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Portal Agente
+                  </Link>
+                </Button>
+              )}
+              {isSupervisor && (
+                <Button asChild>
+                  <Link to="/supervisor/crm">
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Portal Supervisor
+                  </Link>
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

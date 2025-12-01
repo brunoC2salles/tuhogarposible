@@ -8,8 +8,9 @@ export interface Profile {
   email: string;
   nombre: string;
   telefono?: string;
-  role: 'admin' | 'agente';
+  role: 'admin' | 'agente' | 'supervisor';
   activo: boolean;
+  comision_porcentaje?: number;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isAdmin: boolean;
   isAgente: boolean;
+  isSupervisor: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -203,6 +205,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const isAdmin = profile?.role === 'admin';
   const isAgente = profile?.role === 'agente';
+  const isSupervisor = profile?.role === 'supervisor';
 
   const value = {
     user,
@@ -214,6 +217,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     signOut,
     isAdmin,
     isAgente,
+    isSupervisor,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

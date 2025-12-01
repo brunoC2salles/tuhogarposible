@@ -64,7 +64,6 @@ const AdminInventario = () => {
   const [itemsPerPage, setItemsPerPage] = useState(48);
   const [totalInmuebles, setTotalInmuebles] = useState(0);
   const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
-  const [isSyncingInmovilla, setIsSyncingInmovilla] = useState(false);
 
   // ✅ FASE 3: Hash estável para IDs dos imóveis
   const inmueblesIdsHash = useMemo(
@@ -776,58 +775,6 @@ const AdminInventario = () => {
     event.target.value = '';
   };
 
-  // Handle Inmovilla sync
-  const handleInmovillaSync = async () => {
-    setIsSyncingInmovilla(true);
-    
-    const syncToastId = toast.loading('🔄 Sincronizando productos de Inmovilla...', {
-      description: 'Esto puede tardar varios minutos para ~30,000 productos',
-    });
-    
-    try {
-      console.log('[Inmovilla] Iniciando sincronización');
-      
-      const { data, error } = await supabase.functions.invoke('sync-inmovilla', {
-        body: {},
-      });
-      
-      if (error) throw error;
-      
-      console.log('[Inmovilla] Sincronización completada:', data);
-      
-      // Refresh inventory after sync
-      await fetchInmuebles(currentPage, itemsPerPage);
-      
-      const stats = data.stats || {};
-      
-      // Detailed success toast
-      toast.success(
-        <div className="space-y-1">
-          <div className="font-bold">✅ Sincronización Inmovilla completada</div>
-          <div className="text-sm">📦 Total productos: {data.total}</div>
-          <div className="text-sm">➕ Nuevos: {stats.added}</div>
-          <div className="text-sm">🔄 Actualizados: {stats.updated}</div>
-          <div className="text-sm">❌ Deshabilitados: {stats.disabled}</div>
-          {stats.protected > 0 && (
-            <div className="text-sm">🛡️ Protegidos: {stats.protected}</div>
-          )}
-        </div>,
-        { 
-          id: syncToastId,
-          duration: 8000 
-        }
-      );
-      
-    } catch (error: any) {
-      console.error('[Inmovilla] Error en sincronización:', error);
-      toast.error('Error al sincronizar productos de Inmovilla', {
-        id: syncToastId,
-        description: error.message,
-      });
-    } finally {
-      setIsSyncingInmovilla(false);
-    }
-  };
 
   const reservasPendientes = reservas.filter(r => r.estado === 'pendiente');
 
@@ -969,15 +916,6 @@ const AdminInventario = () => {
                     </span>
                   </Button>
                 </Label>
-                
-                <Button 
-                  variant="outline" 
-                  onClick={handleInmovillaSync}
-                  disabled={isSyncingInmovilla || isSubmitting}
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  {isSyncingInmovilla ? 'Sincronizando...' : 'Sincronizar Inmovilla'}
-                </Button>
                 
                 <ScrapingModal />
                 
