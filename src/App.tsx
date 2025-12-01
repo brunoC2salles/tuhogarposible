@@ -52,9 +52,9 @@ const App = () => (
             <Route 
               path="/inventario/agente"
               element={
-                <ProtectedRoute allowedRoles={['agente']}>
-                  <AgenteInventario />
-                </ProtectedRoute>
+          <ProtectedRoute allowedRoles={['agente', 'admin']}>
+            <AgenteInventario />
+          </ProtectedRoute>
               } 
             />
             <Route 

@@ -91,9 +91,19 @@ export function AbandonmentDetailsModal({
           <div className="space-y-4 py-4">
             {/* Datos de Contacto */}
             <InfoSection title="Datos de Contacto" icon={User}>
-              <InfoRow label="Nombre" value={abandonment.nombre_completo} />
-              <InfoRow label="Teléfono" value={abandonment.telefono} />
-              <InfoRow label="Email" value={abandonment.email} />
+              <InfoRow label="Nombre" value={abandonment.nombre_completo || 'No informado'} />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Teléfono:</span>
+                <span className={abandonment.telefono ? 'font-medium' : 'text-destructive italic'}>
+                  {abandonment.telefono || 'No informado'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Email:</span>
+                <span className={abandonment.email ? 'font-medium' : 'text-destructive italic'}>
+                  {abandonment.email || 'No informado'}
+                </span>
+              </div>
               {abandonment.abandoned_at && (
                 <InfoRow
                   label="Fecha de Abandono"

@@ -242,18 +242,18 @@ const AbandonosFormulario = () => {
 
                       {/* Contact Info */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {abandonment.telefono && (
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{abandonment.telefono}</span>
-                          </div>
-                        )}
-                        {abandonment.email && (
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{abandonment.email}</span>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <span className={`text-sm ${!abandonment.telefono ? 'text-destructive italic' : ''}`}>
+                            {abandonment.telefono || 'No informado'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <span className={`text-sm ${!abandonment.email ? 'text-destructive italic' : ''}`}>
+                            {abandonment.email || 'No informado'}
+                          </span>
+                        </div>
                         {abandonment.abandoned_at && (
                           <div className="text-sm text-muted-foreground">
                             Abandonado: <strong>{format(new Date(abandonment.abandoned_at), 'dd/MM/yyyy HH:mm')}</strong>
