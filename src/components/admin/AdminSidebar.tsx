@@ -70,7 +70,6 @@ const menuItems = [
     group: 'Comunicación',
     items: [
       { title: 'Chat Interno', url: '/chat', icon: MessageSquare },
-      { title: 'Slack', url: 'https://app.slack.com/client/T0A0EQF2XNF', icon: MessageSquare, external: true },
     ],
   },
 ];

@@ -9,7 +9,7 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessageSquare, MessagesSquare } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessagesSquare } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -304,12 +304,6 @@ const AgenteInventario = () => {
                   Chat
                 </Button>
               </Link>
-              <a href="https://app.slack.com/client/YOUR_WORKSPACE_ID" target="_blank" rel="noopener noreferrer">
-                <Button variant="outline" size="sm">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Slack
-                </Button>
-              </a>
               <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
                   <Button size="sm">
                     <ExternalLink className="w-4 h-4 mr-2" />
