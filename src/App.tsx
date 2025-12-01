@@ -29,6 +29,9 @@ import Dashboard from "./pages/admin/Dashboard";
 import Reclutamiento from "./pages/admin/Reclutamiento";
 import AbandonosFormulario from "./pages/admin/AbandonosFormulario";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
+import ChatPage from "./pages/chat/ChatPage";
+import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
+import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 
 const queryClient = new QueryClient();
 
@@ -168,6 +171,30 @@ const App = () => (
               } 
             />
             <Route path="/contrato/:token" element={<ContratoPublico />} />
+            <Route 
+              path="/supervisor/crm"
+              element={
+                <ProtectedRoute allowedRoles={['supervisor']}>
+                  <SupervisorCRM />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/supervisor/financiero"
+              element={
+                <ProtectedRoute allowedRoles={['supervisor']}>
+                  <SupervisorFinanceiro />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chat"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'agente']}>
+                  <ChatPage />
+                </ProtectedRoute>
+              } 
+            />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -8,7 +8,7 @@ export interface AgenteProfile {
   email: string;
   telefono?: string;
   dni_nie?: string;
-  role: 'admin' | 'agente';
+  role: 'admin' | 'agente' | 'supervisor';
   activo: boolean;
   comision_porcentaje?: number;
 }
