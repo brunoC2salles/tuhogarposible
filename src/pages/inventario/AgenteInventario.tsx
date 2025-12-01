@@ -9,7 +9,7 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessageSquare } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessageSquare, MessagesSquare } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -298,6 +298,12 @@ const AgenteInventario = () => {
 
             {/* Botões Desktop */}
             <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
+              <Link to="/chat">
+                <Button variant="outline" size="sm">
+                  <MessagesSquare className="w-4 h-4 mr-2" />
+                  Chat
+                </Button>
+              </Link>
               <a href="https://app.slack.com/client/YOUR_WORKSPACE_ID" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   <MessageSquare className="w-4 h-4 mr-2" />
@@ -336,6 +342,12 @@ const AgenteInventario = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link to="/chat" className="flex items-center cursor-pointer">
+                        <MessagesSquare className="w-4 h-4 mr-2" />
+                        Chat
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
                         <UserCircle className="w-4 h-4 mr-2" />
