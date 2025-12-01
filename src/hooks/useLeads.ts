@@ -5,7 +5,7 @@ import { Lead, LeadFormData, LeadStage } from '@/types/crm';
 import { useAuth } from '@/contexts/AuthContext';
 
 export const useLeads = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, profile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +25,9 @@ export const useLeads = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Agentes veem apenas seus leads, admins veem todos
-      if (!isAdmin) {
+      // Admin e supervisores veem todos os leads, agentes veem apenas seus próprios
+      const isSupervisor = profile?.role === 'supervisor';
+      if (!isAdmin && !isSupervisor) {
         query = query.eq('agente_asignado_id', user.id);
       }
 
@@ -163,7 +164,7 @@ export const useLeads = () => {
     if (user) {
       fetchLeads();
     }
-  }, [user, isAdmin]);
+  }, [user, isAdmin, profile]);
 
   return {
     leads,
