@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, Shield, Calculator, LayoutDashboard, FileText, WalletCards, GraduationCap } from "lucide-react";
+import { Building2, Users, Shield, Calculator, LayoutDashboard, FileText, WalletCards, GraduationCap, MessagesSquare } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 const Index = () => {
@@ -155,6 +155,25 @@ const Index = () => {
               <Link to="/academia">
                 <Button className="w-full" size="lg">
                   Acceder a la Academia
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
+            <CardHeader className="text-center pb-4">
+              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+                <MessagesSquare className="w-8 h-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Chat Interno</CardTitle>
+              <CardDescription className="text-lg">
+                Comunícate con tu equipo en tiempo real
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <Link to="/chat">
+                <Button className="w-full" size="lg">
+                  Acceder al Chat
                 </Button>
               </Link>
             </CardContent>

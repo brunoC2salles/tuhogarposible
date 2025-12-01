@@ -58,7 +58,7 @@ const AgenteCRM = () => {
         <div className="container mx-auto px-2 sm:px-4 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/inventario/agente')}>
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
                 <ArrowLeft className="h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
               <div className="flex-1 min-w-0">
