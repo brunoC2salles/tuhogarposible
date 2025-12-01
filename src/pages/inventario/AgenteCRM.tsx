@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, MessagesSquare } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -14,6 +14,7 @@ import { Plus, ArrowLeft, Users, Building, LogOut, Settings } from 'lucide-react
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { Link } from 'react-router-dom';
 
 const AgenteCRM = () => {
   const navigate = useNavigate();
@@ -68,6 +69,12 @@ const AgenteCRM = () => {
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <NotificationBell />
+              <Link to="/chat">
+                <Button variant="outline" size="sm">
+                  <MessagesSquare className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Chat</span>
+                </Button>
+              </Link>
               <a href="https://app.slack.com/client/YOUR_WORKSPACE_ID" target="_blank" rel="noopener noreferrer">
                 <Button variant="outline" size="sm">
                   <MessageSquare className="h-4 w-4 sm:mr-2" />

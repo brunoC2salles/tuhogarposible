@@ -24,6 +24,46 @@ export const useChannels = () => {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Auto-add user to General channel if not already a member
+  useEffect(() => {
+    const autoJoinGeneral = async () => {
+      if (!user) return;
+
+      try {
+        // Find General channel
+        const { data: generalChannel } = await supabase
+          .from('chat_channels')
+          .select('id')
+          .eq('name', 'General')
+          .maybeSingle();
+
+        if (!generalChannel) return;
+
+        // Check if user is already a member
+        const { data: existingMember } = await supabase
+          .from('chat_channel_members')
+          .select('id')
+          .eq('channel_id', generalChannel.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // If not a member, add them
+        if (!existingMember) {
+          await supabase
+            .from('chat_channel_members')
+            .insert({
+              channel_id: generalChannel.id,
+              user_id: user.id
+            });
+        }
+      } catch (error) {
+        console.error('Error auto-joining General channel:', error);
+      }
+    };
+
+    autoJoinGeneral();
+  }, [user]);
+
   const fetchChannels = async () => {
     if (!user) return;
 
