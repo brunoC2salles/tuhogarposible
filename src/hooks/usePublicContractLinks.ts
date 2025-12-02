@@ -67,6 +67,25 @@ export const usePublicContractLinks = (leadId?: string) => {
     }
   });
 
+  const deleteLink = useMutation({
+    mutationFn: async (linkId: string) => {
+      const { error } = await supabase
+        .from('public_contract_links')
+        .delete()
+        .eq('id', linkId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['public-contract-links'] });
+      toast.success('Link eliminado correctamente');
+    },
+    onError: (error: any) => {
+      console.error('[Contract Links] Delete error:', error);
+      toast.error('Error al eliminar link');
+    }
+  });
+
   const getPublicLink = (token: string) => {
     const baseUrl = window.location.origin;
     return `${baseUrl}/contrato/${token}`;
@@ -76,6 +95,7 @@ export const usePublicContractLinks = (leadId?: string) => {
     links: links || [],
     isLoading,
     generateLink,
+    deleteLink,
     getPublicLink
   };
 };
