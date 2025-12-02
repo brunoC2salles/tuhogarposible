@@ -174,9 +174,8 @@ export const LeadDetailsModal = ({
 
   if (!lead) return null;
 
-  const ModalContent: React.FC = () => {
-    return (
-      <>
+  const modalContent = (
+    <>
       <div className="flex items-center justify-between mb-4 px-4 sm:px-0">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
@@ -678,8 +677,7 @@ export const LeadDetailsModal = ({
           </TabsContent>
         </Tabs>
       </>
-    );
-  };
+  );
 
   if (isMobile) {
     return (
@@ -690,7 +688,7 @@ export const LeadDetailsModal = ({
               <DrawerTitle>{lead.nombre_completo}</DrawerTitle>
             </DrawerHeader>
             <div className="overflow-y-auto pb-6 px-4">
-              <ModalContent />
+              {modalContent}
             </div>
           </DrawerContent>
         </Drawer>
@@ -714,7 +712,7 @@ export const LeadDetailsModal = ({
           <DialogHeader>
             <DialogTitle className="text-xl sm:text-2xl">{lead.nombre_completo}</DialogTitle>
           </DialogHeader>
-          <ModalContent />
+          {modalContent}
         </DialogContent>
       </Dialog>
       
