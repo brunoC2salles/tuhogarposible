@@ -563,22 +563,26 @@ const AdminInventario = () => {
       let updatedCount = 0;
       let disabledCount = 0;
 
-      // Adicionar novos (batches de 100)
+      // Adicionar novos usando UPSERT (batches de 100)
       if (toAdd.length > 0) {
         const BATCH_SIZE = 100;
         for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
           const batch = toAdd.slice(i, i + BATCH_SIZE);
           
+          // Usar UPSERT para evitar duplicados
           const { data, error } = await supabase
             .from('inmuebles')
-            .insert(batch)
+            .upsert(batch, { 
+              onConflict: 'codigo_inventario,proveedor',
+              ignoreDuplicates: false 
+            })
             .select();
 
           if (error) {
-            console.error('[Sync] Erro ao adicionar batch:', error);
+            console.error('[Sync] Erro ao adicionar/atualizar batch:', error);
           } else {
             addedCount += data.length;
-            toast.info(`➕ Adicionando: ${addedCount}/${toAdd.length}`, { id: 'sync-progress' });
+            toast.info(`➕ Sincronizando: ${addedCount}/${toAdd.length}`, { id: 'sync-progress' });
           }
         }
       }
