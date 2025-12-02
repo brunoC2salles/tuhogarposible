@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Lead, STAGE_LABELS } from '@/types/crm';
 import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,14 +46,18 @@ export const LeadDetailsModal = ({
   const { user } = useAuth();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
-  const { links: externalLinks, loading: linksLoading, addLink, deleteLink } = useLeadExternalLinks(lead?.id);
-  const { links: contractLinks, isLoading: loadingLinks, getPublicLink } = usePublicContractLinks(lead?.id);
+  const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
+  const { links: contractLinks, isLoading: loadingLinks, getPublicLink, deleteLink: deleteContractLink } = usePublicContractLinks(lead?.id);
   const { contracts, getContractUrl } = useGeneratedContracts(lead?.id);
   const [contractLinkModalOpen, setContractLinkModalOpen] = useState(false);
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Mass selection state
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [downloadingMultiple, setDownloadingMultiple] = useState(false);
 
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
@@ -114,6 +119,47 @@ export const LeadDetailsModal = ({
     }
   };
 
+  // Mass selection functions
+  const toggleDocumentSelection = (docName: string) => {
+    setSelectedDocuments(prev => 
+      prev.includes(docName) 
+        ? prev.filter(name => name !== docName)
+        : [...prev, docName]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDocuments.length === documents.length) {
+      setSelectedDocuments([]);
+    } else {
+      setSelectedDocuments(documents.map(doc => doc.name));
+    }
+  };
+
+  const downloadSelectedDocuments = async () => {
+    if (selectedDocuments.length === 0) {
+      toast.error('Seleccione al menos un documento');
+      return;
+    }
+    
+    setDownloadingMultiple(true);
+    toast.info(`Descargando ${selectedDocuments.length} documentos...`);
+    
+    for (const docName of selectedDocuments) {
+      await downloadDocument(docName);
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    setSelectedDocuments([]);
+    setDownloadingMultiple(false);
+    toast.success('Descarga completada');
+  };
+
+  const handleDeleteContractLink = async (linkId: string) => {
+    if (window.confirm('¿Estás seguro de eliminar este link de contrato?')) {
+      deleteContractLink.mutate(linkId);
+    }
+  };
 
   if (!lead) return null;
 
@@ -344,7 +390,7 @@ export const LeadDetailsModal = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => deleteLink(link.id)}
+                          onClick={() => deleteExternalLink(link.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -510,6 +556,13 @@ export const LeadDetailsModal = ({
                               Descargar PDF
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteContractLink(link.id)}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -542,39 +595,70 @@ export const LeadDetailsModal = ({
             {documentsLoading ? (
               <div className="text-center text-muted-foreground py-8">Cargando...</div>
             ) : documents.length > 0 ? (
-              <div className="grid gap-3">
-                {documents.map((doc) => (
-                  <Card key={doc.id}>
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-medium text-sm">{doc.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(doc.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
-                          </p>
+              <>
+                {/* Mass selection header */}
+                <div className="flex items-center justify-between mb-3 p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={selectedDocuments.length === documents.length && documents.length > 0}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      {selectedDocuments.length > 0 
+                        ? `${selectedDocuments.length} seleccionado(s)` 
+                        : 'Seleccionar todos'}
+                    </span>
+                  </div>
+                  {selectedDocuments.length > 0 && (
+                    <Button 
+                      size="sm" 
+                      onClick={downloadSelectedDocuments}
+                      disabled={downloadingMultiple}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {downloadingMultiple ? 'Descargando...' : `Descargar (${selectedDocuments.length})`}
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="grid gap-3">
+                  {documents.map((doc) => (
+                    <Card key={doc.id} className={selectedDocuments.includes(doc.name) ? 'ring-2 ring-primary' : ''}>
+                      <CardContent className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selectedDocuments.includes(doc.name)}
+                            onCheckedChange={() => toggleDocumentSelection(doc.name)}
+                          />
+                          <FileText className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-medium text-sm">{doc.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {format(new Date(doc.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => downloadDocument(doc.name)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDocument(doc.name)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => downloadDocument(doc.name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDocument(doc.name)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
                   </Card>
                 ))}
               </div>
+              </>
             ) : (
               <div className="text-center text-muted-foreground py-8">
                 No hay documentos subidos para este lead
