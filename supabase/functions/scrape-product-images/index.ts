@@ -21,10 +21,13 @@ serve(async (req) => {
 
     console.log('🔍 Iniciando scraping para:', urlExterna, 'ID:', inmuebleId);
 
-    // Fazer fetch da página do produto
+    // Fazer fetch da página do produto com headers mais completos
     const response = await fetch(urlExterna, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
       }
     });
 
@@ -33,6 +36,7 @@ serve(async (req) => {
     }
 
     const html = await response.text();
+    console.log(`📄 HTML recebido: ${html.length} caracteres`);
 
     // Detectar fornecedor pela URL
     const isSolvia = urlExterna.includes('solvia.es');
@@ -43,98 +47,135 @@ serve(async (req) => {
     if (isSolvia) {
       console.log('🏢 Detectado: Solvia');
       
-      // Estratégia 1: Tentar ORIGINAL (melhor qualidade)
-      const originalPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.jpg/gi;
-      let matches = html.match(originalPattern);
+      // ESTRATÉGIA 1: Buscar no JSON-LD (mais confiável)
+      const jsonLdPattern = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi;
+      let jsonLdMatch;
+      
+      while ((jsonLdMatch = jsonLdPattern.exec(html)) !== null) {
+        try {
+          const jsonData = JSON.parse(jsonLdMatch[1]);
+          
+          // Verificar se é Product ou RealEstateListing
+          if (jsonData['@type'] === 'Product' || jsonData['@type'] === 'RealEstateListing' || jsonData['@type'] === 'Residence') {
+            if (jsonData.image) {
+              const images = Array.isArray(jsonData.image) ? jsonData.image : [jsonData.image];
+              cleanImages.push(...images.filter((img: string) => typeof img === 'string'));
+              console.log(`✅ JSON-LD: Encontradas ${images.length} imagens`);
+            }
+          }
+          
+          // Verificar ImageGallery
+          if (jsonData['@type'] === 'ImageGallery' && jsonData.image) {
+            const images = Array.isArray(jsonData.image) ? jsonData.image : [jsonData.image];
+            cleanImages.push(...images.filter((img: string) => typeof img === 'string'));
+          }
+        } catch (e) {
+          // JSON inválido, continuar
+        }
+      }
+      
+      // ESTRATÉGIA 2: Buscar ORIGINAL (melhor qualidade)
+      if (cleanImages.length === 0) {
+        const originalPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.ORIGINAL\.(jpg|jpeg|png|webp)/gi;
+        let matches = html.match(originalPattern);
 
-      if (matches && matches.length > 0) {
-        console.log(`✅ Encontradas ${matches.length} imagens ORIGINAL`);
-        cleanImages = Array.from(new Set(
-          matches.map(url => 
+        if (matches && matches.length > 0) {
+          console.log(`✅ Encontradas ${matches.length} imagens ORIGINAL`);
+          cleanImages = matches.map(url => 
             url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
-          )
-        ));
-      } else {
-        console.log('⚠️ Nenhuma imagem ORIGINAL encontrada, tentando 722x503');
-        
-        // Estratégia 2: Fallback para 722x503
-        const mediumPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.jpg/gi;
-        matches = html.match(mediumPattern);
+          );
+        }
+      }
+      
+      // ESTRATÉGIA 3: Buscar 722x503 (médio)
+      if (cleanImages.length === 0) {
+        const mediumPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.722x503\.(jpg|jpeg|png|webp)/gi;
+        const matches = html.match(mediumPattern);
         
         if (matches && matches.length > 0) {
           console.log(`✅ Encontradas ${matches.length} imagens 722x503`);
-          cleanImages = Array.from(new Set(
-            matches.map(url => 
-              url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
-            )
-          ));
-        } else {
-          console.log('⚠️ Tentando pattern genérico .jpg');
-          
-          // Estratégia 3: Fallback genérico - qualquer imagem do CDN
-          const genericPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]+img_[A-F0-9-]+\.[a-zA-Z0-9]+\.jpg/gi;
-          matches = html.match(genericPattern);
-          
-          if (matches && matches.length > 0) {
-            console.log(`✅ Encontradas ${matches.length} imagens com pattern genérico`);
-            cleanImages = Array.from(new Set(
-              matches.map(url => 
-                url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
-              )
-            ));
-          }
+          cleanImages = matches.map(url => 
+            url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+          );
+        }
+      }
+      
+      // ESTRATÉGIA 4: Qualquer imagem do CDN Solvia
+      if (cleanImages.length === 0) {
+        const genericPattern = /https:\/\/cdnsolvproep\.solvia\.es\/uploaded[\/\\]*[^"'\s<>]+\.(jpg|jpeg|png|webp)/gi;
+        const matches = html.match(genericPattern);
+        
+        if (matches && matches.length > 0) {
+          console.log(`✅ Pattern genérico: ${matches.length} imagens`);
+          cleanImages = matches.map(url => 
+            url.replace(/\\/g, '/').replace(/\/+/g, '/').replace(':/', '://')
+          );
+        }
+      }
+      
+      // ESTRATÉGIA 5: Buscar em data attributes e srcset
+      if (cleanImages.length === 0) {
+        const dataImgPattern = /data-(?:src|original|lazy|image)=["']([^"']+solvia[^"']+\.(jpg|jpeg|png|webp))/gi;
+        let match;
+        while ((match = dataImgPattern.exec(html)) !== null) {
+          cleanImages.push(match[1]);
+        }
+        
+        if (cleanImages.length > 0) {
+          console.log(`✅ Data attributes: ${cleanImages.length} imagens`);
         }
       }
       
     } else if (isClickalia) {
       console.log('🏢 Detectado: Clickalia');
-      console.log(`📄 Tamanho do HTML: ${html.length} caracteres`);
       
-      // NOVO PATTERN: Buscar imagens do Google Cloud Storage
-      const clikaliaPattern = /https:\/\/storage\.googleapis\.com\/es-api-clikoffice-infra-esp-pro\/[^"'\s]+\.(jpg|jpeg|png|webp)/gi;
+      // Pattern para Google Cloud Storage
+      const clikaliaPattern = /https:\/\/storage\.googleapis\.com\/es-api-clikoffice-infra-esp-pro\/[^"'\s<>]+\.(jpg|jpeg|png|webp)/gi;
       const clikaliaMatches = html.match(clikaliaPattern);
       
-      console.log(`📸 Encontradas ${clikaliaMatches?.length || 0} imagens no Google Storage`);
-      
       if (clikaliaMatches && clikaliaMatches.length > 0) {
-        cleanImages = Array.from(new Set(
-          clikaliaMatches.map(url => url.trim())
-        ));
-        
-        console.log(`✅ ${cleanImages.length} imagens únicas extraídas da Clickalia`);
-      } else {
-        console.log('❌ Nenhuma imagem encontrada no Clickalia');
+        cleanImages = clikaliaMatches.map(url => url.trim());
+        console.log(`✅ ${cleanImages.length} imagens Clickalia`);
       }
       
     } else {
       console.log('⚠️ Fornecedor desconhecido, usando extração genérica');
       
-      // Fallback genérico: buscar qualquer .jpg de alta resolução
-      const genericPattern = /https:\/\/[^"'\s]+\/(original|large|xlarge|high)\/[^"'\s]+\.jpg/gi;
+      // Fallback: qualquer imagem grande
+      const genericPattern = /https?:\/\/[^"'\s<>]+\/(original|large|xlarge|high|big|full)[^"'\s<>]*\.(jpg|jpeg|png|webp)/gi;
       const genericMatches = html.match(genericPattern);
       
       if (genericMatches && genericMatches.length > 0) {
-        cleanImages = Array.from(new Set(
-          genericMatches.map(url => url.trim())
-        ));
+        cleanImages = genericMatches.map(url => url.trim());
       }
     }
 
-    // Limitar a 15 imagens
-    cleanImages = cleanImages.slice(0, 15);
+    // Remover duplicados e limitar a 20 imagens
+    cleanImages = [...new Set(cleanImages)].slice(0, 20);
+    
+    // Filtrar thumbnails e miniaturas
+    cleanImages = cleanImages.filter(url => 
+      !url.includes('thumb') && 
+      !url.includes('mini') && 
+      !url.includes('small') &&
+      !url.includes('50x') &&
+      !url.includes('100x') &&
+      !url.includes('150x')
+    );
+
+    console.log(`📸 Total final: ${cleanImages.length} imagens únicas`);
 
     if (cleanImages.length === 0) {
       return new Response(
         JSON.stringify({
           success: false,
           error: 'Nenhuma imagem encontrada',
-          inmuebleId
+          inmuebleId,
+          htmlLength: html.length
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log(`📸 ${cleanImages.length} imagens ORIGINAL encontradas`);
 
     // Atualizar banco de dados
     const supabase = createClient(
@@ -144,7 +185,10 @@ serve(async (req) => {
 
     const { error: updateError } = await supabase
       .from('inmuebles')
-      .update({ images: cleanImages })
+      .update({ 
+        images: cleanImages,
+        image_url: cleanImages[0] // Também atualizar image_url com a primeira imagem
+      })
       .eq('id', inmuebleId);
 
     if (updateError) {
