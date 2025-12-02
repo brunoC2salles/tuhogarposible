@@ -55,9 +55,20 @@ export const LeadDetailsModal = ({
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Tab control state
+  const [activeTab, setActiveTab] = useState('info');
+  
   // Mass selection state
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [downloadingMultiple, setDownloadingMultiple] = useState(false);
+
+  // Reset state when modal opens
+  useEffect(() => {
+    if (open) {
+      setActiveTab('info');
+      setSelectedDocuments([]);
+    }
+  }, [open]);
 
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
@@ -177,7 +188,7 @@ export const LeadDetailsModal = ({
         </div>
       </div>
 
-      <Tabs defaultValue="info" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 h-auto">
           <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
           <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
