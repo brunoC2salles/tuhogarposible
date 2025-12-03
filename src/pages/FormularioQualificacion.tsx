@@ -685,7 +685,7 @@ export default function FormularioQualificacion() {
             </div>
 
             {/* Botão de Envio */}
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-4">
               <Button
                 type="submit"
                 size="lg"
@@ -694,6 +694,17 @@ export default function FormularioQualificacion() {
               >
                 {isSubmitting ? "Procesando..." : "Finalizar"}
               </Button>
+              <p className="text-sm text-muted-foreground text-center">
+                Si tienes alguna duda visita{' '}
+                <a 
+                  href="https://tuhogarposible.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline font-medium"
+                >
+                  tuhogarposible.com
+                </a>
+              </p>
             </div>
           </form>
         </Form>
