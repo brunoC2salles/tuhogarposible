@@ -13,6 +13,7 @@ export interface DocumentChecklistItem {
 export interface LeadDocumentChecklist {
   id: string;
   lead_id: string;
+  compra_acompanado: boolean;
   dni_nie_ambas_caras: boolean;
   dni_pais_origen: boolean;
   ultima_renta: boolean;
@@ -30,6 +31,16 @@ export interface LeadDocumentChecklist {
   nota_simple: boolean;
   arras_vivienda_no_bancaria: boolean;
   fotos_vivienda: boolean;
+  // Documentos de la pareja
+  pareja_dni_nie_ambas_caras: boolean;
+  pareja_dni_pais_origen: boolean;
+  pareja_ultima_renta: boolean;
+  pareja_dos_ultimas_rentas_autonomo: boolean;
+  pareja_cuatro_modelos_trimestrales: boolean;
+  pareja_contrato_trabajo: boolean;
+  pareja_tres_ultimas_nominas: boolean;
+  pareja_vida_laboral: boolean;
+  pareja_movimientos_bancarios_6_meses: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -148,6 +159,66 @@ export const DOCUMENT_CHECKLIST: DocumentChecklistItem[] = [
   },
 ];
 
+export const PAREJA_DOCUMENT_CHECKLIST: DocumentChecklistItem[] = [
+  {
+    key: 'pareja_dni_nie_ambas_caras',
+    label: 'DNI/NIE por ambas caras',
+    description: 'Documento de identidad completo (anverso y reverso)',
+    required: true,
+  },
+  {
+    key: 'pareja_dni_pais_origen',
+    label: 'DNI del país de origen',
+    description: 'En caso de NIE comunitario de la UE',
+    required: false,
+    conditional: 'Si NIE de UE',
+  },
+  {
+    key: 'pareja_ultima_renta',
+    label: 'Última renta',
+    description: 'Declaración de la renta del último año',
+    required: true,
+  },
+  {
+    key: 'pareja_dos_ultimas_rentas_autonomo',
+    label: '2 últimas rentas (autónomos)',
+    description: 'Declaraciones de renta de los dos últimos años',
+    required: false,
+    conditional: 'Si es autónomo',
+  },
+  {
+    key: 'pareja_cuatro_modelos_trimestrales',
+    label: '4 modelos trimestrales',
+    description: 'Últimos 4 modelos trimestrales (130, 131, 390...)',
+    required: false,
+    conditional: 'Si es autónomo',
+  },
+  {
+    key: 'pareja_contrato_trabajo',
+    label: 'Contrato de trabajo',
+    description: 'Contrato laboral vigente',
+    required: true,
+  },
+  {
+    key: 'pareja_tres_ultimas_nominas',
+    label: '3 últimas nóminas',
+    description: 'Comprobantes de pago de los últimos 3 meses',
+    required: true,
+  },
+  {
+    key: 'pareja_vida_laboral',
+    label: 'Vida laboral actualizada',
+    description: 'Máximo 30 días de antigüedad desde expedición',
+    required: true,
+  },
+  {
+    key: 'pareja_movimientos_bancarios_6_meses',
+    label: 'Movimientos bancarios 6 meses',
+    description: 'De todas las cuentas con IBAN + titularidad',
+    required: true,
+  },
+];
+
 export const useLeadDocumentChecklist = (leadId: string | undefined) => {
   const queryClient = useQueryClient();
 
@@ -220,12 +291,28 @@ export const useLeadDocumentChecklist = (leadId: string | undefined) => {
   const calculateProgress = (): number => {
     if (!checklist) return 0;
     
-    const totalItems = DOCUMENT_CHECKLIST.length;
-    const completedItems = DOCUMENT_CHECKLIST.filter(
+    const isAcompanado = checklist.compra_acompanado;
+    
+    // Documentos del titular
+    const titularItems = DOCUMENT_CHECKLIST;
+    const titularCompleted = titularItems.filter(
       (item) => checklist[item.key] === true
     ).length;
     
-    return Math.round((completedItems / totalItems) * 100);
+    if (!isAcompanado) {
+      return Math.round((titularCompleted / titularItems.length) * 100);
+    }
+    
+    // Si es acompañado, incluir documentos de la pareja
+    const parejaItems = PAREJA_DOCUMENT_CHECKLIST;
+    const parejaCompleted = parejaItems.filter(
+      (item) => checklist[item.key] === true
+    ).length;
+    
+    const totalItems = titularItems.length + parejaItems.length;
+    const totalCompleted = titularCompleted + parejaCompleted;
+    
+    return Math.round((totalCompleted / totalItems) * 100);
   };
 
   return {

@@ -824,6 +824,7 @@ export type Database = {
       lead_document_checklist: {
         Row: {
           arras_vivienda_no_bancaria: boolean | null
+          compra_acompanado: boolean | null
           contrato_trabajo: boolean | null
           created_at: string | null
           cuadro_amortizacion_hipoteca: boolean | null
@@ -838,6 +839,15 @@ export type Database = {
           lead_id: string
           movimientos_bancarios_6_meses: boolean | null
           nota_simple: boolean | null
+          pareja_contrato_trabajo: boolean | null
+          pareja_cuatro_modelos_trimestrales: boolean | null
+          pareja_dni_nie_ambas_caras: boolean | null
+          pareja_dni_pais_origen: boolean | null
+          pareja_dos_ultimas_rentas_autonomo: boolean | null
+          pareja_movimientos_bancarios_6_meses: boolean | null
+          pareja_tres_ultimas_nominas: boolean | null
+          pareja_ultima_renta: boolean | null
+          pareja_vida_laboral: boolean | null
           tres_recibos_hipoteca: boolean | null
           tres_recibos_prestamos: boolean | null
           tres_ultimas_nominas: boolean | null
@@ -847,6 +857,7 @@ export type Database = {
         }
         Insert: {
           arras_vivienda_no_bancaria?: boolean | null
+          compra_acompanado?: boolean | null
           contrato_trabajo?: boolean | null
           created_at?: string | null
           cuadro_amortizacion_hipoteca?: boolean | null
@@ -861,6 +872,15 @@ export type Database = {
           lead_id: string
           movimientos_bancarios_6_meses?: boolean | null
           nota_simple?: boolean | null
+          pareja_contrato_trabajo?: boolean | null
+          pareja_cuatro_modelos_trimestrales?: boolean | null
+          pareja_dni_nie_ambas_caras?: boolean | null
+          pareja_dni_pais_origen?: boolean | null
+          pareja_dos_ultimas_rentas_autonomo?: boolean | null
+          pareja_movimientos_bancarios_6_meses?: boolean | null
+          pareja_tres_ultimas_nominas?: boolean | null
+          pareja_ultima_renta?: boolean | null
+          pareja_vida_laboral?: boolean | null
           tres_recibos_hipoteca?: boolean | null
           tres_recibos_prestamos?: boolean | null
           tres_ultimas_nominas?: boolean | null
@@ -870,6 +890,7 @@ export type Database = {
         }
         Update: {
           arras_vivienda_no_bancaria?: boolean | null
+          compra_acompanado?: boolean | null
           contrato_trabajo?: boolean | null
           created_at?: string | null
           cuadro_amortizacion_hipoteca?: boolean | null
@@ -884,6 +905,15 @@ export type Database = {
           lead_id?: string
           movimientos_bancarios_6_meses?: boolean | null
           nota_simple?: boolean | null
+          pareja_contrato_trabajo?: boolean | null
+          pareja_cuatro_modelos_trimestrales?: boolean | null
+          pareja_dni_nie_ambas_caras?: boolean | null
+          pareja_dni_pais_origen?: boolean | null
+          pareja_dos_ultimas_rentas_autonomo?: boolean | null
+          pareja_movimientos_bancarios_6_meses?: boolean | null
+          pareja_tres_ultimas_nominas?: boolean | null
+          pareja_ultima_renta?: boolean | null
+          pareja_vida_laboral?: boolean | null
           tres_recibos_hipoteca?: boolean | null
           tres_recibos_prestamos?: boolean | null
           tres_ultimas_nominas?: boolean | null

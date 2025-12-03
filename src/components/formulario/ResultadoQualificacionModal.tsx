@@ -21,6 +21,20 @@ interface ResultadoQualificacionModalProps {
   isConfirming?: boolean;
 }
 
+const HelpMessage = () => (
+  <p className="text-sm text-muted-foreground mt-4 text-center">
+    Si tienes alguna duda visita{' '}
+    <a 
+      href="https://tuhogarposible.com" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="text-primary hover:underline font-medium"
+    >
+      tuhogarposible.com
+    </a>
+  </p>
+);
+
 export function ResultadoQualificacionModal({
   open,
   onOpenChange,
@@ -48,6 +62,7 @@ export function ResultadoQualificacionModal({
               <p className="font-semibold">Equipo de Tu Hogar Posible</p>
             </DialogDescription>
           </DialogHeader>
+          <HelpMessage />
           <div className="flex justify-center mt-4">
             <Button onClick={() => onOpenChange(false)} variant="outline">
               Cerrar
@@ -88,6 +103,7 @@ export function ResultadoQualificacionModal({
               )}
             </DialogDescription>
           </DialogHeader>
+          <HelpMessage />
           <div className="flex justify-center mt-4">
             <Button onClick={() => onOpenChange(false)}>
               {tidycalLink ? "Finalizar" : "Entendido"}
@@ -171,6 +187,8 @@ export function ResultadoQualificacionModal({
             ☑️ Confirmo que he agendado mi reunión con el agente y me comprometo a asistir en la fecha programada.
           </label>
         </div>
+
+        <HelpMessage />
 
         {/* Botão de confirmação */}
         <div className="mt-6 flex justify-center">
