@@ -5,9 +5,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, Download, Loader2, Check } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Plus, Edit, Trash2, Download, Loader2, Check, Wallet } from "lucide-react";
 import { useDespesas } from "@/hooks/useDespesas";
 import { useProductInvoices } from "@/hooks/useProductInvoices";
+import { useAgentVariableCosts } from "@/hooks/useAgentVariableCosts";
 import { DespesaModal } from "@/components/financeiro/DespesaModal";
 import { ProductInvoiceModal } from "@/components/financeiro/ProductInvoiceModal";
 import type { DespesaOperacional } from "@/types/financeiro";
@@ -28,6 +29,7 @@ const ControleFinanceiro = () => {
 
   const { despesas, isLoading: loadingDespesas, createDespesa, updateDespesa, deleteDespesa } = useDespesas();
   const { invoices, isLoading: loadingInvoices, createInvoice, updateInvoice, deleteInvoice, markAsPaid } = useProductInvoices();
+  const { costs: variableCosts, isLoading: loadingCosts, markAsPaid: markCostAsPaid, deleteCost } = useAgentVariableCosts();
 
   const [despesaModalOpen, setDespesaModalOpen] = useState(false);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
@@ -184,6 +186,7 @@ const ControleFinanceiro = () => {
             <TabsTrigger value="overview">Resumen</TabsTrigger>
             <TabsTrigger value="expenses">Gastos Operacionales</TabsTrigger>
             <TabsTrigger value="invoicing">Facturación</TabsTrigger>
+            <TabsTrigger value="variable-costs">Costos Variables</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -446,6 +449,87 @@ const ControleFinanceiro = () => {
                             </TableRow>
                           );
                         })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      {/* Variable Costs Tab */}
+      <TabsContent value="variable-costs">
+        <Card>
+          <CardHeader className="px-3 sm:px-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Wallet className="h-5 w-5" />
+                  Costos Variables (Comisiones)
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Comisiones de agentes y 5% Bruno Salles pendientes de pago</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="px-0 sm:px-6">
+            {loadingCosts ? (
+              <p className="text-center py-8 text-muted-foreground text-sm">Cargando...</p>
+            ) : variableCosts.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground text-sm">No hay costos variables registrados</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs whitespace-nowrap">Agente</TableHead>
+                      <TableHead className="text-xs whitespace-nowrap">Descripción</TableHead>
+                      <TableHead className="text-xs whitespace-nowrap">Estado</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">Valor</TableHead>
+                      <TableHead className="text-xs whitespace-nowrap">Fecha</TableHead>
+                      <TableHead className="text-right text-xs whitespace-nowrap">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {variableCosts.map((cost) => (
+                      <TableRow key={cost.id}>
+                        <TableCell className="text-xs whitespace-nowrap">{getAgenteName(cost.agent_id)}</TableCell>
+                        <TableCell className="text-xs max-w-[200px] truncate">{cost.description}</TableCell>
+                        <TableCell className="text-xs">
+                          <Badge className={cost.status === 'pagado' ? 'bg-green-500' : 'bg-yellow-500'}>
+                            {cost.status === 'pagado' ? 'Pagado' : 'Pendiente'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-xs whitespace-nowrap text-primary">
+                          {formatCurrency(Number(cost.amount))}
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {formatDate(cost.created_at)}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1">
+                            {cost.status !== 'pagado' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={() => markCostAsPaid.mutate(cost.id)} 
+                                className="h-7 px-2 bg-green-50 hover:bg-green-100"
+                              >
+                                <Check className="h-3 w-3 mr-1" />
+                                <span className="text-xs">Pagar</span>
+                              </Button>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="destructive" 
+                              onClick={() => { if (confirm('¿Eliminar este costo?')) deleteCost.mutate(cost.id); }} 
+                              className="h-7 w-7 p-0"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>

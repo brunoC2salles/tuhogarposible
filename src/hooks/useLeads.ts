@@ -99,14 +99,92 @@ export const useLeads = () => {
     }
   };
 
+  // Create draft invoice when lead reaches "listo" stage
+  const createDraftInvoiceFromServices = async (leadId: string, leadName: string, agentId?: string) => {
+    try {
+      // Get lead services
+      const { data: services, error: servicesError } = await supabase
+        .from('lead_services')
+        .select('*')
+        .eq('lead_id', leadId)
+        .maybeSingle();
+
+      if (servicesError) throw servicesError;
+      if (!services) {
+        console.log('[Leads] No services configured for lead, skipping invoice creation');
+        return;
+      }
+
+      // Get next invoice number
+      const { data: invoiceNumber, error: numberError } = await supabase
+        .rpc('get_next_invoice_number');
+      
+      if (numberError) throw numberError;
+
+      // Check if client data is complete
+      const hasCompleteClientData = services.client_company_name && 
+        services.client_address && 
+        services.client_dni_nif && 
+        services.client_email;
+
+      // Create draft invoice
+      const { error: invoiceError } = await supabase
+        .from('product_invoices')
+        .insert({
+          invoice_number: invoiceNumber as string,
+          lead_id: leadId,
+          lead_name: leadName,
+          property_price: services.property_price || 0,
+          agent_id: agentId || null,
+          client_company_name: services.client_company_name || 'Pendiente',
+          client_address: services.client_address || 'Pendiente',
+          client_dni_nif: services.client_dni_nif || 'Pendiente',
+          client_email: services.client_email || 'pendiente@example.com',
+          nota_simples: services.nota_simples || false,
+          tasaciones: services.tasaciones || false,
+          beneficios: services.beneficios || false,
+          inspeccion_tecnica: services.inspeccion_tecnica || false,
+          iva_incluido: services.iva_incluido || false,
+          comision_vivienda: services.comision_vivienda || false,
+          comision_vivienda_percent: services.comision_vivienda_percent || null,
+          credito: services.credito || false,
+          credito_valor: services.credito_valor || null,
+          hipoteca: services.hipoteca || false,
+          hipoteca_percent: services.hipoteca_percent || null,
+          subtotal: services.subtotal || 0,
+          iva_amount: services.iva_amount || 0,
+          total: services.total || 0,
+          status: hasCompleteClientData ? 'generada' : 'draft',
+          created_by: user?.id
+        });
+
+      if (invoiceError) throw invoiceError;
+
+      toast.success(hasCompleteClientData 
+        ? 'Factura creada automáticamente' 
+        : 'Borrador de factura creado - complete los datos del cliente');
+    } catch (err: any) {
+      console.error('[Leads] Error creating draft invoice:', err);
+      // Don't show error toast - this is a background operation
+    }
+  };
+
   const updateLeadStage = async (leadId: string, newStage: LeadStage) => {
     try {
+      // Get current lead data before update
+      const currentLead = leads.find(l => l.id === leadId);
+      
       const { error } = await supabase
         .from('leads')
         .update({ stage: newStage })
         .eq('id', leadId);
 
       if (error) throw error;
+
+      // If stage changed to "listo", create draft invoice
+      if (newStage === 'listo' && currentLead) {
+        await createDraftInvoiceFromServices(leadId, currentLead.nombre_completo, currentLead.agente_asignado_id);
+      }
 
       await fetchLeads();
       return true;
