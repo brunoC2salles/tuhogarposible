@@ -25,7 +25,8 @@ import { GenerateContractLinkModal } from '@/components/contratos/GenerateContra
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DocumentChecklist } from '@/components/crm/DocumentChecklist';
 import { useGeneratedContracts } from '@/hooks/useGeneratedContracts';
-import { FileCheck } from 'lucide-react';
+import { LeadServicesComponent } from '@/components/crm/LeadServices';
+import { FileCheck, ShoppingCart } from 'lucide-react';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -188,10 +189,11 @@ export const LeadDetailsModal = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 h-auto">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1 h-auto">
           <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
           <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
           <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles ({inmuebles.length})</TabsTrigger>
+          <TabsTrigger value="servicios" className="text-xs sm:text-sm">Servicios</TabsTrigger>
           <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
           <TabsTrigger value="comentarios" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
         </TabsList>
@@ -443,6 +445,13 @@ export const LeadDetailsModal = ({
                 No hay inmuebles vinculados a este lead
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="servicios" className="space-y-4">
+            <LeadServicesComponent 
+              leadId={lead.id} 
+              propertyPrice={lead.valor_inmueble_deseado || 0}
+            />
           </TabsContent>
 
           <TabsContent value="comentarios" className="space-y-4">

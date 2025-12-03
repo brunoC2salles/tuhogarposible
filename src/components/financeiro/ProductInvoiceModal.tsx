@@ -46,10 +46,11 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     iva_incluido: false,
     comision_vivienda: false,
     comision_vivienda_percent: "1",
+    exclusivo: false,
     credito: false,
     credito_valor: "300",
     hipoteca: false,
-    hipoteca_percent: "0.1",
+    hipoteca_percent: "0.4",
     payment_due_date: ""
   });
 
@@ -71,10 +72,11 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         iva_incluido: invoice.iva_incluido,
         comision_vivienda: invoice.comision_vivienda,
         comision_vivienda_percent: invoice.comision_vivienda_percent?.toString() || "1",
+        exclusivo: false,
         credito: invoice.credito,
         credito_valor: invoice.credito_valor?.toString() || "300",
         hipoteca: invoice.hipoteca,
-        hipoteca_percent: invoice.hipoteca_percent?.toString() || "0.1",
+        hipoteca_percent: invoice.hipoteca_percent?.toString() || "0.4",
         payment_due_date: invoice.payment_due_date ? new Date(invoice.payment_due_date).toISOString().split('T')[0] : ""
       });
     } else {
@@ -94,10 +96,11 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         iva_incluido: false,
         comision_vivienda: false,
         comision_vivienda_percent: "1",
+        exclusivo: false,
         credito: false,
         credito_valor: "300",
         hipoteca: false,
-        hipoteca_percent: "0.1",
+        hipoteca_percent: "0.4",
         payment_due_date: ""
       });
     }
@@ -126,7 +129,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     if (formData.iva_incluido) subtotal += FIXED_SERVICES.iva_incluido;
     
     if (formData.comision_vivienda) {
-      const percent = parseFloat(formData.comision_vivienda_percent) || 0;
+      const maxPercent = formData.exclusivo ? 7 : 3;
+      const percent = Math.min(parseFloat(formData.comision_vivienda_percent) || 0, maxPercent);
       subtotal += propertyPrice * (percent / 100);
     }
     
@@ -345,20 +349,32 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="comision_vivienda" checked={formData.comision_vivienda} onCheckedChange={(checked) => setFormData({ ...formData, comision_vivienda: checked as boolean })} />
-                  <Label htmlFor="comision_vivienda" className="cursor-pointer">Comisión de Vivienda (1-3% del valor)</Label>
+                  <Label htmlFor="comision_vivienda" className="cursor-pointer">Comisión de Vivienda (1-{formData.exclusivo ? '7' : '3'}% del valor)</Label>
                 </div>
                 {formData.comision_vivienda && (
-                  <div className="ml-6">
-                    <Label htmlFor="comision_percent">Porcentaje (%)</Label>
-                    <Input
-                      id="comision_percent"
-                      type="number"
-                      step="0.1"
-                      min="1"
-                      max="3"
-                      value={formData.comision_vivienda_percent}
-                      onChange={(e) => setFormData({ ...formData, comision_vivienda_percent: e.target.value })}
-                    />
+                  <div className="ml-6 space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="exclusivo" 
+                        checked={formData.exclusivo} 
+                        onCheckedChange={(checked) => setFormData({ ...formData, exclusivo: checked as boolean })} 
+                      />
+                      <Label htmlFor="exclusivo" className="cursor-pointer text-sm text-primary">
+                        Acuerdo Exclusivo (permite hasta 7%)
+                      </Label>
+                    </div>
+                    <div>
+                      <Label htmlFor="comision_percent">Porcentaje (%)</Label>
+                      <Input
+                        id="comision_percent"
+                        type="number"
+                        step="0.1"
+                        min="1"
+                        max={formData.exclusivo ? "7" : "3"}
+                        value={formData.comision_vivienda_percent}
+                        onChange={(e) => setFormData({ ...formData, comision_vivienda_percent: e.target.value })}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
