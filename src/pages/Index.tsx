@@ -8,7 +8,7 @@ const Index = () => {
       <header className="border-b">
         <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
-            <Logo size="lg" className="h-18 w-20 sm:h-12 sm:w-12 border-0" />
+            <Logo size="lg" className="border-0" />
             <div className="text-center sm:text-left">
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Tu Hogar Posible</h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2">Plataforma de inventario inmobiliario</p>

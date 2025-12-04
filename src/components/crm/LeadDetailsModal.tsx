@@ -8,12 +8,13 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Lead, STAGE_LABELS } from '@/types/crm';
 import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink } from 'lucide-react';
+import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useLeadExternalLinks } from '@/hooks/useLeadExternalLinks';
@@ -27,6 +28,8 @@ import { DocumentChecklist } from '@/components/crm/DocumentChecklist';
 import { useGeneratedContracts } from '@/hooks/useGeneratedContracts';
 import { LeadServicesComponent } from '@/components/crm/LeadServices';
 import { FileCheck, ShoppingCart } from 'lucide-react';
+import { useAgentes } from '@/hooks/useAgentes';
+import { useLeads } from '@/hooks/useLeads';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -44,7 +47,9 @@ export const LeadDetailsModal = ({
   onOpenRecomendaciones,
 }: LeadDetailsModalProps) => {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { agentes } = useAgentes();
+  const { reassignLead } = useLeads();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
@@ -248,6 +253,42 @@ export const LeadDetailsModal = ({
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm whitespace-pre-wrap">{lead.notas}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Admin-only: Agent Assignment */}
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <UserCog className="h-4 w-4" />
+                    Asignar Agente
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select
+                    value={lead.agente_asignado_id || ""}
+                    onValueChange={async (newAgentId) => {
+                      if (newAgentId && newAgentId !== lead.agente_asignado_id) {
+                        const success = await reassignLead(lead.id, newAgentId);
+                        if (success) {
+                          toast.success('Agente reasignado correctamente');
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar agente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agentes.map((agente) => (
+                        <SelectItem key={agente.id} value={agente.id}>
+                          {agente.nombre} ({agente.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </CardContent>
               </Card>
             )}

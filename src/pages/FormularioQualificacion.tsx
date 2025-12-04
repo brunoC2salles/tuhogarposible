@@ -289,7 +289,7 @@ export default function FormularioQualificacion() {
       <div className="container max-w-3xl mx-auto py-4 sm:py-6 md:py-8 px-2 sm:px-4">
         {/* Logo e Mensagem de Boas-Vindas */}
         <div className="text-center mb-6 sm:mb-8 space-y-3 sm:space-y-4">
-          <Logo size="lg" className="mx-auto h-12 w-12 sm:h-16 sm:w-16" />
+          <Logo size="lg" className="mx-auto" />
           <div className="space-y-2">
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground px-2">
               ¡Bienvenido a Tu Hogar Posible!

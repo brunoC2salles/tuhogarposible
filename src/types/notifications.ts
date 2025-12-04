@@ -4,7 +4,8 @@ export type NotificationType =
   | 'payment_deadline' 
   | 'contract_signed'
   | 'contract_generated'
-  | 'candidate_stage_change';
+  | 'candidate_stage_change'
+  | 'new_message';
 
 export interface Notification {
   id: string;
@@ -24,5 +25,6 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   payment_deadline: 'Plazo de Pago',
   contract_signed: 'Contrato Firmado',
   contract_generated: 'Contrato Generado',
-  candidate_stage_change: 'Candidato Cambió Etapa'
+  candidate_stage_change: 'Candidato Cambió Etapa',
+  new_message: 'Nuevo Mensaje'
 };
