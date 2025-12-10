@@ -21,6 +21,20 @@ serve(async (req) => {
 
     console.log('🔍 Iniciando scraping para:', urlExterna, 'ID:', inmuebleId);
 
+    // ✅ NOVO: Verificar se é Hipoges - não tentar scraping (site Angular SPA)
+    const isHipoges = urlExterna.includes('hipoges.com') || urlExterna.includes('realestate.hipoges');
+    if (isHipoges) {
+      console.log('⚠️ Hipoges detectado - scraping não suportado (Angular SPA)');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Hipoges usa Angular SPA - imagens devem vir do JSON de importação',
+          inmuebleId
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Fazer fetch da página do produto com headers mais completos
     const response = await fetch(urlExterna, {
       headers: {
@@ -40,7 +54,6 @@ serve(async (req) => {
 
     // Detectar fornecedor pela URL
     const isSolvia = urlExterna.includes('solvia.es');
-    const isClickalia = urlExterna.includes('clikalia.es');
 
     let cleanImages: string[] = [];
 
@@ -124,18 +137,6 @@ serve(async (req) => {
         if (cleanImages.length > 0) {
           console.log(`✅ Data attributes: ${cleanImages.length} imagens`);
         }
-      }
-      
-    } else if (isClickalia) {
-      console.log('🏢 Detectado: Clickalia');
-      
-      // Pattern para Google Cloud Storage
-      const clikaliaPattern = /https:\/\/storage\.googleapis\.com\/es-api-clikoffice-infra-esp-pro\/[^"'\s<>]+\.(jpg|jpeg|png|webp)/gi;
-      const clikaliaMatches = html.match(clikaliaPattern);
-      
-      if (clikaliaMatches && clikaliaMatches.length > 0) {
-        cleanImages = clikaliaMatches.map(url => url.trim());
-        console.log(`✅ ${cleanImages.length} imagens Clickalia`);
       }
       
     } else {

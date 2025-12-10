@@ -696,24 +696,29 @@ const AdminInventario = () => {
             codigoInventario = `AUTO-${Date.now()}-${i}`;
           }
 
-          // ✅ Processar imagens - TODOS OS FORMATOS
+          // ✅ Processar imagens - TODOS OS FORMATOS (incluindo Hipoges)
           let images: string[] | undefined;
           if (item.images && Array.isArray(item.images)) {
-            images = item.images;
+            images = item.images.filter((img: any) => typeof img === 'string' && img.length > 0);
           } else if (item.image_urls && Array.isArray(item.image_urls)) {
-            images = item.image_urls;
-          } else if (item.image_url && typeof item.image_url === 'string') {
+            images = item.image_urls.filter((img: any) => typeof img === 'string' && img.length > 0);
+          } else if (item.image_url && typeof item.image_url === 'string' && item.image_url.length > 0) {
             images = [item.image_url];
-          } else if (item.image && typeof item.image === 'string') {
-            // ✨ NOVO: suporte ao campo "image" (formato novo)
+          } else if (item.image && typeof item.image === 'string' && item.image.length > 0) {
+            // ✨ Hipoges usa campo "image" (URL única)
             images = [item.image];
           }
 
           // ✅ Pegar primeira imagem para compatibilidade
-          const firstImage = images?.[0] || item.image_url || item.image || '';
+          const firstImage = images?.[0] || '';
 
           // ✅ Detectar proveedor do JSON (source ou portal)
           const proveedor = jsonData.source || jsonData.portal || 'Solvia';
+          
+          // ✅ Log para debug de imagens
+          if (i < 5) {
+            console.log(`[JSON Import] Item ${i}: imagens=${images?.length || 0}, firstImage=${firstImage.substring(0, 50)}...`);
+          }
           
           const inmueble: CreateInmuebleData = {
             titulo: item.title || '',
