@@ -20,48 +20,10 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Primeiro, resetar produtos "completed" que têm apenas 1 imagem
-    const { data: lowImageProducts, error: lowImageError } = await supabase
-      .from('scraping_progress')
-      .select('id, inmueble_id, images_found')
-      .eq('status', 'completed')
-      .lte('images_found', 1);
-    
-    if (lowImageProducts && lowImageProducts.length > 0) {
-      console.log(`🔄 Resetando ${lowImageProducts.length} produtos com ≤1 imagem para reprocessar`);
-      
-      await supabase
-        .from('scraping_progress')
-        .update({ 
-          status: 'pending', 
-          attempts: 0,
-          error_message: null,
-          images_found: null
-        })
-        .in('id', lowImageProducts.map(p => p.id));
-    }
+    // ✅ REMOVIDO: Reset de produtos "completed" com poucas imagens
+    // ✅ REMOVIDO: Reset de produtos "failed" que causava loop infinito
 
-    // Resetar produtos "failed" com erro "Nenhuma imagem encontrada" para tentar novamente
-    const { data: retryableProducts } = await supabase
-      .from('scraping_progress')
-      .select('id')
-      .eq('status', 'failed')
-      .ilike('error_message', '%Nenhuma imagem encontrada%')
-      .lt('attempts', 5); // Permitir até 5 tentativas para este erro específico
-
-    if (retryableProducts && retryableProducts.length > 0) {
-      console.log(`🔄 Resetando ${retryableProducts.length} produtos "failed" com erro de imagem não encontrada`);
-      
-      await supabase
-        .from('scraping_progress')
-        .update({ 
-          status: 'pending',
-          error_message: null
-        })
-        .in('id', retryableProducts.map(p => p.id));
-    }
-
-    // Buscar produtos pendentes (aumentado para 100)
+    // Buscar produtos pendentes (apenas os que realmente precisam scraping)
     const { data: pendingItems, error: fetchError } = await supabase
       .from('scraping_progress')
       .select(`
@@ -71,14 +33,16 @@ serve(async (req) => {
         inmuebles!inner (
           id,
           titulo,
-          url_externa
+          url_externa,
+          proveedor,
+          images
         )
       `)
       .eq('status', 'pending')
-      .lt('attempts', 5) // Aumentar limite de tentativas
-      .order('attempts', { ascending: true }) // Priorizar os com menos tentativas
+      .lt('attempts', 3) // Máximo 3 tentativas
+      .order('attempts', { ascending: true })
       .order('created_at', { ascending: true })
-      .limit(100);
+      .limit(50);
 
     if (fetchError) {
       throw fetchError;
@@ -110,15 +74,65 @@ serve(async (req) => {
 
     let processed = 0;
     let errors = 0;
+    let skipped = 0;
     const results = [];
 
-    // Processar em paralelo (10 por vez para maior throughput)
-    const batchSize = 10;
+    // Processar em paralelo (5 por vez para evitar sobrecarga)
+    const batchSize = 5;
     for (let i = 0; i < pendingItems.length; i += batchSize) {
       const batch = pendingItems.slice(i, i + batchSize);
       
       const batchPromises = batch.map(async (item) => {
         const inmueble = item.inmuebles as any;
+        
+        // ✅ NOVO: Verificar se é Hipoges - não fazer scraping
+        if (inmueble?.proveedor === 'Hipoges') {
+          // Hipoges já tem imagens do JSON, marcar como completed
+          const existingImages = inmueble.images as any[];
+          const imageCount = Array.isArray(existingImages) ? existingImages.length : 0;
+          
+          await supabase
+            .from('scraping_progress')
+            .update({ 
+              status: 'completed',
+              images_found: imageCount,
+              error_message: imageCount > 0 ? null : 'Hipoges - imagens do JSON'
+            })
+            .eq('id', item.id);
+          
+          skipped++;
+          results.push({
+            id: inmueble.id,
+            titulo: inmueble.titulo,
+            status: 'skipped',
+            reason: 'Hipoges - usa imagens do JSON'
+          });
+          console.log(`⏭️ ${inmueble.titulo || inmueble.id}: Hipoges (${imageCount} imagens do JSON)`);
+          return;
+        }
+        
+        // ✅ NOVO: Se já tem imagens no banco, marcar como completed
+        const existingImages = inmueble?.images as any[];
+        if (Array.isArray(existingImages) && existingImages.length > 0) {
+          await supabase
+            .from('scraping_progress')
+            .update({ 
+              status: 'completed',
+              images_found: existingImages.length,
+              error_message: null
+            })
+            .eq('id', item.id);
+          
+          skipped++;
+          results.push({
+            id: inmueble.id,
+            titulo: inmueble.titulo,
+            status: 'skipped',
+            reason: `Já tem ${existingImages.length} imagens`
+          });
+          console.log(`⏭️ ${inmueble.titulo || inmueble.id}: Já tem ${existingImages.length} imagens`);
+          return;
+        }
         
         if (!inmueble?.url_externa) {
           // Marcar como failed se não tem URL
@@ -143,7 +157,7 @@ serve(async (req) => {
             })
             .eq('id', item.id);
 
-          console.log(`[${processed + errors + 1}/${pendingItems.length}] Processando: ${inmueble.titulo || inmueble.id}`);
+          console.log(`[${processed + errors + skipped + 1}/${pendingItems.length}] Processando: ${inmueble.titulo || inmueble.id}`);
           
           // Chamar função de scraping
           const response = await fetch(
@@ -193,8 +207,8 @@ serve(async (req) => {
           const newAttempts = (item.attempts || 0) + 1;
           const errorMsg = error.message || 'Erro desconhecido';
           
-          // Só marca como "failed" definitivo após 5 tentativas
-          const newStatus = newAttempts >= 5 ? 'failed' : 'pending';
+          // ✅ CORRIGIDO: Marcar como failed definitivo após 3 tentativas (não resetar)
+          const newStatus = newAttempts >= 3 ? 'failed' : 'pending';
           
           await supabase
             .from('scraping_progress')
@@ -213,7 +227,7 @@ serve(async (req) => {
             error: errorMsg,
             attempts: newAttempts
           });
-          console.error(`❌ ${inmueble.titulo || inmueble.id}: ${errorMsg} (tentativa ${newAttempts})`);
+          console.error(`❌ ${inmueble.titulo || inmueble.id}: ${errorMsg} (tentativa ${newAttempts}/3)`);
         }
       });
 
@@ -221,7 +235,7 @@ serve(async (req) => {
       
       // Pequeno delay entre sub-batches para não sobrecarregar
       if (i + batchSize < pendingItems.length) {
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     }
 
@@ -239,10 +253,11 @@ serve(async (req) => {
       success: true,
       batchSize: pendingItems.length,
       processed,
+      skipped,
       errors,
       results,
       stats: summary,
-      message: `Lote concluído: ${processed} sucessos, ${errors} erros`
+      message: `Lote concluído: ${processed} sucessos, ${skipped} pulados, ${errors} erros`
     };
 
     console.log('🎉 Lote finalizado:', response.message);
