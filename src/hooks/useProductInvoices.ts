@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { BRUNO_SALLES_ID } from './useAgentVariableCosts';
 
 export interface ProductInvoice {
   id: string;
@@ -147,6 +146,7 @@ export const useProductInvoices = () => {
       if (error) throw error;
 
       // Create variable costs for agent commission (if agent assigned)
+      // NOTE: Bruno's commission is now calculated monthly on total billing, not per invoice
       if (invoice.agent_id) {
         const agentCommissionPercent = (invoice.profiles as any)?.comision_porcentaje || 0;
         const agentCommission = invoice.total * (agentCommissionPercent / 100);
@@ -162,22 +162,12 @@ export const useProductInvoices = () => {
         }
       }
 
-      // Create variable cost for Bruno Salles (5% of gross total)
-      const brunoCommission = invoice.total * 0.05;
-      await supabase.from('agent_variable_costs').insert({
-        invoice_id: id,
-        agent_id: BRUNO_SALLES_ID,
-        description: `Comisión 5% - Factura ${invoice.invoice_number}`,
-        amount: brunoCommission,
-        status: 'pendiente'
-      });
-
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['product-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['agent-variable-costs'] });
-      toast.success('Factura marcada como pagada - Comisiones creadas');
+      toast.success('Factura marcada como pagada - Comisión del agente creada');
     },
     onError: () => toast.error('Error al marcar factura como pagada')
   });

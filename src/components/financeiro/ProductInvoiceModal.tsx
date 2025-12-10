@@ -10,6 +10,7 @@ import { useAgentes } from "@/hooks/useAgentes";
 import { useLeads } from "@/hooks/useLeads";
 import type { ProductInvoice } from "@/hooks/useProductInvoices";
 import { Loader2 } from "lucide-react";
+import { DEFAULT_SERVICE_COSTS } from "@/types/financeiro";
 
 interface ProductInvoiceModalProps {
   open: boolean;
@@ -58,6 +59,9 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     payment_due_date: ""
   });
 
+  // Service costs state (editable)
+  const [serviceCosts, setServiceCosts] = useState<Record<string, number>>({...DEFAULT_SERVICE_COSTS});
+
   useEffect(() => {
     if (invoice) {
       const isDirecta = !!invoice.monto_directo && !invoice.property_price;
@@ -86,6 +90,9 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         hipoteca_percent: invoice.hipoteca_percent?.toString() || "0.4",
         payment_due_date: invoice.payment_due_date ? new Date(invoice.payment_due_date).toISOString().split('T')[0] : ""
       });
+      // Load saved service costs or defaults
+      const savedCosts = (invoice as any).service_costs || {};
+      setServiceCosts({...DEFAULT_SERVICE_COSTS, ...savedCosts});
     } else {
       setFacturacionDirecta(false);
       setFormData({
@@ -112,6 +119,7 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         hipoteca_percent: "0.4",
         payment_due_date: ""
       });
+      setServiceCosts({...DEFAULT_SERVICE_COSTS});
     }
   }, [invoice, open]);
 
@@ -128,7 +136,6 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
   };
 
   const calculateSubtotal = () => {
-    // If direct invoicing, use monto_directo as subtotal
     if (facturacionDirecta) {
       return parseFloat(formData.monto_directo) || 0;
     }
@@ -160,9 +167,26 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     return subtotal;
   };
 
+  const calculateTotalCost = () => {
+    if (facturacionDirecta) return 0;
+
+    let totalCost = 0;
+    if (formData.nota_simples) totalCost += serviceCosts.nota_simples || 0;
+    if (formData.tasaciones) totalCost += serviceCosts.tasaciones || 0;
+    if (formData.beneficios) totalCost += serviceCosts.beneficios || 0;
+    if (formData.inspeccion_tecnica) totalCost += serviceCosts.inspeccion_tecnica || 0;
+    if (formData.iva_incluido) totalCost += serviceCosts.iva_incluido || 0;
+    if (formData.comision_vivienda) totalCost += serviceCosts.comision_vivienda || 0;
+    if (formData.credito) totalCost += serviceCosts.credito || 0;
+    if (formData.hipoteca) totalCost += serviceCosts.hipoteca || 0;
+    return totalCost;
+  };
+
   const subtotal = calculateSubtotal();
   const ivaAmount = subtotal * 0.21;
   const total = subtotal + ivaAmount;
+  const totalServiceCost = calculateTotalCost();
+  const netCompany = total - totalServiceCost;
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(value);
@@ -171,7 +195,6 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation based on mode
     if (facturacionDirecta) {
       if (!formData.lead_name || !formData.monto_directo || !formData.client_company_name ||
           !formData.client_address || !formData.client_dni_nif || !formData.client_email || !formData.payment_due_date) {
@@ -182,6 +205,19 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
           !formData.client_address || !formData.client_dni_nif || !formData.client_email || !formData.payment_due_date) {
         return;
       }
+    }
+
+    // Build service_costs object with only selected services
+    const selectedServiceCosts: Record<string, number> = {};
+    if (!facturacionDirecta) {
+      if (formData.nota_simples) selectedServiceCosts.nota_simples = serviceCosts.nota_simples;
+      if (formData.tasaciones) selectedServiceCosts.tasaciones = serviceCosts.tasaciones;
+      if (formData.beneficios) selectedServiceCosts.beneficios = serviceCosts.beneficios;
+      if (formData.inspeccion_tecnica) selectedServiceCosts.inspeccion_tecnica = serviceCosts.inspeccion_tecnica;
+      if (formData.iva_incluido) selectedServiceCosts.iva_incluido = serviceCosts.iva_incluido;
+      if (formData.comision_vivienda) selectedServiceCosts.comision_vivienda = serviceCosts.comision_vivienda;
+      if (formData.credito) selectedServiceCosts.credito = serviceCosts.credito;
+      if (formData.hipoteca) selectedServiceCosts.hipoteca = serviceCosts.hipoteca;
     }
 
     onSave({
@@ -209,8 +245,19 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
       subtotal,
       iva_amount: ivaAmount,
       total,
-      status: 'generada'
-    });
+      status: 'generada',
+      // New cost fields
+      service_costs: selectedServiceCosts,
+      total_service_cost: totalServiceCost,
+      net_company: netCompany
+    } as any);
+  };
+
+  const updateServiceCost = (service: string, value: string) => {
+    setServiceCosts(prev => ({
+      ...prev,
+      [service]: parseFloat(value) || 0
+    }));
   };
 
   return (
@@ -376,37 +423,120 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
           {!facturacionDirecta && (
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-semibold text-lg">Servicios Prestados</h3>
+              <p className="text-xs text-muted-foreground">Marque los servicios y edite el coste real de cada uno</p>
               
               {/* Servicios Fijos */}
               <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="nota_simples" checked={formData.nota_simples} onCheckedChange={(checked) => setFormData({ ...formData, nota_simples: checked as boolean })} />
-                  <Label htmlFor="nota_simples" className="cursor-pointer">Nota Simples - {formatCurrency(FIXED_SERVICES.nota_simples)}</Label>
+                {/* Nota Simples */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="nota_simples" checked={formData.nota_simples} onCheckedChange={(checked) => setFormData({ ...formData, nota_simples: checked as boolean })} />
+                    <Label htmlFor="nota_simples" className="cursor-pointer">Nota Simples - {formatCurrency(FIXED_SERVICES.nota_simples)}</Label>
+                  </div>
+                  {formData.nota_simples && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Coste:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={serviceCosts.nota_simples}
+                        onChange={(e) => updateServiceCost('nota_simples', e.target.value)}
+                        className="w-20 h-7 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="tasaciones" checked={formData.tasaciones} onCheckedChange={(checked) => setFormData({ ...formData, tasaciones: checked as boolean })} />
-                  <Label htmlFor="tasaciones" className="cursor-pointer">Tasaciones - {formatCurrency(FIXED_SERVICES.tasaciones)}</Label>
+
+                {/* Tasaciones */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="tasaciones" checked={formData.tasaciones} onCheckedChange={(checked) => setFormData({ ...formData, tasaciones: checked as boolean })} />
+                    <Label htmlFor="tasaciones" className="cursor-pointer">Tasaciones - {formatCurrency(FIXED_SERVICES.tasaciones)}</Label>
+                  </div>
+                  {formData.tasaciones && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Coste:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={serviceCosts.tasaciones}
+                        onChange={(e) => updateServiceCost('tasaciones', e.target.value)}
+                        className="w-20 h-7 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="beneficios" checked={formData.beneficios} onCheckedChange={(checked) => setFormData({ ...formData, beneficios: checked as boolean })} />
-                  <Label htmlFor="beneficios" className="cursor-pointer">Beneficios - {formatCurrency(FIXED_SERVICES.beneficios)}</Label>
+
+                {/* Beneficios */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="beneficios" checked={formData.beneficios} onCheckedChange={(checked) => setFormData({ ...formData, beneficios: checked as boolean })} />
+                    <Label htmlFor="beneficios" className="cursor-pointer">Beneficios - {formatCurrency(FIXED_SERVICES.beneficios)}</Label>
+                  </div>
+                  {formData.beneficios && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Coste:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={serviceCosts.beneficios}
+                        onChange={(e) => updateServiceCost('beneficios', e.target.value)}
+                        className="w-20 h-7 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="inspeccion_tecnica" checked={formData.inspeccion_tecnica} onCheckedChange={(checked) => setFormData({ ...formData, inspeccion_tecnica: checked as boolean })} />
-                  <Label htmlFor="inspeccion_tecnica" className="cursor-pointer">Inspección Técnica - {formatCurrency(FIXED_SERVICES.inspeccion_tecnica)}</Label>
+
+                {/* Inspección Técnica */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="inspeccion_tecnica" checked={formData.inspeccion_tecnica} onCheckedChange={(checked) => setFormData({ ...formData, inspeccion_tecnica: checked as boolean })} />
+                    <Label htmlFor="inspeccion_tecnica" className="cursor-pointer">Inspección Técnica - {formatCurrency(FIXED_SERVICES.inspeccion_tecnica)}</Label>
+                  </div>
+                  {formData.inspeccion_tecnica && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Coste:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={serviceCosts.inspeccion_tecnica}
+                        onChange={(e) => updateServiceCost('inspeccion_tecnica', e.target.value)}
+                        className="w-20 h-7 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox id="iva_incluido" checked={formData.iva_incluido} onCheckedChange={(checked) => setFormData({ ...formData, iva_incluido: checked as boolean })} />
-                  <Label htmlFor="iva_incluido" className="cursor-pointer">IVA Incluido - {formatCurrency(FIXED_SERVICES.iva_incluido)}</Label>
+
+                {/* IVA Incluido */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="iva_incluido" checked={formData.iva_incluido} onCheckedChange={(checked) => setFormData({ ...formData, iva_incluido: checked as boolean })} />
+                    <Label htmlFor="iva_incluido" className="cursor-pointer">IVA Incluido - {formatCurrency(FIXED_SERVICES.iva_incluido)}</Label>
+                  </div>
+                  {formData.iva_incluido && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Coste:</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={serviceCosts.iva_incluido}
+                        onChange={(e) => updateServiceCost('iva_incluido', e.target.value)}
+                        className="w-20 h-7 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Servicios Variables */}
               <div className="space-y-4 pt-4 border-t">
+                {/* Comisión Vivienda */}
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="comision_vivienda" checked={formData.comision_vivienda} onCheckedChange={(checked) => setFormData({ ...formData, comision_vivienda: checked as boolean })} />
-                    <Label htmlFor="comision_vivienda" className="cursor-pointer">Comisión de Vivienda (1-{formData.exclusivo ? '7' : '3'}% del valor)</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="comision_vivienda" checked={formData.comision_vivienda} onCheckedChange={(checked) => setFormData({ ...formData, comision_vivienda: checked as boolean })} />
+                      <Label htmlFor="comision_vivienda" className="cursor-pointer">Comisión de Vivienda (1-{formData.exclusivo ? '7' : '3'}% del valor)</Label>
+                    </div>
                   </div>
                   {formData.comision_vivienda && (
                     <div className="ml-6 space-y-2">
@@ -416,64 +546,115 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
                           checked={formData.exclusivo} 
                           onCheckedChange={(checked) => setFormData({ ...formData, exclusivo: checked as boolean })} 
                         />
-                        <Label htmlFor="exclusivo" className="cursor-pointer text-sm text-primary">
-                          Acuerdo Exclusivo (permite hasta 7%)
-                        </Label>
+                        <Label htmlFor="exclusivo" className="cursor-pointer text-sm">Acuerdo Exclusivo (hasta 7%)</Label>
                       </div>
-                      <div>
-                        <Label htmlFor="comision_percent">Porcentaje (%)</Label>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm">Porcentaje:</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="1"
+                            max={formData.exclusivo ? "7" : "3"}
+                            value={formData.comision_vivienda_percent}
+                            onChange={(e) => setFormData({ ...formData, comision_vivienda_percent: e.target.value })}
+                            className="w-20 h-8"
+                          />
+                          <span className="text-sm">%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">Coste:</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={serviceCosts.comision_vivienda}
+                            onChange={(e) => updateServiceCost('comision_vivienda', e.target.value)}
+                            className="w-20 h-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        = {formatCurrency((parseFloat(formData.property_price) || 0) * (parseFloat(formData.comision_vivienda_percent) || 0) / 100)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Crédito */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="credito" checked={formData.credito} onCheckedChange={(checked) => setFormData({ ...formData, credito: checked as boolean })} />
+                      <Label htmlFor="credito" className="cursor-pointer">Crédito (€300-500)</Label>
+                    </div>
+                  </div>
+                  {formData.credito && (
+                    <div className="ml-6 flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">Valor:</Label>
                         <Input
-                          id="comision_percent"
                           type="number"
-                          step="0.1"
-                          min="1"
-                          max={formData.exclusivo ? "7" : "3"}
-                          value={formData.comision_vivienda_percent}
-                          onChange={(e) => setFormData({ ...formData, comision_vivienda_percent: e.target.value })}
+                          step="1"
+                          min="300"
+                          max="500"
+                          value={formData.credito_valor}
+                          onChange={(e) => setFormData({ ...formData, credito_valor: e.target.value })}
+                          className="w-24 h-8"
+                        />
+                        <span className="text-sm">€</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground">Coste:</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={serviceCosts.credito}
+                          onChange={(e) => updateServiceCost('credito', e.target.value)}
+                          className="w-20 h-7 text-xs"
                         />
                       </div>
                     </div>
                   )}
                 </div>
 
+                {/* Hipoteca */}
                 <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="credito" checked={formData.credito} onCheckedChange={(checked) => setFormData({ ...formData, credito: checked as boolean })} />
-                    <Label htmlFor="credito" className="cursor-pointer">Crédito (300-500€)</Label>
-                  </div>
-                  {formData.credito && (
-                    <div className="ml-6">
-                      <Label htmlFor="credito_valor">Valor (€)</Label>
-                      <Input
-                        id="credito_valor"
-                        type="number"
-                        step="1"
-                        min="300"
-                        max="500"
-                        value={formData.credito_valor}
-                        onChange={(e) => setFormData({ ...formData, credito_valor: e.target.value })}
-                      />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="hipoteca" checked={formData.hipoteca} onCheckedChange={(checked) => setFormData({ ...formData, hipoteca: checked as boolean })} />
+                      <Label htmlFor="hipoteca" className="cursor-pointer">Hipoteca (0.1-0.7% del valor)</Label>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="hipoteca" checked={formData.hipoteca} onCheckedChange={(checked) => setFormData({ ...formData, hipoteca: checked as boolean })} />
-                    <Label htmlFor="hipoteca" className="cursor-pointer">Hipoteca (0.1-0.7% del valor)</Label>
                   </div>
                   {formData.hipoteca && (
-                    <div className="ml-6">
-                      <Label htmlFor="hipoteca_percent">Porcentaje (%)</Label>
-                      <Input
-                        id="hipoteca_percent"
-                        type="number"
-                        step="0.1"
-                        min="0.1"
-                        max="0.7"
-                        value={formData.hipoteca_percent}
-                        onChange={(e) => setFormData({ ...formData, hipoteca_percent: e.target.value })}
-                      />
+                    <div className="ml-6 flex flex-col gap-2">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-sm">Porcentaje:</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            max="0.7"
+                            value={formData.hipoteca_percent}
+                            onChange={(e) => setFormData({ ...formData, hipoteca_percent: e.target.value })}
+                            className="w-20 h-8"
+                          />
+                          <span className="text-sm">%</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs text-muted-foreground">Coste:</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={serviceCosts.hipoteca}
+                            onChange={(e) => updateServiceCost('hipoteca', e.target.value)}
+                            className="w-20 h-7 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        = {formatCurrency((parseFloat(formData.property_price) || 0) * (parseFloat(formData.hipoteca_percent) || 0) / 100)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -485,31 +666,37 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
           <div className="border-t pt-4 space-y-2 bg-muted/30 p-4 rounded-lg">
             <div className="flex justify-between text-sm">
               <span>Subtotal:</span>
-              <span className="font-semibold">{formatCurrency(subtotal)}</span>
+              <span className="font-medium">{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span>IVA (21%):</span>
-              <span className="font-semibold">{formatCurrency(ivaAmount)}</span>
+              <span className="font-medium">{formatCurrency(ivaAmount)}</span>
             </div>
             <div className="flex justify-between text-lg font-bold border-t pt-2">
-              <span>Total:</span>
-              <span>{formatCurrency(total)}</span>
+              <span>Total Factura:</span>
+              <span className="text-primary">{formatCurrency(total)}</span>
             </div>
+            {!facturacionDirecta && (
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground border-t pt-2">
+                  <span>Coste Total Servicios:</span>
+                  <span className="text-destructive">-{formatCurrency(totalServiceCost)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold">
+                  <span>Neto Empresa:</span>
+                  <span className="text-green-600">{formatCurrency(netCompany)}</span>
+                </div>
+              </>
+            )}
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                invoice ? "Actualizar" : "Crear Factura"
-              )}
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {invoice ? "Actualizar" : "Crear Factura"}
             </Button>
           </DialogFooter>
         </form>

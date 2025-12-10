@@ -1235,15 +1235,18 @@ export type Database = {
           lead_id: string | null
           lead_name: string
           monto_directo: number | null
+          net_company: number | null
           nota_simples: boolean | null
           paid_at: string | null
           payment_due_date: string | null
           pdf_path: string | null
           property_price: number | null
+          service_costs: Json | null
           status: string | null
           subtotal: number
           tasaciones: boolean | null
           total: number
+          total_service_cost: number | null
           updated_at: string | null
         }
         Insert: {
@@ -1269,15 +1272,18 @@ export type Database = {
           lead_id?: string | null
           lead_name: string
           monto_directo?: number | null
+          net_company?: number | null
           nota_simples?: boolean | null
           paid_at?: string | null
           payment_due_date?: string | null
           pdf_path?: string | null
           property_price?: number | null
+          service_costs?: Json | null
           status?: string | null
           subtotal: number
           tasaciones?: boolean | null
           total: number
+          total_service_cost?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -1303,15 +1309,18 @@ export type Database = {
           lead_id?: string | null
           lead_name?: string
           monto_directo?: number | null
+          net_company?: number | null
           nota_simples?: boolean | null
           paid_at?: string | null
           payment_due_date?: string | null
           pdf_path?: string | null
           property_price?: number | null
+          service_costs?: Json | null
           status?: string | null
           subtotal?: number
           tasaciones?: boolean | null
           total?: number
+          total_service_cost?: number | null
           updated_at?: string | null
         }
         Relationships: [
