@@ -8,7 +8,8 @@ export interface ProductInvoice {
   invoice_number: string;
   lead_id?: string;
   lead_name: string;
-  property_price: number;
+  property_price?: number;
+  monto_directo?: number;
   agent_id?: string;
   client_company_name: string;
   client_address: string;

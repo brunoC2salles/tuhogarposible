@@ -26,7 +26,6 @@ import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
 import AdminContractTemplates from "./pages/AdminContractTemplates";
 import ContratoPublico from "./pages/ContratoPublico";
 import Dashboard from "./pages/admin/Dashboard";
-import Reclutamiento from "./pages/admin/Reclutamiento";
 import AbandonosFormulario from "./pages/admin/AbandonosFormulario";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
 import ChatPage from "./pages/chat/ChatPage";
@@ -118,14 +117,6 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <AgenteDetails />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/reclutamiento"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Reclutamiento />
                 </ProtectedRoute>
               } 
             />
