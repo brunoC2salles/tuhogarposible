@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const { token, formData } = await req.json();
     
-    console.log('[Generate Contract] Processing token:', token);
+    // Contract generation started
 
     // 1. Buscar link e validar
     const { data: linkData, error: linkError } = await supabaseClient
@@ -61,7 +61,7 @@ serve(async (req) => {
       .single();
 
     if (linkError || !linkData) {
-      console.error('[Generate Contract] Link not found:', linkError);
+      console.error('[Generate Contract] Link not found');
       return new Response(
         JSON.stringify({ error: 'Link inválido ou expirado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -100,7 +100,7 @@ serve(async (req) => {
       .single();
 
     if (agentError || !agentData) {
-      console.error('[Generate Contract] Agent not found:', agentError);
+      console.error('[Generate Contract] Agent not found');
       return new Response(
         JSON.stringify({ error: 'Agente não encontrado' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -167,11 +167,9 @@ serve(async (req) => {
       .single();
 
     if (contractError) {
-      console.error('[Generate Contract] Error creating contract:', contractError);
+      console.error('[Generate Contract] Error creating contract');
       throw contractError;
     }
-
-    console.log('[Generate Contract] Contract record created:', contractData.id);
 
     // 4. Gerar PDF profissional usando pdf-lib
     const pdfPath = `${lead.id}/contrato_${Date.now()}.pdf`;
@@ -390,11 +388,9 @@ serve(async (req) => {
       });
 
     if (uploadError) {
-      console.error('[Generate Contract] Upload error:', uploadError);
+      console.error('[Generate Contract] Upload error');
       throw uploadError;
     }
-
-    console.log('[Generate Contract] File uploaded:', pdfPath);
 
     // 5. Atualizar contract com file_path
     await supabaseClient
@@ -445,11 +441,8 @@ serve(async (req) => {
       });
     }
 
-    // Inserir todas as notificações de uma vez
+    // Insert all notifications at once
     await supabaseClient.from('notifications').insert(notificationsToInsert);
-    console.log(`[Generate Contract] ${notificationsToInsert.length} notification(s) created`);
-
-    console.log('[Generate Contract] Contract generated successfully:', contractData.id);
 
     return new Response(
       JSON.stringify({
