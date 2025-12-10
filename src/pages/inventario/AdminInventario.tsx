@@ -680,17 +680,20 @@ const AdminInventario = () => {
           }
           
           // Extraer código de inventario de la URL (formato Hipoges: REAR-03617, AFRE-136101)
-          let codigoInventario: string | undefined;
+          let codigoInventario: string;
           if (item.url) {
             // Formato Hipoges: https://realestate.hipoges.com/es/detail/REAR-03617
             const hipogesMatch = item.url.match(/\/detail\/([A-Z]+-\d+)/i);
             if (hipogesMatch) {
               codigoInventario = hipogesMatch[1];
             } else {
-              // Fallback para outros formatos
-              const urlParts = item.url.split('/');
-              codigoInventario = urlParts[urlParts.length - 1];
+              // Fallback: usar última parte da URL
+              const urlParts = item.url.split('/').filter(Boolean);
+              codigoInventario = urlParts[urlParts.length - 1] || `AUTO-${Date.now()}-${i}`;
             }
+          } else {
+            // Sem URL: gerar código único baseado no índice
+            codigoInventario = `AUTO-${Date.now()}-${i}`;
           }
 
           // ✅ Processar imagens - TODOS OS FORMATOS
