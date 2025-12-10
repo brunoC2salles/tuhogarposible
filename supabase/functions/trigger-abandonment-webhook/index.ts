@@ -6,6 +6,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validate webhook URL to prevent SSRF attacks
+function isValidWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Only allow HTTPS
+    if (parsed.protocol !== 'https:') return false;
+    
+    const hostname = parsed.hostname.toLowerCase();
+    // Block internal/private network addresses
+    if (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.startsWith('192.168.') ||
+      hostname.startsWith('10.') ||
+      hostname.startsWith('172.16.') ||
+      hostname.startsWith('172.17.') ||
+      hostname.startsWith('172.18.') ||
+      hostname.startsWith('172.19.') ||
+      hostname.startsWith('172.20.') ||
+      hostname.startsWith('172.21.') ||
+      hostname.startsWith('172.22.') ||
+      hostname.startsWith('172.23.') ||
+      hostname.startsWith('172.24.') ||
+      hostname.startsWith('172.25.') ||
+      hostname.startsWith('172.26.') ||
+      hostname.startsWith('172.27.') ||
+      hostname.startsWith('172.28.') ||
+      hostname.startsWith('172.29.') ||
+      hostname.startsWith('172.30.') ||
+      hostname.startsWith('172.31.') ||
+      hostname === '169.254.169.254' || // AWS metadata
+      hostname.endsWith('.internal') ||
+      hostname.endsWith('.local')
+    ) {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -18,7 +60,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar dados do abandono
+    // Fetch abandonment data
     const { data: abandonment, error: fetchError } = await supabase
       .from('form_partial_submissions')
       .select('*')
@@ -26,14 +68,14 @@ serve(async (req) => {
       .single();
 
     if (fetchError) {
-      console.error('[Webhook] Error fetching abandonment:', fetchError);
+      console.error('[Webhook] Error fetching abandonment');
       return new Response(
         JSON.stringify({ error: 'Failed to fetch abandonment' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Buscar URL do webhook configurada
+    // Fetch configured webhook URL
     const { data: settings, error: settingsError } = await supabase
       .from('admin_settings')
       .select('value')
@@ -41,7 +83,6 @@ serve(async (req) => {
       .single();
 
     if (settingsError || !settings?.value) {
-      console.log('[Webhook] No webhook URL configured, skipping');
       return new Response(
         JSON.stringify({ message: 'No webhook URL configured' }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -49,9 +90,19 @@ serve(async (req) => {
     }
 
     const webhookUrl = settings.value;
+    
+    // Validate webhook URL to prevent SSRF
+    if (!isValidWebhookUrl(webhookUrl)) {
+      console.error('[Webhook] Invalid webhook URL blocked');
+      return new Response(
+        JSON.stringify({ error: 'Invalid webhook URL' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const formData = abandonment.form_data || {};
 
-    // Payload estruturado
+    // Structured payload
     const payload = {
       trigger: 'form_abandonment_automatic',
       timestamp: new Date().toISOString(),
@@ -91,16 +142,14 @@ serve(async (req) => {
       step_reached: abandonment.step_reached,
     };
 
-    console.log('[Webhook] Sending automatic webhook:', { webhookUrl, abandonment_id });
-
-    // Disparar webhook
+    // Trigger webhook
     const webhookResponse = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
-    // Marcar como disparado independentemente do resultado
+    // Mark as triggered regardless of result
     const { error: updateError } = await supabase
       .from('form_partial_submissions')
       .update({
@@ -110,28 +159,23 @@ serve(async (req) => {
       .eq('id', abandonment_id);
 
     if (updateError) {
-      console.error('[Webhook] Error updating automation status:', updateError);
+      console.error('[Webhook] Error updating automation status');
     }
 
     if (!webhookResponse.ok) {
-      console.warn('[Webhook] Webhook failed but marked as triggered:', {
-        status: webhookResponse.status,
-        statusText: webhookResponse.statusText,
-      });
-    } else {
-      console.log('[Webhook] Success! Automation triggered automatically');
+      console.warn('[Webhook] Webhook failed but marked as triggered');
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Webhook triggered automatically',
+        message: 'Webhook triggered',
         webhook_status: webhookResponse.status 
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('[Webhook] Unexpected error:', error);
+    console.error('[Webhook] Unexpected error');
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`[Round-Robin] Buscando agente para región: ${region}`)
+    // Logging minimizado para producción
 
     // 1. Buscar agentes disponíveis da região
     const { data: agents, error: agentsError } = await supabaseAdmin
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     if (agentsError) throw agentsError
 
     if (!agents || agents.length === 0) {
-      console.error(`[Round-Robin] No hay agentes disponibles para ${region}`)
+      console.warn('[Round-Robin] No agents available for region')
       return new Response(
         JSON.stringify({ 
           error: `No hay agentes disponibles para la región ${region}. Por favor, contacte al administrador.` 
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`[Round-Robin] Encontrados ${agents.length} agentes para ${region}`)
+    // Agent count logged only for debugging
 
     // 2. Buscar último agente designado
     const { data: tracking, error: trackingError } = await supabaseAdmin
@@ -74,7 +74,7 @@ Deno.serve(async (req) => {
 
     const nextAgent = agents[nextAgentIndex]
 
-    console.log(`[Round-Robin] Agente selecionado: ${nextAgent.nombre} (${nextAgent.email})`)
+    // Agent selected - PII removed from logs
 
     // 4. Atualizar tracking
     const { error: updateError } = await supabaseAdmin
@@ -86,8 +86,7 @@ Deno.serve(async (req) => {
       .eq('region', region)
 
     if (updateError) {
-      console.error('[Round-Robin] Erro ao atualizar tracking:', updateError)
-      // Não bloqueia a resposta, apenas loga
+      console.error('[Round-Robin] Tracking update failed')
     }
 
     // 5. Retornar dados do agente
