@@ -367,9 +367,19 @@ const AdminInventario = () => {
     event.target.value = "";
   };
 
-  // Parser JSON - Função para processar arquivos JSON do Solvia
+  // Parser JSON - Função UNIVERSAL para processar arquivos JSON (Solvia e Hipoges)
   const parseAddress = (address: string): { ciudad: string; region: string; direccion: string } => {
-    // Exemplo: "Toledo , Carpio de Tajo (El) - C/ El Sol"
+    // Formato Hipoges: "Cidade, Província" (ex: "Roda de Andalucía (La), Sevilla")
+    if (!address.includes(' - ')) {
+      const parts = address.split(', ');
+      return {
+        ciudad: parts[0]?.trim() || '',
+        region: parts[1]?.trim() || '',
+        direccion: ''
+      };
+    }
+    
+    // Formato Solvia: "Região , Cidade - Endereço" (ex: "Toledo , Carpio de Tajo (El) - C/ El Sol")
     const parts = address.split(' - ');
     const direccion = parts[1]?.trim() || '';
     
@@ -669,11 +679,18 @@ const AdminInventario = () => {
             continue;
           }
           
-          // Extraer código de inventario de la URL
+          // Extraer código de inventario de la URL (formato Hipoges: REAR-03617, AFRE-136101)
           let codigoInventario: string | undefined;
           if (item.url) {
-            const urlParts = item.url.split('-');
-            codigoInventario = urlParts[urlParts.length - 1];
+            // Formato Hipoges: https://realestate.hipoges.com/es/detail/REAR-03617
+            const hipogesMatch = item.url.match(/\/detail\/([A-Z]+-\d+)/i);
+            if (hipogesMatch) {
+              codigoInventario = hipogesMatch[1];
+            } else {
+              // Fallback para outros formatos
+              const urlParts = item.url.split('/');
+              codigoInventario = urlParts[urlParts.length - 1];
+            }
           }
 
           // ✅ Processar imagens - TODOS OS FORMATOS
