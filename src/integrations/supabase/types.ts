@@ -1317,11 +1317,12 @@ export type Database = {
           iva_incluido: boolean | null
           lead_id: string | null
           lead_name: string
+          monto_directo: number | null
           nota_simples: boolean | null
           paid_at: string | null
           payment_due_date: string | null
           pdf_path: string | null
-          property_price: number
+          property_price: number | null
           status: string | null
           subtotal: number
           tasaciones: boolean | null
@@ -1350,11 +1351,12 @@ export type Database = {
           iva_incluido?: boolean | null
           lead_id?: string | null
           lead_name: string
+          monto_directo?: number | null
           nota_simples?: boolean | null
           paid_at?: string | null
           payment_due_date?: string | null
           pdf_path?: string | null
-          property_price: number
+          property_price?: number | null
           status?: string | null
           subtotal: number
           tasaciones?: boolean | null
@@ -1383,11 +1385,12 @@ export type Database = {
           iva_incluido?: boolean | null
           lead_id?: string | null
           lead_name?: string
+          monto_directo?: number | null
           nota_simples?: boolean | null
           paid_at?: string | null
           payment_due_date?: string | null
           pdf_path?: string | null
-          property_price?: number
+          property_price?: number | null
           status?: string | null
           subtotal?: number
           tasaciones?: boolean | null
