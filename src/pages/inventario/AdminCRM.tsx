@@ -1,12 +1,16 @@
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
 import { Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
+import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
 
 const AdminCRM = () => {
   const { leads } = useLeads();
   const { agentes } = useAgentes();
+
+  const [selectedAgent, setSelectedAgent] = useState<{ id: string; nombre: string } | null>(null);
 
   const totalLeads = leads.length;
   const leadsThisMonth = leads.filter(l => {
@@ -73,13 +77,19 @@ const AdminCRM = () => {
           <CardContent>
             <div className="space-y-4">
               {leadsPorAgente.map(agente => (
-                <div key={agente.id} className="flex items-center justify-between border-b pb-3">
+                <div 
+                  key={agente.id} 
+                  className="flex items-center justify-between border-b pb-3 cursor-pointer hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
+                  onClick={() => setSelectedAgent({ id: agente.id, nombre: agente.nombre })}
+                >
                   <div>
                     <p className="font-medium">{agente.nombre}</p>
                     <p className="text-sm text-muted-foreground">{agente.email}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold">{agente.totalLeads} leads</p>
+                    <p className="font-semibold text-primary hover:underline">
+                      {agente.totalLeads} leads
+                    </p>
                     <p className="text-sm text-muted-foreground">{agente.leadsActivos} activos</p>
                   </div>
                 </div>
@@ -88,6 +98,16 @@ const AdminCRM = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Agent Leads Kanban Modal */}
+      {selectedAgent && (
+        <AgentLeadsKanbanModal
+          open={!!selectedAgent}
+          onClose={() => setSelectedAgent(null)}
+          agentId={selectedAgent.id}
+          agentName={selectedAgent.nombre}
+        />
+      )}
     </AdminLayout>
   );
 };

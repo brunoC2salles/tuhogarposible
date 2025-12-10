@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
   Users, 
   BarChart3, 
@@ -7,8 +7,7 @@ import {
   GraduationCap, 
   DollarSign, 
   Settings, 
-  FileText, 
-  UserPlus,
+  FileText,
   PhoneOff,
   MessageSquare
 } from 'lucide-react';
@@ -46,13 +45,6 @@ const AdminDashboardCentral = () => {
           icon: Users,
           path: '/admin/agentes',
           color: 'text-green-600'
-        },
-        { 
-          title: 'Reclutamiento', 
-          description: 'Candidatos a agentes',
-          icon: UserPlus,
-          path: '/admin/reclutamiento',
-          color: 'text-teal-600'
         }
       ]
     },
@@ -122,15 +114,11 @@ const AdminDashboardCentral = () => {
       category: 'Comunicación',
       items: [
         { 
-          title: 'Slack', 
+          title: 'Chat Interno', 
           description: 'Chat del equipo',
           icon: MessageSquare,
-          path: '#',
-          color: 'text-purple-600',
-          onClick: () => {
-            // Será implementado en Fase 4
-            navigate('/admin/settings');
-          }
+          path: '/chat',
+          color: 'text-purple-600'
         }
       ]
     }
@@ -153,7 +141,7 @@ const AdminDashboardCentral = () => {
                 <Card 
                   key={item.title}
                   className="cursor-pointer hover:shadow-lg transition-shadow"
-                  onClick={() => item.onClick ? item.onClick() : navigate(item.path)}
+                  onClick={() => navigate(item.path)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2">

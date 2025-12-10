@@ -19,7 +19,6 @@ import {
   DollarSign,
   Settings,
   FileText,
-  UserPlus,
   PhoneOff,
   MessageSquare,
 } from 'lucide-react';
@@ -37,7 +36,6 @@ const menuItems = [
     group: 'Equipo',
     items: [
       { title: 'Agentes', url: '/admin/agentes', icon: Users },
-      { title: 'Reclutamiento', url: '/admin/reclutamiento', icon: UserPlus },
     ],
   },
   {
