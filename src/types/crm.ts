@@ -1,4 +1,4 @@
-export type LeadStage = 'lead_cualificado' | 'mensaje_whatsapp' | 'primera_llamada' | 'reunion_contrato' | 'firma_pago' | 'listo';
+export type LeadStage = 'preparacion_expediente' | 'pretasacion' | 'aprobacion_bancaria' | 'tasacion' | 'cobrar' | 'listo';
 export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook';
 
 export interface SimuladorPersonalData {
@@ -72,19 +72,19 @@ export interface LeadFormData {
 }
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
-  lead_cualificado: 'Lead Cualificado',
-  mensaje_whatsapp: 'Mensaje WhatsApp',
-  primera_llamada: 'Primera Llamada',
-  reunion_contrato: 'Reunión de Contrato',
-  firma_pago: 'Firma/Pago',
+  preparacion_expediente: 'Preparación de Expediente',
+  pretasacion: 'Pretasación',
+  aprobacion_bancaria: 'Aprobación Bancaria',
+  tasacion: 'Tasación',
+  cobrar: 'Cobrar',
   listo: 'Listo!'
 };
 
 export const STAGE_ORDER: LeadStage[] = [
-  'lead_cualificado',
-  'mensaje_whatsapp',
-  'primera_llamada',
-  'reunion_contrato',
-  'firma_pago',
+  'preparacion_expediente',
+  'pretasacion',
+  'aprobacion_bancaria',
+  'tasacion',
+  'cobrar',
   'listo'
 ];
