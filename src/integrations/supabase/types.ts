@@ -1706,6 +1706,11 @@ export type Database = {
         | "reunion_contrato"
         | "firma_pago"
         | "listo"
+        | "preparacion_expediente"
+        | "pretasacion"
+        | "aprobacion_bancaria"
+        | "tasacion"
+        | "cobrar"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1857,6 +1862,11 @@ export const Constants = {
         "reunion_contrato",
         "firma_pago",
         "listo",
+        "preparacion_expediente",
+        "pretasacion",
+        "aprobacion_bancaria",
+        "tasacion",
+        "cobrar",
       ],
       notification_type: [
         "new_lead",
