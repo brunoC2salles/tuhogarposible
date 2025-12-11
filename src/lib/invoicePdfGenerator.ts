@@ -95,53 +95,69 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
 
   // Tabela de serviços
   const tableData: any[] = [];
+  const isDirectInvoice = invoice.monto_directo && invoice.monto_directo > 0 && !invoice.property_price;
+  const applyIva = invoice.aplicar_iva !== false;
+  const ivaRate = applyIva ? '21%' : '0%';
+  const ivaMultiplier = applyIva ? 1.21 : 1;
 
-  // Serviços fixos
-  Object.entries(FIXED_SERVICES).forEach(([key, service]) => {
-    if (invoice[key as keyof ProductInvoice]) {
+  if (isDirectInvoice) {
+    // Factura directa - mostrar descripción y monto
+    tableData.push([
+      invoice.descripcion_directa || 'Servicios varios',
+      '1,00',
+      invoice.monto_directo!.toFixed(2).replace('.', ','),
+      ivaRate,
+      (invoice.monto_directo! * ivaMultiplier).toFixed(2).replace('.', ',')
+    ]);
+  } else {
+    // Factura con servicios
+    // Serviços fixos
+    Object.entries(FIXED_SERVICES).forEach(([key, service]) => {
+      if (invoice[key as keyof ProductInvoice]) {
+        tableData.push([
+          service.name,
+          '1,00',
+          service.value.toFixed(2).replace('.', ','),
+          '21%',
+          (service.value * 1.21).toFixed(2).replace('.', ',')
+        ]);
+      }
+    });
+
+    // Comisión de Vivienda
+    if (invoice.comision_vivienda && invoice.comision_vivienda_percent && invoice.property_price) {
+      const value = invoice.property_price * (invoice.comision_vivienda_percent / 100);
       tableData.push([
-        service.name,
+        `Comisión de Vivienda (${invoice.comision_vivienda_percent}%)`,
         '1,00',
-        service.value.toFixed(2).replace('.', ','),
+        value.toFixed(2).replace('.', ','),
         '21%',
-        (service.value * 1.21).toFixed(2).replace('.', ',')
+        (value * 1.21).toFixed(2).replace('.', ',')
       ]);
     }
-  });
 
-  // Comisión de Vivienda
-  if (invoice.comision_vivienda && invoice.comision_vivienda_percent) {
-    const value = invoice.property_price * (invoice.comision_vivienda_percent / 100);
-    tableData.push([
-      `Comisión de Vivienda (${invoice.comision_vivienda_percent}%)`,
-      '1,00',
-      value.toFixed(2).replace('.', ','),
-      '21%',
-      (value * 1.21).toFixed(2).replace('.', ',')
-    ]);
-  }
+    // Crédito
+    if (invoice.credito && invoice.credito_valor) {
+      tableData.push([
+        'Crédito',
+        '1,00',
+        invoice.credito_valor.toFixed(2).replace('.', ','),
+        '21%',
+        (invoice.credito_valor * 1.21).toFixed(2).replace('.', ',')
+      ]);
+    }
 
-  // Crédito
-  if (invoice.credito && invoice.credito_valor) {
-    tableData.push([
-      'Crédito',
-      '1,00',
-      invoice.credito_valor.toFixed(2).replace('.', ','),
-      '21%',
-      (invoice.credito_valor * 1.21).toFixed(2).replace('.', ',')
-    ]);
-  }
-
-  // Hipoteca
-  if (invoice.hipoteca && invoice.hipoteca_percent) {
-    const value = invoice.property_price * (invoice.hipoteca_percent / 100);
-    tableData.push([
-      `Hipoteca (${invoice.hipoteca_percent}%)`,
-      '1,00',
-      value.toFixed(2).replace('.', ','),
-      '21%',
-      (value * 1.21).toFixed(2).replace('.', ',')
-    ]);
+    // Hipoteca
+    if (invoice.hipoteca && invoice.hipoteca_percent && invoice.property_price) {
+      const value = invoice.property_price * (invoice.hipoteca_percent / 100);
+      tableData.push([
+        `Hipoteca (${invoice.hipoteca_percent}%)`,
+        '1,00',
+        value.toFixed(2).replace('.', ','),
+        '21%',
+        (value * 1.21).toFixed(2).replace('.', ',')
+      ]);
+    }
   }
 
   autoTable(doc, {
@@ -180,7 +196,8 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
   doc.text(invoice.subtotal.toFixed(2).replace('.', ','), pageWidth - margin, currentY, { align: 'right' });
   currentY += 6;
 
-  doc.text('IVA 21%', xRight, currentY);
+  const ivaLabel = isDirectInvoice && !applyIva ? 'IVA 0%' : 'IVA 21%';
+  doc.text(ivaLabel, xRight, currentY);
   doc.text(invoice.iva_amount.toFixed(2).replace('.', ','), pageWidth - margin, currentY, { align: 'right' });
   currentY += 8;
 

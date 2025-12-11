@@ -1214,6 +1214,7 @@ export type Database = {
       product_invoices: {
         Row: {
           agent_id: string | null
+          aplicar_iva: boolean | null
           beneficios: boolean | null
           client_address: string
           client_company_name: string
@@ -1225,6 +1226,7 @@ export type Database = {
           created_by: string | null
           credito: boolean | null
           credito_valor: number | null
+          descripcion_directa: string | null
           hipoteca: boolean | null
           hipoteca_percent: number | null
           id: string
@@ -1251,6 +1253,7 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          aplicar_iva?: boolean | null
           beneficios?: boolean | null
           client_address: string
           client_company_name: string
@@ -1262,6 +1265,7 @@ export type Database = {
           created_by?: string | null
           credito?: boolean | null
           credito_valor?: number | null
+          descripcion_directa?: string | null
           hipoteca?: boolean | null
           hipoteca_percent?: number | null
           id?: string
@@ -1288,6 +1292,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          aplicar_iva?: boolean | null
           beneficios?: boolean | null
           client_address?: string
           client_company_name?: string
@@ -1299,6 +1304,7 @@ export type Database = {
           created_by?: string | null
           credito?: boolean | null
           credito_valor?: number | null
+          descripcion_directa?: string | null
           hipoteca?: boolean | null
           hipoteca_percent?: number | null
           id?: string

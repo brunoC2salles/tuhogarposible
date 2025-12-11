@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useLeads } from "@/hooks/useLeads";
 import type { ProductInvoice } from "@/hooks/useProductInvoices";
@@ -39,6 +40,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     lead_name: "",
     property_price: "",
     monto_directo: "",
+    descripcion_directa: "",
+    aplicar_iva: true,
     agent_id: "",
     client_company_name: "",
     client_address: "",
@@ -71,6 +74,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         lead_name: invoice.lead_name,
         property_price: invoice.property_price?.toString() || "",
         monto_directo: invoice.monto_directo?.toString() || "",
+        descripcion_directa: invoice.descripcion_directa || "",
+        aplicar_iva: invoice.aplicar_iva !== false,
         agent_id: invoice.agent_id || "",
         client_company_name: invoice.client_company_name,
         client_address: invoice.client_address,
@@ -100,6 +105,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
         lead_name: "",
         property_price: "",
         monto_directo: "",
+        descripcion_directa: "",
+        aplicar_iva: true,
         agent_id: "",
         client_company_name: "",
         client_address: "",
@@ -183,7 +190,9 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
   };
 
   const subtotal = calculateSubtotal();
-  const ivaAmount = subtotal * 0.21;
+  const ivaAmount = facturacionDirecta 
+    ? (formData.aplicar_iva ? subtotal * 0.21 : 0)
+    : subtotal * 0.21;
   const total = subtotal + ivaAmount;
   const totalServiceCost = calculateTotalCost();
   const netCompany = total - totalServiceCost;
@@ -196,7 +205,7 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
     e.preventDefault();
 
     if (facturacionDirecta) {
-      if (!formData.lead_name || !formData.monto_directo || !formData.client_company_name ||
+      if (!formData.lead_name || !formData.monto_directo || !formData.descripcion_directa || !formData.client_company_name ||
           !formData.client_address || !formData.client_dni_nif || !formData.client_email || !formData.payment_due_date) {
         return;
       }
@@ -225,6 +234,8 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
       lead_name: formData.lead_name,
       property_price: facturacionDirecta ? undefined : parseFloat(formData.property_price),
       monto_directo: facturacionDirecta ? parseFloat(formData.monto_directo) : undefined,
+      descripcion_directa: facturacionDirecta ? formData.descripcion_directa : undefined,
+      aplicar_iva: facturacionDirecta ? formData.aplicar_iva : true,
       agent_id: formData.agent_id || undefined,
       client_company_name: formData.client_company_name,
       client_address: formData.client_address,
@@ -317,21 +328,42 @@ export const ProductInvoiceModal = ({ open, onClose, onSave, invoice, saving }: 
               )}
 
               {facturacionDirecta ? (
-                <div className="col-span-2">
-                  <Label htmlFor="monto_directo">Monto a Facturar (€) *</Label>
-                  <Input
-                    id="monto_directo"
-                    type="number"
-                    step="0.01"
-                    value={formData.monto_directo}
-                    onChange={(e) => setFormData({ ...formData, monto_directo: e.target.value })}
-                    placeholder="Ej: 1500.00"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Este valor será el subtotal. Se aplicará 21% de IVA.
-                  </p>
-                </div>
+                <>
+                  <div>
+                    <Label htmlFor="monto_directo">Monto a Facturar (€) *</Label>
+                    <Input
+                      id="monto_directo"
+                      type="number"
+                      step="0.01"
+                      value={formData.monto_directo}
+                      onChange={(e) => setFormData({ ...formData, monto_directo: e.target.value })}
+                      placeholder="Ej: 1500.00"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2 pt-6">
+                    <Checkbox
+                      id="aplicar_iva"
+                      checked={formData.aplicar_iva}
+                      onCheckedChange={(checked) => setFormData({ ...formData, aplicar_iva: checked as boolean })}
+                    />
+                    <Label htmlFor="aplicar_iva" className="cursor-pointer">Aplicar IVA (21%)</Label>
+                  </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="descripcion_directa">Descripción del Servicio *</Label>
+                    <Textarea
+                      id="descripcion_directa"
+                      value={formData.descripcion_directa}
+                      onChange={(e) => setFormData({ ...formData, descripcion_directa: e.target.value })}
+                      placeholder="Ej: Servicio de consultoría inmobiliaria"
+                      required
+                      rows={2}
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Esta descripción aparecerá en la factura como concepto del servicio
+                    </p>
+                  </div>
+                </>
               ) : (
                 <div>
                   <Label htmlFor="property_price">Precio de la Vivienda (€) *</Label>
