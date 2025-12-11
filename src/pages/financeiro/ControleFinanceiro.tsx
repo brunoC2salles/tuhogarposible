@@ -232,10 +232,13 @@ const ControleFinanceiro = () => {
   };
 
   // Generate month options for filter
-  const monthOptions = Array.from({ length: 12 }, (_, i) => ({
-    value: i,
-    label: format(new Date(2024, i, 1), 'MMMM', { locale: es })
-  }));
+  const monthOptions = Array.from({ length: 12 }, (_, i) => {
+    const monthName = format(new Date(2024, i, 1), 'MMMM', { locale: es });
+    return {
+      value: i,
+      label: monthName.charAt(0).toUpperCase() + monthName.slice(1)
+    };
+  });
 
   const yearOptions = [2024, 2025, 2026].map(y => ({ value: y, label: y.toString() }));
 
