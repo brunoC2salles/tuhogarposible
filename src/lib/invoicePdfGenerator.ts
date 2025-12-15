@@ -220,7 +220,7 @@ export async function generateInvoicePDF(invoice: ProductInvoice): Promise<strin
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  const paymentText = 'Transferencia bancaria al número de cuenta ES18 0081 0310 3100 0213 2220 / Código SWIFT BSABESBBXXX';
+  const paymentText = 'Transferencia bancaria al número de cuenta ES44 0049 0904 1525 1027 3202 / Código SWIFT BSABESBBXXX';
   const splitPayment = doc.splitTextToSize(paymentText, pageWidth - 2 * margin);
   doc.text(splitPayment, margin, currentY);
   currentY += (splitPayment.length * 5) + 5;
