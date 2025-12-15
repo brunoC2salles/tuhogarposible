@@ -21,7 +21,11 @@ type AgenteDataOrNull = AgenteData | null;
 export function useConfirmAgendamento() {
   const [isConfirming, setIsConfirming] = useState(false);
 
-  const confirmAgendamento = async (
+  /**
+   * NOVA FUNÇÃO: Salva o lead IMEDIATAMENTE (antes de mostrar modal Tidycal)
+   * O lead é salvo mesmo que o usuário feche a página depois
+   */
+  const saveLeadImmediately = async (
     formData: FormularioQualificacionData,
     qualificacaoResult: QualificacionResult,
     agente: AgenteDataOrNull
@@ -29,10 +33,10 @@ export function useConfirmAgendamento() {
     setIsConfirming(true);
     
     try {
-      // VALIDACIONES PREVIAS
-    if (!formData.valor_inmueble_deseado || formData.valor_inmueble_deseado < 10000) {
-      throw new Error('El valor del inmueble debe ser al menos 10.000€');
-    }
+      // VALIDAÇÕES PREVIAS
+      if (!formData.valor_inmueble_deseado || formData.valor_inmueble_deseado < 10000) {
+        throw new Error('El valor del inmueble debe ser al menos 10.000€');
+      }
 
       if (!formData.ingresos_mensuales || formData.ingresos_mensuales < 500) {
         throw new Error('Los ingresos mensuales deben ser al menos 500€');
@@ -116,7 +120,7 @@ export function useConfirmAgendamento() {
         throw new Error('Error al calcular simulación hipotecaria');
       }
 
-      // 3. SALVAR NO BANCO
+      // 3. SALVAR NO BANCO IMEDIATAMENTE
       let data;
       try {
         const submissionData = {
@@ -160,10 +164,10 @@ export function useConfirmAgendamento() {
           // Privacidade
           acepta_privacidad: formData.acepta_privacidad,
           
-          // Tidycal - apenas se houver agente
+          // Tidycal - INICIAMOS com false, atualiza depois se usuário confirmar
           tidycal_link: agente?.tidycal_url || null,
-          tidycal_scheduled: agente ? true : false,
-          tidycal_booking_id: null, // Não temos acesso
+          tidycal_scheduled: false, // Será atualizado quando usuário clicar "He agendado"
+          tidycal_booking_id: null,
           
           // Status
           processed: false,
@@ -182,12 +186,11 @@ export function useConfirmAgendamento() {
         }
         
         data = result.data;
-        console.log('[ConfirmAgendamento] Submission criado:', data.id, 'Lead ID:', data.lead_id);
+        console.log('[SaveLeadImmediately] Submission criado:', data.id, 'Lead ID:', data.lead_id);
         
-        // Se não há agente, notificar admins
+        // Se não há agente, notificar admins (o trigger do banco faz isso automaticamente)
         if (!agente) {
-          console.warn('[ConfirmAgendamento] Lead salvo SEM agente - notificando admins');
-          // A notificação será criada automaticamente pelo trigger do banco
+          console.warn('[SaveLeadImmediately] Lead salvo SEM agente - notificando admins via trigger');
         }
       } catch (error) {
         console.error('Error en guardado de datos:', error);
@@ -195,120 +198,119 @@ export function useConfirmAgendamento() {
       }
 
       // 4. DISPARAR WEBHOOK COM PAYLOAD FLAT
-      try {
-        // Buscar URL do webhook
-        const { data: webhookConfig } = await supabase
-          .from('admin_settings')
-          .select('value')
-          .eq('key', 'webhook_makecom_url')
-          .maybeSingle();
-
-        const webhookUrl = webhookConfig?.value;
-
-        if (webhookUrl && webhookUrl.trim() !== '') {
-          // ========================================
-          // PAYLOAD 100% FLAT (OPÇÃO A)
-          // ========================================
-          const webhookPayload = {
-            // IDs
-            submission_id: data.id,
-            lead_id: data.lead_id,
-            timestamp: new Date().toISOString(),
-            
-            // Lead (flat)
-            lead_nombre_completo: formData.nombre_completo,
-            lead_email: formData.email,
-            lead_telefono: formData.telefono,
-            lead_edad: formData.edad,
-            lead_ciudad_interes: formData.ciudad_interes,
-            lead_comunidad_autonoma: formData.comunidad_autonoma,
-            lead_valor_inmueble_deseado: formData.valor_inmueble_deseado,
-            
-            // Financeiro (flat)
-            financeiro_entrada_disponible: formData.entrada_disponible || 0,
-            financeiro_ingresos_mensuales: formData.ingresos_mensuales,
-            financeiro_deudas_actuales: formData.deudas_actuales || 0,
-            financeiro_situacion_laboral: formData.situacion_laboral,
-            financeiro_en_fichero_morosidad: formData.en_fichero_morosidad,
-            
-            // Acompanante (flat, null se solo)
-            acompanante_nombre: formData.acompanante_nombre || null,
-            acompanante_relacion: formData.acompanante_relacion || null,
-            acompanante_aporte: formData.acompanante_aporte || null,
-            
-            // Agente (flat)
-            agente_id: agente.id,
-            agente_nombre: agente.nombre,
-            agente_telefono: agente.telefono,
-            agente_tidycal_url: agente.tidycal_url,
-            
-            // Simulação Crédito Personal (flat)
-            simulacion_personal_monto_solicitado: resultadosPersonal.montoFinanciar,
-            simulacion_personal_cuota_mensual: resultadosPersonal.cuotaMensual,
-            simulacion_personal_total_pagar: resultadosPersonal.montoTotalPagar,
-            simulacion_personal_total_intereses: resultadosPersonal.totalIntereses,
-            simulacion_personal_plazo_meses: datosSimulacionPersonal.plazoMeses,
-            simulacion_personal_tasa_anual: datosSimulacionPersonal.tasaAnual,
-            simulacion_personal_aprobado: resultadosPersonal.cualificado,
-            simulacion_personal_razon_rechazo: !resultadosPersonal.cualificado ? 'Capacidad de pago insuficiente' : null,
-            
-            // Simulação Crédito Hipotecario (flat)
-            simulacion_hipoteca_valor_inmueble: datosSimulacionHipoteca.precioVivienda,
-            simulacion_hipoteca_monto_maximo_credito: resultadosHipoteca.montoFinanciable,
-            simulacion_hipoteca_cuota_mensual_estimada: resultadosHipoteca.cuotaMensual,
-            simulacion_hipoteca_capital_propio_necesario: resultadosHipoteca.capitalPropioNecesario,
-            simulacion_hipoteca_porcentaje_financiamiento: resultadosHipoteca.porcentajeFinanciamiento,
-            simulacion_hipoteca_plazo_anos: resultadosHipoteca.plazoMaximoAnios,
-            simulacion_hipoteca_tasa_anual: resultadosHipoteca.tasaAnualFija,
-            simulacion_hipoteca_gastos_impuestos: resultadosHipoteca.gastosImpuestos,
-            simulacion_hipoteca_aprobado: resultadosHipoteca.aprobable,
-            simulacion_hipoteca_razon_rechazo: !resultadosHipoteca.aprobable ? 'Cuota mensual supera capacidad de pago' : null,
-            
-            // Agendamento (sem dados por não ter acesso ao Tidycal API)
-            agendamento_data: null,
-            agendamento_hora: null,
-            agendamento_confirmado: true, // Usuário confirmou checkbox
-          };
-
-          // Disparar webhook
-          await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(webhookPayload),
-          });
-
-          // Log de sucesso
-          await supabase.from('webhook_logs').insert([{
-            submission_id: data.id,
-            webhook_url: webhookUrl,
-            status: 'success',
-            payload: webhookPayload as any,
-          }]);
-
-          console.log('[Webhook] Enviado com sucesso para Make.com (payload flat)');
-        }
-      } catch (webhookError: any) {
-        console.error('[Webhook] Erro:', webhookError);
-        
-        // Log de erro (não bloquear fluxo)
+      if (agente) {
         try {
+          // Buscar URL do webhook
           const { data: webhookConfig } = await supabase
             .from('admin_settings')
             .select('value')
             .eq('key', 'webhook_makecom_url')
             .maybeSingle();
 
-          await supabase.from('webhook_logs').insert([{
-            submission_id: data.id,
-            webhook_url: webhookConfig?.value || 'unknown',
-            status: 'error',
-            error_message: webhookError.message || 'Unknown error',
-          }]);
-        } catch (logError) {
-          console.error('[Webhook] Erro ao salvar log:', logError);
+          const webhookUrl = webhookConfig?.value;
+
+          if (webhookUrl && webhookUrl.trim() !== '') {
+            const webhookPayload = {
+              // IDs
+              submission_id: data.id,
+              lead_id: data.lead_id,
+              timestamp: new Date().toISOString(),
+              
+              // Lead (flat)
+              lead_nombre_completo: formData.nombre_completo,
+              lead_email: formData.email,
+              lead_telefono: formData.telefono,
+              lead_edad: formData.edad,
+              lead_ciudad_interes: formData.ciudad_interes,
+              lead_comunidad_autonoma: formData.comunidad_autonoma,
+              lead_valor_inmueble_deseado: formData.valor_inmueble_deseado,
+              
+              // Financeiro (flat)
+              financeiro_entrada_disponible: formData.entrada_disponible || 0,
+              financeiro_ingresos_mensuales: formData.ingresos_mensuales,
+              financeiro_deudas_actuales: formData.deudas_actuales || 0,
+              financeiro_situacion_laboral: formData.situacion_laboral,
+              financeiro_en_fichero_morosidad: formData.en_fichero_morosidad,
+              
+              // Acompanante (flat, null se solo)
+              acompanante_nombre: formData.acompanante_nombre || null,
+              acompanante_relacion: formData.acompanante_relacion || null,
+              acompanante_aporte: formData.acompanante_aporte || null,
+              
+              // Agente (flat)
+              agente_id: agente.id,
+              agente_nombre: agente.nombre,
+              agente_telefono: agente.telefono,
+              agente_tidycal_url: agente.tidycal_url,
+              
+              // Simulação Crédito Personal (flat)
+              simulacion_personal_monto_solicitado: resultadosPersonal.montoFinanciar,
+              simulacion_personal_cuota_mensual: resultadosPersonal.cuotaMensual,
+              simulacion_personal_total_pagar: resultadosPersonal.montoTotalPagar,
+              simulacion_personal_total_intereses: resultadosPersonal.totalIntereses,
+              simulacion_personal_plazo_meses: datosSimulacionPersonal.plazoMeses,
+              simulacion_personal_tasa_anual: datosSimulacionPersonal.tasaAnual,
+              simulacion_personal_aprobado: resultadosPersonal.cualificado,
+              simulacion_personal_razon_rechazo: !resultadosPersonal.cualificado ? 'Capacidad de pago insuficiente' : null,
+              
+              // Simulação Crédito Hipotecario (flat)
+              simulacion_hipoteca_valor_inmueble: datosSimulacionHipoteca.precioVivienda,
+              simulacion_hipoteca_monto_maximo_credito: resultadosHipoteca.montoFinanciable,
+              simulacion_hipoteca_cuota_mensual_estimada: resultadosHipoteca.cuotaMensual,
+              simulacion_hipoteca_capital_propio_necesario: resultadosHipoteca.capitalPropioNecesario,
+              simulacion_hipoteca_porcentaje_financiamiento: resultadosHipoteca.porcentajeFinanciamiento,
+              simulacion_hipoteca_plazo_anos: resultadosHipoteca.plazoMaximoAnios,
+              simulacion_hipoteca_tasa_anual: resultadosHipoteca.tasaAnualFija,
+              simulacion_hipoteca_gastos_impuestos: resultadosHipoteca.gastosImpuestos,
+              simulacion_hipoteca_aprobado: resultadosHipoteca.aprobable,
+              simulacion_hipoteca_razon_rechazo: !resultadosHipoteca.aprobable ? 'Cuota mensual supera capacidad de pago' : null,
+              
+              // Agendamento
+              agendamento_data: null,
+              agendamento_hora: null,
+              agendamento_confirmado: false, // Ainda não confirmou
+            };
+
+            // Disparar webhook
+            await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify(webhookPayload),
+            });
+
+            // Log de sucesso
+            await supabase.from('webhook_logs').insert([{
+              submission_id: data.id,
+              webhook_url: webhookUrl,
+              status: 'success',
+              payload: webhookPayload as any,
+            }]);
+
+            console.log('[Webhook] Enviado com sucesso para Make.com (payload flat)');
+          }
+        } catch (webhookError: any) {
+          console.error('[Webhook] Erro:', webhookError);
+          
+          // Log de erro (não bloquear fluxo)
+          try {
+            const { data: webhookConfig } = await supabase
+              .from('admin_settings')
+              .select('value')
+              .eq('key', 'webhook_makecom_url')
+              .maybeSingle();
+
+            await supabase.from('webhook_logs').insert([{
+              submission_id: data.id,
+              webhook_url: webhookConfig?.value || 'unknown',
+              status: 'error',
+              error_message: webhookError.message || 'Unknown error',
+            }]);
+          } catch (logError) {
+            console.error('[Webhook] Erro ao salvar log:', logError);
+          }
         }
       }
 
@@ -317,7 +319,7 @@ export function useConfirmAgendamento() {
         submission_id: data.id,
       };
     } catch (error) {
-      console.error("Error in confirmAgendamento:", error);
+      console.error("Error in saveLeadImmediately:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Error desconocido al procesar el formulario",
@@ -327,8 +329,30 @@ export function useConfirmAgendamento() {
     }
   };
 
+  /**
+   * NOVA FUNÇÃO: Atualiza o registro para marcar que Tidycal foi confirmado
+   * Chamada quando o usuário clica "He agendado mi cita"
+   */
+  const updateTidycalConfirmation = async (submissionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("form_submissions")
+        .update({ tidycal_scheduled: true })
+        .eq("id", submissionId);
+
+      if (error) {
+        console.error("Error updating tidycal confirmation:", error);
+      } else {
+        console.log('[UpdateTidycal] Confirmação atualizada para submission:', submissionId);
+      }
+    } catch (error) {
+      console.error("Error in updateTidycalConfirmation:", error);
+    }
+  };
+
   return {
-    confirmAgendamento,
+    saveLeadImmediately,
+    updateTidycalConfirmation,
     isConfirming,
   };
 }

@@ -73,17 +73,10 @@ export default function FormularioQualificacion() {
     tipo: "desqualificado",
   });
 
-  // Estados temporários para armazenar dados antes da confirmação
-  const [tempFormData, setTempFormData] = useState<FormularioQualificacionData | null>(null);
-  const [tempResultado, setTempResultado] = useState<QualificacionResult | null>(null);
-  const [tempAgenteData, setTempAgenteData] = useState<{
-    id: string;
-    nombre: string;
-    telefono: string;
-    tidycal_url: string;
-  } | null>(null);
+  // Estado para armazenar o ID do submission criado (para atualização posterior)
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
 
-  const { confirmAgendamento, isConfirming } = useConfirmAgendamento();
+  const { saveLeadImmediately, updateTidycalConfirmation, isConfirming } = useConfirmAgendamento();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormularioQualificacionData>({
@@ -182,7 +175,7 @@ export default function FormularioQualificacion() {
         return;
       }
 
-      // Se qualificado, APENAS buscar agente e abrir modal (NÃO salvar ainda!)
+      // Se qualificado, buscar agente primeiro
       const region = data.comunidad_autonoma === "Cataluña" ? "Cataluña" : "General";
       
       const { data: agentData, error } = await supabase.functions.invoke('get-next-agent', {
@@ -191,44 +184,53 @@ export default function FormularioQualificacion() {
 
       console.log('[FormularioQualificacion] Resposta completa do agente:', JSON.stringify(agentData));
 
-      if (error || !agentData?.agent_id) {
-        // IMPORTANTE: NUNCA bloquear - salvar lead sem agente
-        console.error('[FormularioQualificacion] Erro ao buscar agente:', error);
-        console.error('[FormularioQualificacion] Região:', region);
-        console.error('[FormularioQualificacion] Resposta:', agentData);
-        
-        console.warn('[FormularioQualificacion] Salvando lead SEM agente atribuído');
-        
-        // Salvar lead diretamente sem agente
-        const result = await confirmAgendamento(data, resultado, null);
-        
-        if (result.success) {
-          // Mostrar modal de lead salvo sem agendamento
-          setModalState({
-            open: true,
-            tipo: "agendamento_confirmado",
-          });
-          
-          toast.warning("Tu solicitud ha sido registrada. Nuestro equipo te contactará pronto.");
-          form.reset();
-        } else {
-          toast.error(result.error || "Error al guardar. Inténtalo de nuevo.");
-        }
-        
-        return;
-      }
-
-      // Armazenar dados temporariamente
-      setTempFormData(data);
-      setTempResultado(resultado);
-      setTempAgenteData({
+      // Preparar dados do agente (pode ser null)
+      const agenteData = (!error && agentData?.agent_id) ? {
         id: agentData.agent_id,
         nombre: agentData.nombre,
         telefono: agentData.telefono,
         tidycal_url: agentData.tidycal_url,
-      });
+      } : null;
 
-      // Abrir modal com Tidycal (NÃO salvar no banco ainda!)
+      if (!agenteData) {
+        console.warn('[FormularioQualificacion] Nenhum agente disponível na região:', region);
+      }
+
+      // =====================================================
+      // SALVAMENTO IMEDIATO - Lead é salvo ANTES do modal
+      // =====================================================
+      console.log('[FormularioQualificacion] Salvando lead IMEDIATAMENTE...');
+      
+      const result = await saveLeadImmediately(data, resultado, agenteData);
+      
+      if (!result.success) {
+        toast.error(result.error || "Error al guardar. Inténtalo de nuevo.");
+        return;
+      }
+
+      // Guardar o ID do submission para atualização posterior
+      setSubmissionId(result.submission_id || null);
+      
+      console.log('[FormularioQualificacion] Lead salvo com sucesso! ID:', result.submission_id);
+
+      // Limpar sessão de abandono (lead já foi salvo!)
+      await supabase.from('form_partial_submissions')
+        .update({ abandoned: false, recovered: true })
+        .eq('session_id', sessionId);
+
+      // Se não há agente, mostrar confirmação sem Tidycal
+      if (!agenteData) {
+        setModalState({
+          open: true,
+          tipo: "agendamento_confirmado",
+        });
+        toast.warning("Tu solicitud ha sido registrada. Nuestro equipo te contactará pronto.");
+        form.reset();
+        localStorage.removeItem('form_session_id');
+        return;
+      }
+
+      // Se há agente, abrir modal com Tidycal
       const tipo = data.comunidad_autonoma === "Cataluña"
         ? "qualificado_cataluna"
         : "qualificado_general";
@@ -236,9 +238,9 @@ export default function FormularioQualificacion() {
       setModalState({
         open: true,
         tipo,
-        tidycalLink: agentData.tidycal_url,
-        nombreAgente: agentData.nombre,
-        telefonoAgente: agentData.telefono,
+        tidycalLink: agenteData.tidycal_url,
+        nombreAgente: agenteData.nombre,
+        telefonoAgente: agenteData.telefono,
       });
     } catch (error) {
       toast.error("Error al procesar. Por favor, inténtalo de nuevo.");
@@ -249,39 +251,27 @@ export default function FormularioQualificacion() {
   };
 
   // Handler para confirmação no modal (após agendar no Tidycal)
+  // Agora é OPCIONAL - o lead já foi salvo!
   const handleConfirmarAgendamento = async () => {
-    if (!tempFormData || !tempResultado || !tempAgenteData) {
-      toast.error("Datos incompletos. Por favor, vuelve a intentarlo.");
-      return;
+    // Atualizar o registro para marcar que o Tidycal foi confirmado (opcional)
+    if (submissionId) {
+      await updateTidycalConfirmation(submissionId);
     }
 
-    const result = await confirmAgendamento(tempFormData, tempResultado, tempAgenteData);
-
-    if (result.success) {
-      // Fechar modal atual e abrir modal de confirmação final
-      setModalState({
-        open: true,
-        tipo: "agendamento_confirmado",
-      });
-      
-      // Limpar dados temporários
-      setTempFormData(null);
-      setTempResultado(null);
-      setTempAgenteData(null);
-      
-      // Limpar sessão de abandono
-      await supabase.from('form_partial_submissions')
-        .update({ abandoned: false, recovered: true })
-        .eq('session_id', sessionId);
-      localStorage.removeItem('form_session_id');
-      
-      // Resetar formulário
-      form.reset();
-      
-      toast.success("¡Registro completado con éxito!");
-    } else {
-      toast.error(result.error || "Error al confirmar. Inténtalo de nuevo.");
-    }
+    // Mostrar modal de confirmação final
+    setModalState({
+      open: true,
+      tipo: "agendamento_confirmado",
+    });
+    
+    // Limpar estado
+    setSubmissionId(null);
+    localStorage.removeItem('form_session_id');
+    
+    // Resetar formulário
+    form.reset();
+    
+    toast.success("¡Registro completado con éxito!");
   };
 
   return (
