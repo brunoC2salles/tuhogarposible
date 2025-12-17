@@ -50,10 +50,10 @@ export const useLeadDocuments = (leadId: string) => {
       return false;
     }
 
-    // Validar tamaño (5MB máximo)
-    const MAX_SIZE = 5 * 1024 * 1024; // 5MB en bytes
+    // Validar tamaño (10MB máximo)
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB en bytes
     if (file.size > MAX_SIZE) {
-      toast.error('El archivo no puede superar los 5MB');
+      toast.error('El archivo no puede superar los 10MB');
       return false;
     }
 
