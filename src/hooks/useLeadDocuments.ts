@@ -8,6 +8,15 @@ export interface LeadDocument {
   created_at: string;
 }
 
+// Sanitizar nombre de archivo para evitar errores en Supabase Storage
+const sanitizeFileName = (fileName: string): string => {
+  return fileName
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9._-]/g, '_')
+    .replace(/_+/g, '_');
+};
+
 export const useLeadDocuments = (leadId: string) => {
   const [documents, setDocuments] = useState<LeadDocument[]>([]);
   const [loading, setLoading] = useState(false);
@@ -59,8 +68,9 @@ export const useLeadDocuments = (leadId: string) => {
 
     setUploading(true);
     try {
-      // Mantener el nombre original del archivo
-      const filePath = `${leadId}/${file.name}`;
+      // Sanitizar nombre del archivo para evitar errores con caracteres especiales
+      const sanitizedFileName = sanitizeFileName(file.name);
+      const filePath = `${leadId}/${sanitizedFileName}`;
 
       const { error } = await supabase.storage
         .from('lead-documents')
