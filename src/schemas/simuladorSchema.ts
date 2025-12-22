@@ -154,10 +154,7 @@ export const simuladorHipotecaSchema = z.object({
   
   regimenMatrimonial: z.enum(['gananciales', 'separacion_bienes']).optional(),
   pagaManutención: z.boolean().optional(),
-  valorManutención: z.number().min(0).optional(),
-  
-  tieneHijos: z.boolean(),
-  numeroHijos: z.number().int().min(1).optional()
+  valorManutención: z.number().min(0).optional()
 })
 .refine(data => {
   if (data.numeroTitulares !== '1' && (!data.titulares || data.titulares.length === 0)) {
@@ -224,15 +221,6 @@ export const simuladorHipotecaSchema = z.object({
 }, {
   message: 'Debe indicar el valor de la manutención',
   path: ['valorManutención']
-})
-.refine(data => {
-  if (data.tieneHijos && (!data.numeroHijos || data.numeroHijos < 1)) {
-    return false;
-  }
-  return true;
-}, {
-  message: 'Debe indicar el número de hijos',
-  path: ['numeroHijos']
 })
 .refine(data => {
   const totalAnios = data.antiguedadContinuadaAnios + (data.antiguedadContinuadaMeses / 12);

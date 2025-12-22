@@ -167,8 +167,6 @@ export interface DatosSimulacionHipoteca {
   regimenMatrimonial?: 'gananciales' | 'separacion_bienes';
   pagaManutención?: boolean;
   valorManutención?: number;
-  tieneHijos: boolean;
-  numeroHijos?: number;
 }
 
 export interface ResultadosSimulacionHipoteca {
@@ -187,7 +185,6 @@ export interface ResultadosSimulacionHipoteca {
   // Novos campos
   porcentajeFinanciamiento: number;
   ingresosTotales: number;
-  gastosHijos: number;
   gastosPension: number;
   tasaAnualFija: number;
   razonNoAprobado?: string;
@@ -420,7 +417,6 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
         montoTotalPagar: 0,
         porcentajeFinanciamiento: 0,
         ingresosTotales: 0,
-        gastosHijos: 0,
         gastosPension: 0,
         tasaAnualFija: 3.5
       };
@@ -473,13 +469,12 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
       capitalPropioSuficiente: false,
       totalIntereses: 0,
       montoTotalPagar: 0,
-      porcentajeFinanciamiento: 0,
-      ingresosTotales: 0,
-      gastosHijos: 0,
-      gastosPension: 0,
-      tasaAnualFija: 3.5
-    };
-  }
+        porcentajeFinanciamiento: 0,
+        ingresosTotales: 0,
+        gastosPension: 0,
+        tasaAnualFija: 3.5
+      };
+    }
   
   // 3. CRÉDITOS PENDIENTES TOTALES
   let creditosPendientesTotales = 0;
@@ -487,10 +482,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     creditosPendientesTotales = datos.creditos.reduce((sum, c) => sum + c.cuotaMensual, 0);
   }
   
-  // 4. GASTOS POR HIJOS (300€ cada para o banco)
-  const gastosHijos = (datos.tieneHijos && datos.numeroHijos) ? datos.numeroHijos * 300 : 0;
-  
-  // 5. GASTOS POR MANUTENCIÓN
+  // 4. GASTOS POR MANUTENCIÓN
   const gastosPension = (datos.estadoCivil === 'divorciado' && datos.pagaManutención && datos.valorManutención) 
     ? datos.valorManutención 
     : 0;
@@ -531,7 +523,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   // 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos)
   const hipotecaMaximaMensual = Math.max(
     0,
-    (ingresosTotales * 0.35) - creditosPendientesTotales - gastosHijos - gastosPension
+    (ingresosTotales * 0.35) - creditosPendientesTotales - gastosPension
   );
   
   // 11.5. MONTO MÁXIMO FINANCIABLE (baseado na capacidade de pagamento mensal)
@@ -576,7 +568,6 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     montoTotalPagar,
     porcentajeFinanciamiento,
     ingresosTotales,
-    gastosHijos,
     gastosPension,
     tasaAnualFija
   };
