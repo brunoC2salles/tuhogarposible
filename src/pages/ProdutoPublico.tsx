@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle, Images } from "lucide-react";
+import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle, Images, ExternalLink } from "lucide-react";
 
 export default function ProdutoPublico() {
   const { id } = useParams<{ id: string }>();
@@ -328,6 +328,29 @@ export default function ProdutoPublico() {
         ) : (
           <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center mb-8">
             <Home className="w-16 h-16 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Aviso de galeria limitada - quando tem 1 imagem ou menos E tem URL externa */}
+        {images.length <= 1 && inmueble.urlExterna && (
+          <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-dashed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Images className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                ¿Quieres ver más fotos? Visita la galería completa en el sitio del proveedor.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild className="flex-shrink-0">
+              <a 
+                href={inmueble.urlExterna} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Ver en {inmueble.proveedor}
+              </a>
+            </Button>
           </div>
         )}
 
