@@ -108,8 +108,7 @@ export function useFormSubmission() {
           tipo: 'personal',
           cuotaMensual: formData.deudas_actuales || 0
         }] : [],
-        estadoCivil: 'soltero',
-        tieneHijos: false
+        estadoCivil: 'soltero'
       };
 
       const resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);

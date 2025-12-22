@@ -181,8 +181,8 @@ export const useLeads = () => {
 
       if (error) throw error;
 
-      // If stage changed to "listo", create draft invoice
-      if (newStage === 'listo' && currentLead) {
+      // If stage changed to "finalizada", create draft invoice
+      if (newStage === 'finalizada' && currentLead) {
         await createDraftInvoiceFromServices(leadId, currentLead.nombre_completo, currentLead.agente_asignado_id);
       }
 

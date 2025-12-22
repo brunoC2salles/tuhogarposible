@@ -223,7 +223,6 @@ export function ResultadosSimulacionHipotecaria({
                 {datos.estadoCivil === 'divorciado' && datos.pagaManutención && datos.valorManutención && (
                   <p><strong>Manutención:</strong> {formatEuro(datos.valorManutención)}/mes</p>
                 )}
-                <p><strong>Hijos:</strong> {datos.tieneHijos && datos.numeroHijos ? `${datos.numeroHijos} (${formatEuro(resultados.gastosHijos)} gastos)` : 'No'}</p>
               </div>
             </div>
           </div>

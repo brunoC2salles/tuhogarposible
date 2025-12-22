@@ -19,13 +19,13 @@ const AdminCRM = () => {
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
   }).length;
 
-  const leadsConvertidos = leads.filter(l => l.stage === 'listo').length;
+  const leadsConvertidos = leads.filter(l => l.stage === 'finalizada').length;
   const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
 
   const leadsPorAgente = agentes.map(agente => ({
     ...agente,
     totalLeads: leads.filter(l => l.agente_asignado_id === agente.id).length,
-    leadsActivos: leads.filter(l => l.agente_asignado_id === agente.id && l.stage !== 'listo').length,
+    leadsActivos: leads.filter(l => l.agente_asignado_id === agente.id && l.stage !== 'finalizada').length,
   }));
 
   return (

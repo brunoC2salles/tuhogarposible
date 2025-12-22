@@ -58,8 +58,7 @@ export function SimuladorCreditoHipotecario() {
       creditos: [],
       estadoCivil: 'soltero',
       pagaManutención: false,
-      valorManutención: undefined,
-      tieneHijos: false
+      valorManutención: undefined
     }
   });
 
@@ -79,7 +78,6 @@ export function SimuladorCreditoHipotecario() {
   const watchTienePropiedades = form.watch('tienePropiedades');
   const watchEstadoCivil = form.watch('estadoCivil');
   const watchPagaManutención = form.watch('pagaManutención');
-  const watchTieneHijos = form.watch('tieneHijos');
   const watchSituacionLaboral = form.watch('situacionLaboral');
 
   const onSubmit = (data: SimuladorHipotecaFormData) => {
@@ -844,49 +842,7 @@ export function SimuladorCreditoHipotecario() {
                     </div>
                   )}
 
-                  {/* ¿Tiene hijos? - AGORA PRIMEIRO */}
-                  <div className="space-y-2">
-                    <Label>¿Tiene hijos? *</Label>
-                    <RadioGroup
-                      value={watchTieneHijos ? "si" : "no"}
-                      onValueChange={(value) => {
-                        const hasChildren = value === "si";
-                        form.setValue("tieneHijos", hasChildren);
-                        if (!hasChildren) {
-                          form.setValue("numeroHijos", undefined);
-                        }
-                      }}
-                      className="flex gap-4"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="si" id="hijos-si" />
-                        <Label htmlFor="hijos-si">Sí</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="no" id="hijos-no" />
-                        <Label htmlFor="hijos-no">No</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  
-                  {watchTieneHijos && (
-                    <div className="space-y-2">
-                      <Label>¿Cuántos hijos? *</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        placeholder="Número de hijos"
-                        {...form.register("numeroHijos", { valueAsNumber: true })}
-                      />
-                      {form.formState.errors.numeroHijos && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.numeroHijos.message}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* ¿Pagas Manutención? - AGORA DEPOIS DE HIJOS */}
+                  {/* ¿Pagas Manutención? */}
                   {watchEstadoCivil === 'divorciado' && (
                     <>
                       <div className="space-y-2">
