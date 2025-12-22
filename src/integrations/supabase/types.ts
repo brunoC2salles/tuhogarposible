@@ -1711,6 +1711,10 @@ export type Database = {
         | "aprobacion_bancaria"
         | "tasacion"
         | "cobrar"
+        | "recopilacion_expediente"
+        | "mandamos_expediente"
+        | "cobro"
+        | "finalizada"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1867,6 +1871,10 @@ export const Constants = {
         "aprobacion_bancaria",
         "tasacion",
         "cobrar",
+        "recopilacion_expediente",
+        "mandamos_expediente",
+        "cobro",
+        "finalizada",
       ],
       notification_type: [
         "new_lead",
