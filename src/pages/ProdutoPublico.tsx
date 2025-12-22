@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle, Images, ExternalLink } from "lucide-react";
+import { BedDouble, Bath, Ruler, MapPin, Home, MessageCircle, Images, ExternalLink, RefreshCw } from "lucide-react";
 
 export default function ProdutoPublico() {
   const { id } = useParams<{ id: string }>();
@@ -340,17 +340,29 @@ export default function ProdutoPublico() {
                 ¿Quieres ver más fotos? Visita la galería completa en el sitio del proveedor.
               </p>
             </div>
-            <Button variant="outline" size="sm" asChild className="flex-shrink-0">
-              <a 
-                href={inmueble.urlExterna} 
-                target="_blank" 
-                rel="noopener noreferrer"
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => triggerAutoScraping(inmueble)}
+                disabled={scrapingImages}
                 className="flex items-center gap-2"
               >
-                <ExternalLink className="w-4 h-4" />
-                Ver en {inmueble.proveedor}
-              </a>
-            </Button>
+                <RefreshCw className={`w-4 h-4 ${scrapingImages ? 'animate-spin' : ''}`} />
+                {scrapingImages ? 'Buscando...' : 'Buscar fotos'}
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <a 
+                  href={inmueble.urlExterna} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Ver en {inmueble.proveedor}
+                </a>
+              </Button>
+            </div>
           </div>
         )}
 
