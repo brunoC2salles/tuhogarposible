@@ -331,40 +331,6 @@ export default function ProdutoPublico() {
           </div>
         )}
 
-        {/* Aviso de galeria limitada - quando tem 1 imagem ou menos E tem URL externa */}
-        {images.length <= 1 && inmueble.urlExterna && (
-          <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-dashed flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Images className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-              <p className="text-sm text-muted-foreground">
-                ¿Quieres ver más fotos? Visita la galería completa en el sitio del proveedor.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => triggerAutoScraping(inmueble)}
-                disabled={scrapingImages}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${scrapingImages ? 'animate-spin' : ''}`} />
-                {scrapingImages ? 'Buscando...' : 'Buscar fotos'}
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <a 
-                  href={inmueble.urlExterna} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Ver en {inmueble.proveedor}
-                </a>
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Informações do Produto */}
         <Card>
