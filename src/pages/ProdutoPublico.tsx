@@ -324,6 +324,22 @@ export default function ProdutoPublico() {
                 Foto {currentImageIndex + 1} de {images.length}
               </p>
             )}
+            
+            {/* Indicador de busca automática de imagens */}
+            {scrapingImages && (
+              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground animate-pulse">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Buscando más fotos...</span>
+              </div>
+            )}
+            
+            {/* Mensagem de sucesso após scraping */}
+            {scrapingMessage && !scrapingImages && (
+              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-green-600">
+                <Images className="w-4 h-4" />
+                <span>{scrapingMessage}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full aspect-video rounded-lg bg-muted flex items-center justify-center mb-8">
