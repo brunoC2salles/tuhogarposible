@@ -72,8 +72,8 @@ export interface LeadFormData {
 }
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
-  recopilacion_expediente: 'Recopilación Expediente',
-  mandamos_expediente: 'Mandamos Expediente',
+  recopilacion_expediente: 'Expediente Preaprobación',
+  mandamos_expediente: 'Expediente Aprobación',
   aprobacion_bancaria: 'Aprobación Bancaria',
   tasacion: 'Tasación',
   cobro: 'Cobro',
