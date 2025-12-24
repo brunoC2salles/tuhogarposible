@@ -240,23 +240,21 @@ export function calcularGastosHipoteca(
 
 /**
  * Calcula plazo máximo en años según edad
- * Interpolación lineal según documento:
- * - Edad <= 30: 30 años
- * - Edad 50: 20 años
- * - Edad >= 60: 10 años
+ * Regla simplificada:
+ * - Plazo máximo padrón: 30 años
+ * - Si edad >= 45: plazo máximo = 75 - edad
+ * - Mínimo 1 año, máximo 30 años
  */
 export function calcularPlazoMaximo(edad: number): number {
-  if (edad <= 30) return 30;
-  if (edad >= 60) return 10;
+  const PLAZO_PADRAO = 30;
+  const IDADE_LIMITE = 45;
+  const IDADE_MAXIMA_FIM = 75;
   
-  // Interpolación lineal
-  if (edad <= 50) {
-    // Entre 30 y 50 años: de 30 a 20 años de plazo
-    return 30 - ((edad - 30) * 10 / 20);
-  } else {
-    // Entre 50 y 60 años: de 20 a 10 años de plazo
-    return 20 - ((edad - 50) * 10 / 10);
+  if (edad >= IDADE_LIMITE) {
+    return Math.max(1, Math.min(PLAZO_PADRAO, IDADE_MAXIMA_FIM - edad));
   }
+  
+  return PLAZO_PADRAO;
 }
 
 /**
