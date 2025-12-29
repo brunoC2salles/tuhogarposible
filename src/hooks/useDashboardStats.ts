@@ -100,7 +100,7 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
       // Calcular estatísticas
       const totalLeads = allLeads?.length || 0;
       const newLeadsThisPeriod = leads?.length || 0;
-      const convertedLeads = allLeads?.filter(l => l.stage === 'listo').length || 0;
+      const convertedLeads = allLeads?.filter(l => l.stage === 'finalizada').length || 0;
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
       const activeAgents = agents?.length || 0;
       const avgLeadsPerAgent = activeAgents > 0 ? totalLeads / activeAgents : 0;
@@ -124,7 +124,7 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
         const agentName = (lead as any).profiles?.nombre || 'Sin asignar';
         const current = agentMap.get(agentName) || { total: 0, converted: 0 };
         current.total += 1;
-        if (lead.stage === 'listo') {
+        if (lead.stage === 'finalizada') {
           current.converted += 1;
         }
         agentMap.set(agentName, current);
@@ -153,7 +153,7 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
         const date = new Date(lead.created_at).toISOString().split('T')[0];
         const current = timelineMap.get(date) || { created: 0, converted: 0 };
         current.created += 1;
-        if (lead.stage === 'listo') {
+        if (lead.stage === 'finalizada') {
           current.converted += 1;
         }
         timelineMap.set(date, current);

@@ -50,9 +50,9 @@ const ControleFinanceiro = () => {
   const [brunoPercent, setBrunoPercent] = useState(5);
   const [generatingBrunoCommission, setGeneratingBrunoCommission] = useState(false);
 
-  // Leads query for "firmadas" count
-  const { data: leadsListo } = useQuery({
-    queryKey: ['leads-listo', selectedMonth, selectedYear],
+  // Leads query for "firmadas" count (finalized leads)
+  const { data: leadsFirmadas } = useQuery({
+    queryKey: ['leads-firmadas', selectedMonth, selectedYear],
     queryFn: async () => {
       const start = startOfMonth(new Date(selectedYear, selectedMonth));
       const end = endOfMonth(new Date(selectedYear, selectedMonth));
@@ -60,7 +60,7 @@ const ControleFinanceiro = () => {
       const { data, error } = await supabase
         .from('leads')
         .select('id')
-        .eq('stage', 'listo')
+        .eq('stage', 'finalizada')
         .gte('last_stage_change_at', start.toISOString())
         .lte('last_stage_change_at', end.toISOString());
       
@@ -369,8 +369,8 @@ const ControleFinanceiro = () => {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent className="px-3 pb-3">
-                  <div className="text-lg font-bold">{leadsListo?.length || 0}</div>
-                  <p className="text-xs text-muted-foreground">Leads en "Listo"</p>
+                  <div className="text-lg font-bold">{leadsFirmadas?.length || 0}</div>
+                  <p className="text-xs text-muted-foreground">Leads finalizados</p>
                 </CardContent>
               </Card>
             </div>
