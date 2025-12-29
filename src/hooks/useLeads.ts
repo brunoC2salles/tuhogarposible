@@ -99,7 +99,7 @@ export const useLeads = () => {
     }
   };
 
-  // Create draft invoice when lead reaches "listo" stage
+  // Create draft invoice when lead reaches "cobro" stage (ready for payment)
   const createDraftInvoiceFromServices = async (leadId: string, leadName: string, agentId?: string) => {
     try {
       // Get lead services
@@ -181,8 +181,8 @@ export const useLeads = () => {
 
       if (error) throw error;
 
-      // If stage changed to "finalizada", create draft invoice
-      if (newStage === 'finalizada' && currentLead) {
+      // If stage changed to "cobro", create draft invoice (ready for payment)
+      if (newStage === 'cobro' && currentLead) {
         await createDraftInvoiceFromServices(leadId, currentLead.nombre_completo, currentLead.agente_asignado_id);
       }
 
