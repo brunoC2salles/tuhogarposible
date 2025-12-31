@@ -53,9 +53,10 @@ export const useLeadDocuments = (leadId: string) => {
       return false;
     }
 
-    // Validar tipo de archivo
-    if (file.type !== 'application/pdf') {
-      toast.error('Solo se permiten archivos PDF');
+    // Validar tipo de archivo (PDF e imagens)
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Solo se permiten archivos PDF e imágenes (JPG, PNG, GIF, WEBP)');
       return false;
     }
 
@@ -146,6 +147,23 @@ export const useLeadDocuments = (leadId: string) => {
     }
   };
 
+  const getPreviewUrl = async (fileName: string): Promise<string | null> => {
+    if (!leadId) return null;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('lead-documents')
+        .createSignedUrl(`${leadId}/${fileName}`, 3600); // 1 hora
+
+      if (error) throw error;
+      return data?.signedUrl || null;
+    } catch (error: any) {
+      console.error('Error getting preview URL:', error);
+      toast.error('Error al obtener la vista previa');
+      return null;
+    }
+  };
+
   return {
     documents,
     loading,
@@ -153,6 +171,7 @@ export const useLeadDocuments = (leadId: string) => {
     uploadDocument,
     downloadDocument,
     deleteDocument,
+    getPreviewUrl,
     refreshDocuments: fetchDocuments,
   };
 };

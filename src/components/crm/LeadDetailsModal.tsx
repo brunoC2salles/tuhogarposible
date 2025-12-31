@@ -14,7 +14,7 @@ import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog } from 'lucide-react';
+import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog, Eye } from 'lucide-react';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useLeadExternalLinks } from '@/hooks/useLeadExternalLinks';
@@ -27,6 +27,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { DocumentChecklist } from '@/components/crm/DocumentChecklist';
 import { useGeneratedContracts } from '@/hooks/useGeneratedContracts';
 import { LeadServicesComponent } from '@/components/crm/LeadServices';
+import { DocumentPreviewModal } from '@/components/crm/DocumentPreviewModal';
 import { FileCheck, ShoppingCart } from 'lucide-react';
 import { useAgentes } from '@/hooks/useAgentes';
 import { useLeads } from '@/hooks/useLeads';
@@ -51,7 +52,7 @@ export const LeadDetailsModal = ({
   const { agentes } = useAgentes();
   const { reassignLead } = useLeads();
   const { inmuebles, loading: inmueblesLoading, unlinkInmueble } = useLeadInmuebles(lead?.id);
-  const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument } = useLeadDocuments(lead?.id || '');
+  const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument, getPreviewUrl } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
   const { links: contractLinks, isLoading: loadingLinks, getPublicLink, deleteLink: deleteContractLink } = usePublicContractLinks(lead?.id);
   const { contracts, getContractUrl } = useGeneratedContracts(lead?.id);
@@ -67,14 +68,26 @@ export const LeadDetailsModal = ({
   // Mass selection state
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [downloadingMultiple, setDownloadingMultiple] = useState(false);
+  
+  // Document preview state
+  const [previewDocument, setPreviewDocument] = useState<{ name: string; url: string | null } | null>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
       setActiveTab('info');
       setSelectedDocuments([]);
+      setPreviewDocument(null);
     }
   }, [open]);
+
+  const handlePreviewDocument = async (fileName: string) => {
+    setLoadingPreview(true);
+    const url = await getPreviewUrl(fileName);
+    setPreviewDocument({ name: fileName, url });
+    setLoadingPreview(false);
+  };
 
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
@@ -639,7 +652,7 @@ export const LeadDetailsModal = ({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="application/pdf"
+                accept="application/pdf,image/jpeg,image/png,image/gif,image/webp"
                 onChange={handleFileSelect}
                 className="hidden"
               />
@@ -648,7 +661,7 @@ export const LeadDetailsModal = ({
                 disabled={uploading}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                {uploading ? 'Subiendo...' : 'Subir PDF'}
+                {uploading ? 'Subiendo...' : 'Subir Documento'}
               </Button>
             </div>
 
@@ -698,11 +711,21 @@ export const LeadDetailsModal = ({
                             </p>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePreviewDocument(doc.name)}
+                            disabled={loadingPreview}
+                            title="Ver documento"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => downloadDocument(doc.name)}
+                            title="Descargar"
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -710,6 +733,7 @@ export const LeadDetailsModal = ({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteDocument(doc.name)}
+                            title="Eliminar"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -751,6 +775,14 @@ export const LeadDetailsModal = ({
             leadName={lead.nombre_completo}
           />
         )}
+
+        <DocumentPreviewModal
+          open={!!previewDocument}
+          onClose={() => setPreviewDocument(null)}
+          fileName={previewDocument?.name || ''}
+          fileUrl={previewDocument?.url || null}
+          onDownload={() => previewDocument && downloadDocument(previewDocument.name)}
+        />
       </>
     );
   }
@@ -774,6 +806,14 @@ export const LeadDetailsModal = ({
           leadName={lead.nombre_completo}
         />
       )}
+
+      <DocumentPreviewModal
+        open={!!previewDocument}
+        onClose={() => setPreviewDocument(null)}
+        fileName={previewDocument?.name || ''}
+        fileUrl={previewDocument?.url || null}
+        onDownload={() => previewDocument && downloadDocument(previewDocument.name)}
+      />
     </>
   );
 };
