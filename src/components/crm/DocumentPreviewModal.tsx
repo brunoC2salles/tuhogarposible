@@ -25,15 +25,13 @@ export const DocumentPreviewModal = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-5xl h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-4 border-b flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg truncate pr-4">{fileName}</DialogTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={onDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                Descargar
-              </Button>
-            </div>
+        <DialogHeader className="p-4 pb-3 border-b flex-shrink-0">
+          <div className="flex items-center gap-4 pr-8">
+            <DialogTitle className="text-lg truncate flex-1">{fileName}</DialogTitle>
+            <Button variant="outline" size="sm" onClick={onDownload} className="shrink-0">
+              <Download className="h-4 w-4 mr-2" />
+              Descargar
+            </Button>
           </div>
         </DialogHeader>
         
