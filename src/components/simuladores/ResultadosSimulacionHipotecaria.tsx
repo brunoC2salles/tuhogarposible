@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, X, Save, Loader2 } from "lucide-react";
+import { Download, Save, Loader2, CheckCircle } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionHipotecariaPDF } from "@/lib/pdfGenerator";
@@ -232,6 +232,14 @@ export function ResultadosSimulacionHipotecaria({
             Cálculo realizado según las reglas de Tu Hogar Posible. Los valores son orientativos 
             y sujetos a aprobación crediticia. Esta simulación no constituye una oferta vinculante. 
             Para información oficial, consulte con nuestros asesores.
+          </div>
+
+          {/* Badge de Política de Privacidad */}
+          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+              Política de Privacidad aceptada conforme al RGPD
+            </span>
           </div>
 
           {/* Botones de Acción */}

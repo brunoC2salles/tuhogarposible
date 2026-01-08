@@ -29,7 +29,11 @@ export const simuladorCreditoSchema = z.object({
   
   tasaAnual: z.number()
     .min(3, 'Tasa mínima: 3%')
-    .max(12, 'Tasa máxima: 12%')
+    .max(12, 'Tasa máxima: 12%'),
+  
+  aceptaPrivacidad: z.boolean().refine(val => val === true, {
+    message: 'Debe aceptar la Política de Privacidad'
+  })
 }).refine(data => data.entrada <= data.valorInmueble, {
   message: 'Entrada no puede ser mayor que el valor del inmueble',
   path: ['entrada']
@@ -154,7 +158,11 @@ export const simuladorHipotecaSchema = z.object({
   
   regimenMatrimonial: z.enum(['gananciales', 'separacion_bienes']).optional(),
   pagaManutención: z.boolean().optional(),
-  valorManutención: z.number().min(0).optional()
+  valorManutención: z.number().min(0).optional(),
+  
+  aceptaPrivacidad: z.boolean().refine(val => val === true, {
+    message: 'Debe aceptar la Política de Privacidad'
+  })
 })
 .refine(data => {
   if (data.numeroTitulares !== '1' && (!data.titulares || data.titulares.length === 0)) {

@@ -154,6 +154,22 @@ export function generateSimulacionPDF(
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
+  // RGPD Badge
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(34, 139, 34);
+  doc.text('✓ POLÍTICA DE PRIVACIDAD', margin, currentY);
+  currentY += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(60, 60, 60);
+  doc.text('El usuario ha aceptado la Política de Privacidad y el tratamiento de sus datos conforme al RGPD.', margin, currentY);
+  currentY += 10;
+
+  // Linha separadora
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 10;
+
   // Disclaimer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
@@ -346,6 +362,22 @@ export function generateSimulacionHipotecariaPDF(
 
   // Espaço antes do disclaimer
   currentY += 5;
+
+  // Linha separadora
+  doc.line(margin, currentY, pageWidth - margin, currentY);
+  currentY += 10;
+
+  // RGPD Badge
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(34, 139, 34);
+  doc.text('✓ POLÍTICA DE PRIVACIDAD', margin, currentY);
+  currentY += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(60, 60, 60);
+  doc.text('El usuario ha aceptado la Política de Privacidad y el tratamiento de sus datos conforme al RGPD.', margin, currentY);
+  currentY += 10;
 
   // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);

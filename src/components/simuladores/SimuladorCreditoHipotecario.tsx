@@ -58,9 +58,12 @@ export function SimuladorCreditoHipotecario() {
       creditos: [],
       estadoCivil: 'soltero',
       pagaManutención: false,
-      valorManutención: undefined
+      valorManutención: undefined,
+      aceptaPrivacidad: false
     }
   });
+  
+  const watchAceptaPrivacidad = form.watch('aceptaPrivacidad');
 
   const { fields: titularesFields, append: appendTitular, remove: removeTitular } = useFieldArray({
     control: form.control,
@@ -878,6 +881,25 @@ export function SimuladorCreditoHipotecario() {
               </AccordionItem>
 
             </Accordion>
+
+            {/* Checkbox de Política de Privacidad */}
+            <div className="space-y-2 pt-6">
+              <div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
+                <Checkbox 
+                  id="aceptaPrivacidadHipoteca" 
+                  checked={watchAceptaPrivacidad}
+                  onCheckedChange={(checked) => form.setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
+                    Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
+                  </label>
+                </div>
+              </div>
+              {form.formState.errors.aceptaPrivacidad && (
+                <p className="text-sm text-destructive">{form.formState.errors.aceptaPrivacidad.message}</p>
+              )}
+            </div>
 
             <div className="flex gap-3 justify-end pt-6">
               <Button type="button" variant="outline" onClick={() => form.reset()}>Limpiar</Button>
