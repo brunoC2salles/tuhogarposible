@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileDown, X } from "lucide-react";
+import { FileDown, CheckCircle } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacion as ResultadosType } from "@/lib/simuladorUtils";
 import { type SimuladorCreditoFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionPDF } from "@/lib/pdfGenerator";
@@ -134,6 +134,14 @@ export function ResultadosSimulacion({
               <li>• Tipo de amortización: <strong>Sistema Francés (cuotas fijas)</strong></li>
               <li>• Relación cuota/ingreso: <strong>{((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100).toFixed(2)}%</strong> {((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100) <= 35 ? '✓' : '⚠️'}</li>
             </ul>
+          </div>
+
+          {/* Badge de Política de Privacidad */}
+          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+              Política de Privacidad aceptada conforme al RGPD
+            </span>
           </div>
 
           {/* Botones de acción */}

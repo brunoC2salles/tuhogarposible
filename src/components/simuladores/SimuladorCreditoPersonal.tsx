@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calculator } from "lucide-react";
 import { simuladorCreditoSchema, type SimuladorCreditoFormData } from "@/schemas/simuladorSchema";
 import { calcularAmortizacionFrancesa, type ResultadosSimulacion as ResultadosType } from "@/lib/simuladorUtils";
@@ -27,11 +28,18 @@ export function SimuladorCreditoPersonal() {
     register,
     handleSubmit,
     formState: { errors, isValid },
-    reset
+    reset,
+    watch,
+    setValue
   } = useForm<SimuladorCreditoFormData>({
     resolver: zodResolver(simuladorCreditoSchema),
-    mode: "onChange"
+    mode: "onChange",
+    defaultValues: {
+      aceptaPrivacidad: false
+    }
   });
+  
+  const watchAceptaPrivacidad = watch("aceptaPrivacidad");
 
   const onSubmit = (data: SimuladorCreditoFormData) => {
     try {
@@ -251,7 +259,26 @@ export function SimuladorCreditoPersonal() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
+            {/* Checkbox de Política de Privacidad */}
+            <div className="space-y-2 pt-4 border-t">
+              <div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
+                <Checkbox 
+                  id="aceptaPrivacidad" 
+                  checked={watchAceptaPrivacidad}
+                  onCheckedChange={(checked) => setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <label htmlFor="aceptaPrivacidad" className="text-sm font-medium cursor-pointer">
+                    Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
+                  </label>
+                </div>
+              </div>
+              {errors.aceptaPrivacidad && (
+                <p className="text-sm text-destructive">{errors.aceptaPrivacidad.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => reset()}>
                 Limpiar
               </Button>
