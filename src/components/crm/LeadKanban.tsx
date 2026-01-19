@@ -11,6 +11,7 @@ interface LeadKanbanProps {
   onViewDetails: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (leadId: string) => void;
+  onDisqualify?: (leadId: string) => void;
 }
 
 export const LeadKanban = ({
@@ -19,6 +20,7 @@ export const LeadKanban = ({
   onViewDetails,
   onEdit,
   onDelete,
+  onDisqualify,
 }: LeadKanbanProps) => {
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
@@ -114,6 +116,7 @@ export const LeadKanban = ({
                       onViewDetails={onViewDetails}
                       onEdit={onEdit}
                       onDelete={onDelete}
+                      onDisqualify={onDisqualify}
                     />
                   </div>
                 ))}

@@ -247,6 +247,7 @@ export default function AgenteDetails() {
               onStageChange={handleStageChange}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onDisqualify={(leadId) => handleStageChange(leadId, 'no_cualificado')}
             />
           ) : (
             <p className="text-center text-muted-foreground py-8">

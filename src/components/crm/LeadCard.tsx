@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, Home, ExternalLink } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, Home, ExternalLink, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -14,9 +14,10 @@ interface LeadCardProps {
   onViewDetails: (lead: Lead) => void;
   onEdit: (lead: Lead) => void;
   onDelete: (leadId: string) => void;
+  onDisqualify?: (leadId: string) => void;
 }
 
-export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProps) => {
+export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }: LeadCardProps) => {
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swiping, setSwiping] = useState(false);
@@ -132,6 +133,17 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete }: LeadCardProp
             >
               <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
+            {onDisqualify && lead.stage !== 'no_cualificado' && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 sm:h-8 sm:w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                onClick={() => onDisqualify(lead.id)}
+                title="Descualificar lead"
+              >
+                <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
