@@ -70,6 +70,145 @@ function sanitizeField(value: unknown): unknown {
   return value;
 }
 
+// ============= FUNÇÕES DE PARSING PARA RESPOSTAS ABERTAS DO META ADS =============
+
+/**
+ * Parseia resposta de DNI/NIE - aceita "dni", "nie", "pasaporte", "sí", "no"
+ */
+function parseTieneDniNie(respuesta?: string): { tiene: boolean; tipo?: string } {
+  if (!respuesta) return { tiene: false };
+  
+  const resp = respuesta.toLowerCase().trim().replace(/_/g, ' ');
+  
+  // Respostas diretas indicando tipo de documento
+  if (resp.includes('dni') || resp.includes('nie') || resp.includes('pasaporte')) {
+    return { tiene: true, tipo: resp };
+  }
+  
+  // Respostas afirmativas genéricas
+  if (resp === 'si' || resp === 'sí' || resp.includes('tengo') || resp === 'yes') {
+    return { tiene: true };
+  }
+  
+  // Respostas negativas
+  if (resp === 'no' || resp.includes('no tengo') || resp.includes('en tramite') || resp.includes('en trámite')) {
+    return { tiene: false };
+  }
+  
+  // Se respondeu algo, assumir que tem (melhor ser permissivo)
+  return { tiene: true, tipo: resp };
+}
+
+/**
+ * Parseia antigüedad laboral - aceita formatos com underscore como "más_de_1_año"
+ */
+function parseAntiguedad(respuesta?: string): { suficiente: boolean; valor?: string } {
+  if (!respuesta) return { suficiente: false };
+  
+  // Normaliza: remove underscores, lowercase
+  const resp = respuesta.toLowerCase().trim().replace(/_/g, ' ');
+  
+  // Insuficiente: menos de 1 año
+  if (
+    resp.includes('menos de 1') || 
+    resp.includes('menos de un') || 
+    resp === '0' || 
+    resp === 'no' ||
+    resp.includes('< 1') ||
+    resp.includes('0 meses') ||
+    resp.includes('ninguna')
+  ) {
+    return { suficiente: false, valor: respuesta };
+  }
+  
+  // Suficiente: 1+ años (variações)
+  if (
+    resp.includes('más de 1') || 
+    resp.includes('mas de 1') ||
+    resp.includes('más de un') ||
+    resp.includes('mas de un') ||
+    resp.includes('1 año') ||
+    resp.includes('1 ano') ||
+    resp.includes('2 año') ||
+    resp.includes('3 año') ||
+    resp.includes('> 1') ||
+    resp.includes('indefinido') ||
+    resp.includes('fijo')
+  ) {
+    return { suficiente: true, valor: respuesta };
+  }
+  
+  // Verificar se contém número >= 1
+  const numMatch = resp.match(/(\d+)/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    if (num >= 1) {
+      return { suficiente: true, valor: respuesta };
+    }
+  }
+  
+  // Por padrão, assumir suficiente se há algum valor
+  return { suficiente: true, valor: respuesta };
+}
+
+/**
+ * Parseia zona de interesse - extrai cidade de texto livre como "Valencia y alrededores"
+ */
+function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; region?: string } {
+  if (!respuesta) return { zona: 'General' };
+  
+  const resp = respuesta.toLowerCase().trim();
+  
+  // Mapa de cidades conhecidas e suas regiões
+  const ciudadesMap: Record<string, string> = {
+    'madrid': 'Madrid',
+    'barcelona': 'Cataluña',
+    'valencia': 'Valencia',
+    'sevilla': 'Andalucía',
+    'zaragoza': 'Aragón',
+    'málaga': 'Andalucía',
+    'malaga': 'Andalucía',
+    'murcia': 'Murcia',
+    'palma': 'Baleares',
+    'bilbao': 'País Vasco',
+    'alicante': 'Valencia',
+    'córdoba': 'Andalucía',
+    'cordoba': 'Andalucía',
+    'valladolid': 'Castilla y León',
+    'vigo': 'Galicia',
+    'gijón': 'Asturias',
+    'gijon': 'Asturias',
+    'granada': 'Andalucía',
+    'tarragona': 'Cataluña',
+    'girona': 'Cataluña',
+    'lleida': 'Cataluña',
+    'castellón': 'Valencia',
+    'castellon': 'Valencia',
+    'toledo': 'Castilla-La Mancha',
+    'almería': 'Andalucía',
+    'almeria': 'Andalucía',
+    'santander': 'Cantabria',
+    'pamplona': 'Navarra',
+    'san sebastián': 'País Vasco',
+    'san sebastian': 'País Vasco',
+    'logroño': 'La Rioja',
+    'logronyo': 'La Rioja'
+  };
+  
+  for (const [ciudad, region] of Object.entries(ciudadesMap)) {
+    if (resp.includes(ciudad)) {
+      return { 
+        zona: respuesta, 
+        ciudad: ciudad.charAt(0).toUpperCase() + ciudad.slice(1),
+        region: region
+      };
+    }
+  }
+  
+  // Retorna o texto original como zona
+  return { zona: respuesta };
+}
+
 function parseIngresos(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
   
@@ -129,26 +268,24 @@ function normalizarPreferenciaLlamada(preferencia?: string): string {
 }
 
 function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResult {
+  // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
+  
   // Critério 1: Antigüedad en trabajo >= 1 año
-  if (data.antiguedad_trabajo) {
-    const antiguedad = data.antiguedad_trabajo.toLowerCase();
-    if (antiguedad.includes('menos') || antiguedad.includes('0') || antiguedad === 'no') {
-      return { cualificado: false, razon_no_cualificado: 'Antigüedad laboral insuficiente (menos de 1 año)' };
-    }
+  const antigüedadResult = parseAntiguedad(data.antiguedad_trabajo);
+  if (!antigüedadResult.suficiente) {
+    return { cualificado: false, razon_no_cualificado: 'Antigüedad laboral insuficiente (menos de 1 año)' };
   }
   
   // Critério 2: Tiene NIE/DNI
-  if (data.tiene_nie_dni) {
-    const tiene = data.tiene_nie_dni.toLowerCase();
-    if (tiene === 'no' || tiene.includes('no tengo')) {
-      return { cualificado: false, razon_no_cualificado: 'No tiene NIE/DNI' };
-    }
+  const dniResult = parseTieneDniNie(data.tiene_nie_dni);
+  if (!dniResult.tiene) {
+    return { cualificado: false, razon_no_cualificado: 'No tiene NIE/DNI' };
   }
   
   // Critério 3: NO está en fichero de morosidad
   if (data.en_fichero_morosidad) {
-    const morosidad = data.en_fichero_morosidad.toLowerCase();
-    if (morosidad === 'si' || morosidad === 'sí' || morosidad.includes('si')) {
+    const morosidad = data.en_fichero_morosidad.toLowerCase().trim().replace(/_/g, ' ');
+    if (morosidad === 'si' || morosidad === 'sí' || morosidad.includes('si estoy') || morosidad === 'yes') {
       return { cualificado: false, razon_no_cualificado: 'Está en fichero de morosidad' };
     }
   }
@@ -389,6 +526,21 @@ Deno.serve(async (req) => {
     // 7. Salvar lead no banco
     let leadId = null;
     
+    // Parsear zona de interesse para extrair cidade
+    const zonaParseada = parseZonaInteres(data.zona_interes);
+    
+    // Montar notas com informações de qualificação
+    const notasLead = [
+      `Lead do Meta Ads.`,
+      `Qualificação automática: ${qualificacao.cualificado ? '✅ APROVADO' : '⚠️ PENDENTE - ' + qualificacao.razon_no_cualificado}`,
+      `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
+      `Habitaciones: ${data.habitaciones || 'não especificada'}`,
+      `Antigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
+      `DNI/NIE: ${data.tiene_nie_dni || 'não especificada'}`,
+      `Zona: ${data.zona_interes || 'não especificada'}`,
+      zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null
+    ].filter(Boolean).join('\n');
+    
     try {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
@@ -396,13 +548,15 @@ Deno.serve(async (req) => {
           nombre_completo: data.nombre,
           telefono: data.telefono,
           email: data.email,
-          ciudad_interes: data.zona_interes || null,
+          ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
           zona_interes: data.zona_interes || null,
           valor_inmueble_deseado: simulacionHipotecaria.valor_maximo_inmueble,
           agente_asignado_id: agenteAsignado?.id || null,
-          stage: qualificacao.cualificado ? 'recopilacion_expediente' : 'no_cualificado',
-          source: 'formulario_web', // Usaremos formulario_web pois não existe meta_ads no enum
-          notas: `Lead do Meta Ads.\nPreferência de chamada: ${data.preferencia_llamada || 'não especificada'}\nHabitaciones: ${data.habitaciones || 'não especificada'}\nAntigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
+          // NOVO: Todos os leads do Meta Ads vão para 'nuevo_lead' para revisão manual
+          stage: 'nuevo_lead',
+          // NOVO: Source específico para Meta Ads
+          source: 'meta_ads',
+          notas: notasLead,
           simulador_personal_data: simulacionPersonal,
           simulador_hipotecario_data: simulacionHipotecaria
         })
@@ -413,7 +567,7 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] Erro ao criar lead:', leadError);
       } else {
         leadId = leadData.id;
-        console.log('[meta-lead-webhook] Lead criado:', leadId);
+        console.log('[meta-lead-webhook] Lead criado com stage nuevo_lead:', leadId);
       }
     } catch (err) {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
