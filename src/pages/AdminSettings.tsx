@@ -402,11 +402,15 @@ const AdminSettings = () => {
                 variant="outline" 
                 onClick={() => testMetaBitrixWebhook(localMetaBitrixWebhookUrl)} 
                 disabled={!localMetaBitrixWebhookUrl.trim()}
+                title="Envía los datos del último lead del CRM al webhook"
               >
                 <TestTube className="h-4 w-4 mr-2" />
-                Probar Conexión
+                Probar con Último Lead
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              La prueba enviará los datos reales del último lead creado en el CRM
+            </p>
 
             {/* Status */}
             <div className="flex gap-4 pt-4 border-t">
