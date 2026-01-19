@@ -34,11 +34,6 @@ export const LeadKanban = ({
 
   const handleDragOver = (e: React.DragEvent, stage: LeadStage) => {
     e.preventDefault();
-    // Não permite arrastar PARA a coluna "No Cualificado" (só pode sair dela)
-    if (stage === 'no_cualificado') {
-      e.dataTransfer.dropEffect = 'none';
-      return;
-    }
     e.dataTransfer.dropEffect = 'move';
     setDragOverStage(stage);
   };
@@ -49,12 +44,6 @@ export const LeadKanban = ({
 
   const handleDrop = (e: React.DragEvent, targetStage: LeadStage) => {
     e.preventDefault();
-    // Não permite drop na coluna "No Cualificado"
-    if (targetStage === 'no_cualificado') {
-      setDraggedLead(null);
-      setDragOverStage(null);
-      return;
-    }
     if (draggedLead) {
       onStageChange(draggedLead, targetStage);
     }
@@ -69,7 +58,7 @@ export const LeadKanban = ({
     <div className="flex gap-4 h-full overflow-x-auto pb-4">
       {STAGE_ORDER.map((stage) => {
         const stageLeads = getLeadsByStage(stage);
-        const isDragOver = dragOverStage === stage && !isNoCualificado(stage);
+        const isDragOver = dragOverStage === stage;
         const isNoCualificadoColumn = isNoCualificado(stage);
         const isNuevoLeadColumn = isNuevoLead(stage);
 
@@ -108,7 +97,7 @@ export const LeadKanban = ({
                 'flex-1 rounded-lg border-2 border-dashed p-2 transition-colors',
                 isNoCualificadoColumn && 'border-destructive/30 bg-destructive/5',
                 isNuevoLeadColumn && 'border-primary/30 bg-primary/5',
-                isDragOver && !isNoCualificadoColumn && 'border-primary bg-primary/5',
+                isDragOver && 'border-primary bg-primary/5',
                 !isDragOver && !isNoCualificadoColumn && !isNuevoLeadColumn && 'border-border bg-muted/20'
               )}
             >
