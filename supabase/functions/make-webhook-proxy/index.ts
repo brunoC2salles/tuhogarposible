@@ -386,6 +386,14 @@ Deno.serve(async (req) => {
       const simPersonal = lead.simulador_personal_data as any || {};
       const simHipoteca = lead.simulador_hipotecario_data as any || {};
 
+      // Helper function to extract data from lead notes
+      const extractFromNotes = (notas: string | null, key: string): string => {
+        if (!notas) return '';
+        const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
+        const match = notas.match(regex);
+        return match ? match[1].trim() : '';
+      };
+
       const payload: Record<string, any> = {
         test: 'true',
         source: lead.source || 'manual',
@@ -399,6 +407,12 @@ Deno.serve(async (req) => {
         lead_zona_interes: lead.zona_interes || '',
         lead_ciudad_interes: lead.ciudad_interes || '',
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+        
+        // Campos extraídos das notas (Meta Ads)
+        lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
+        meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
+        lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada'),
+        meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE'),
         
         agente_id: agente?.id || '',
         agente_nombre: agente?.nombre || 'Sin asignar',

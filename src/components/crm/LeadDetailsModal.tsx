@@ -14,7 +14,7 @@ import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog, Eye, Pencil, MapPin, Bed, Bath, Maximize2, CheckCircle } from 'lucide-react';
+import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog, Eye, Pencil, MapPin, Bed, Bath, Maximize2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
@@ -330,6 +330,20 @@ export const LeadDetailsModal = ({
           </TabsContent>
 
           <TabsContent value="simulators" className="space-y-4">
+            {/* Alerta de simulação preliminar */}
+            {(lead.simulador_personal_data || lead.simulador_hipotecario_data) && lead.source === 'meta_ads' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-amber-700">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm font-medium">Simulación Preliminar</span>
+                </div>
+                <p className="text-xs text-amber-600 mt-1">
+                  Estos valores son estimaciones basadas en los datos del formulario de Meta Ads. 
+                  Se recomienda realizar una simulación completa con datos verificados.
+                </p>
+              </div>
+            )}
+            
             <div className="flex gap-2 justify-end mb-4">
               <Button onClick={() => onOpenSimulators(lead)}>
                 <Calculator className="h-4 w-4 mr-2" />
@@ -643,7 +657,7 @@ export const LeadDetailsModal = ({
           <TabsContent value="servicios" className="space-y-4">
             <LeadServicesComponent 
               leadId={lead.id} 
-              propertyPrice={lead.valor_inmueble_deseado || 0}
+              propertyPrice={inmuebles && inmuebles.length > 0 ? inmuebles[0].precio : 0}
             />
           </TabsContent>
 
