@@ -192,6 +192,7 @@ const AgenteCRM = () => {
             onViewDetails={setDetailsLead}
             onEdit={setEditingLead}
             onDelete={setDeleteLeadId}
+            onDisqualify={(leadId) => updateLeadStage(leadId, 'no_cualificado')}
           />
         )}
       </main>

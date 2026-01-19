@@ -161,6 +161,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                 onViewDetails={handleViewDetails}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
+                onDisqualify={(leadId) => handleStageChange(leadId, 'no_cualificado')}
               />
             ) : searchQuery ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

@@ -563,7 +563,7 @@ Deno.serve(async (req) => {
     // Montar notas com informações de qualificação
     const notasLead = [
       `Lead do Meta Ads.`,
-      `Qualificação automática: ${qualificacao.cualificado ? '✅ APROVADO' : '⚠️ PENDENTE - ' + qualificacao.razon_no_cualificado}`,
+      `Qualificação automática: ${qualificacao.cualificado ? '✅ CUALIFICADO' : '❌ NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
       `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
       `Habitaciones: ${data.habitaciones || 'não especificada'}`,
       `Antigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
