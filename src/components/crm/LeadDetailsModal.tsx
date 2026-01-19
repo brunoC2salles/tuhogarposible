@@ -14,7 +14,8 @@ import { LeadComments } from './LeadComments';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog, Eye } from 'lucide-react';
+import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Link2, Plus, ExternalLink, UserCog, Eye, Pencil } from 'lucide-react';
+import { CreateEditLeadModal } from './CreateEditLeadModal';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useLeadExternalLinks } from '@/hooks/useLeadExternalLinks';
@@ -72,6 +73,9 @@ export const LeadDetailsModal = ({
   // Document preview state
   const [previewDocument, setPreviewDocument] = useState<{ name: string; url: string | null } | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  
+  // Edit lead modal state
+  const [editLeadModalOpen, setEditLeadModalOpen] = useState(false);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -219,15 +223,20 @@ export const LeadDetailsModal = ({
           <TabsContent value="info" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Datos de Contacto
+                <CardTitle className="text-base flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Datos de Contacto
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setEditLeadModalOpen(true)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{lead.email}</p>
+                  <p className="font-medium">{lead.email || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Teléfono</p>
@@ -238,9 +247,14 @@ export const LeadDetailsModal = ({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  Preferencias
+                <CardTitle className="text-base flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Home className="h-4 w-4" />
+                    Preferencias
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setEditLeadModalOpen(true)}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
@@ -813,6 +827,29 @@ export const LeadDetailsModal = ({
         fileName={previewDocument?.name || ''}
         fileUrl={previewDocument?.url || null}
         onDownload={() => previewDocument && downloadDocument(previewDocument.name)}
+      />
+      <CreateEditLeadModal
+        open={editLeadModalOpen}
+        onClose={() => setEditLeadModalOpen(false)}
+        lead={lead}
+        onSave={async (data) => {
+          const { error } = await supabase.from('leads').update({
+            nombre_completo: data.nombre_completo,
+            telefono: data.telefono,
+            email: data.email,
+            ciudad_interes: data.ciudad_interes,
+            zona_interes: data.zona_interes,
+            valor_inmueble_deseado: data.valor_inmueble_deseado,
+            notas: data.notas,
+          }).eq('id', lead.id);
+          
+          if (error) {
+            toast.error('Error al actualizar lead');
+          } else {
+            toast.success('Lead actualizado correctamente');
+            setEditLeadModalOpen(false);
+          }
+        }}
       />
     </>
   );

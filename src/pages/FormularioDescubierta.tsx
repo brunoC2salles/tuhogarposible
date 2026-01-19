@@ -17,6 +17,12 @@ import {
   type TitularData 
 } from "@/schemas/formularioDescubiertaSchema";
 import { ResultadosDescubiertaModal } from "@/components/descubierta/ResultadosDescubiertaModal";
+import { 
+  calcularAmortizacionFrancesa, 
+  calcularSimulacionHipoteca,
+  type DatosSimulacion,
+  type DatosSimulacionHipoteca
+} from "@/lib/simuladorUtils";
 
 const defaultTitular: TitularData = {
   nombreApellidos: '',
@@ -242,11 +248,68 @@ export default function FormularioDescubierta() {
     setIsSubmitting(true);
 
     try {
-      // Criar lead no banco
+      // Calcular idade do titular 1
+      const fechaNac = new Date(data.titular1.fechaNacimiento);
+      const hoy = new Date();
+      let edad = hoy.getFullYear() - fechaNac.getFullYear();
+      const m = hoy.getMonth() - fechaNac.getMonth();
+      if (m < 0 || (m === 0 && hoy.getDate() < fechaNac.getDate())) {
+        edad--;
+      }
+
+      // Ingresos totales (titular 1 + titular 2 se houver)
+      let ingresosTotales = data.titular1.ingresosTotales;
+      if (data.tieneSegundoTitular && data.titular2) {
+        ingresosTotales += data.titular2.ingresosTotales;
+      }
+
+      // SIMULAÇÃO CRÉDITO PESSOAL
+      const datosSimulacionPersonal: DatosSimulacion = {
+        ingresos: ingresosTotales,
+        deudas: 0,
+        entrada: 0,
+        valorInmueble: data.precioCompraventa,
+        plazoMeses: 96, // 8 anos default
+        tasaAnual: 6, // 6% default
+      };
+      const resultadosPersonal = calcularAmortizacionFrancesa(datosSimulacionPersonal);
+
+      // SIMULAÇÃO HIPOTECÁRIA
+      const plazoMaximo = Math.max(1, Math.min(30, 75 - edad));
+      const datosSimulacionHipoteca: DatosSimulacionHipoteca = {
+        nombreCompleto: data.titular1.nombreApellidos,
+        edad: edad,
+        numeroTitulares: data.tieneSegundoTitular ? '2' : '1',
+        numeroPagas: 12,
+        cobraBonusAnual: false,
+        valorBonusAnual: 0,
+        esResidenteFiscalEspana: true,
+        precioVivienda: data.precioCompraventa,
+        comunidadAutonoma: 'Comunidad de Madrid',
+        familiaNumerosa: false,
+        menorDe35: edad < 35,
+        finalidadCompra: 'vivienda_habitual',
+        tienePropiedades: false,
+        situacionLaboral: 'empleado',
+        tipoContrato: data.titular1.tipoContrato as 'fijo_discontinuo' | 'indefinido' | 'temporal' | 'interino' | 'funcionario',
+        antiguedadEmpresaAnios: 2,
+        antiguedadEmpresaMeses: 0,
+        antiguedadContinuadaAnios: 2,
+        antiguedadContinuadaMeses: 0,
+        ingresosMensuales: ingresosTotales,
+        ahorrosDisponibles: 0,
+        plazoHipotecaAnios: plazoMaximo,
+        tieneCreditos: data.titular1.tienePrestamosPersonales,
+        creditos: [],
+        estadoCivil: data.titular1.estadoCivil as 'soltero' | 'casado' | 'divorciado',
+      };
+      const resultadosHipoteca = calcularSimulacionHipoteca(datosSimulacionHipoteca);
+
+      // Criar lead no banco com simulações
       const { error } = await supabase.from('leads').insert({
         nombre_completo: data.titular1.nombreApellidos,
         telefono: data.titular1.telefono,
-        email: `pendiente_${Date.now()}@tuhogarposible.com`, // Email placeholder
+        email: '', // Email em branco
         stage: 'recopilacion_expediente',
         source: 'manual',
         notas: `FICHA DESCUBIERTA\n\n` +
@@ -268,6 +331,20 @@ export default function FormularioDescubierta() {
           `- Con préstamo: ${data.conPrestamoPersonal ? 'Sí' : 'No'}`,
         valor_inmueble_deseado: data.precioCompraventa,
         agente_asignado_id: null,
+        // Simulações automáticas
+        simulador_personal_data: {
+          montoSolicitado: resultadosPersonal.montoFinanciar,
+          cuotaMensual: resultadosPersonal.cuotaMensual,
+          plazoMeses: 96,
+          tasaInteres: 6,
+          montoMaximoCredito: resultadosPersonal.montoMaximoCredito,
+        },
+        simulador_hipotecario_data: {
+          valorInmueble: data.precioCompraventa,
+          cuotaMensual: resultadosHipoteca.cuotaMensual,
+          montoFinanciable: resultadosHipoteca.montoMaximoFinanciable,
+          capitalPropioNecesario: resultadosHipoteca.capitalPropioNecesario,
+        },
       });
 
       if (error) throw error;
