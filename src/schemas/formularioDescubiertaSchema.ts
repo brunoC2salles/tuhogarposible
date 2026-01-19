@@ -27,7 +27,7 @@ export const formularioDescubiertaSchema = z.object({
   
   // Titular 2 (opcional)
   tieneSegundoTitular: z.boolean().default(false),
-  titular2: titularSchema.optional(),
+  titular2: titularSchema.nullable().optional(),
   
   // Datos de la Operación
   porcentajeFinanciacion: z.enum(["80", "90", "100"], {
@@ -42,9 +42,9 @@ export const formularioDescubiertaSchema = z.object({
     message: "Debe aceptar la Política de Privacidad",
   }),
 }).refine((data) => {
-  // Si tiene segundo titular, validar que tenga datos
-  if (data.tieneSegundoTitular && !data.titular2) {
-    return false;
+  // Si tiene segundo titular, validar que tenga datos completos
+  if (data.tieneSegundoTitular) {
+    return data.titular2 !== null && data.titular2 !== undefined;
   }
   return true;
 }, {

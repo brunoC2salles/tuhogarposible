@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { 
@@ -52,163 +51,148 @@ function TitularFields({
   const titularErrors = errors[prefix] || {};
   
   return (
-    <div className="space-y-3">
-      {/* Row: Nombre */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Nombre y Apellidos *</Label>
+    <div className="space-y-2">
+      {/* Row 1: Nombre (full width) */}
+      <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+        <Label className="text-right text-xs font-medium">Nombre y Apellidos *</Label>
         <div>
-          <Input {...register(`${prefix}.nombreApellidos`)} placeholder="Nombre completo" />
-          {titularErrors.nombreApellidos && <p className="text-xs text-destructive mt-1">{titularErrors.nombreApellidos.message}</p>}
+          <Input {...register(`${prefix}.nombreApellidos`)} placeholder="Nombre completo" className="h-8 text-sm" />
+          {titularErrors.nombreApellidos && <p className="text-xs text-destructive mt-0.5">{titularErrors.nombreApellidos.message}</p>}
         </div>
       </div>
 
-      {/* Row: Fecha Nacimiento */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Fecha de Nacimiento *</Label>
-        <div>
-          <Input type="date" {...register(`${prefix}.fechaNacimiento`)} />
-          {titularErrors.fechaNacimiento && <p className="text-xs text-destructive mt-1">{titularErrors.fechaNacimiento.message}</p>}
+      {/* Row 2: Fecha Nacimiento + DNI */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Fecha Nacimiento *</Label>
+          <Input type="date" {...register(`${prefix}.fechaNacimiento`)} className="h-8 text-sm" />
+        </div>
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">DNI/NIE *</Label>
+          <Input {...register(`${prefix}.dniNie`)} placeholder="12345678A" className="h-8 text-sm" />
         </div>
       </div>
 
-      {/* Row: DNI/NIE */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">DNI/NIE Permanente *</Label>
-        <div>
-          <Input {...register(`${prefix}.dniNie`)} placeholder="12345678A" />
-          {titularErrors.dniNie && <p className="text-xs text-destructive mt-1">{titularErrors.dniNie.message}</p>}
+      {/* Row 3: Estado Civil + Nº Hijos */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Estado Civil *</Label>
+          <Select 
+            value={watch(`${prefix}.estadoCivil`)} 
+            onValueChange={(v) => setValue(`${prefix}.estadoCivil`, v)}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Seleccione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="soltero">Soltero/a</SelectItem>
+              <SelectItem value="casado">Casado/a</SelectItem>
+              <SelectItem value="divorciado">Divorciado/a</SelectItem>
+              <SelectItem value="viudo">Viudo/a</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div>
-
-      {/* Row: Estado Civil */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Estado Civil *</Label>
-        <Select 
-          value={watch(`${prefix}.estadoCivil`)} 
-          onValueChange={(v) => setValue(`${prefix}.estadoCivil`, v)}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Seleccione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="soltero">Soltero/a</SelectItem>
-            <SelectItem value="casado">Casado/a</SelectItem>
-            <SelectItem value="divorciado">Divorciado/a</SelectItem>
-            <SelectItem value="viudo">Viudo/a</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Row: Nº Hijos */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Nº de Hijos *</Label>
-        <Input 
-          type="number" 
-          {...register(`${prefix}.numHijos`, { valueAsNumber: true })} 
-          min="0" 
-          className="w-[100px]"
-        />
-      </div>
-
-      {/* Row: Teléfono */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Teléfono *</Label>
-        <div>
-          <Input {...register(`${prefix}.telefono`)} placeholder="+34 XXX XXX XXX" />
-          {titularErrors.telefono && <p className="text-xs text-destructive mt-1">{titularErrors.telefono.message}</p>}
-        </div>
-      </div>
-
-      {/* Row: Profesión */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Profesión *</Label>
-        <div>
-          <Input {...register(`${prefix}.profesion`)} placeholder="Ej: Ingeniero, Médico..." />
-          {titularErrors.profesion && <p className="text-xs text-destructive mt-1">{titularErrors.profesion.message}</p>}
-        </div>
-      </div>
-
-      {/* Row: Tipo Contrato */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Tipo de Contrato *</Label>
-        <Select 
-          value={watch(`${prefix}.tipoContrato`)} 
-          onValueChange={(v) => setValue(`${prefix}.tipoContrato`, v)}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Seleccione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="funcionario">Funcionario</SelectItem>
-            <SelectItem value="indefinido">Indefinido</SelectItem>
-            <SelectItem value="interino">Interino</SelectItem>
-            <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
-            <SelectItem value="temporal">Temporal</SelectItem>
-            <SelectItem value="autonomo">Autónomo</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Row: Antigüedad */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Antigüedad *</Label>
-        <div>
-          <Input {...register(`${prefix}.antiguedad`)} placeholder="Ej: 2 años 6 meses" />
-          {titularErrors.antiguedad && <p className="text-xs text-destructive mt-1">{titularErrors.antiguedad.message}</p>}
-        </div>
-      </div>
-
-      {/* Row: Ingresos */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Ingresos Totales (12 pagas) *</Label>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Nº Hijos *</Label>
           <Input 
             type="number" 
-            {...register(`${prefix}.ingresosTotales`, { valueAsNumber: true })} 
+            {...register(`${prefix}.numHijos`, { valueAsNumber: true })} 
             min="0" 
-            className="w-[150px]"
+            className="h-8 text-sm w-20"
           />
-          <span className="text-muted-foreground">€</span>
         </div>
       </div>
 
-      {/* Row: Otros Ingresos */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Otros Ingresos o Inversiones</Label>
-        <Input {...register(`${prefix}.otrosIngresos`)} placeholder="Opcional" />
-      </div>
-
-      {/* Row: Activos Inmobiliarios */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">Activos Inmobiliarios</Label>
-        <Input {...register(`${prefix}.activosInmobiliarios`)} placeholder="Con o sin hipoteca" />
-      </div>
-
-      {/* Row: Préstamos Personales */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">¿Tiene Préstamos Personales? *</Label>
-        <div className="flex items-center gap-4">
-          <Switch 
-            checked={watch(`${prefix}.tienePrestamosPersonales`)} 
-            onCheckedChange={(v) => setValue(`${prefix}.tienePrestamosPersonales`, v)} 
-          />
-          <span className="text-sm text-muted-foreground">
-            {watch(`${prefix}.tienePrestamosPersonales`) ? 'Sí' : 'No'}
-          </span>
+      {/* Row 4: Teléfono + Profesión */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Teléfono *</Label>
+          <Input {...register(`${prefix}.telefono`)} placeholder="+34 XXX XXX XXX" className="h-8 text-sm" />
+        </div>
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Profesión *</Label>
+          <Input {...register(`${prefix}.profesion`)} placeholder="Ej: Ingeniero" className="h-8 text-sm" />
         </div>
       </div>
 
-      {/* Row: Deudas */}
-      <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-        <Label className="text-right font-medium">¿Tiene Alguna Deuda? *</Label>
-        <div className="flex items-center gap-4">
-          <Switch 
-            checked={watch(`${prefix}.tieneDeudas`)} 
-            onCheckedChange={(v) => setValue(`${prefix}.tieneDeudas`, v)} 
-          />
-          <span className="text-sm text-muted-foreground">
-            {watch(`${prefix}.tieneDeudas`) ? 'Sí' : 'No'}
-          </span>
+      {/* Row 5: Tipo Contrato + Antigüedad */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Tipo Contrato *</Label>
+          <Select 
+            value={watch(`${prefix}.tipoContrato`)} 
+            onValueChange={(v) => setValue(`${prefix}.tipoContrato`, v)}
+          >
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue placeholder="Seleccione" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="funcionario">Funcionario</SelectItem>
+              <SelectItem value="indefinido">Indefinido</SelectItem>
+              <SelectItem value="interino">Interino</SelectItem>
+              <SelectItem value="fijo_discontinuo">Fijo Discontinuo</SelectItem>
+              <SelectItem value="temporal">Temporal</SelectItem>
+              <SelectItem value="autonomo">Autónomo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Antigüedad *</Label>
+          <Input {...register(`${prefix}.antiguedad`)} placeholder="2 años 6 meses" className="h-8 text-sm" />
+        </div>
+      </div>
+
+      {/* Row 6: Ingresos + Otros Ingresos */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Ingresos (12 pagas) *</Label>
+          <div className="flex items-center gap-1">
+            <Input 
+              type="number" 
+              {...register(`${prefix}.ingresosTotales`, { valueAsNumber: true })} 
+              min="0" 
+              className="h-8 text-sm w-24"
+            />
+            <span className="text-xs text-muted-foreground">€</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">Otros Ingresos</Label>
+          <Input {...register(`${prefix}.otrosIngresos`)} placeholder="Opcional" className="h-8 text-sm" />
+        </div>
+      </div>
+
+      {/* Row 7: Activos Inmobiliarios */}
+      <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+        <Label className="text-right text-xs font-medium">Activos Inmobiliarios</Label>
+        <Input {...register(`${prefix}.activosInmobiliarios`)} placeholder="Con o sin hipoteca" className="h-8 text-sm" />
+      </div>
+
+      {/* Row 8: Préstamos + Deudas */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">¿Préstamos? *</Label>
+          <div className="flex items-center gap-2">
+            <Switch 
+              checked={watch(`${prefix}.tienePrestamosPersonales`)} 
+              onCheckedChange={(v) => setValue(`${prefix}.tienePrestamosPersonales`, v)} 
+            />
+            <span className="text-xs text-muted-foreground">
+              {watch(`${prefix}.tienePrestamosPersonales`) ? 'Sí' : 'No'}
+            </span>
+          </div>
+        </div>
+        <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+          <Label className="text-right text-xs font-medium">¿Deudas? *</Label>
+          <div className="flex items-center gap-2">
+            <Switch 
+              checked={watch(`${prefix}.tieneDeudas`)} 
+              onCheckedChange={(v) => setValue(`${prefix}.tieneDeudas`, v)} 
+            />
+            <span className="text-xs text-muted-foreground">
+              {watch(`${prefix}.tieneDeudas`) ? 'Sí' : 'No'}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -232,7 +216,7 @@ export default function FormularioDescubierta() {
     defaultValues: {
       titular1: defaultTitular,
       tieneSegundoTitular: false,
-      titular2: defaultTitular,
+      titular2: undefined, // Importante: undefined ao invés de defaultTitular
       porcentajeFinanciacion: "80",
       precioCompraventa: 0,
       valorTasacionAproximado: 0,
@@ -243,6 +227,16 @@ export default function FormularioDescubierta() {
 
   const tieneSegundoTitular = watch("tieneSegundoTitular");
   const aceptaPrivacidad = watch("aceptaPrivacidad");
+
+  // Quando ativa segundo titular, inicializar com valores default
+  const handleSegundoTitularChange = (checked: boolean) => {
+    setValue("tieneSegundoTitular", checked);
+    if (checked) {
+      setValue("titular2", defaultTitular);
+    } else {
+      setValue("titular2", undefined);
+    }
+  };
 
   const onSubmit = async (data: FormularioDescubiertaData) => {
     setIsSubmitting(true);
@@ -296,23 +290,20 @@ export default function FormularioDescubierta() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container max-w-4xl mx-auto py-6 px-4">
-        {/* Header */}
-        <div className="text-center mb-8 space-y-4">
-          <Logo size="lg" className="mx-auto" />
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+      <div className="container max-w-5xl mx-auto py-4 px-4">
+        {/* Header compacto */}
+        <div className="text-center mb-4">
+          <Logo size="md" className="mx-auto" />
+          <h1 className="text-xl font-bold text-foreground mt-2">
             Formulario Descubierta
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Complete los datos del cliente para crear un nuevo lead en el CRM.
-          </p>
         </div>
 
-        {/* Formulario */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        {/* Formulário */}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           {/* TITULAR 1 */}
-          <div className="bg-card p-6 rounded-lg border">
-            <h2 className="text-lg font-semibold mb-4 text-primary">DATOS DE TITULAR 1</h2>
+          <div className="bg-card p-4 rounded-lg border">
+            <h2 className="text-sm font-semibold mb-3 text-primary">DATOS DE TITULAR 1</h2>
             <TitularFields 
               prefix="titular1" 
               register={register} 
@@ -323,21 +314,21 @@ export default function FormularioDescubierta() {
           </div>
 
           {/* Toggle Segundo Titular */}
-          <div className="flex items-center gap-3 px-2">
+          <div className="flex items-center gap-2 px-2">
             <Checkbox 
               id="segundoTitular"
               checked={tieneSegundoTitular}
-              onCheckedChange={(checked) => setValue("tieneSegundoTitular", !!checked)}
+              onCheckedChange={handleSegundoTitularChange}
             />
-            <Label htmlFor="segundoTitular" className="font-medium cursor-pointer">
+            <Label htmlFor="segundoTitular" className="text-sm font-medium cursor-pointer">
               Añadir Segundo Titular
             </Label>
           </div>
 
           {/* TITULAR 2 */}
           {tieneSegundoTitular && (
-            <div className="bg-card p-6 rounded-lg border border-green-200 bg-green-50/30">
-              <h2 className="text-lg font-semibold mb-4 text-green-700">DATOS DE TITULAR 2</h2>
+            <div className="bg-card p-4 rounded-lg border border-green-200 bg-green-50/30">
+              <h2 className="text-sm font-semibold mb-3 text-green-700">DATOS DE TITULAR 2</h2>
               <TitularFields 
                 prefix="titular2" 
                 register={register} 
@@ -348,117 +339,114 @@ export default function FormularioDescubierta() {
             </div>
           )}
 
-          {/* DATOS DE LA OPERACIÓN */}
-          <div className="bg-card p-6 rounded-lg border">
-            <h2 className="text-lg font-semibold mb-4 text-primary">DATOS DE LA OPERACIÓN</h2>
+          {/* DATOS DE LA OPERACIÓN - Layout compacto */}
+          <div className="bg-card p-4 rounded-lg border">
+            <h2 className="text-sm font-semibold mb-3 text-primary">DATOS DE LA OPERACIÓN</h2>
             
-            <div className="space-y-4">
-              {/* Porcentaje Financiación */}
-              <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-                <Label className="text-right font-medium">Porcentaje de Financiación *</Label>
+            <div className="space-y-2">
+              {/* Row 1: Financiación */}
+              <div className="grid grid-cols-[140px_1fr] gap-2 items-center">
+                <Label className="text-right text-xs font-medium">Financiación *</Label>
                 <RadioGroup 
                   value={watch("porcentajeFinanciacion")}
                   onValueChange={(v) => setValue("porcentajeFinanciacion", v as "80" | "90" | "100")}
-                  className="flex gap-6"
+                  className="flex gap-4"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <RadioGroupItem value="80" id="fin-80" />
-                    <Label htmlFor="fin-80">80%</Label>
+                    <Label htmlFor="fin-80" className="text-xs">80%</Label>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <RadioGroupItem value="90" id="fin-90" />
-                    <Label htmlFor="fin-90">90%</Label>
+                    <Label htmlFor="fin-90" className="text-xs">90%</Label>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
                     <RadioGroupItem value="100" id="fin-100" />
-                    <Label htmlFor="fin-100">100%</Label>
+                    <Label htmlFor="fin-100" className="text-xs">100%</Label>
                   </div>
                 </RadioGroup>
               </div>
 
-              {/* Precio Compraventa */}
-              <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-                <Label className="text-right font-medium">Precio de Compraventa *</Label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="number" 
-                    {...register("precioCompraventa", { valueAsNumber: true })} 
-                    min="0" 
-                    className="w-[180px]"
-                  />
-                  <span className="text-muted-foreground">€</span>
-                </div>
-              </div>
-
-              {/* Valor Tasación */}
-              <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-                <Label className="text-right font-medium">Valor de Tasación Aproximado *</Label>
-                <div className="flex items-center gap-2">
-                  <Input 
-                    type="number" 
-                    {...register("valorTasacionAproximado", { valueAsNumber: true })} 
-                    min="0" 
-                    className="w-[180px]"
-                  />
-                  <span className="text-muted-foreground">€</span>
-                </div>
-              </div>
-
-              {/* Con Préstamo Personal */}
-              <div className="grid grid-cols-[200px_1fr] gap-4 items-center">
-                <Label className="text-right font-medium">¿Va con Préstamo Personal? *</Label>
-                <RadioGroup 
-                  value={watch("conPrestamoPersonal") ? "si" : "no"}
-                  onValueChange={(v) => setValue("conPrestamoPersonal", v === "si")}
-                  className="flex gap-6"
-                >
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="si" id="prestamo-si" />
-                    <Label htmlFor="prestamo-si">Sí</Label>
+              {/* Row 2: Precio + Tasación + Préstamo */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                  <Label className="text-right text-xs font-medium">Precio *</Label>
+                  <div className="flex items-center gap-1">
+                    <Input 
+                      type="number" 
+                      {...register("precioCompraventa", { valueAsNumber: true })} 
+                      min="0" 
+                      className="h-8 text-sm w-28"
+                    />
+                    <span className="text-xs text-muted-foreground">€</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <RadioGroupItem value="no" id="prestamo-no" />
-                    <Label htmlFor="prestamo-no">No</Label>
+                </div>
+                <div className="grid grid-cols-[80px_1fr] gap-2 items-center">
+                  <Label className="text-right text-xs font-medium">Tasación *</Label>
+                  <div className="flex items-center gap-1">
+                    <Input 
+                      type="number" 
+                      {...register("valorTasacionAproximado", { valueAsNumber: true })} 
+                      min="0" 
+                      className="h-8 text-sm w-28"
+                    />
+                    <span className="text-xs text-muted-foreground">€</span>
                   </div>
-                </RadioGroup>
+                </div>
+                <div className="grid grid-cols-[100px_1fr] gap-2 items-center">
+                  <Label className="text-right text-xs font-medium">¿Con Préstamo?</Label>
+                  <RadioGroup 
+                    value={watch("conPrestamoPersonal") ? "si" : "no"}
+                    onValueChange={(v) => setValue("conPrestamoPersonal", v === "si")}
+                    className="flex gap-3"
+                  >
+                    <div className="flex items-center gap-1">
+                      <RadioGroupItem value="si" id="prestamo-si" />
+                      <Label htmlFor="prestamo-si" className="text-xs">Sí</Label>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <RadioGroupItem value="no" id="prestamo-no" />
+                      <Label htmlFor="prestamo-no" className="text-xs">No</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Privacidad + Submit */}
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 px-2">
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 px-2">
               <Checkbox 
                 id="privacidad"
                 checked={aceptaPrivacidad}
                 onCheckedChange={(checked) => setValue("aceptaPrivacidad", !!checked)}
               />
-              <Label htmlFor="privacidad" className="text-sm cursor-pointer leading-relaxed">
+              <Label htmlFor="privacidad" className="text-xs cursor-pointer leading-relaxed">
                 Acepto la Política de Privacidad y el tratamiento de mis datos conforme al RGPD *
               </Label>
             </div>
             {errors.aceptaPrivacidad && (
-              <p className="text-sm text-destructive px-2">{errors.aceptaPrivacidad.message}</p>
+              <p className="text-xs text-destructive px-2">{errors.aceptaPrivacidad.message}</p>
             )}
 
             <Button 
               type="submit" 
               size="lg" 
               className="w-full"
-              disabled={isSubmitting || !aceptaPrivacidad}
+              disabled={isSubmitting}
             >
-              {isSubmitting ? "Enviando..." : "Enviar Formulario"}
+              {isSubmitting ? "Guardando..." : "Enviar Formulario"}
             </Button>
           </div>
         </form>
-
-        {/* Modal de Resultados */}
-        <ResultadosDescubiertaModal 
-          open={modalOpen}
-          onClose={handleCloseModal}
-          data={submittedData}
-        />
       </div>
+
+      <ResultadosDescubiertaModal 
+        open={modalOpen}
+        onClose={handleCloseModal}
+        data={submittedData}
+      />
     </div>
   );
 }
