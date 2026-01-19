@@ -404,6 +404,106 @@ Deno.serve(async (req) => {
       }
     };
 
+    // 9. Disparar webhook para Bitrix24 via Make.com (se lead qualificado)
+    if (qualificacao.cualificado && leadId) {
+      try {
+        // Buscar URL do webhook Meta Bitrix
+        const { data: webhookSetting } = await supabase
+          .from('admin_settings')
+          .select('value')
+          .eq('key', 'webhook_meta_bitrix_url')
+          .single();
+
+        const webhookUrl = webhookSetting?.value;
+
+        if (webhookUrl && webhookUrl.trim() !== '') {
+          console.log('[meta-lead-webhook] Disparando webhook para Bitrix24:', webhookUrl);
+
+          const bitrixPayload = {
+            source: 'meta_ads',
+            timestamp: new Date().toISOString(),
+            lead_id: leadId,
+            
+            lead: {
+              nombre: data.nombre,
+              telefono: data.telefono,
+              email: data.email,
+              edad: data.edad || null,
+              zona_interes: data.zona_interes || null,
+              habitaciones: data.habitaciones || null,
+              ingresos_estimados: ingresos,
+              deudas_mensuales: deudas,
+              preferencia_llamada: data.preferencia_llamada || null
+            },
+            
+            agente: agenteAsignado ? {
+              id: agenteAsignado.id,
+              nombre: agenteAsignado.nombre,
+              email: agenteAsignado.email,
+              telefono: agenteAsignado.telefono || null
+            } : null,
+            
+            simulacion_personal: {
+              monto_maximo: simulacionPersonal.monto_maximo,
+              cuota_mensual: simulacionPersonal.cuota_mensual,
+              plazo_meses: simulacionPersonal.plazo_meses,
+              tae_estimada: simulacionPersonal.tae_estimada
+            },
+            
+            simulacion_hipotecaria: {
+              monto_maximo_financiable: simulacionHipotecaria.monto_maximo_financiable,
+              valor_maximo_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
+              cuota_maxima_mensual: simulacionHipotecaria.cuota_maxima_mensual,
+              capital_necesario: simulacionHipotecaria.capital_necesario,
+              plazo_anos: simulacionHipotecaria.plazo_anos,
+              tae_estimada: simulacionHipotecaria.tae_estimada
+            },
+            
+            recomendaciones: recomendaciones.slice(0, 3).map(inm => ({
+              titulo: inm.titulo || `${inm.quartos || '?'} hab en ${inm.ciudad}`,
+              precio: inm.precio,
+              url_externa: inm.url_externa
+            })),
+            
+            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
+          };
+
+          // Disparar webhook
+          const webhookResponse = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bitrixPayload)
+          });
+
+          // Registrar log
+          const logStatus = webhookResponse.ok ? 'success' : 'error';
+          const errorMessage = !webhookResponse.ok 
+            ? `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}` 
+            : null;
+
+          await supabase.from('webhook_logs').insert({
+            webhook_url: webhookUrl + ' (meta_bitrix)',
+            status: logStatus,
+            error_message: errorMessage,
+            payload: bitrixPayload
+          });
+
+          console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
+        } else {
+          console.log('[meta-lead-webhook] URL do webhook Bitrix24 não configurada');
+        }
+      } catch (webhookErr) {
+        console.error('[meta-lead-webhook] Erro ao disparar webhook Bitrix24:', webhookErr);
+        
+        // Registrar erro no log
+        await supabase.from('webhook_logs').insert({
+          webhook_url: 'webhook_meta_bitrix_url (error)',
+          status: 'error',
+          error_message: webhookErr.message || 'Erro desconhecido'
+        });
+      }
+    }
+
     console.log('[meta-lead-webhook] Resposta final:', JSON.stringify(response));
 
     return new Response(

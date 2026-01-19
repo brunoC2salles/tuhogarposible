@@ -25,8 +25,23 @@ import {
 
 const AdminSettings = () => {
   const navigate = useNavigate();
-  const { webhookUrl, loading, saving, webhookLogs, saveWebhookUrl, testWebhook, refreshLogs } = useAdminSettings();
+  const { 
+    webhookUrl, 
+    metaBitrixWebhookUrl,
+    loading, 
+    saving, 
+    savingMetaBitrix,
+    webhookLogs, 
+    metaBitrixLogs,
+    saveWebhookUrl, 
+    saveMetaBitrixWebhookUrl,
+    testWebhook, 
+    testMetaBitrixWebhook,
+    refreshLogs,
+    refreshMetaBitrixLogs
+  } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
+  const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localAbandonosWebhookUrl, setLocalAbandonosWebhookUrl] = useState('');
   const [localSlackChannelId, setLocalSlackChannelId] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
@@ -44,12 +59,18 @@ const AdminSettings = () => {
   const [scrapingProcessing, setScrapingProcessing] = useState(false);
   const [scrapingMessage, setScrapingMessage] = useState('');
 
-  // Atualizar local URL quando carregado
-  useState(() => {
+  // Atualizar local URLs quando carregadas
+  useEffect(() => {
     if (webhookUrl && !localWebhookUrl) {
       setLocalWebhookUrl(webhookUrl);
     }
-  });
+  }, [webhookUrl]);
+
+  useEffect(() => {
+    if (metaBitrixWebhookUrl && !localMetaBitrixWebhookUrl) {
+      setLocalMetaBitrixWebhookUrl(metaBitrixWebhookUrl);
+    }
+  }, [metaBitrixWebhookUrl]);
 
   // Buscar stats de scraping ao carregar
   useEffect(() => {
@@ -329,6 +350,85 @@ const AdminSettings = () => {
                 <div className="flex items-center gap-2">
                   <p className="text-2xl font-bold">{webhooksErro}</p>
                   {webhooksErro > 0 && <Badge variant="destructive">Revisar</Badge>}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Integração Make.com - Meta Ads → Bitrix24 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Integración Make.com - Meta Ads → Bitrix24</CardTitle>
+            <CardDescription>
+              Configure el webhook para enviar leads qualificados del Meta Ads automáticamente al Bitrix24
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Este webhook se dispara automáticamente cuando un lead del Meta Ads es qualificado y guardado en la plataforma.
+                Configure un escenario separado en Make.com para recibir estos datos y crear deals en Bitrix24.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhook-meta-bitrix-url">URL del Webhook (Meta Ads → Bitrix24)</Label>
+              <Input
+                id="webhook-meta-bitrix-url"
+                type="url"
+                placeholder="https://hook.eu2.make.com/..."
+                value={localMetaBitrixWebhookUrl}
+                onChange={(e) => setLocalMetaBitrixWebhookUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Cree un nuevo escenario en Make.com con un Webhook trigger y pegue la URL aquí
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  const success = await saveMetaBitrixWebhookUrl(localMetaBitrixWebhookUrl);
+                  if (success) refreshMetaBitrixLogs();
+                }} 
+                disabled={savingMetaBitrix}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingMetaBitrix ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => testMetaBitrixWebhook(localMetaBitrixWebhookUrl)} 
+                disabled={!localMetaBitrixWebhookUrl.trim()}
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Probar Conexión
+              </Button>
+            </div>
+
+            {/* Status */}
+            <div className="flex gap-4 pt-4 border-t">
+              <div>
+                <p className="text-sm font-medium">Webhooks Meta Ads Hoy</p>
+                <p className="text-2xl font-bold">
+                  {metaBitrixLogs.filter(log => {
+                    const logDate = new Date(log.created_at);
+                    const today = new Date();
+                    return logDate.toDateString() === today.toDateString();
+                  }).length}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Con Errores</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold">
+                    {metaBitrixLogs.filter(log => log.status === 'error').length}
+                  </p>
+                  {metaBitrixLogs.filter(log => log.status === 'error').length > 0 && (
+                    <Badge variant="destructive">Revisar</Badge>
+                  )}
                 </div>
               </div>
             </div>
