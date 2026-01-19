@@ -16,6 +16,7 @@ import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
 import SimuladorPersonalPage from "./pages/simuladores/SimuladorPersonalPage";
 import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPage";
 import FormularioQualificacion from "./pages/FormularioQualificacion";
+import FormularioDescubierta from "./pages/FormularioDescubierta";
 import AgentSettings from "./pages/AgentSettings";
 import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/formulario-qualificacion" element={<FormularioQualificacion />} />
+            <Route path="/formulario-descubierta" element={<FormularioDescubierta />} />
             <Route path="/simuladores" element={<SimuladoresIndex />} />
             <Route path="/simuladores/credito-personal" element={<SimuladorPersonalPage />} />
             <Route path="/simuladores/credito-hipotecario" element={<SimuladorHipotecarioPage />} />

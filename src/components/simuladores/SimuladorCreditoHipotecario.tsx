@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSearchParams } from "react-router-dom";
@@ -53,7 +53,7 @@ export function SimuladorCreditoHipotecario() {
       cobraBonusAnual: false,
       esResidenteFiscalEspana: true,
       ahorrosDisponibles: undefined,
-      plazoHipotecaAnios: 25,
+      plazoHipotecaAnios: 30,
       tieneCreditos: false,
       creditos: [],
       estadoCivil: 'soltero',
@@ -82,6 +82,21 @@ export function SimuladorCreditoHipotecario() {
   const watchEstadoCivil = form.watch('estadoCivil');
   const watchPagaManutención = form.watch('pagaManutención');
   const watchSituacionLaboral = form.watch('situacionLaboral');
+  const watchEdad = form.watch('edad');
+
+  // Ajustar prazo automaticamente baseado na idade (máximo: 75 - idade)
+  useEffect(() => {
+    if (watchEdad && watchEdad >= 45) {
+      const plazoMaximo = Math.max(1, 75 - watchEdad);
+      const plazoAtual = form.getValues('plazoHipotecaAnios');
+      if (plazoAtual > plazoMaximo) {
+        form.setValue('plazoHipotecaAnios', plazoMaximo);
+      }
+    }
+  }, [watchEdad, form]);
+
+  // Calcular prazo máximo permitido
+  const plazoMaximoPermitido = watchEdad && watchEdad >= 45 ? Math.min(30, 75 - watchEdad) : 30;
 
   const onSubmit = (data: SimuladorHipotecaFormData) => {
     try {
@@ -725,7 +740,17 @@ export function SimuladorCreditoHipotecario() {
                   </div>
                   <div className="space-y-2">
                     <Label>Plazo Deseado (años) *</Label>
-                    <Input type="number" {...form.register("plazoHipotecaAnios", { valueAsNumber: true })} min="10" max="30" />
+                    <Input 
+                      type="number" 
+                      {...form.register("plazoHipotecaAnios", { valueAsNumber: true })} 
+                      min="10" 
+                      max={plazoMaximoPermitido} 
+                    />
+                    {watchEdad && watchEdad >= 45 && (
+                      <p className="text-xs text-muted-foreground">
+                        Máximo {plazoMaximoPermitido} años (75 - {watchEdad} años de edad)
+                      </p>
+                    )}
                   </div>
 
                   {/* ¿Tiene créditos? */}
