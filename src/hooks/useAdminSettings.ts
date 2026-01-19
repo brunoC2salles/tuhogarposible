@@ -173,62 +173,98 @@ export const useAdminSettings = () => {
     }
   };
 
-  // Testar webhook Meta Bitrix - payload achatado para Make.com reconhecer campos
+  // Testar webhook Meta Bitrix - usa o último lead real do CRM
   const testMetaBitrixWebhook = async (url: string) => {
     try {
-      const testPayload = {
+      // 1. Buscar último lead do CRM
+      const { data: lastLead, error: leadError } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (leadError || !lastLead) {
+        toast.error('No hay leads en el CRM para probar');
+        return false;
+      }
+
+      // 2. Buscar dados do agente (se existir)
+      let agenteData = null;
+      if (lastLead.agente_asignado_id) {
+        const { data: agente } = await supabase
+          .from('profiles')
+          .select('id, nombre, email, telefono, tidycal_url')
+          .eq('id', lastLead.agente_asignado_id)
+          .single();
+        agenteData = agente;
+      }
+
+      // 3. Buscar recomendações para este lead
+      let recomendaciones: any[] = [];
+      if (lastLead.ciudad_interes || lastLead.zona_interes) {
+        let query = supabase
+          .from('inmuebles')
+          .select('id, titulo, precio, ciudad, direccion, url_externa')
+          .eq('disponible', true)
+          .limit(3);
+
+        if (lastLead.ciudad_interes) {
+          query = query.ilike('ciudad', `%${lastLead.ciudad_interes}%`);
+        }
+
+        const { data: recs } = await query;
+        recomendaciones = recs || [];
+      }
+
+      // 4. Construir payload com dados reais (achatado para Make.com)
+      const testPayload: Record<string, any> = {
         // Campos de identificação
         test: true,
-        source: 'meta_ads',
+        source: lastLead.source || 'manual',
         timestamp: new Date().toISOString(),
-        lead_id: 'test-' + Date.now(),
+        lead_id: lastLead.id,
         cualificado: true,
         
         // Dados do lead (achatados)
-        lead_nombre: 'Test Lead Meta Ads',
-        lead_telefono: '+34 600 000 000',
-        lead_email: 'test-meta@example.com',
-        lead_edad: 35,
-        lead_zona_interes: 'Barcelona',
-        lead_habitaciones: 3,
-        lead_ingresos_estimados: 2250,
-        lead_deudas_mensuales: 300,
-        lead_preferencia_llamada: 'mañana',
+        lead_nombre: lastLead.nombre_completo,
+        lead_telefono: lastLead.telefono,
+        lead_email: lastLead.email,
+        lead_zona_interes: lastLead.zona_interes || '',
+        lead_ciudad_interes: lastLead.ciudad_interes || '',
+        lead_valor_deseado: lastLead.valor_inmueble_deseado || 0,
         
         // Dados do agente (achatados)
-        agente_id: 'test-agent-id',
-        agente_nombre: 'Agente Test',
-        agente_email: 'agente@example.com',
-        agente_telefono: '+34 600 111 222',
+        agente_id: agenteData?.id || '',
+        agente_nombre: agenteData?.nombre || 'Sin asignar',
+        agente_email: agenteData?.email || '',
+        agente_telefono: agenteData?.telefono || '',
         
         // Simulação pessoal (achatados)
-        sim_personal_monto_maximo: 15000,
-        sim_personal_cuota_mensual: 280,
-        sim_personal_plazo_meses: 84,
-        sim_personal_tae: 8,
+        sim_personal_monto_maximo: (lastLead.simulador_personal_data as any)?.montoSolicitado || 0,
+        sim_personal_cuota_mensual: (lastLead.simulador_personal_data as any)?.cuotaMensual || 0,
+        sim_personal_plazo_meses: (lastLead.simulador_personal_data as any)?.plazoMeses || 0,
+        sim_personal_tae: (lastLead.simulador_personal_data as any)?.tasaInteres || 0,
         
         // Simulação hipotecária (achatados)
-        sim_hipoteca_monto_maximo: 180000,
-        sim_hipoteca_valor_inmueble: 225000,
-        sim_hipoteca_cuota_mensual: 750,
-        sim_hipoteca_capital_necesario: 67500,
-        sim_hipoteca_plazo_anos: 30,
-        sim_hipoteca_tae: 3.5,
-        
-        // Recomendações (achatadas - até 3)
-        recom_1_titulo: 'Piso 3 hab Barcelona Centro',
-        recom_1_precio: 195000,
-        recom_1_url: 'https://example.com/piso1',
-        recom_2_titulo: 'Apartamento 3 hab Eixample',
-        recom_2_precio: 210000,
-        recom_2_url: 'https://example.com/piso2',
-        recom_3_titulo: 'Piso reformado Gracia',
-        recom_3_precio: 189000,
-        recom_3_url: 'https://example.com/piso3',
+        sim_hipoteca_monto_maximo: (lastLead.simulador_hipotecario_data as any)?.montoFinanciable || 0,
+        sim_hipoteca_valor_inmueble: (lastLead.simulador_hipotecario_data as any)?.valorInmueble || 0,
+        sim_hipoteca_cuota_mensual: (lastLead.simulador_hipotecario_data as any)?.cuotaMensual || 0,
+        sim_hipoteca_capital_necesario: (lastLead.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
+        sim_hipoteca_plazo_anos: (lastLead.simulador_hipotecario_data as any)?.plazoAnios || 0,
+        sim_hipoteca_tae: (lastLead.simulador_hipotecario_data as any)?.tasaInteres || 0,
         
         // URLs
-        crm_url: 'https://tu-hogar-vista.lovable.app/agente/crm?lead=test'
+        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lastLead.id}`
       };
+
+      // Adicionar recomendações ao payload (até 3)
+      recomendaciones.forEach((rec, index) => {
+        const num = index + 1;
+        testPayload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
+        testPayload[`recom_${num}_precio`] = rec.precio;
+        testPayload[`recom_${num}_url`] = rec.url_externa || '';
+      });
 
       await fetch(url, {
         method: 'POST',
@@ -237,7 +273,7 @@ export const useAdminSettings = () => {
         body: JSON.stringify(testPayload),
       });
 
-      toast.success('Webhook Meta → Bitrix24 de prueba enviado. Verifique Make.com');
+      toast.success(`Webhook enviado con datos de "${lastLead.nombre_completo}". Verifique Make.com`);
       return true;
     } catch (err: any) {
       console.error('[AdminSettings] Error testing Meta Bitrix webhook:', err);
