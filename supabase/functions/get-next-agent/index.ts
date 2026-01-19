@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { region, considerarTurno = true } = await req.json()
+    const { region, considerarTurno = true, turnoOverride } = await req.json()
 
     // Validar região
     if (!region || !['Cataluña', 'General'].includes(region)) {
@@ -50,9 +50,9 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Determinar turno atual
-    const turnoActual = getTurnoActual();
-    console.log(`[Round-Robin] Región: ${region}, Turno: ${turnoActual}, ConsiderarTurno: ${considerarTurno}`);
+    // Determinar turno: usar override se fornecido, senão calcular automaticamente
+    const turnoActual = turnoOverride || getTurnoActual();
+    console.log(`[Round-Robin] Región: ${region}, Turno: ${turnoActual}, ConsiderarTurno: ${considerarTurno}, Override: ${turnoOverride || 'none'}`);
 
     // 1. Buscar agentes disponíveis da região
     let query = supabaseAdmin
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
       console.error('[Round-Robin] Tracking update failed:', updateError)
     }
 
-    // 6. Retornar dados do agente
+    // 6. Retornar dados do agente (formato agente para compatibilidade)
     return new Response(
       JSON.stringify({
         agent_id: nextAgent.id,
@@ -137,7 +137,15 @@ Deno.serve(async (req) => {
         nombre: nextAgent.nombre,
         telefono: nextAgent.telefono,
         email: nextAgent.email,
-        turno_asignado: turnoActual
+        turno_asignado: turnoActual,
+        // Formato alternativo para meta-lead-webhook
+        agente: {
+          id: nextAgent.id,
+          nombre: nextAgent.nombre,
+          email: nextAgent.email,
+          telefono: nextAgent.telefono,
+          tidycal_url: nextAgent.tidycal_url
+        }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

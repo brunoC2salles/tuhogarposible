@@ -3,6 +3,9 @@ project_id = "tnzgpzablwfptagfbnvb"
 [functions.get-next-agent]
 verify_jwt = false
 
+[functions.meta-lead-webhook]
+verify_jwt = false
+
 [functions.test-scrape-images]
 verify_jwt = false
 
