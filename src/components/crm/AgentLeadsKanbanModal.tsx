@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { LeadKanban } from './LeadKanban';
 import { LeadDetailsModal } from './LeadDetailsModal';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
@@ -9,6 +10,7 @@ import { useLeads } from '@/hooks/useLeads';
 import { Lead, LeadStage, LeadFormData } from '@/types/crm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { Search, Users } from 'lucide-react';
 
 interface AgentLeadsKanbanModalProps {
   open: boolean;
@@ -21,6 +23,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   const { leads, updateLead, deleteLead, fetchLeads } = useLeads();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Modal states
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
@@ -28,8 +31,14 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
   const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
 
-  // Filter leads by agent
-  const agentLeads = leads.filter(lead => lead.agente_asignado_id === agentId);
+  // Filter leads by agent and search query
+  const agentLeads = useMemo(() => {
+    const byAgent = leads.filter(lead => lead.agente_asignado_id === agentId);
+    if (!searchQuery.trim()) return byAgent;
+    return byAgent.filter(lead => 
+      lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [leads, agentId, searchQuery]);
 
   const handleStageChange = async (leadId: string, newStage: LeadStage) => {
     try {
@@ -84,6 +93,23 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
             <DialogTitle>Leads de {agentName}</DialogTitle>
           </DialogHeader>
           
+          {/* Search bar */}
+          <div className="flex items-center gap-4 py-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar por nombre..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-medium">{agentLeads.length} Leads</span>
+            </div>
+          </div>
+          
           <div className="flex-1 overflow-hidden">
             {agentLeads.length > 0 ? (
               <LeadKanban
@@ -93,6 +119,11 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
               />
+            ) : searchQuery ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                <Search className="h-12 w-12 mb-4 opacity-50" />
+                <p>No se encontraron leads para "{searchQuery}"</p>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full text-muted-foreground">
                 Este agente no tiene leads asignados

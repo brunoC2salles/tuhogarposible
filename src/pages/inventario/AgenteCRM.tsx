@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessagesSquare } from 'lucide-react';
+import { MessagesSquare, Search } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -27,6 +28,15 @@ const AgenteCRM = () => {
   const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filtrar leads por nombre
+  const filteredLeads = useMemo(() => {
+    if (!searchQuery.trim()) return leads;
+    return leads.filter(lead => 
+      lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [leads, searchQuery]);
 
   const handleCreateLead = async (data: any) => {
     await createLead(data);
@@ -93,11 +103,20 @@ const AgenteCRM = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Buscar por nombre..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64"
+              />
+            </div>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Users className="h-5 w-5" />
-              <span className="text-lg font-semibold">{leads.length} Leads</span>
+              <span className="text-lg font-semibold">{filteredLeads.length} Leads</span>
             </div>
           </div>
 
@@ -119,9 +138,15 @@ const AgenteCRM = () => {
               Crear Primer Lead
             </Button>
           </div>
+        ) : filteredLeads.length === 0 ? (
+          <div className="text-center py-12">
+            <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold mb-2">No se encontraron leads</h3>
+            <p className="text-muted-foreground mb-4">No hay resultados para "{searchQuery}"</p>
+          </div>
         ) : (
           <LeadKanban
-            leads={leads}
+            leads={filteredLeads}
             onStageChange={updateLeadStage}
             onViewDetails={setDetailsLead}
             onEdit={setEditingLead}
