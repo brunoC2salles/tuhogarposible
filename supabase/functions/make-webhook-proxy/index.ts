@@ -419,6 +419,9 @@ Deno.serve(async (req) => {
         sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
         sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
         
+        // Campo de dívidas mensais (extraído das notas se disponível)
+        meta_deudas_mensuales: 0,
+        
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
