@@ -143,29 +143,28 @@ export const useAdminSettings = () => {
     }
   };
 
-  // Testar webhook (envia payload de teste)
-  const testWebhook = async (url: string) => {
+  // Testar webhook via Edge Function (sem no-cors!)
+  const testWebhook = async (_url: string) => {
     try {
-      const testPayload = {
-        test: true,
-        timestamp: new Date().toISOString(),
-        message: 'Test webhook from Tu Hogar Posible',
-        lead: {
-          nombre_completo: 'Test Lead',
-          email: 'test@example.com',
-          telefono: '+34 600 000 000',
-        },
-      };
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(testPayload),
+      toast.info('Enviando test via Edge Function...');
+      
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'test_qualified_last_submission' }
       });
 
-      toast.success('Webhook de prueba enviado. Verifique Make.com');
-      return true;
+      if (error) {
+        console.error('[AdminSettings] Edge function error:', error);
+        toast.error('Error al conectar con Edge Function');
+        return false;
+      }
+
+      if (data?.success) {
+        toast.success(`✅ Webhook enviado! Lead: "${data.lead_name}" | HTTP ${data.http_status}`);
+        return true;
+      } else {
+        toast.error(`❌ Error: ${data?.error || data?.message || 'Unknown error'}`);
+        return false;
+      }
     } catch (err: any) {
       console.error('[AdminSettings] Error testing webhook:', err);
       toast.error('Error al probar webhook');
@@ -173,108 +172,28 @@ export const useAdminSettings = () => {
     }
   };
 
-  // Testar webhook Meta Bitrix - usa o último lead real do CRM
-  const testMetaBitrixWebhook = async (url: string) => {
+  // Testar webhook Meta Bitrix via Edge Function (sem no-cors!)
+  const testMetaBitrixWebhook = async (_url: string) => {
     try {
-      // 1. Buscar último lead do CRM
-      const { data: lastLead, error: leadError } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      toast.info('Enviando test via Edge Function...');
+      
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'test_meta_bitrix_last_lead' }
+      });
 
-      if (leadError || !lastLead) {
-        toast.error('No hay leads en el CRM para probar');
+      if (error) {
+        console.error('[AdminSettings] Edge function error:', error);
+        toast.error('Error al conectar con Edge Function');
         return false;
       }
 
-      // 2. Buscar dados do agente (se existir)
-      let agenteData = null;
-      if (lastLead.agente_asignado_id) {
-        const { data: agente } = await supabase
-          .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
-          .eq('id', lastLead.agente_asignado_id)
-          .single();
-        agenteData = agente;
+      if (data?.success) {
+        toast.success(`✅ Webhook enviado! Lead: "${data.lead_name}" | ${data.recommendations_count} recomendações | HTTP ${data.http_status}`);
+        return true;
+      } else {
+        toast.error(`❌ Error: ${data?.error || data?.message || 'Unknown error'}`);
+        return false;
       }
-
-      // 3. Buscar recomendações para este lead
-      let recomendaciones: any[] = [];
-      if (lastLead.ciudad_interes || lastLead.zona_interes) {
-        let query = supabase
-          .from('inmuebles')
-          .select('id, titulo, precio, ciudad, direccion, url_externa')
-          .eq('disponible', true)
-          .limit(3);
-
-        if (lastLead.ciudad_interes) {
-          query = query.ilike('ciudad', `%${lastLead.ciudad_interes}%`);
-        }
-
-        const { data: recs } = await query;
-        recomendaciones = recs || [];
-      }
-
-      // 4. Construir payload com dados reais (achatado para Make.com)
-      const testPayload: Record<string, any> = {
-        // Campos de identificação
-        test: true,
-        source: lastLead.source || 'manual',
-        timestamp: new Date().toISOString(),
-        lead_id: lastLead.id,
-        cualificado: true,
-        
-        // Dados do lead (achatados)
-        lead_nombre: lastLead.nombre_completo,
-        lead_telefono: lastLead.telefono,
-        lead_email: lastLead.email,
-        lead_zona_interes: lastLead.zona_interes || '',
-        lead_ciudad_interes: lastLead.ciudad_interes || '',
-        lead_valor_deseado: lastLead.valor_inmueble_deseado || 0,
-        
-        // Dados do agente (achatados)
-        agente_id: agenteData?.id || '',
-        agente_nombre: agenteData?.nombre || 'Sin asignar',
-        agente_email: agenteData?.email || '',
-        agente_telefono: agenteData?.telefono || '',
-        
-        // Simulação pessoal (achatados)
-        sim_personal_monto_maximo: (lastLead.simulador_personal_data as any)?.montoSolicitado || 0,
-        sim_personal_cuota_mensual: (lastLead.simulador_personal_data as any)?.cuotaMensual || 0,
-        sim_personal_plazo_meses: (lastLead.simulador_personal_data as any)?.plazoMeses || 0,
-        sim_personal_tae: (lastLead.simulador_personal_data as any)?.tasaInteres || 0,
-        
-        // Simulação hipotecária (achatados)
-        sim_hipoteca_monto_maximo: (lastLead.simulador_hipotecario_data as any)?.montoFinanciable || 0,
-        sim_hipoteca_valor_inmueble: (lastLead.simulador_hipotecario_data as any)?.valorInmueble || 0,
-        sim_hipoteca_cuota_mensual: (lastLead.simulador_hipotecario_data as any)?.cuotaMensual || 0,
-        sim_hipoteca_capital_necesario: (lastLead.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
-        sim_hipoteca_plazo_anos: (lastLead.simulador_hipotecario_data as any)?.plazoAnios || 0,
-        sim_hipoteca_tae: (lastLead.simulador_hipotecario_data as any)?.tasaInteres || 0,
-        
-        // URLs
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lastLead.id}`
-      };
-
-      // Adicionar recomendações ao payload (até 3)
-      recomendaciones.forEach((rec, index) => {
-        const num = index + 1;
-        testPayload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
-        testPayload[`recom_${num}_precio`] = rec.precio;
-        testPayload[`recom_${num}_url`] = rec.url_externa || '';
-      });
-
-      await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'no-cors',
-        body: JSON.stringify(testPayload),
-      });
-
-      toast.success(`Webhook enviado con datos de "${lastLead.nombre_completo}". Verifique Make.com`);
-      return true;
     } catch (err: any) {
       console.error('[AdminSettings] Error testing Meta Bitrix webhook:', err);
       toast.error('Error al probar webhook');
