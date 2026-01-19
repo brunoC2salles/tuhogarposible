@@ -1,6 +1,27 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4'
 import { corsHeaders } from '../_shared/cors.ts'
 
+/**
+ * Determina el turno actual basado en la hora de España
+ * Mañana: 08:00-14:00
+ * Tarde: 14:00-20:00
+ * Noche: 20:00-08:00
+ */
+function getTurnoActual(): string {
+  // Obtener hora actual en España (Europe/Madrid)
+  const now = new Date();
+  const madridTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
+  const hora = madridTime.getHours();
+  
+  if (hora >= 8 && hora < 14) {
+    return 'mañana';
+  } else if (hora >= 14 && hora < 20) {
+    return 'tarde';
+  } else {
+    return 'noche';
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -19,7 +40,7 @@ Deno.serve(async (req) => {
       }
     )
 
-    const { region } = await req.json()
+    const { region, considerarTurno = true } = await req.json()
 
     // Validar região
     if (!region || !['Cataluña', 'General'].includes(region)) {
@@ -29,21 +50,25 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Logging minimizado para producción
+    // Determinar turno atual
+    const turnoActual = getTurnoActual();
+    console.log(`[Round-Robin] Región: ${region}, Turno: ${turnoActual}, ConsiderarTurno: ${considerarTurno}`);
 
     // 1. Buscar agentes disponíveis da região
-    const { data: agents, error: agentsError } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('profiles')
-      .select('id, nombre, email, tidycal_url, telefono')
+      .select('id, nombre, email, tidycal_url, telefono, disponibilidad')
       .eq('activo', true)
       .eq('region_round_robin', region)
       .not('tidycal_url', 'is', null)
-      .order('nombre')
+      .order('nombre');
 
-    if (agentsError) throw agentsError
+    const { data: allAgents, error: agentsError } = await query;
 
-    if (!agents || agents.length === 0) {
-      console.warn('[Round-Robin] No agents available for region')
+    if (agentsError) throw agentsError;
+
+    if (!allAgents || allAgents.length === 0) {
+      console.warn('[Round-Robin] No agents available for region');
       return new Response(
         JSON.stringify({ 
           error: `No hay agentes disponibles para la región ${region}. Por favor, contacte al administrador.` 
@@ -52,18 +77,33 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Agent count logged only for debugging
+    // 2. Filtrar por turno de disponibilidad (si considerarTurno = true)
+    let agents = allAgents;
+    if (considerarTurno) {
+      agents = allAgents.filter(agent => {
+        const disponibilidad = agent.disponibilidad || ['mañana', 'tarde', 'noche'];
+        return disponibilidad.includes(turnoActual);
+      });
+      
+      // Se nenhum agente disponível no turno, usar todos (fallback)
+      if (agents.length === 0) {
+        console.warn(`[Round-Robin] No agents available in turno ${turnoActual}, using all agents`);
+        agents = allAgents;
+      }
+    }
 
-    // 2. Buscar último agente designado
+    console.log(`[Round-Robin] Agents disponíveis: ${agents.length} de ${allAgents.length}`);
+
+    // 3. Buscar último agente designado
     const { data: tracking, error: trackingError } = await supabaseAdmin
       .from('agent_assignment_tracking')
       .select('last_assigned_agent_id')
       .eq('region', region)
       .single()
 
-    if (trackingError) throw trackingError
+    if (trackingError && trackingError.code !== 'PGRST116') throw trackingError;
 
-    // 3. Calcular próximo agente (round-robin)
+    // 4. Calcular próximo agente (round-robin)
     let nextAgentIndex = 0
     
     if (tracking?.last_assigned_agent_id) {
@@ -74,28 +114,30 @@ Deno.serve(async (req) => {
 
     const nextAgent = agents[nextAgentIndex]
 
-    // Agent selected - PII removed from logs
+    console.log(`[Round-Robin] Próximo agente: ${nextAgent.nombre} (turno: ${turnoActual})`);
 
-    // 4. Atualizar tracking
+    // 5. Atualizar tracking
     const { error: updateError } = await supabaseAdmin
       .from('agent_assignment_tracking')
-      .update({
+      .upsert({
+        region,
         last_assigned_agent_id: nextAgent.id,
         last_assignment_at: new Date().toISOString()
-      })
-      .eq('region', region)
+      }, { onConflict: 'region' })
 
     if (updateError) {
-      console.error('[Round-Robin] Tracking update failed')
+      console.error('[Round-Robin] Tracking update failed:', updateError)
     }
 
-    // 5. Retornar dados do agente
+    // 6. Retornar dados do agente
     return new Response(
       JSON.stringify({
         agent_id: nextAgent.id,
         tidycal_url: nextAgent.tidycal_url,
         nombre: nextAgent.nombre,
-        telefono: nextAgent.telefono
+        telefono: nextAgent.telefono,
+        email: nextAgent.email,
+        turno_asignado: turnoActual
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
