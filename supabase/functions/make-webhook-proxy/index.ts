@@ -382,6 +382,10 @@ Deno.serve(async (req) => {
         recomendaciones = recs || [];
       }
 
+      // Get simulation data with fallbacks for different field names
+      const simPersonal = lead.simulador_personal_data as any || {};
+      const simHipoteca = lead.simulador_hipotecario_data as any || {};
+
       const payload: Record<string, any> = {
         test: 'true',
         source: lead.source || 'manual',
@@ -401,24 +405,30 @@ Deno.serve(async (req) => {
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
         
-        sim_personal_monto: (lead.simulador_personal_data as any)?.montoSolicitado || 0,
-        sim_personal_cuota: (lead.simulador_personal_data as any)?.cuotaMensual || 0,
-        sim_personal_plazo: (lead.simulador_personal_data as any)?.plazoMeses || 0,
+        // Simulação pessoal - múltiplos fallbacks para diferentes formatos
+        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || simPersonal.montoMaximoCredito || 0,
+        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_personal_plazo_meses: simPersonal.plazo_meses || simPersonal.plazoMeses || 0,
+        sim_personal_aprobado: simPersonal.aprobado ?? true,
         
-        sim_hipoteca_monto: (lead.simulador_hipotecario_data as any)?.montoFinanciable || 0,
-        sim_hipoteca_cuota: (lead.simulador_hipotecario_data as any)?.cuotaMensual || 0,
-        sim_hipoteca_plazo: (lead.simulador_hipotecario_data as any)?.plazoAnios || 0,
-        sim_hipoteca_capital: (lead.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
+        // Simulação hipotecária - múltiplos fallbacks para diferentes formatos
+        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
+        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+        sim_hipoteca_capital_necesario: simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0,
+        sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
+        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
-      // Add recommendations
+      // Add recommendations with INTERNAL INVENTORY LINKS
       recomendaciones.forEach((rec, index) => {
         const num = index + 1;
         payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
         payload[`recom_${num}_precio`] = rec.precio;
-        payload[`recom_${num}_url`] = rec.url_externa || '';
+        // Use internal inventory link instead of external URL
+        payload[`recom_${num}_url`] = rec.id ? `https://tu-hogar-vista.lovable.app/producto/${rec.id}` : '';
       });
 
       const result = await sendToMake(webhookUrl, payload);

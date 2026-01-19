@@ -440,36 +440,44 @@ Deno.serve(async (req) => {
             lead_deudas_mensuales: deudas,
             lead_preferencia_llamada: data.preferencia_llamada || null,
             
+            // DADOS DO FORMULÁRIO META (novos campos)
+            meta_dni_nie: data.tiene_nie_dni || null,
+            meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
+            meta_en_fichero_morosidad: data.en_fichero_morosidad || null,
+            meta_rango_ingresos: data.rango_ingresos || null,
+            
             // Dados do agente (achatados)
             agente_id: agenteAsignado?.id || null,
             agente_nombre: agenteAsignado?.nombre || null,
             agente_email: agenteAsignado?.email || null,
             agente_telefono: agenteAsignado?.telefono || null,
             
-            // Simulação pessoal (achatados)
+            // Simulação pessoal (achatados) - campos claros
             sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
             sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
             sim_personal_tae: simulacionPersonal.tae_estimada,
+            sim_personal_aprobado: simulacionPersonal.aprobado,
             
-            // Simulação hipotecária (achatados)
-            sim_hipoteca_monto_maximo: simulacionHipotecaria.monto_maximo_financiable,
-            sim_hipoteca_valor_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
-            sim_hipoteca_cuota_mensual: simulacionHipotecaria.cuota_maxima_mensual,
+            // Simulação hipotecária (achatados) - campos claros
+            sim_hipoteca_monto_financiable: simulacionHipotecaria.monto_maximo_financiable,
+            sim_hipoteca_valor_max_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
+            sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_maxima_mensual,
             sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
+            sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
             
-            // Recomendações (achatadas - até 3)
+            // Recomendações (achatadas - até 3) - LINKS INTERNOS DO INVENTÁRIO
             recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
             recom_1_precio: recom[0]?.precio || null,
-            recom_1_url: recom[0]?.url_externa || null,
+            recom_1_url: recom[0]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[0].id}` : null,
             recom_2_titulo: recom[1]?.titulo || recom[1] ? `${recom[1]?.quartos || '?'} hab en ${recom[1]?.ciudad}` : null,
             recom_2_precio: recom[1]?.precio || null,
-            recom_2_url: recom[1]?.url_externa || null,
+            recom_2_url: recom[1]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[1].id}` : null,
             recom_3_titulo: recom[2]?.titulo || recom[2] ? `${recom[2]?.quartos || '?'} hab en ${recom[2]?.ciudad}` : null,
             recom_3_precio: recom[2]?.precio || null,
-            recom_3_url: recom[2]?.url_externa || null,
+            recom_3_url: recom[2]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[2].id}` : null,
             
             // URL do CRM
             crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
