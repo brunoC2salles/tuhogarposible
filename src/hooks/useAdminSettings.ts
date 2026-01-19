@@ -120,11 +120,14 @@ export const useAdminSettings = () => {
       setSavingMetaBitrix(true);
       const { error } = await supabase
         .from('admin_settings')
-        .upsert({ 
-          key: 'webhook_meta_bitrix_url', 
-          value: url,
-          description: 'URL do webhook Make.com para enviar leads qualificados do Meta Ads ao Bitrix24'
-        });
+        .upsert(
+          { 
+            key: 'webhook_meta_bitrix_url', 
+            value: url,
+            description: 'URL do webhook Make.com para enviar leads qualificados do Meta Ads ao Bitrix24'
+          },
+          { onConflict: 'key' }
+        );
 
       if (error) throw error;
 
@@ -170,32 +173,61 @@ export const useAdminSettings = () => {
     }
   };
 
-  // Testar webhook Meta Bitrix
+  // Testar webhook Meta Bitrix - payload achatado para Make.com reconhecer campos
   const testMetaBitrixWebhook = async (url: string) => {
     try {
       const testPayload = {
+        // Campos de identificação
         test: true,
         source: 'meta_ads',
         timestamp: new Date().toISOString(),
-        message: 'Test Meta Ads → Bitrix24 webhook',
-        lead: {
-          nombre: 'Test Lead Meta Ads',
-          email: 'test-meta@example.com',
-          telefono: '+34 600 000 000',
-          zona_interes: 'Barcelona'
-        },
-        agente: {
-          nombre: 'Agente Test',
-          email: 'agente@example.com'
-        },
-        simulacion_personal: {
-          monto_maximo: 15000,
-          cuota_mensual: 280
-        },
-        simulacion_hipotecaria: {
-          monto_maximo_financiable: 180000,
-          valor_maximo_inmueble: 225000
-        }
+        lead_id: 'test-' + Date.now(),
+        cualificado: true,
+        
+        // Dados do lead (achatados)
+        lead_nombre: 'Test Lead Meta Ads',
+        lead_telefono: '+34 600 000 000',
+        lead_email: 'test-meta@example.com',
+        lead_edad: 35,
+        lead_zona_interes: 'Barcelona',
+        lead_habitaciones: 3,
+        lead_ingresos_estimados: 2250,
+        lead_deudas_mensuales: 300,
+        lead_preferencia_llamada: 'mañana',
+        
+        // Dados do agente (achatados)
+        agente_id: 'test-agent-id',
+        agente_nombre: 'Agente Test',
+        agente_email: 'agente@example.com',
+        agente_telefono: '+34 600 111 222',
+        
+        // Simulação pessoal (achatados)
+        sim_personal_monto_maximo: 15000,
+        sim_personal_cuota_mensual: 280,
+        sim_personal_plazo_meses: 84,
+        sim_personal_tae: 8,
+        
+        // Simulação hipotecária (achatados)
+        sim_hipoteca_monto_maximo: 180000,
+        sim_hipoteca_valor_inmueble: 225000,
+        sim_hipoteca_cuota_mensual: 750,
+        sim_hipoteca_capital_necesario: 67500,
+        sim_hipoteca_plazo_anos: 30,
+        sim_hipoteca_tae: 3.5,
+        
+        // Recomendações (achatadas - até 3)
+        recom_1_titulo: 'Piso 3 hab Barcelona Centro',
+        recom_1_precio: 195000,
+        recom_1_url: 'https://example.com/piso1',
+        recom_2_titulo: 'Apartamento 3 hab Eixample',
+        recom_2_precio: 210000,
+        recom_2_url: 'https://example.com/piso2',
+        recom_3_titulo: 'Piso reformado Gracia',
+        recom_3_precio: 189000,
+        recom_3_url: 'https://example.com/piso3',
+        
+        // URLs
+        crm_url: 'https://tu-hogar-vista.lovable.app/agente/crm?lead=test'
       };
 
       await fetch(url, {
