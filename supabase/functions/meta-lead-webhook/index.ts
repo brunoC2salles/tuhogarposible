@@ -46,6 +46,30 @@ interface QualificationResult {
   razon_no_cualificado?: string;
 }
 
+// ============= FUNÇÕES DE SANITIZAÇÃO =============
+// Resolve o erro "Bad control character in string literal in JSON"
+// que ocorre quando campos do Facebook Ads contêm quebras de linha, tabs, etc.
+
+function sanitizeJsonString(str: string): string {
+  // Substitui caracteres de controle por escapes válidos ou espaços
+  return str.replace(/[\x00-\x1F\x7F]/g, (char) => {
+    switch (char) {
+      case '\n': return '\\n';
+      case '\r': return '\\r';
+      case '\t': return '\\t';
+      default: return ' ';
+    }
+  });
+}
+
+function sanitizeField(value: unknown): unknown {
+  if (typeof value === 'string') {
+    // Remove caracteres de controle e faz trim
+    return value.replace(/[\x00-\x1F\x7F]/g, ' ').trim();
+  }
+  return value;
+}
+
 function parseIngresos(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
   
@@ -214,10 +238,52 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse request body
-    const data: MetaLeadData = await req.json();
+    // Parse request body com sanitização para lidar com caracteres inválidos do Facebook Ads
+    let data: MetaLeadData;
     
-    console.log('[meta-lead-webhook] Dados recebidos:', JSON.stringify(data));
+    try {
+      // Tentar parse direto
+      data = await req.json();
+    } catch (parseError) {
+      // Se falhar, provavelmente há caracteres de controle inválidos no JSON
+      console.log('[meta-lead-webhook] JSON parse falhou, tentando sanitizar...', parseError);
+      
+      // Precisamos clonar o request para ler o body novamente
+      const rawBody = await req.clone().text();
+      console.log('[meta-lead-webhook] Body raw (primeiros 500 chars):', rawBody.substring(0, 500));
+      
+      const sanitizedBody = sanitizeJsonString(rawBody);
+      
+      try {
+        data = JSON.parse(sanitizedBody);
+        console.log('[meta-lead-webhook] Body sanitizado com sucesso');
+      } catch (sanitizeError) {
+        console.error('[meta-lead-webhook] Falha mesmo após sanitização:', sanitizeError);
+        console.error('[meta-lead-webhook] Body original completo:', rawBody);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'JSON inválido no body da requisição',
+            hint: 'Verifique se há caracteres especiais (quebras de linha, tabs) nos campos do formulário do Facebook',
+            details: parseError.message || 'Erro de parse'
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Sanitizar todos os campos de texto individualmente para garantir limpeza
+    data.nombre = sanitizeField(data.nombre) as string;
+    data.telefono = sanitizeField(data.telefono) as string;
+    data.email = sanitizeField(data.email) as string;
+    data.zona_interes = sanitizeField(data.zona_interes) as string | undefined;
+    data.antiguedad_trabajo = sanitizeField(data.antiguedad_trabajo) as string | undefined;
+    data.tiene_nie_dni = sanitizeField(data.tiene_nie_dni) as string | undefined;
+    data.en_fichero_morosidad = sanitizeField(data.en_fichero_morosidad) as string | undefined;
+    data.preferencia_llamada = sanitizeField(data.preferencia_llamada) as string | undefined;
+    data.rango_ingresos = sanitizeField(data.rango_ingresos) as string | undefined;
+    
+    console.log('[meta-lead-webhook] Dados recebidos (sanitizados):', JSON.stringify(data));
 
     // Validar campos obrigatórios
     if (!data.nombre || !data.telefono || !data.email) {
