@@ -445,6 +445,7 @@ Deno.serve(async (req) => {
             meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
             meta_en_fichero_morosidad: data.en_fichero_morosidad || null,
             meta_rango_ingresos: data.rango_ingresos || null,
+            meta_deudas_mensuales: data.deudas_mensuales || 0,
             
             // Dados do agente (achatados)
             agente_id: agenteAsignado?.id || null,
