@@ -419,52 +419,59 @@ Deno.serve(async (req) => {
         if (webhookUrl && webhookUrl.trim() !== '') {
           console.log('[meta-lead-webhook] Disparando webhook para Bitrix24:', webhookUrl);
 
+          // Payload ACHATADO para Make.com reconhecer todos os campos individualmente
+          const recom = recomendaciones.slice(0, 3);
+          
           const bitrixPayload = {
+            // Identificação
             source: 'meta_ads',
             timestamp: new Date().toISOString(),
             lead_id: leadId,
+            cualificado: true,
             
-            lead: {
-              nombre: data.nombre,
-              telefono: data.telefono,
-              email: data.email,
-              edad: data.edad || null,
-              zona_interes: data.zona_interes || null,
-              habitaciones: data.habitaciones || null,
-              ingresos_estimados: ingresos,
-              deudas_mensuales: deudas,
-              preferencia_llamada: data.preferencia_llamada || null
-            },
+            // Dados do lead (achatados)
+            lead_nombre: data.nombre,
+            lead_telefono: data.telefono,
+            lead_email: data.email,
+            lead_edad: data.edad || null,
+            lead_zona_interes: data.zona_interes || null,
+            lead_habitaciones: data.habitaciones || null,
+            lead_ingresos_estimados: ingresos,
+            lead_deudas_mensuales: deudas,
+            lead_preferencia_llamada: data.preferencia_llamada || null,
             
-            agente: agenteAsignado ? {
-              id: agenteAsignado.id,
-              nombre: agenteAsignado.nombre,
-              email: agenteAsignado.email,
-              telefono: agenteAsignado.telefono || null
-            } : null,
+            // Dados do agente (achatados)
+            agente_id: agenteAsignado?.id || null,
+            agente_nombre: agenteAsignado?.nombre || null,
+            agente_email: agenteAsignado?.email || null,
+            agente_telefono: agenteAsignado?.telefono || null,
             
-            simulacion_personal: {
-              monto_maximo: simulacionPersonal.monto_maximo,
-              cuota_mensual: simulacionPersonal.cuota_mensual,
-              plazo_meses: simulacionPersonal.plazo_meses,
-              tae_estimada: simulacionPersonal.tae_estimada
-            },
+            // Simulação pessoal (achatados)
+            sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
+            sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
+            sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
+            sim_personal_tae: simulacionPersonal.tae_estimada,
             
-            simulacion_hipotecaria: {
-              monto_maximo_financiable: simulacionHipotecaria.monto_maximo_financiable,
-              valor_maximo_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
-              cuota_maxima_mensual: simulacionHipotecaria.cuota_maxima_mensual,
-              capital_necesario: simulacionHipotecaria.capital_necesario,
-              plazo_anos: simulacionHipotecaria.plazo_anos,
-              tae_estimada: simulacionHipotecaria.tae_estimada
-            },
+            // Simulação hipotecária (achatados)
+            sim_hipoteca_monto_maximo: simulacionHipotecaria.monto_maximo_financiable,
+            sim_hipoteca_valor_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
+            sim_hipoteca_cuota_mensual: simulacionHipotecaria.cuota_maxima_mensual,
+            sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
+            sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
+            sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
             
-            recomendaciones: recomendaciones.slice(0, 3).map(inm => ({
-              titulo: inm.titulo || `${inm.quartos || '?'} hab en ${inm.ciudad}`,
-              precio: inm.precio,
-              url_externa: inm.url_externa
-            })),
+            // Recomendações (achatadas - até 3)
+            recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
+            recom_1_precio: recom[0]?.precio || null,
+            recom_1_url: recom[0]?.url_externa || null,
+            recom_2_titulo: recom[1]?.titulo || recom[1] ? `${recom[1]?.quartos || '?'} hab en ${recom[1]?.ciudad}` : null,
+            recom_2_precio: recom[1]?.precio || null,
+            recom_2_url: recom[1]?.url_externa || null,
+            recom_3_titulo: recom[2]?.titulo || recom[2] ? `${recom[2]?.quartos || '?'} hab en ${recom[2]?.ciudad}` : null,
+            recom_3_precio: recom[2]?.precio || null,
+            recom_3_url: recom[2]?.url_externa || null,
             
+            // URL do CRM
             crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
           };
 
