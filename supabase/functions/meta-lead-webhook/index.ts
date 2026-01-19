@@ -102,11 +102,28 @@ function parseTieneDniNie(respuesta?: string): { tiene: boolean; tipo?: string }
 /**
  * Parseia antigüedad laboral - aceita formatos com underscore como "más_de_1_año"
  */
-function parseAntiguedad(respuesta?: string): { suficiente: boolean; valor?: string } {
+function parseAntiguedad(respuesta?: string): { suficiente: boolean; valor?: string; tipo_contrato?: string } {
   if (!respuesta) return { suficiente: false };
   
   // Normaliza: remove underscores, lowercase
   const resp = respuesta.toLowerCase().trim().replace(/_/g, ' ');
+  
+  // CONTRATOS PRECÁRIOS - DESQUALIFICA (verificar ANTES de verificar "fijo")
+  if (
+    resp.includes('fijo discontinuo') ||
+    resp.includes('discontinuo') ||
+    resp.includes('temporal') ||
+    resp.includes('por obra') ||
+    resp.includes('obra y servicio') ||
+    resp.includes('practicas') ||
+    resp.includes('prácticas') ||
+    resp.includes('formacion') ||
+    resp.includes('formación') ||
+    resp.includes('interinidad') ||
+    resp.includes('eventual')
+  ) {
+    return { suficiente: false, valor: respuesta, tipo_contrato: 'precario' };
+  }
   
   // Insuficiente: menos de 1 año
   if (
@@ -121,7 +138,7 @@ function parseAntiguedad(respuesta?: string): { suficiente: boolean; valor?: str
     return { suficiente: false, valor: respuesta };
   }
   
-  // Suficiente: 1+ años (variações)
+  // Suficiente: 1+ años (variações) - agora seguro pois já excluímos contratos precários
   if (
     resp.includes('más de 1') || 
     resp.includes('mas de 1') ||
@@ -285,7 +302,21 @@ function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResu
   // Critério 3: NO está en fichero de morosidad
   if (data.en_fichero_morosidad) {
     const morosidad = data.en_fichero_morosidad.toLowerCase().trim().replace(/_/g, ' ');
-    if (morosidad === 'si' || morosidad === 'sí' || morosidad.includes('si estoy') || morosidad === 'yes') {
+    // Detectar todas as variações de "sim" em ficheiro de morosidade
+    if (
+      morosidad === 'si' || 
+      morosidad === 'sí' || 
+      morosidad.includes('si estoy') || 
+      morosidad.includes('sí estoy') ||
+      morosidad === 'yes' ||
+      morosidad.includes('estoy en') ||
+      morosidad.includes('fichero') ||
+      morosidad.includes('asnef') ||
+      morosidad.includes('rai') ||
+      morosidad.includes('deudas') ||
+      morosidad.includes('moroso') ||
+      morosidad.includes('impago')
+    ) {
       return { cualificado: false, razon_no_cualificado: 'Está en fichero de morosidad' };
     }
   }
