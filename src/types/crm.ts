@@ -1,5 +1,5 @@
-export type LeadStage = 'no_cualificado' | 'recopilacion_expediente' | 'mandamos_expediente' | 'aprobacion_bancaria' | 'tasacion' | 'cobro' | 'finalizada';
-export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook';
+export type LeadStage = 'nuevo_lead' | 'recopilacion_expediente' | 'mandamos_expediente' | 'aprobacion_bancaria' | 'tasacion' | 'cobro' | 'finalizada' | 'no_cualificado';
+export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads';
 
 export interface SimuladorPersonalData {
   montoSolicitado: number;
@@ -72,21 +72,23 @@ export interface LeadFormData {
 }
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
-  no_cualificado: 'No Cualificado',
+  nuevo_lead: 'Nuevo Lead',
   recopilacion_expediente: 'Expediente Preaprobación',
   mandamos_expediente: 'Expediente Aprobación',
   aprobacion_bancaria: 'Aprobación Bancaria',
   tasacion: 'Tasación',
   cobro: 'Cobro',
-  finalizada: 'Finalizada'
+  finalizada: 'Finalizada',
+  no_cualificado: 'No Cualificado'
 };
 
 export const STAGE_ORDER: LeadStage[] = [
-  'no_cualificado',
+  'nuevo_lead',
   'recopilacion_expediente',
   'mandamos_expediente',
   'aprobacion_bancaria',
   'tasacion',
   'cobro',
-  'finalizada'
+  'finalizada',
+  'no_cualificado'
 ];

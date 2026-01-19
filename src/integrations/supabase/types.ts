@@ -1701,7 +1701,7 @@ export type Database = {
     }
     Enums: {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
-      lead_source: "formulario_web" | "manual" | "tidycal_webhook"
+      lead_source: "formulario_web" | "manual" | "tidycal_webhook" | "meta_ads"
       lead_stage:
         | "lead_cualificado"
         | "mensaje_whatsapp"
@@ -1719,6 +1719,7 @@ export type Database = {
         | "cobro"
         | "finalizada"
         | "no_cualificado"
+        | "nuevo_lead"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1862,7 +1863,7 @@ export const Constants = {
   public: {
     Enums: {
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
-      lead_source: ["formulario_web", "manual", "tidycal_webhook"],
+      lead_source: ["formulario_web", "manual", "tidycal_webhook", "meta_ads"],
       lead_stage: [
         "lead_cualificado",
         "mensaje_whatsapp",
@@ -1880,6 +1881,7 @@ export const Constants = {
         "cobro",
         "finalizada",
         "no_cualificado",
+        "nuevo_lead",
       ],
       notification_type: [
         "new_lead",
