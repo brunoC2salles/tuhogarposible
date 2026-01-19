@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { LeadKanban } from './LeadKanban';
 import { LeadDetailsModal } from './LeadDetailsModal';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
@@ -10,7 +12,8 @@ import { useLeads } from '@/hooks/useLeads';
 import { Lead, LeadStage, LeadFormData } from '@/types/crm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { Search, Users } from 'lucide-react';
+import { Search, Users, Download, Ban } from 'lucide-react';
+import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 
 interface AgentLeadsKanbanModalProps {
   open: boolean;
@@ -39,6 +42,29 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
       lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [leads, agentId, searchQuery]);
+
+  // Contadores
+  const noCualificadosCount = useMemo(() => 
+    agentLeads.filter(lead => lead.stage === 'no_cualificado').length, 
+    [agentLeads]
+  );
+
+  const cualificadosCount = useMemo(() => 
+    agentLeads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    [agentLeads]
+  );
+
+  // Exportar leads no cualificados
+  const handleExportNoCualificados = () => {
+    const noCualificados = agentLeads.filter(lead => lead.stage === 'no_cualificado');
+    if (noCualificados.length === 0) {
+      toast.info('No hay leads no cualificados para exportar');
+      return;
+    }
+    const csv = exportLeadsToCSV(noCualificados, {});
+    downloadCSV(csv, `leads-no-cualificados-${agentName}-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${noCualificados.length} leads exportados`);
+  };
 
   const handleStageChange = async (leadId: string, newStage: LeadStage) => {
     try {
@@ -93,21 +119,38 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
             <DialogTitle>Leads de {agentName}</DialogTitle>
           </DialogHeader>
           
-          {/* Search bar */}
-          <div className="flex items-center gap-4 py-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-64"
-              />
+          {/* Search bar and counters */}
+          <div className="flex items-center justify-between gap-4 py-2 flex-wrap">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Buscar por nombre..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-64"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span className="text-sm font-medium">{cualificadosCount} Leads</span>
+                </div>
+                {noCualificadosCount > 0 && (
+                  <Badge variant="destructive" className="flex items-center gap-1">
+                    <Ban className="h-3 w-3" />
+                    {noCualificadosCount} No Cualificados
+                  </Badge>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span className="text-sm font-medium">{agentLeads.length} Leads</span>
-            </div>
+            
+            {noCualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar No Cualificados
+              </Button>
+            )}
           </div>
           
           <div className="flex-1 overflow-hidden">

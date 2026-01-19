@@ -3,6 +3,7 @@ import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { Ban } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -33,6 +34,11 @@ export const LeadKanban = ({
 
   const handleDragOver = (e: React.DragEvent, stage: LeadStage) => {
     e.preventDefault();
+    // Não permite arrastar PARA a coluna "No Cualificado" (só pode sair dela)
+    if (stage === 'no_cualificado') {
+      e.dataTransfer.dropEffect = 'none';
+      return;
+    }
     e.dataTransfer.dropEffect = 'move';
     setDragOverStage(stage);
   };
@@ -43,6 +49,12 @@ export const LeadKanban = ({
 
   const handleDrop = (e: React.DragEvent, targetStage: LeadStage) => {
     e.preventDefault();
+    // Não permite drop na coluna "No Cualificado"
+    if (targetStage === 'no_cualificado') {
+      setDraggedLead(null);
+      setDragOverStage(null);
+      return;
+    }
     if (draggedLead) {
       onStageChange(draggedLead, targetStage);
     }
@@ -50,11 +62,14 @@ export const LeadKanban = ({
     setDragOverStage(null);
   };
 
+  const isNoCualificado = (stage: LeadStage) => stage === 'no_cualificado';
+
   return (
     <div className="flex gap-4 h-full overflow-x-auto pb-4">
       {STAGE_ORDER.map((stage) => {
         const stageLeads = getLeadsByStage(stage);
-        const isDragOver = dragOverStage === stage;
+        const isDragOver = dragOverStage === stage && !isNoCualificado(stage);
+        const isNoCualificadoColumn = isNoCualificado(stage);
 
         return (
           <div
@@ -64,9 +79,20 @@ export const LeadKanban = ({
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, stage)}
           >
-            <div className="flex items-center justify-between mb-3 px-1">
-              <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+            <div className={cn(
+              "flex items-center justify-between mb-3 px-1",
+              isNoCualificadoColumn && "text-destructive"
+            )}>
+              <div className="flex items-center gap-2">
+                {isNoCualificadoColumn && <Ban className="h-4 w-4" />}
+                <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+              </div>
+              <span className={cn(
+                "text-xs px-2 py-1 rounded-full",
+                isNoCualificadoColumn 
+                  ? "bg-destructive/10 text-destructive" 
+                  : "text-muted-foreground bg-muted"
+              )}>
                 {stageLeads.length}
               </span>
             </div>
@@ -74,7 +100,9 @@ export const LeadKanban = ({
             <ScrollArea
               className={cn(
                 'flex-1 rounded-lg border-2 border-dashed p-2 transition-colors',
-                isDragOver ? 'border-primary bg-primary/5' : 'border-border bg-muted/20'
+                isNoCualificadoColumn && 'border-destructive/30 bg-destructive/5',
+                isDragOver && !isNoCualificadoColumn && 'border-primary bg-primary/5',
+                !isDragOver && !isNoCualificadoColumn && 'border-border bg-muted/20'
               )}
             >
               <div className="space-y-3 min-h-[200px]">

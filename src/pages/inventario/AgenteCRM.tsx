@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessagesSquare, Search } from 'lucide-react';
+import { MessagesSquare, Search, Download, Ban } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Link } from 'react-router-dom';
+import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
+import { Badge } from '@/components/ui/badge';
 
 const AgenteCRM = () => {
   const navigate = useNavigate();
@@ -37,6 +39,29 @@ const AgenteCRM = () => {
       lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [leads, searchQuery]);
+
+  // Contadores
+  const noCualificadosCount = useMemo(() => 
+    leads.filter(lead => lead.stage === 'no_cualificado').length, 
+    [leads]
+  );
+
+  const cualificadosCount = useMemo(() => 
+    leads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    [leads]
+  );
+
+  // Exportar leads no cualificados
+  const handleExportNoCualificados = () => {
+    const noCualificados = leads.filter(lead => lead.stage === 'no_cualificado');
+    if (noCualificados.length === 0) {
+      toast.info('No hay leads no cualificados para exportar');
+      return;
+    }
+    const csv = exportLeadsToCSV(noCualificados, {});
+    downloadCSV(csv, `leads-no-cualificados-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${noCualificados.length} leads exportados`);
+  };
 
   const handleCreateLead = async (data: any) => {
     await createLead(data);
@@ -104,7 +129,7 @@ const AgenteCRM = () => {
 
       <main className="container mx-auto px-4 py-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
@@ -114,16 +139,32 @@ const AgenteCRM = () => {
                 className="pl-9 w-64"
               />
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Users className="h-5 w-5" />
-              <span className="text-lg font-semibold">{filteredLeads.length} Leads</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Users className="h-5 w-5" />
+                <span className="text-lg font-semibold">{cualificadosCount} Leads</span>
+              </div>
+              {noCualificadosCount > 0 && (
+                <Badge variant="destructive" className="flex items-center gap-1">
+                  <Ban className="h-3 w-3" />
+                  {noCualificadosCount} No Cualificados
+                </Badge>
+              )}
             </div>
           </div>
 
-          <Button onClick={() => setCreateModalOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Crear Nuevo Lead
-          </Button>
+          <div className="flex items-center gap-2">
+            {noCualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+                <Download className="h-4 w-4 mr-2" />
+                Exportar No Cualificados
+              </Button>
+            )}
+            <Button onClick={() => setCreateModalOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Crear Nuevo Lead
+            </Button>
+          </div>
         </div>
 
         {loading ? (
