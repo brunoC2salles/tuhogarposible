@@ -283,11 +283,15 @@ Deno.serve(async (req) => {
     
     if (qualificacao.cualificado && data.zona_interes) {
       try {
+        const precioMinimo = Math.round(simulacionHipotecaria.valor_maximo_inmueble * 0.80);
+        const precioMaximo = simulacionHipotecaria.valor_maximo_inmueble;
+        
         let query = supabase
           .from('inmuebles')
           .select('id, titulo, precio, quartos, ciudad, region, direccion, image_url, url_externa')
           .eq('disponible', true)
-          .lte('precio', simulacionHipotecaria.valor_maximo_inmueble * 1.1);
+          .gte('precio', precioMinimo)
+          .lte('precio', precioMaximo);
         
         // Filtrar por zona
         query = query.or(
@@ -330,7 +334,7 @@ Deno.serve(async (req) => {
           zona_interes: data.zona_interes || null,
           valor_inmueble_deseado: simulacionHipotecaria.valor_maximo_inmueble,
           agente_asignado_id: agenteAsignado?.id || null,
-          stage: qualificacao.cualificado ? 'recopilacion_expediente' : 'lead_cualificado',
+          stage: qualificacao.cualificado ? 'recopilacion_expediente' : 'no_cualificado',
           source: 'formulario_web', // Usaremos formulario_web pois não existe meta_ads no enum
           notas: `Lead do Meta Ads.\nPreferência de chamada: ${data.preferencia_llamada || 'não especificada'}\nHabitaciones: ${data.habitaciones || 'não especificada'}\nAntigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
           simulador_personal_data: simulacionPersonal,

@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { Lead } from '@/types/crm';
 
 interface CSVExportData {
   id: string;
@@ -50,9 +51,68 @@ function escapeCSV(value: any): string {
 }
 
 /**
- * Exporta leads qualificados para CSV
+ * Exporta leads do CRM (tipo Lead) para CSV
+ * Aceita tanto dados do formulário quanto dados do webhook Meta Ads
  */
-export function exportLeadsToCSV(leads: CSVExportData[], agenteNomes: Record<string, string> = {}): string {
+export function exportLeadsToCSV(leads: Lead[], agenteNomes: Record<string, string> = {}): string {
+  // Header simplificado para leads do CRM
+  const headers = [
+    'ID',
+    'Nombre Completo',
+    'Email',
+    'Teléfono',
+    'Ciudad Interés',
+    'Zona Interés',
+    'Valor Inmueble Deseado (€)',
+    'Stage',
+    'Fuente',
+    'Agente Asignado',
+    'Crédito Personal Máximo (€)',
+    'Cuota Personal (€)',
+    'Hipoteca Máxima (€)',
+    'Cuota Hipoteca (€)',
+    'Notas',
+    'Fecha Creación',
+    'Última Actualización',
+  ];
+
+  const rows = leads.map(lead => {
+    // Suporta ambos formatos de dados de simulação (formulário e webhook)
+    const simPersonal = lead.simulador_personal_data as any;
+    const simHipo = lead.simulador_hipotecario_data as any;
+    
+    return [
+      escapeCSV(lead.id),
+      escapeCSV(lead.nombre_completo),
+      escapeCSV(lead.email),
+      escapeCSV(lead.telefono),
+      escapeCSV(lead.ciudad_interes || ''),
+      escapeCSV(lead.zona_interes || ''),
+      escapeCSV(lead.valor_inmueble_deseado || ''),
+      escapeCSV(lead.stage),
+      escapeCSV(lead.source),
+      escapeCSV(agenteNomes[lead.agente_asignado_id || ''] || lead.agente_nombre || lead.agente_asignado_id || ''),
+      escapeCSV(simPersonal?.monto_maximo || simPersonal?.montoAprobado || simPersonal?.montoSolicitado || ''),
+      escapeCSV(simPersonal?.cuota_mensual || simPersonal?.cuotaMensual || ''),
+      escapeCSV(simHipo?.monto_maximo_financiable || simHipo?.montoFinanciable || ''),
+      escapeCSV(simHipo?.cuota_maxima_mensual || simHipo?.cuotaMensual || ''),
+      escapeCSV(lead.notas || ''),
+      formatDate(lead.created_at),
+      formatDate(lead.updated_at),
+    ];
+  });
+
+  // Gerar CSV com BOM para UTF-8 (para Excel/Google Sheets)
+  const BOM = '\uFEFF';
+  const csvContent = BOM + [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+  
+  return csvContent;
+}
+
+/**
+ * Exporta dados completos do formulário de qualificação para CSV
+ */
+export function exportFormSubmissionsToCSV(leads: CSVExportData[], agenteNomes: Record<string, string> = {}): string {
   // Header
   const headers = [
     'ID',

@@ -1718,6 +1718,7 @@ export type Database = {
         | "mandamos_expediente"
         | "cobro"
         | "finalizada"
+        | "no_cualificado"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1878,6 +1879,7 @@ export const Constants = {
         "mandamos_expediente",
         "cobro",
         "finalizada",
+        "no_cualificado",
       ],
       notification_type: [
         "new_lead",
