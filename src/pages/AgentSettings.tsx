@@ -6,9 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+const TURNOS_DISPONIBILIDAD = [
+  { value: 'mañana', label: 'Mañana (08:00-14:00)', icon: '☀️' },
+  { value: 'tarde', label: 'Tarde (14:00-20:00)', icon: '🌤️' },
+  { value: 'noche', label: 'Noche (20:00-08:00)', icon: '🌙' },
+];
 
 export default function AgentSettings() {
   const { user, profile } = useAuth();
@@ -19,6 +26,7 @@ export default function AgentSettings() {
     telefono: "",
     tidycal_url: "",
     region_round_robin: "",
+    disponibilidad: ['mañana', 'tarde', 'noche'] as string[],
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +39,7 @@ export default function AgentSettings() {
         telefono: profile.telefono || "",
         tidycal_url: (profile as any).tidycal_url || "",
         region_round_robin: (profile as any).region_round_robin || "",
+        disponibilidad: (profile as any).disponibilidad || ['mañana', 'tarde', 'noche'],
       });
       setIsLoading(false);
     }
@@ -58,6 +67,7 @@ export default function AgentSettings() {
           telefono: formData.telefono.trim() || null,
           tidycal_url: formData.tidycal_url.trim() || null,
           region_round_robin: formData.region_round_robin || null,
+          disponibilidad: formData.disponibilidad,
         })
         .eq("id", user?.id);
 
@@ -69,6 +79,20 @@ export default function AgentSettings() {
       toast.error("Error al actualizar el perfil");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const toggleDisponibilidad = (turno: string) => {
+    if (formData.disponibilidad.includes(turno)) {
+      setFormData({
+        ...formData,
+        disponibilidad: formData.disponibilidad.filter(t => t !== turno)
+      });
+    } else {
+      setFormData({
+        ...formData,
+        disponibilidad: [...formData.disponibilidad, turno]
+      });
     }
   };
 
@@ -144,7 +168,7 @@ export default function AgentSettings() {
               <Label htmlFor="region">Región Round-Robin</Label>
               <Select
                 value={formData.region_round_robin || "none"}
-                onValueChange={(value) => setFormData({ ...formData, region_round_robin: value === "none" ? null : value })}
+                onValueChange={(value) => setFormData({ ...formData, region_round_robin: value === "none" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona una región" />
@@ -157,6 +181,27 @@ export default function AgentSettings() {
               </Select>
               <p className="text-sm text-muted-foreground">
                 Selecciona la región donde quieres recibir leads
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Disponibilidad (Turnos)</Label>
+              <div className="flex flex-wrap gap-4">
+                {TURNOS_DISPONIBILIDAD.map((turno) => (
+                  <div key={turno.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`agent-turno-${turno.value}`}
+                      checked={formData.disponibilidad.includes(turno.value)}
+                      onCheckedChange={() => toggleDisponibilidad(turno.value)}
+                    />
+                    <Label htmlFor={`agent-turno-${turno.value}`} className="font-normal cursor-pointer">
+                      {turno.icon} {turno.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Horarios en que puedes recibir leads del sistema Round-Robin
               </p>
             </div>
 

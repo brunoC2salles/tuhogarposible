@@ -1358,6 +1358,7 @@ export type Database = {
           activo: boolean
           comision_porcentaje: number
           created_at: string
+          disponibilidad: string[] | null
           dni_nie: string | null
           email: string
           id: string
@@ -1372,6 +1373,7 @@ export type Database = {
           activo?: boolean
           comision_porcentaje?: number
           created_at?: string
+          disponibilidad?: string[] | null
           dni_nie?: string | null
           email: string
           id: string
@@ -1386,6 +1388,7 @@ export type Database = {
           activo?: boolean
           comision_porcentaje?: number
           created_at?: string
+          disponibilidad?: string[] | null
           dni_nie?: string | null
           email?: string
           id?: string

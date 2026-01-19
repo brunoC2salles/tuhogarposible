@@ -24,7 +24,14 @@ interface Agent {
   region_round_robin?: string;
   activo: boolean;
   comision_porcentaje?: number;
+  disponibilidad?: string[];
 }
+
+const TURNOS_DISPONIBILIDAD = [
+  { value: 'mañana', label: 'Mañana (08:00-14:00)' },
+  { value: 'tarde', label: 'Tarde (14:00-20:00)' },
+  { value: 'noche', label: 'Noche (20:00-08:00)' },
+];
 
 export default function AdminAgentes() {
   console.log('[AdminAgentes] Component rendering');
@@ -48,6 +55,7 @@ export default function AdminAgentes() {
     region_round_robin: "",
     activo: true,
     comision_porcentaje: 0,
+    disponibilidad: ['mañana', 'tarde', 'noche'] as string[],
   });
 
   const fetchAgents = async () => {
@@ -55,7 +63,7 @@ export default function AdminAgentes() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role, comision_porcentaje")
+        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role, comision_porcentaje, disponibilidad")
         .eq("role", "agente")
         .order("nombre");
 
@@ -109,6 +117,7 @@ export default function AdminAgentes() {
       region_round_robin: agent.region_round_robin || "",
       activo: agent.activo,
       comision_porcentaje: agent.comision_porcentaje || 0,
+      disponibilidad: agent.disponibilidad || ['mañana', 'tarde', 'noche'],
     });
     setEditModal({ open: true, agent });
   };
@@ -142,6 +151,7 @@ export default function AdminAgentes() {
           region_round_robin: editFormData.region_round_robin || null,
           activo: editFormData.activo,
           comision_porcentaje: editFormData.comision_porcentaje,
+          disponibilidad: editFormData.disponibilidad,
         })
         .eq("id", editModal.agent.id);
 
@@ -279,6 +289,7 @@ export default function AdminAgentes() {
                     <TableHead>DNI/NIE</TableHead>
                     <TableHead>URL Tidycal</TableHead>
                     <TableHead>Región</TableHead>
+                    <TableHead>Disponibilidad</TableHead>
                     <TableHead>Comisión %</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
@@ -316,6 +327,19 @@ export default function AdminAgentes() {
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1 flex-wrap">
+                          {agent.disponibilidad && agent.disponibilidad.length > 0 ? (
+                            agent.disponibilidad.map((turno) => (
+                              <Badge key={turno} variant="outline" className="text-xs">
+                                {turno === 'mañana' ? '☀️' : turno === 'tarde' ? '🌤️' : '🌙'}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs">Sin horario</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">{agent.comision_porcentaje || 0}%</Badge>
@@ -445,6 +469,39 @@ export default function AdminAgentes() {
                     <SelectItem value="General">General</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Disponibilidad (Turnos)</Label>
+                <div className="flex flex-wrap gap-4">
+                  {TURNOS_DISPONIBILIDAD.map((turno) => (
+                    <div key={turno.value} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`turno-${turno.value}`}
+                        checked={editFormData.disponibilidad.includes(turno.value)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setEditFormData({
+                              ...editFormData,
+                              disponibilidad: [...editFormData.disponibilidad, turno.value]
+                            });
+                          } else {
+                            setEditFormData({
+                              ...editFormData,
+                              disponibilidad: editFormData.disponibilidad.filter(t => t !== turno.value)
+                            });
+                          }
+                        }}
+                      />
+                      <Label htmlFor={`turno-${turno.value}`} className="font-normal text-sm">
+                        {turno.label}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Horarios en que el agente puede recibir leads del Round-Robin
+                </p>
               </div>
 
               <div className="space-y-2">
