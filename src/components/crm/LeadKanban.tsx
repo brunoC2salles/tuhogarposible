@@ -57,7 +57,7 @@ export const LeadKanban = ({
   const isNuevoLead = (stage: LeadStage) => stage === 'nuevo_lead';
 
   return (
-    <div className="flex gap-4 h-full overflow-x-auto pb-4">
+    <div className="flex gap-3 sm:gap-4 h-full overflow-x-auto pb-4 px-1">
       {STAGE_ORDER.map((stage) => {
         const stageLeads = getLeadsByStage(stage);
         const isDragOver = dragOverStage === stage;
@@ -67,7 +67,7 @@ export const LeadKanban = ({
         return (
           <div
             key={stage}
-            className="flex-shrink-0 w-80 flex flex-col"
+            className="flex-shrink-0 w-72 sm:w-80 flex flex-col"
             onDragOver={(e) => handleDragOver(e, stage)}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, stage)}
