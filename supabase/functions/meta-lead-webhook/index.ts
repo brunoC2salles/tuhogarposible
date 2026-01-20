@@ -284,6 +284,24 @@ function normalizarPreferenciaLlamada(preferencia?: string): string {
   return 'mañana';
 }
 
+// CORREÇÃO: Parser de dívidas para converter strings como "148,€" para número
+function parseDeudas(deudasInput?: string | number): number {
+  if (!deudasInput) return 0;
+  
+  // Se já é número, retorna direto
+  if (typeof deudasInput === 'number') {
+    return Math.max(0, deudasInput);
+  }
+  
+  // String: remover símbolos, converter vírgula decimal para ponto
+  const cleaned = String(deudasInput)
+    .replace(/[€$\s]/g, '')  // Remove símbolos monetários e espaços
+    .replace(',', '.');       // Vírgula decimal → ponto
+  
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.max(0, parsed);
+}
+
 function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResult {
   // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
   
@@ -465,11 +483,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 1. Parsear ingresos
+    // 1. Parsear ingresos e dívidas (CORREÇÃO: usa parseDeudas para converter "148,€" → 148)
     const ingresos = parseIngresos(data.rango_ingresos);
-    const deudas = data.deudas_mensuales || 0;
+    const deudas = parseDeudas(data.deudas_mensuales);
     
-    console.log('[meta-lead-webhook] Ingresos parseados:', ingresos, 'Deudas:', deudas);
+    console.log('[meta-lead-webhook] Ingresos parseados:', ingresos, 'Deudas parseadas:', deudas);
 
     // 2. Qualificar lead
     const qualificacao = qualificarLead(data, ingresos);
@@ -513,26 +531,52 @@ Deno.serve(async (req) => {
     console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
 
     // 6. Buscar recomendações de imóveis
+    // CORREÇÃO: Parsear zona ANTES de usar na query para extrair cidade limpa
+    const zonaParseada = parseZonaInteres(data.zona_interes);
+    console.log('[meta-lead-webhook] Zona parseada:', zonaParseada);
+    
     let recomendaciones: any[] = [];
     
-    if (qualificacao.cualificado && data.zona_interes) {
+    if (qualificacao.cualificado) {
       try {
-        const precioMinimo = Math.round(simulacionHipotecaria.valor_maximo_inmueble * 0.80);
-        const precioMaximo = simulacionHipotecaria.valor_maximo_inmueble;
+        // CORREÇÃO: Validar se valor_maximo_inmueble é válido (não NaN)
+        const valorMaxInm = simulacionHipotecaria.valor_maximo_inmueble;
+        const precioMaximo = !isNaN(valorMaxInm) && valorMaxInm > 0 
+          ? Math.round(valorMaxInm * 1.35)  // 135% do valor máximo
+          : null;  // Sem limite se simulação falhou
+        
+        console.log('[meta-lead-webhook] Precio máximo para busca:', precioMaximo);
         
         let query = supabase
           .from('inmuebles')
           .select('id, titulo, precio, quartos, ciudad, region, direccion, image_url, url_externa')
-          .eq('disponible', true)
-          .gte('precio', precioMinimo)
-          .lte('precio', precioMaximo);
+          .eq('disponible', true);
         
-        // Filtrar por zona
-        query = query.or(
-          `ciudad.ilike.%${data.zona_interes}%,` +
-          `region.ilike.%${data.zona_interes}%,` +
-          `direccion.ilike.%${data.zona_interes}%`
-        );
+        // CORREÇÃO: Aplicar filtro de preço apenas se válido
+        if (precioMaximo) {
+          query = query.lte('precio', precioMaximo);
+        }
+        
+        // CORREÇÃO: Usar cidade EXTRAÍDA do parseZonaInteres (ex: "Valencia")
+        // em vez do texto livre (ex: "Valencia, preferiblemente un pueblo cercano")
+        // Isso evita que vírgulas quebrem o parser SQL do Supabase
+        const ciudadBuscar = zonaParseada.ciudad;
+        const regionBuscar = zonaParseada.region;
+        
+        if (ciudadBuscar) {
+          // Busca segura: apenas nome da cidade, sem vírgulas ou texto adicional
+          query = query.or(
+            `ciudad.ilike.%${ciudadBuscar}%,region.ilike.%${ciudadBuscar}%`
+          );
+          console.log('[meta-lead-webhook] Buscando por cidade:', ciudadBuscar);
+        } else if (regionBuscar) {
+          query = query.or(
+            `ciudad.ilike.%${regionBuscar}%,region.ilike.%${regionBuscar}%`
+          );
+          console.log('[meta-lead-webhook] Buscando por região:', regionBuscar);
+        } else {
+          console.log('[meta-lead-webhook] Sem filtro de localização, busca geral');
+        }
         
         // Filtrar por habitaciones se especificado
         if (data.habitaciones) {
@@ -557,8 +601,7 @@ Deno.serve(async (req) => {
     // 7. Salvar lead no banco
     let leadId = null;
     
-    // Parsear zona de interesse para extrair cidade
-    const zonaParseada = parseZonaInteres(data.zona_interes);
+    // zonaParseada já foi definido antes (na busca de imóveis)
     
     // Montar notas com informações de qualificação
     const notasLead = [
