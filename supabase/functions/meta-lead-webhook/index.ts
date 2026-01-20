@@ -687,6 +687,7 @@ Deno.serve(async (req) => {
             lead_zona_interes: data.zona_interes || null,
             lead_habitaciones: data.habitaciones || null,
             lead_ingresos_estimados: ingresos,
+            lead_ingresos_mensuales: ingresos, // Campo explícito para Make/Bitrix
             lead_deudas_mensuales: deudas,
             lead_preferencia_llamada: data.preferencia_llamada || null,
             
@@ -719,16 +720,16 @@ Deno.serve(async (req) => {
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
             sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
             
-            // Recomendações (achatadas - até 3) - LINKS INTERNOS DO INVENTÁRIO
+            // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
             recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
             recom_1_precio: recom[0]?.precio || null,
-            recom_1_url: recom[0]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[0].id}` : null,
+            recom_1_url: recom[0]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[0].id}` : null,
             recom_2_titulo: recom[1]?.titulo || recom[1] ? `${recom[1]?.quartos || '?'} hab en ${recom[1]?.ciudad}` : null,
             recom_2_precio: recom[1]?.precio || null,
-            recom_2_url: recom[1]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[1].id}` : null,
+            recom_2_url: recom[1]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[1].id}` : null,
             recom_3_titulo: recom[2]?.titulo || recom[2] ? `${recom[2]?.quartos || '?'} hab en ${recom[2]?.ciudad}` : null,
             recom_3_precio: recom[2]?.precio || null,
-            recom_3_url: recom[2]?.id ? `https://tu-hogar-vista.lovable.app/producto/${recom[2].id}` : null,
+            recom_3_url: recom[2]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[2].id}` : null,
             
             // URL do CRM
             crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`

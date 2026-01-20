@@ -436,6 +436,9 @@ Deno.serve(async (req) => {
         lead_ciudad_interes: lead.ciudad_interes || '',
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
         
+        // Ingresos mensuales - campo fundamental para simuladores
+        lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+        
         // Campos extraídos das notas (Meta Ads)
         lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
         meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
@@ -467,13 +470,13 @@ Deno.serve(async (req) => {
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
-      // Add recommendations with INTERNAL INVENTORY LINKS
+      // Add recommendations with INVENTORY VERCEL LINKS
       recomendaciones.forEach((rec, index) => {
         const num = index + 1;
         payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
         payload[`recom_${num}_precio`] = rec.precio;
-        // Use internal inventory link instead of external URL
-        payload[`recom_${num}_url`] = rec.id ? `https://tu-hogar-vista.lovable.app/producto/${rec.id}` : '';
+        // Use Vercel inventory link
+        payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
       });
 
       const result = await sendToMake(webhookUrl, payload);
