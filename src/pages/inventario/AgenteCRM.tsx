@@ -127,7 +127,7 @@ const AgenteCRM = () => {
         </div>
       </header>
 
-      <main className="w-full px-2 sm:px-4 py-4 sm:py-6 overflow-hidden">
+      <main className="w-full py-4 sm:py-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="relative">
