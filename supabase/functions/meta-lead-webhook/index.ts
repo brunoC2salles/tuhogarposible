@@ -582,11 +582,10 @@ Deno.serve(async (req) => {
           ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
           zona_interes: data.zona_interes || null,
           valor_inmueble_deseado: null, // Será preenchido quando um imóvel for vinculado
-          agente_asignado_id: agenteAsignado?.id || null,
-          // NOVO: Todos os leads do Meta Ads vão para 'nuevo_lead' para revisão manual
-          stage: 'nuevo_lead',
-          // NOVO: Source específico para Meta Ads
-          source: 'meta_ads',
+        agente_asignado_id: agenteAsignado?.id || null,
+        // Leads não qualificados vão direto para 'no_cualificado'
+        stage: qualificacao.cualificado ? 'nuevo_lead' : 'no_cualificado',
+        source: 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonal,
           simulador_hipotecario_data: simulacionHipotecaria
