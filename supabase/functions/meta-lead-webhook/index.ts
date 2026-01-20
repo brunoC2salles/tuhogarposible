@@ -639,11 +639,14 @@ Deno.serve(async (req) => {
         precio: inm.precio,
         habitaciones: inm.quartos,
         ciudad: inm.ciudad,
+        // URL do inventário Vercel (NUNCA link do CRM aqui)
+        url: `https://inventariotuhogarposible.vercel.app/produto/${inm.id}`,
         url_externa: inm.url_externa,
         image_url: inm.image_url
       })),
       
-      recomendaciones_url: leadId 
+      // URL do CRM para gestão do lead (NÃO É RECOMENDAÇÃO DE IMÓVEL)
+      crm_url: leadId 
         ? `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
         : null,
       
