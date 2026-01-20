@@ -55,17 +55,11 @@ export const LeadKanban = ({
   const isNoCualificado = (stage: LeadStage) => stage === 'no_cualificado';
   const isNuevoLead = (stage: LeadStage) => stage === 'nuevo_lead';
 
-  // Filtrar estágios que têm leads ou estão sendo arrastados
-  const visibleStages = STAGE_ORDER.filter((stage) => {
-    const stageLeads = getLeadsByStage(stage);
-    return stageLeads.length > 0 || dragOverStage === stage;
-  });
-
   return (
     <div className="w-full overflow-x-auto pb-4">
-      {/* Container horizontal com colunas lado a lado */}
+      {/* Container horizontal com colunas lado a lado - TODAS as etapas sempre visíveis */}
       <div className="flex gap-4 min-w-max">
-        {visibleStages.map((stage) => {
+        {STAGE_ORDER.map((stage) => {
           const stageLeads = getLeadsByStage(stage);
           const isDragOver = dragOverStage === stage;
           const isNoCualificadoColumn = isNoCualificado(stage);
@@ -130,10 +124,13 @@ export const LeadKanban = ({
                   </div>
                 ))}
                 
-                {/* Placeholder quando vazio mas arrastando */}
-                {stageLeads.length === 0 && isDragOver && (
-                  <div className="h-24 border-2 border-dashed border-primary/50 rounded-lg flex items-center justify-center text-sm text-muted-foreground">
-                    Soltar aquí
+                {/* Placeholder quando vazio */}
+                {stageLeads.length === 0 && (
+                  <div className={cn(
+                    "h-24 border-2 border-dashed rounded-lg flex items-center justify-center text-sm text-muted-foreground",
+                    isDragOver ? "border-primary/50 bg-primary/5" : "border-muted"
+                  )}>
+                    {isDragOver ? "Soltar aquí" : "Sin leads"}
                   </div>
                 )}
               </div>
