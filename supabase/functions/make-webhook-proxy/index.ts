@@ -339,17 +339,18 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last lead
+      // Get last QUALIFIED lead (excluding no_cualificado)
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
+        .neq('stage', 'no_cualificado')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
       if (leadError || !lead) {
         return new Response(
-          JSON.stringify({ success: false, error: 'No leads found in CRM' }),
+          JSON.stringify({ success: false, error: 'No qualified leads found in CRM (all leads may be disqualified)' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

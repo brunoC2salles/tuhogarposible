@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
-import { Ban, Sparkles, ChevronDown, ChevronRight } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Ban, Sparkles } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -24,22 +23,9 @@ export const LeadKanban = ({
 }: LeadKanbanProps) => {
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
-  const [collapsedStages, setCollapsedStages] = useState<Set<LeadStage>>(new Set());
 
   const getLeadsByStage = (stage: LeadStage) => {
     return leads.filter((lead) => lead.stage === stage);
-  };
-
-  const toggleStageCollapse = (stage: LeadStage) => {
-    setCollapsedStages(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(stage)) {
-        newSet.delete(stage);
-      } else {
-        newSet.add(stage);
-      }
-      return newSet;
-    });
   };
 
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
@@ -69,29 +55,27 @@ export const LeadKanban = ({
   const isNoCualificado = (stage: LeadStage) => stage === 'no_cualificado';
   const isNuevoLead = (stage: LeadStage) => stage === 'nuevo_lead';
 
+  // Filtrar estágios que têm leads ou estão sendo arrastados
+  const visibleStages = STAGE_ORDER.filter((stage) => {
+    const stageLeads = getLeadsByStage(stage);
+    return stageLeads.length > 0 || dragOverStage === stage;
+  });
+
   return (
-    <div className="w-full space-y-4">
-      {STAGE_ORDER.map((stage) => {
-        const stageLeads = getLeadsByStage(stage);
-        const isDragOver = dragOverStage === stage;
-        const isNoCualificadoColumn = isNoCualificado(stage);
-        const isNuevoLeadColumn = isNuevoLead(stage);
-        const isCollapsed = collapsedStages.has(stage);
+    <div className="w-full overflow-x-auto pb-4">
+      {/* Container horizontal com colunas lado a lado */}
+      <div className="flex gap-4 min-w-max">
+        {visibleStages.map((stage) => {
+          const stageLeads = getLeadsByStage(stage);
+          const isDragOver = dragOverStage === stage;
+          const isNoCualificadoColumn = isNoCualificado(stage);
+          const isNuevoLeadColumn = isNuevoLead(stage);
 
-        // Não mostrar estágios vazios (exceto se está arrastando para ele)
-        if (stageLeads.length === 0 && !isDragOver) {
-          return null;
-        }
-
-        return (
-          <Collapsible 
-            key={stage} 
-            open={!isCollapsed}
-            onOpenChange={() => toggleStageCollapse(stage)}
-          >
+          return (
             <div
+              key={stage}
               className={cn(
-                'rounded-lg border transition-colors',
+                'w-72 flex-shrink-0 rounded-lg border transition-colors',
                 isNoCualificadoColumn && 'border-destructive/30 bg-destructive/5',
                 isNuevoLeadColumn && 'border-primary/30 bg-primary/5',
                 isDragOver && 'border-primary bg-primary/10',
@@ -101,68 +85,62 @@ export const LeadKanban = ({
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, stage)}
             >
-              {/* Cabeçalho do estágio */}
-              <CollapsibleTrigger asChild>
-                <div 
-                  className={cn(
-                    "flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 rounded-t-lg",
-                    isNoCualificadoColumn && "text-destructive",
-                    isNuevoLeadColumn && "text-primary"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    {isCollapsed ? (
-                      <ChevronRight className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                    {isNoCualificadoColumn && <Ban className="h-4 w-4" />}
-                    {isNuevoLeadColumn && <Sparkles className="h-4 w-4" />}
-                    <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
-                  </div>
-                  <span className={cn(
-                    "text-xs px-2 py-1 rounded-full font-medium",
-                    isNoCualificadoColumn 
-                      ? "bg-destructive/10 text-destructive" 
-                      : isNuevoLeadColumn
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground bg-muted"
-                  )}>
-                    {stageLeads.length}
-                  </span>
+              {/* Cabeçalho fixo do estágio */}
+              <div 
+                className={cn(
+                  "sticky top-0 z-10 flex items-center justify-between p-3 rounded-t-lg border-b bg-inherit",
+                  isNoCualificadoColumn && "text-destructive border-destructive/20",
+                  isNuevoLeadColumn && "text-primary border-primary/20",
+                  !isNoCualificadoColumn && !isNuevoLeadColumn && "border-border"
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {isNoCualificadoColumn && <Ban className="h-4 w-4" />}
+                  {isNuevoLeadColumn && <Sparkles className="h-4 w-4" />}
+                  <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
                 </div>
-              </CollapsibleTrigger>
+                <span className={cn(
+                  "text-xs px-2 py-1 rounded-full font-medium",
+                  isNoCualificadoColumn 
+                    ? "bg-destructive/10 text-destructive" 
+                    : isNuevoLeadColumn
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground bg-muted"
+                )}>
+                  {stageLeads.length}
+                </span>
+              </div>
 
-              {/* Grid de cards */}
-              <CollapsibleContent>
-                <div 
-                  className={cn(
-                    'p-3 pt-0 grid gap-3',
-                    'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-                  )}
-                >
-                  {stageLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, lead.id)}
-                      className="cursor-move"
-                    >
-                      <LeadCard
-                        lead={lead}
-                        onViewDetails={onViewDetails}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        onDisqualify={onDisqualify}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </CollapsibleContent>
+              {/* Cards crescem verticalmente - sem scroll interno */}
+              <div className="p-3 space-y-3">
+                {stageLeads.map((lead) => (
+                  <div
+                    key={lead.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, lead.id)}
+                    className="cursor-move"
+                  >
+                    <LeadCard
+                      lead={lead}
+                      onViewDetails={onViewDetails}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                      onDisqualify={onDisqualify}
+                    />
+                  </div>
+                ))}
+                
+                {/* Placeholder quando vazio mas arrastando */}
+                {stageLeads.length === 0 && isDragOver && (
+                  <div className="h-24 border-2 border-dashed border-primary/50 rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+                    Soltar aquí
+                  </div>
+                )}
+              </div>
             </div>
-          </Collapsible>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
