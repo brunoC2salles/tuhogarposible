@@ -50,17 +50,19 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Determinar turno: usar override se fornecido, senão calcular automaticamente
-    const turnoActual = turnoOverride || getTurnoActual();
-    console.log(`[Round-Robin] Región: ${region}, Turno: ${turnoActual}, ConsiderarTurno: ${considerarTurno}, Override: ${turnoOverride || 'none'}`);
+    // CORREÇÃO: Só filtrar por turno se o lead especificou preferência (turnoOverride)
+    // Se não há preferência, usar round-robin puro com TODOS os agentes ativos
+    const deveConsiderarTurno = considerarTurno && !!turnoOverride;
+    const turnoParaFiltrar = turnoOverride || null;
+    
+    console.log(`[Round-Robin] Región: ${region}, TurnoOverride: ${turnoOverride || 'none'}, Filtrar por turno: ${deveConsiderarTurno}`);
 
-    // 1. Buscar agentes disponíveis da região
+    // 1. Buscar agentes disponíveis da região (CORREÇÃO: removido filtro de tidycal_url)
     let query = supabaseAdmin
       .from('profiles')
       .select('id, nombre, email, tidycal_url, telefono, disponibilidad')
       .eq('activo', true)
       .eq('region_round_robin', region)
-      .not('tidycal_url', 'is', null)
       .order('nombre');
 
     const { data: allAgents, error: agentsError } = await query;
@@ -77,19 +79,24 @@ Deno.serve(async (req) => {
       )
     }
 
-    // 2. Filtrar por turno de disponibilidad (si considerarTurno = true)
+    // 2. Filtrar por turno APENAS se lead especificou preferência de horário
     let agents = allAgents;
-    if (considerarTurno) {
+    
+    if (deveConsiderarTurno && turnoParaFiltrar) {
       agents = allAgents.filter(agent => {
         const disponibilidad = agent.disponibilidad || ['mañana', 'tarde', 'noche'];
-        return disponibilidad.includes(turnoActual);
+        return disponibilidad.includes(turnoParaFiltrar);
       });
       
-      // Se nenhum agente disponível no turno, usar todos (fallback)
+      // Fallback: se nenhum agente disponível no turno preferido, usar todos
       if (agents.length === 0) {
-        console.warn(`[Round-Robin] No agents available in turno ${turnoActual}, using all agents`);
+        console.warn(`[Round-Robin] No agents available in turno ${turnoParaFiltrar}, using all agents`);
         agents = allAgents;
       }
+      
+      console.log(`[Round-Robin] Agents após filtro turno ${turnoParaFiltrar}: ${agents.length}`);
+    } else {
+      console.log(`[Round-Robin] Round-robin puro (sem filtro de turno): ${agents.length} agentes`);
     }
 
     console.log(`[Round-Robin] Agents disponíveis: ${agents.length} de ${allAgents.length}`);
