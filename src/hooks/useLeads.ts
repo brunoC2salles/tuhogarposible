@@ -214,6 +214,28 @@ export const useLeads = () => {
     }
   };
 
+  // Dispara webhook ao Make.com/Bitrix24 após atribuição manual de agente
+  const triggerAgentAssignmentWebhook = async (leadId: string, agenteId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { 
+          action: 'send_lead_assignment',
+          lead_id: leadId,
+          agente_id: agenteId
+        }
+      });
+
+      if (error) {
+        console.error('[Webhook] Erro ao enviar webhook de atribuição:', error);
+      } else {
+        console.log('[Webhook] Assignment webhook enviado:', data);
+      }
+    } catch (err) {
+      console.error('[Webhook] Exceção no webhook de atribuição:', err);
+      // Não bloquear o fluxo principal
+    }
+  };
+
   const reassignLead = async (leadId: string, newAgenteId: string) => {
     if (!isAdmin) {
       toast.error('Solo administradores pueden reasignar leads');
@@ -227,6 +249,9 @@ export const useLeads = () => {
         .eq('id', leadId);
 
       if (error) throw error;
+
+      // Disparar webhook para Make.com/Bitrix24 (async, não bloqueia)
+      triggerAgentAssignmentWebhook(leadId, newAgenteId);
 
       toast.success('Lead reasignado exitosamente');
       await fetchLeads();

@@ -494,6 +494,152 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ============================================
+    // ACTION: send_lead_assignment
+    // Dispara webhook quando agente é atribuído manualmente
+    // ============================================
+    if (action === 'send_lead_assignment') {
+      const { lead_id, agente_id } = await req.json().catch(() => ({}));
+      
+      // Re-parse body since we already consumed it
+      const body = { action, lead_id, agente_id };
+      
+      if (!body.lead_id || !body.agente_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'lead_id e agente_id são obrigatórios' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get webhook URL (Meta/Bitrix)
+      const { data: config } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_meta_bitrix_url')
+        .single();
+
+      const webhookUrl = config?.value;
+      
+      if (!webhookUrl || !isValidWebhookUrl(webhookUrl)) {
+        console.log('[make-webhook-proxy] Meta Bitrix webhook not configured, skipping');
+        return new Response(
+          JSON.stringify({ success: false, error: 'Webhook Meta/Bitrix não configurado' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get lead data
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', body.lead_id)
+        .single();
+
+      if (leadError || !lead) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Lead não encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get agent data
+      const { data: agente, error: agenteError } = await supabase
+        .from('profiles')
+        .select('id, nombre, email, telefono, tidycal_url')
+        .eq('id', body.agente_id)
+        .single();
+
+      if (agenteError || !agente) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Agente não encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get recommendations
+      let recomendaciones: any[] = [];
+      const { data: linkedInmuebles } = await supabase
+        .from('lead_inmuebles')
+        .select('inmueble_id')
+        .eq('lead_id', body.lead_id)
+        .limit(5);
+
+      if (linkedInmuebles && linkedInmuebles.length > 0) {
+        const inmuebleIds = linkedInmuebles.map(li => li.inmueble_id);
+        const { data: inmuebles } = await supabase
+          .from('inmuebles')
+          .select('id, titulo, precio, ciudad, direccion')
+          .in('id', inmuebleIds);
+        recomendaciones = inmuebles || [];
+      }
+
+      // Get simulation data
+      const simPersonal = lead.simulador_personal_data as any || {};
+      const simHipoteca = lead.simulador_hipotecario_data as any || {};
+
+      // Build payload (same format as meta-lead-webhook)
+      const payload: Record<string, any> = {
+        source: 'manual_assignment',
+        assignment_type: 'manual',
+        timestamp: new Date().toISOString(),
+        lead_id: lead.id,
+        cualificado: lead.stage !== 'no_cualificado' ? 'true' : 'false',
+        
+        lead_nombre: lead.nombre_completo,
+        lead_telefono: lead.telefono,
+        lead_email: lead.email,
+        lead_zona_interes: lead.zona_interes || '',
+        lead_ciudad_interes: lead.ciudad_interes || '',
+        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+        lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+        
+        agente_id: agente.id,
+        agente_nombre: agente.nombre,
+        agente_email: agente.email,
+        agente_telefono: agente.telefono || '',
+        
+        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
+        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
+        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
+        
+        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
+      };
+
+      // Add recommendations
+      recomendaciones.forEach((rec, index) => {
+        const num = index + 1;
+        payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
+        payload[`recom_${num}_precio`] = rec.precio;
+        payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
+      });
+
+      const result = await sendToMake(webhookUrl, payload);
+
+      // Log result
+      await supabase.from('webhook_logs').insert({
+        webhook_url: webhookUrl,
+        status: result.success ? 'success' : 'error',
+        error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
+        payload: payload as any,
+      });
+
+      console.log(`[make-webhook-proxy] Manual assignment webhook sent for lead ${lead.id}: ${result.success ? 'success' : 'failed'}`);
+
+      return new Response(
+        JSON.stringify({ 
+          success: result.success, 
+          http_status: result.status,
+          lead_id: lead.id,
+          agente_nombre: agente.nombre,
+          message: result.success ? 'Assignment webhook sent successfully' : `Failed: HTTP ${result.status}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: 'Unknown action' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
