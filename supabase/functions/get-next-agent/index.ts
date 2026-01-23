@@ -121,7 +121,7 @@ Deno.serve(async (req) => {
 
     const nextAgent = agents[nextAgentIndex]
 
-    console.log(`[Round-Robin] Próximo agente: ${nextAgent.nombre} (turno: ${turnoActual})`);
+    console.log(`[Round-Robin] Próximo agente: ${nextAgent.nombre} (turno preferido: ${turnoParaFiltrar || 'cualquiera'})`);
 
     // 5. Atualizar tracking
     const { error: updateError } = await supabaseAdmin
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
         nombre: nextAgent.nombre,
         telefono: nextAgent.telefono,
         email: nextAgent.email,
-        turno_asignado: turnoActual,
+        turno_asignado: turnoParaFiltrar || 'cualquiera',
         // Formato alternativo para meta-lead-webhook
         agente: {
           id: nextAgent.id,
