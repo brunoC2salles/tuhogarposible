@@ -97,9 +97,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { action, submission_id } = await req.json();
+    const body = await req.json();
+    const { action, submission_id, lead_id, agente_id } = body;
     
-    console.log('[make-webhook-proxy] Action:', action, 'Submission ID:', submission_id);
+    console.log('[make-webhook-proxy] Action:', action, 'Body keys:', Object.keys(body).join(', '));
 
     // ============================================
     // ACTION: send_qualified_submission
@@ -499,12 +500,8 @@ Deno.serve(async (req) => {
     // Dispara webhook quando agente é atribuído manualmente
     // ============================================
     if (action === 'send_lead_assignment') {
-      const { lead_id, agente_id } = await req.json().catch(() => ({}));
-      
-      // Re-parse body since we already consumed it
-      const body = { action, lead_id, agente_id };
-      
-      if (!body.lead_id || !body.agente_id) {
+      // lead_id e agente_id já foram extraídos do body inicial
+      if (!lead_id || !agente_id) {
         return new Response(
           JSON.stringify({ success: false, error: 'lead_id e agente_id são obrigatórios' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -532,7 +529,7 @@ Deno.serve(async (req) => {
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
-        .eq('id', body.lead_id)
+        .eq('id', lead_id)
         .single();
 
       if (leadError || !lead) {
@@ -546,7 +543,7 @@ Deno.serve(async (req) => {
       const { data: agente, error: agenteError } = await supabase
         .from('profiles')
         .select('id, nombre, email, telefono, tidycal_url')
-        .eq('id', body.agente_id)
+        .eq('id', agente_id)
         .single();
 
       if (agenteError || !agente) {
@@ -561,7 +558,7 @@ Deno.serve(async (req) => {
       const { data: linkedInmuebles } = await supabase
         .from('lead_inmuebles')
         .select('inmueble_id')
-        .eq('lead_id', body.lead_id)
+        .eq('lead_id', lead_id)
         .limit(5);
 
       if (linkedInmuebles && linkedInmuebles.length > 0) {
