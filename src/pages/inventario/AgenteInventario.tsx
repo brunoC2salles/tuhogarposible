@@ -9,7 +9,7 @@ import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessagesSquare, Search } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -31,7 +31,6 @@ const getWeekNumber = (date: Date): number => {
 };
 
 const contarMaxVisitasPorSemana = (visitas: DatabaseReserva[]): number => {
-  // Agrupar visitas por semana
   const visitasPorSemana: Record<string, number> = {};
   
   visitas.forEach(v => {
@@ -40,12 +39,11 @@ const contarMaxVisitasPorSemana = (visitas: DatabaseReserva[]): number => {
     const visitaDate = new Date(v.fecha_visita);
     const semana = getWeekNumber(visitaDate);
     const ano = visitaDate.getFullYear();
-    const chave = `${ano}-W${semana}`; // Ex: "2025-W42"
+    const chave = `${ano}-W${semana}`;
     
     visitasPorSemana[chave] = (visitasPorSemana[chave] || 0) + 1;
   });
   
-  // Retornar o máximo de visitas em qualquer semana
   const maxVisitas = Math.max(0, ...Object.values(visitasPorSemana));
   return maxVisitas;
 };
@@ -65,7 +63,6 @@ const AgenteInventario = () => {
   const [allCiudades, setAllCiudades] = useState<string[]>([]);
   const [allTipos, setAllTipos] = useState<string[]>([]);
   
-  // Memoizar cálculos pesados para evitar loops infinitos
   const ciudadesDisponibles = useMemo(() => {
     const allCities = allCiudades.length > 0 ? allCiudades : Array.from(new Set(inmuebles.map(i => i.ciudad)));
     return allCities.sort();
@@ -76,19 +73,16 @@ const AgenteInventario = () => {
     return allTypes.sort();
   }, [allTipos, inmuebles.length]);
 
-  // ✅ FASE 2: Hash estável para IDs dos imóveis filtrados
   const inmuebleIdsHash = useMemo(
     () => inmueblesFiltrados.map(i => i.id).sort().join(','),
     [inmueblesFiltrados.length]
   );
 
-  // ✅ FASE 2: Hash estável para filtros ativos
   const filtrosActivosHash = useMemo(
     () => JSON.stringify(filtrosActivos),
     [filtrosActivos.ciudad, filtrosActivos.tipo, filtrosActivos.precioMin, filtrosActivos.precioMax, filtrosActivos.quartos]
   );
 
-  // Carregar cidades e tipos distintos do banco (apenas 1x)
   useEffect(() => {
     const fetchDistinctValues = async () => {
       try {
@@ -115,9 +109,8 @@ const AgenteInventario = () => {
     };
     
     fetchDistinctValues();
-  }, []); // Apenas 1x ao montar
+  }, []);
 
-  // Debounce para search term (evita filtrar a cada tecla)
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -126,7 +119,6 @@ const AgenteInventario = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Fetch inmuebles with filters (memoizado para estabilidade)
   const fetchInmueblesWithFilters = useCallback(async () => {
     try {
       let query = supabase
@@ -135,23 +127,19 @@ const AgenteInventario = () => {
         .eq('disponible', true)
         .order('created_at', { ascending: false });
 
-      // Global search
       if (debouncedSearchTerm.trim()) {
         const searchLower = `%${debouncedSearchTerm.toLowerCase()}%`;
         query = query.or(`ciudad.ilike.${searchLower},direccion.ilike.${searchLower},region.ilike.${searchLower},titulo.ilike.${searchLower},codigo_inventario.ilike.${searchLower}`);
       }
 
-      // City filter
       if (filtrosActivos.ciudad) {
         query = query.eq('ciudad', filtrosActivos.ciudad);
       }
 
-      // Type filter
       if (filtrosActivos.tipo) {
         query = query.eq('tipo', filtrosActivos.tipo as any);
       }
 
-      // Price filter - aplicar min y max de forma independiente
       if (filtrosActivos.precioMin !== undefined) {
         query = query.gte('precio', filtrosActivos.precioMin);
       }
@@ -160,12 +148,10 @@ const AgenteInventario = () => {
         query = query.lte('precio', filtrosActivos.precioMax);
       }
 
-      // Rooms filter
       if (filtrosActivos.quartos) {
         query = query.gte('quartos', filtrosActivos.quartos);
       }
 
-      // Pagination
       const start = (currentPage - 1) * itemsPerPage;
       const end = start + itemsPerPage - 1;
       query = query.range(start, end);
@@ -175,11 +161,9 @@ const AgenteInventario = () => {
       if (error) {
         console.error("[Inventario] Query error:", error);
         toast.error("Error al filtrar inmuebles");
-        // NÃO limpar dados existentes em caso de erro
         return;
       }
       
-      // Garantir que data nunca seja null - Convert Json type to string[] for images
       const converted = (data || []).map(item => ({
         ...item,
         images: Array.isArray(item.images) ? item.images as string[] : undefined
@@ -192,21 +176,18 @@ const AgenteInventario = () => {
     } catch (err) {
       console.error("[Inventario] Exception:", err);
       toast.error("Error al aplicar filtros");
-      // Manter dados existentes, não limpar
     }
   }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash]);
 
-  // Fetch initial data (depende de fetchInmueblesWithFilters que é estável via useCallback)
   useEffect(() => {
     console.log('🔵 [Debug] AgenteInventario - useEffect fetchInmueblesWithFilters disparado');
     fetchInmueblesWithFilters();
   }, [fetchInmueblesWithFilters]);
 
-  // Memoizar handler para evitar recriação
   const handleFiltrosChange = useCallback((filtros: FiltrosBusqueda) => {
     setFiltrosActivos(filtros);
-    setSearchTerm(""); // ✅ Limpar pesquisa ao mudar filtros
-    setCurrentPage(1); // Reset para primeira página
+    setSearchTerm("");
+    setCurrentPage(1);
   }, []);
 
   const handleSolicitarVisita = async (inmuebleId: string, fecha: string, hora: string) => {
@@ -219,12 +200,10 @@ const AgenteInventario = () => {
     });
   };
 
-  // Server-side pagination calculations
   const totalPages = Math.ceil(totalInmuebles / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = Math.min(startIndex + itemsPerPage, totalInmuebles);
 
-  // Fetch visits quando mudar página ou lista (otimizado para não recriar arrays)
   useEffect(() => {
     console.log('🟢 [Debug] AgenteInventario - useEffect cargarVisitas disparado');
     const cargarVisitas = async () => {
@@ -236,7 +215,6 @@ const AgenteInventario = () => {
       try {
         const inmuebleIds = inmueblesFiltrados.map(i => i.id);
         
-        // Single query for all properties on current page
         const { data, error } = await supabase
           .from('reservas')
           .select('*')
@@ -248,7 +226,6 @@ const AgenteInventario = () => {
           return;
         }
         
-        // Map visits by property ID
         const visitasMap: Record<string, DatabaseReserva[]> = {};
         inmuebleIds.forEach(id => visitasMap[id] = []);
         
@@ -304,12 +281,6 @@ const AgenteInventario = () => {
 
             {/* Botões Desktop */}
             <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              <Link to="/chat">
-                <Button variant="outline" size="sm">
-                  <MessagesSquare className="w-4 h-4 mr-2" />
-                  Chat
-                </Button>
-              </Link>
               <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
                   <Button size="sm">
                     <ExternalLink className="w-4 h-4 mr-2" />
@@ -342,12 +313,6 @@ const AgenteInventario = () => {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem asChild>
-                      <Link to="/chat" className="flex items-center cursor-pointer">
-                        <MessagesSquare className="w-4 h-4 mr-2" />
-                        Chat
-                      </Link>
-                    </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
                         <UserCircle className="w-4 h-4 mr-2" />
@@ -443,129 +408,78 @@ const AgenteInventario = () => {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {loading ? (
-                  // Loading skeletons
                   Array.from({ length: 12 }).map((_, i) => (
                     <Card key={i} className="overflow-hidden">
                       <CardContent className="p-6">
-                        <Skeleton className="h-6 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-full mb-4" />
-                        <Skeleton className="h-4 w-1/2 mb-2" />
-                        <Skeleton className="h-4 w-2/3" />
+                        <Skeleton className="h-48 w-full mb-4" />
+                        <Skeleton className="h-4 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-1/2" />
                       </CardContent>
                     </Card>
                   ))
                 ) : (
-                  inmueblesFiltrados.map((inmueble) => {
-                    const visitasInmueble = visitasPorInmueble[inmueble.id] || [];
-                    const visitasSemana = contarMaxVisitasPorSemana(visitasInmueble);
-                    
-                    return (
-                  <InmuebleCard
-                    key={inmueble.id}
-                    inmueble={{
-                      id: inmueble.id,
-                      ciudad: inmueble.ciudad,
-                      region: inmueble.region,
-                      tipo: inmueble.tipo,
-                      precio: inmueble.precio,
-                      direccion: inmueble.direccion,
-                      proveedor: inmueble.proveedor,
-                      disponible: inmueble.disponible,
-                      fechaCreacion: new Date(inmueble.created_at),
-                      agenteAsignado: inmueble.agente_asignado,
-                      titulo: inmueble.titulo || undefined,
-                      quartos: inmueble.quartos || undefined,
-                      banheiros: inmueble.banheiros || undefined,
-                      areaM2: inmueble.area_m2 || undefined,
-                      urlExterna: inmueble.url_externa || undefined,
-                      imageUrl: inmueble.image_url || undefined,
-                      codigoInventario: inmueble.codigo_inventario || undefined,
-                    }}
-                    onSolicitarVisita={handleSolicitarVisita}
-                    visitasAgendadas={visitasSemana}
-                    visitasExistentes={visitasInmueble}
-                  />
-                    );
-                  })
+                  inmueblesFiltrados.map((inmueble) => (
+                    <InmuebleCard 
+                      key={inmueble.id} 
+                      inmueble={{
+                        ...inmueble,
+                        fechaCreacion: new Date(inmueble.created_at),
+                        agenteAsignado: inmueble.agente_asignado || undefined,
+                        titulo: inmueble.titulo || undefined,
+                        imageUrl: inmueble.image_url || undefined,
+                        urlExterna: inmueble.url_externa || undefined,
+                        areaM2: inmueble.area_m2 ? Number(inmueble.area_m2) : undefined,
+                        codigoInventario: inmueble.codigo_inventario || undefined,
+                      }}
+                      onSolicitarVisita={handleSolicitarVisita}
+                      visitasAgendadas={contarMaxVisitasPorSemana(visitasPorInmueble[inmueble.id] || [])}
+                      visitasExistentes={visitasPorInmueble[inmueble.id] || []}
+                    />
+                  ))
                 )}
               </div>
 
-              {/* Card Productos Adicionales */}
-              <a 
-                href="https://es.casafari.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="block mt-6"
-              >
-                <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 hover:shadow-lg transition-all cursor-pointer group">
-                  <CardContent className="p-6 flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-primary mb-1">
-                        Productos adicionales
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Si no puede encontrar el producto adecuado, haga clic aquí.
-                      </p>
-                    </div>
-                    <div className="text-primary group-hover:translate-x-1 transition-transform">
-                      <ExternalLink className="h-6 w-6" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </a>
-
-            {/* Paginação */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-8">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Anterior
-                </Button>
-                
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(page => {
-                      // Mostrar primeira, última e páginas próximas à atual
-                      return page === 1 || 
-                             page === totalPages || 
-                             (page >= currentPage - 1 && page <= currentPage + 1);
-                    })
-                    .map((page, index, array) => (
-                      <React.Fragment key={`page-${page}`}>
-                        {index > 0 && array[index - 1] !== page - 1 && (
-                          <span className="px-2 text-muted-foreground">...</span>
-                        )}
-                        <Button
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                          className="min-w-9"
-                        >
-                          {page}
-                        </Button>
-                      </React.Fragment>
-                    ))
-                  }
+              {/* Paginação */}
+              {totalPages > 1 && (
+                <div className="mt-8 flex justify-center items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Siguiente
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Siguiente
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </>
+              )}
+            </>
         )}
+
+        {/* Link Produtos Adicionales */}
+        <div className="mt-8 text-center">
+          <a
+            href="https://crm.inmovilla.com/panel/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-primary hover:underline"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Ver productos adicionales en Inmovilla
+          </a>
+        </div>
       </main>
     </div>
   );
