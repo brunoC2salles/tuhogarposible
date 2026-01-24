@@ -18,8 +18,8 @@ verify_jwt = false
 [functions.scraping-status]
 verify_jwt = false
 
-[functions.trigger-abandonment-webhook]
+[functions.make-webhook-proxy]
 verify_jwt = false
 
-[functions.make-webhook-proxy]
+[functions.check-invoice-deadlines]
 verify_jwt = false

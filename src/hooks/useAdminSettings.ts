@@ -4,11 +4,11 @@ import { toast } from 'sonner';
 
 interface WebhookLog {
   id: string;
-  submission_id: string;
   webhook_url: string;
-  status: 'success' | 'error';
-  error_message?: string;
+  status: string;
+  error_message?: string | null;
   created_at: string;
+  payload?: unknown;
 }
 
 export const useAdminSettings = () => {
