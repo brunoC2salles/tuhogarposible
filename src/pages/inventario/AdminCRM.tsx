@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
@@ -12,21 +12,48 @@ const AdminCRM = () => {
 
   const [selectedAgent, setSelectedAgent] = useState<{ id: string; nombre: string } | null>(null);
 
-  const totalLeads = leads.length;
-  const leadsThisMonth = leads.filter(l => {
-    const created = new Date(l.created_at);
+  // OPTIMIZED: Memoize all metric calculations
+  const stats = useMemo(() => {
     const now = new Date();
-    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-  }).length;
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const totalLeads = leads.length;
+    const leadsThisMonth = leads.filter(l => {
+      const created = new Date(l.created_at);
+      return created.getMonth() === currentMonth && created.getFullYear() === currentYear;
+    }).length;
+    const leadsConvertidos = leads.filter(l => l.stage === 'finalizada').length;
+    const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
+    
+    return { totalLeads, leadsThisMonth, leadsConvertidos, tasaConversion };
+  }, [leads]);
 
-  const leadsConvertidos = leads.filter(l => l.stage === 'finalizada').length;
-  const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
+  // OPTIMIZED: Pre-index leads by agent for O(1) lookup
+  const leadsByAgentId = useMemo(() => {
+    const index = new Map<string, { total: number; active: number }>();
+    leads.forEach(lead => {
+      const agentId = lead.agente_asignado_id;
+      if (agentId) {
+        const current = index.get(agentId) || { total: 0, active: 0 };
+        current.total += 1;
+        if (lead.stage !== 'finalizada') {
+          current.active += 1;
+        }
+        index.set(agentId, current);
+      }
+    });
+    return index;
+  }, [leads]);
 
-  const leadsPorAgente = agentes.map(agente => ({
-    ...agente,
-    totalLeads: leads.filter(l => l.agente_asignado_id === agente.id).length,
-    leadsActivos: leads.filter(l => l.agente_asignado_id === agente.id && l.stage !== 'finalizada').length,
-  }));
+  const leadsPorAgente = useMemo(() => 
+    agentes.map(agente => ({
+      ...agente,
+      totalLeads: leadsByAgentId.get(agente.id)?.total || 0,
+      leadsActivos: leadsByAgentId.get(agente.id)?.active || 0,
+    })),
+    [agentes, leadsByAgentId]
+  );
 
   return (
     <AdminLayout>
@@ -42,8 +69,8 @@ const AdminCRM = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalLeads}</div>
-              <p className="text-xs text-muted-foreground">{leadsThisMonth} este mes</p>
+              <div className="text-2xl font-bold">{stats.totalLeads}</div>
+              <p className="text-xs text-muted-foreground">{stats.leadsThisMonth} este mes</p>
             </CardContent>
           </Card>
 
@@ -53,7 +80,7 @@ const AdminCRM = () => {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{leadsConvertidos}</div>
+              <div className="text-2xl font-bold">{stats.leadsConvertidos}</div>
               <p className="text-xs text-muted-foreground">Llegaron a "Listo!"</p>
             </CardContent>
           </Card>
@@ -64,7 +91,7 @@ const AdminCRM = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{tasaConversion}%</div>
+              <div className="text-2xl font-bold">{stats.tasaConversion}%</div>
               <p className="text-xs text-muted-foreground">De todos los leads</p>
             </CardContent>
           </Card>

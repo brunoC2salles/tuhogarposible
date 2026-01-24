@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { EditInmuebleModal } from "@/components/inventario/EditInmuebleModal";
 import { CreateReservaModal } from "@/components/inventario/CreateReservaModal";
-import { SearchBarAutocomplete } from "@/components/inventario/SearchBarAutocomplete";
+import { Search } from "lucide-react";
 import { ScrapingModal } from "@/components/inventario/ScrapingModal";
 import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
@@ -864,10 +864,15 @@ const AdminInventario = () => {
           {/* Inmuebles Tab */}
           <TabsContent value="inmuebles" className="space-y-6">
               <div className="mb-6">
-                <SearchBarAutocomplete
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                />
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 pointer-events-none" />
+                  <Input
+                    placeholder="Buscar por ciudad, dirección, región..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 h-12 text-base"
+                  />
+                </div>
                 {searchTerm && (
                   <div className="mt-2 flex items-center gap-2">
                     <Badge variant="secondary" className="text-sm">

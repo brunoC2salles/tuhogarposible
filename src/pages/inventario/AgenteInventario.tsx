@@ -83,26 +83,30 @@ const AgenteInventario = () => {
     [filtrosActivos.ciudad, filtrosActivos.tipo, filtrosActivos.precioMin, filtrosActivos.precioMax, filtrosActivos.quartos]
   );
 
+  // OPTIMIZED: Single RPC call for distinct filter values instead of 2 separate queries
   useEffect(() => {
     const fetchDistinctValues = async () => {
       try {
-        const { data: ciudadesData } = await supabase
-          .from('inmuebles')
-          .select('ciudad')
-          .eq('disponible', true);
+        const { data, error } = await supabase.rpc('get_distinct_filter_values');
         
-        const { data: tiposData } = await supabase
-          .from('inmuebles')
-          .select('tipo')
-          .eq('disponible', true);
-        
-        if (ciudadesData) {
-          setAllCiudades([...new Set(ciudadesData.map(i => i.ciudad))].sort());
+        if (error) {
+          console.error('[Inventario] RPC error, falling back:', error);
+          // Fallback to old method if RPC fails
+          const [ciudadesRes, tiposRes] = await Promise.all([
+            supabase.from('inmuebles').select('ciudad').eq('disponible', true),
+            supabase.from('inmuebles').select('tipo').eq('disponible', true)
+          ]);
+          if (ciudadesRes.data) setAllCiudades([...new Set(ciudadesRes.data.map(i => i.ciudad))].sort());
+          if (tiposRes.data) setAllTipos([...new Set(tiposRes.data.map(i => i.tipo))].sort());
+          return;
         }
         
-        if (tiposData) {
-          setAllTipos([...new Set(tiposData.map(i => i.tipo))].sort());
+        if (data && data[0]) {
+          setAllCiudades(data[0].ciudades || []);
+          setAllTipos(data[0].tipos || []);
         }
+        
+        console.log('[Inventario] Loaded filter values via RPC');
       } catch (err) {
         console.error('[Inventario] Error loading distinct values:', err);
       }
