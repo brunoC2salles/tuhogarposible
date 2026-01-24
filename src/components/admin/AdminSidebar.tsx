@@ -18,9 +18,6 @@ import {
   GraduationCap,
   DollarSign,
   Settings,
-  FileText,
-  PhoneOff,
-  MessageSquare,
 } from 'lucide-react';
 
 const menuItems = [
@@ -55,19 +52,6 @@ const menuItems = [
     group: 'Configuración',
     items: [
       { title: 'Settings', url: '/admin/settings', icon: Settings },
-      { title: 'Templates', url: '/admin/contract-templates', icon: FileText },
-    ],
-  },
-  {
-    group: 'Recuperación',
-    items: [
-      { title: 'Abandonos', url: '/admin/abandonos', icon: PhoneOff },
-    ],
-  },
-  {
-    group: 'Comunicación',
-    items: [
-      { title: 'Chat Interno', url: '/chat', icon: MessageSquare },
     ],
   },
 ];

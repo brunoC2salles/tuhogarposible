@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,13 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { FileText } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -24,7 +22,6 @@ import {
 } from '@/components/ui/select';
 
 const AdminSettings = () => {
-  const navigate = useNavigate();
   const { 
     webhookUrl, 
     metaBitrixWebhookUrl,
@@ -42,11 +39,8 @@ const AdminSettings = () => {
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
-  const [localAbandonosWebhookUrl, setLocalAbandonosWebhookUrl] = useState('');
-  const [localSlackChannelId, setLocalSlackChannelId] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
-  const [testingSlack, setTestingSlack] = useState(false);
   
   // Scraping states
   const [scrapingStats, setScrapingStats] = useState({
@@ -59,7 +53,6 @@ const AdminSettings = () => {
   const [scrapingProcessing, setScrapingProcessing] = useState(false);
   const [scrapingMessage, setScrapingMessage] = useState('');
 
-  // Atualizar local URLs quando carregadas
   useEffect(() => {
     if (webhookUrl && !localWebhookUrl) {
       setLocalWebhookUrl(webhookUrl);
@@ -72,11 +65,8 @@ const AdminSettings = () => {
     }
   }, [metaBitrixWebhookUrl]);
 
-  // Buscar stats de scraping ao carregar
   useEffect(() => {
     fetchScrapingStats();
-    fetchAbandonosWebhookUrl();
-    fetchSlackChannelId();
   }, []);
 
   const fetchScrapingStats = async () => {
@@ -90,96 +80,6 @@ const AdminSettings = () => {
     }
   };
 
-  const fetchAbandonosWebhookUrl = async () => {
-    try {
-      const { data } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'webhook_abandonos_url')
-        .single();
-      
-      if (data?.value) {
-        setLocalAbandonosWebhookUrl(data.value);
-      }
-    } catch (err) {
-      console.error('Error fetching abandonos webhook:', err);
-    }
-  };
-
-  const fetchSlackChannelId = async () => {
-    try {
-      const { data } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'slack_channel_id')
-        .single();
-      
-      if (data?.value) {
-        setLocalSlackChannelId(data.value);
-      }
-    } catch (err) {
-      console.error('Error fetching Slack channel:', err);
-    }
-  };
-
-  const saveAbandonosWebhookUrl = async () => {
-    try {
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert({
-          key: 'webhook_abandonos_url',
-          value: localAbandonosWebhookUrl,
-          description: 'URL del webhook Make.com para abandonos'
-        });
-
-      if (error) throw error;
-      toast.success('URL del webhook de abandonos guardada');
-    } catch (err: any) {
-      console.error('Error saving abandonos webhook:', err);
-      toast.error('Error al guardar URL');
-    }
-  };
-
-  const saveSlackChannelId = async () => {
-    try {
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert({
-          key: 'slack_channel_id',
-          value: localSlackChannelId,
-          description: 'ID del canal de Slack'
-        });
-
-      if (error) throw error;
-      toast.success('Channel ID de Slack guardado');
-    } catch (err: any) {
-      console.error('Error saving Slack channel:', err);
-      toast.error('Error al guardar Channel ID');
-    }
-  };
-
-  const testSlackConnection = async () => {
-    try {
-      setTestingSlack(true);
-      const { data, error } = await supabase.functions.invoke('slack-api', {
-        body: { action: 'get_messages' }
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        toast.success('Conexión con Slack exitosa');
-      } else {
-        toast.error('Error al conectar con Slack');
-      }
-    } catch (err: any) {
-      console.error('Error testing Slack:', err);
-      toast.error('Error al probar conexión');
-    } finally {
-      setTestingSlack(false);
-    }
-  };
-
   const handleProcessBatch = async () => {
     setScrapingProcessing(true);
     setScrapingMessage('');
@@ -190,7 +90,7 @@ const AdminSettings = () => {
       if (data?.success) {
         toast.success(`${data.processed} productos procesados exitosamente`);
         setScrapingMessage(data.message);
-        fetchScrapingStats(); // Atualizar stats
+        fetchScrapingStats();
       } else {
         toast.error('Error al procesar lote');
       }
@@ -227,18 +127,18 @@ const AdminSettings = () => {
     try {
       setExporting(true);
       
-      // Buscar submissions baseado no filtro
-      let query = supabase.from('form_submissions').select('*').order('created_at', { ascending: false });
+      // Buscar leads do CRM
+      let query = supabase.from('leads').select('*').order('created_at', { ascending: false });
       
       if (exportFilter === 'qualified') {
-        query = query.eq('qualificado', true);
+        query = query.neq('stage', 'no_cualificado');
       }
 
-      const { data: submissions, error } = await query;
+      const { data: leads, error } = await query;
 
       if (error) throw error;
 
-      if (!submissions || submissions.length === 0) {
+      if (!leads || leads.length === 0) {
         toast.error('Nenhum dado para exportar');
         return;
       }
@@ -251,13 +151,13 @@ const AdminSettings = () => {
       });
 
       // Gerar CSV
-      const csvContent = exportLeadsToCSV(submissions as any, agenteNomes);
+      const csvContent = exportLeadsToCSV(leads as any, agenteNomes);
       
       // Download
       const filename = `leads_export_${format(new Date(), 'yyyy-MM-dd')}.csv`;
       downloadCSV(csvContent, filename);
 
-      toast.success(`${submissions.length} leads exportados com sucesso`);
+      toast.success(`${leads.length} leads exportados com sucesso`);
     } catch (err: any) {
       console.error('[Export] Error:', err);
       toast.error('Error al exportar datos');
@@ -289,21 +189,6 @@ const AdminSettings = () => {
           <h1 className="text-3xl font-bold">Configuraciones del Sistema</h1>
           <p className="text-muted-foreground mt-1">Gestión de integraciones y exportaciones</p>
         </div>
-        {/* Gestión de Contratos */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Gestión de Contratos</CardTitle>
-            <CardDescription>
-              Configure y administre los templates de contratos públicos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => navigate('/admin/contract-templates')}>
-              <FileText className="h-4 w-4 mr-2" />
-              Administrar Templates de Contratos
-            </Button>
-          </CardContent>
-        </Card>
 
         {/* Integração Make.com - Leads Qualificados */}
         <Card>
@@ -439,36 +324,6 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Integração Make.com - Abandonos de Formulario */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Integración Make.com - Abandonos de Formulario</CardTitle>
-            <CardDescription>
-              Configure el webhook para enviar datos de leads que abandonaron el formulário
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="webhook-abandonos-url">URL del Webhook (Abandonos)</Label>
-              <Input
-                id="webhook-abandonos-url"
-                type="url"
-                placeholder="https://hook.us1.make.com/..."
-                value={localAbandonosWebhookUrl}
-                onChange={(e) => setLocalAbandonosWebhookUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Esta URL se disparará cuando el admin presione "Disparar Automação" en la página de Abandonos
-              </p>
-            </div>
-
-            <Button onClick={saveAbandonosWebhookUrl}>
-              <Save className="h-4 w-4 mr-2" />
-              Guardar URL
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Logs de Webhook */}
         <Card>
           <CardHeader>
@@ -540,55 +395,9 @@ const AdminSettings = () => {
             </Button>
 
             <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-              <p>• El archivo incluirá: datos personales, financieros, simulaciones y agente asignado</p>
+              <p>• El archivo incluirá: datos personales, ciudad, zona y valor deseado</p>
               <p>• Formato de fecha: DD/MM/YYYY</p>
               <p>• Codificación: UTF-8 (compatible con Excel y Google Sheets)</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Integración Slack */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Integración Slack</CardTitle>
-            <CardDescription>
-              Configure la conexión con Slack para comunicación del equipo
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Antes de usar esta integración, asegúrese de haber configurado los secretos SLACK_BOT_TOKEN y SLACK_CHANNEL_ID en Supabase.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="slack-channel-id">Channel ID de Slack</Label>
-              <Input
-                id="slack-channel-id"
-                placeholder="C01234ABCDE"
-                value={localSlackChannelId}
-                onChange={(e) => setLocalSlackChannelId(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                El ID del canal de Slack donde se enviarán los mensajes
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button onClick={saveSlackChannelId}>
-                <Save className="h-4 w-4 mr-2" />
-                Guardar Channel ID
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={testSlackConnection}
-                disabled={testingSlack}
-              >
-                <TestTube className="h-4 w-4 mr-2" />
-                {testingSlack ? 'Probando...' : 'Probar Conexión'}
-              </Button>
             </div>
           </CardContent>
         </Card>

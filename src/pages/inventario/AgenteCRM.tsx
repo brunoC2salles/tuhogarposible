@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessagesSquare, Search, Download, Ban } from 'lucide-react';
+import { Search, Download, Ban } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -104,12 +104,6 @@ const AgenteCRM = () => {
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <NotificationBell />
-              <Link to="/chat">
-                <Button variant="outline" size="sm">
-                  <MessagesSquare className="h-4 w-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Chat</span>
-                </Button>
-              </Link>
               <Button variant="outline" size="sm" onClick={() => navigate('/agente/settings')}>
                 <Settings className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mi Perfil</span>

@@ -15,8 +15,6 @@ import AdminCRM from "./pages/inventario/AdminCRM";
 import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
 import SimuladorPersonalPage from "./pages/simuladores/SimuladorPersonalPage";
 import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPage";
-import FormularioQualificacion from "./pages/FormularioQualificacion";
-import FormularioDescubierta from "./pages/FormularioDescubierta";
 import AgentSettings from "./pages/AgentSettings";
 import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
@@ -24,12 +22,8 @@ import AgenteDetails from "./pages/AgenteDetails";
 import ProdutoPublico from "./pages/ProdutoPublico";
 import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
 import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
-import AdminContractTemplates from "./pages/AdminContractTemplates";
-import ContratoPublico from "./pages/ContratoPublico";
 import Dashboard from "./pages/admin/Dashboard";
-import AbandonosFormulario from "./pages/admin/AbandonosFormulario";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
-import ChatPage from "./pages/chat/ChatPage";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 
@@ -45,8 +39,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/formulario-qualificacion" element={<FormularioQualificacion />} />
-            <Route path="/formulario-descubierta" element={<FormularioDescubierta />} />
             <Route path="/simuladores" element={<SimuladoresIndex />} />
             <Route path="/simuladores/credito-personal" element={<SimuladorPersonalPage />} />
             <Route path="/simuladores/credito-hipotecario" element={<SimuladorHipotecarioPage />} />
@@ -122,14 +114,6 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin/abandonos"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AbandonosFormulario />
-                </ProtectedRoute>
-              } 
-            />
             <Route
               path="/admin/settings"
               element={
@@ -156,15 +140,6 @@ const App = () => (
               } 
             />
             <Route 
-              path="/admin/contract-templates"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AdminContractTemplates />
-                </ProtectedRoute>
-              } 
-            />
-            <Route path="/contrato/:token" element={<ContratoPublico />} />
-            <Route 
               path="/supervisor/crm"
               element={
                 <ProtectedRoute allowedRoles={['supervisor']}>
@@ -177,14 +152,6 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['supervisor']}>
                   <SupervisorFinanceiro />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/chat"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'agente']}>
-                  <ChatPage />
                 </ProtectedRoute>
               } 
             />

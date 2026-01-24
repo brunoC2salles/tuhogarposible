@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Video, FileText, FileSignature, ArrowLeft } from "lucide-react";
+import { Plus, Video, FileText, ArrowLeft } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -93,7 +93,7 @@ const AcademiaAgentes = () => {
         </div>
 
         <Tabs defaultValue="videos" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="videos" className="flex items-center gap-2">
               <Video className="w-4 h-4" />
               Tutoriales en Video
@@ -101,10 +101,6 @@ const AcademiaAgentes = () => {
             <TabsTrigger value="documentos" className="flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Documentos y Plantillas
-            </TabsTrigger>
-            <TabsTrigger value="contratos" className="flex items-center gap-2">
-              <FileSignature className="w-4 h-4" />
-              Generar Contratos
             </TabsTrigger>
           </TabsList>
 
@@ -219,17 +215,6 @@ const AcademiaAgentes = () => {
                 ))}
               </div>
             )}
-          </TabsContent>
-
-          <TabsContent value="contratos" className="mt-6">
-            <div className="text-center py-12">
-              <FileSignature className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h2 className="text-2xl font-semibold mb-2 text-foreground">Generador de Contratos</h2>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Esta funcionalidad estará disponible próximamente. Podrás generar contratos 
-                personalizados con datos de leads e inmuebles.
-              </p>
-            </div>
           </TabsContent>
         </Tabs>
       </div>
