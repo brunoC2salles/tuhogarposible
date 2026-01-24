@@ -2,14 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
-import { SearchBarAutocomplete } from "@/components/inventario/SearchBarAutocomplete";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessagesSquare } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, MessagesSquare, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
@@ -172,9 +172,14 @@ const AgenteInventario = () => {
 
       const { data, error, count } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error("[Inventario] Query error:", error);
+        toast.error("Error al filtrar inmuebles");
+        // NÃO limpar dados existentes em caso de erro
+        return;
+      }
       
-      // Convert Json type to string[] for images
+      // Garantir que data nunca seja null - Convert Json type to string[] for images
       const converted = (data || []).map(item => ({
         ...item,
         images: Array.isArray(item.images) ? item.images as string[] : undefined
@@ -185,8 +190,9 @@ const AgenteInventario = () => {
       
       console.log("[Inventario] Filtrados server-side:", count, "inmuebles, página", currentPage);
     } catch (err) {
-      console.error("[Inventario] Error filtering:", err);
+      console.error("[Inventario] Exception:", err);
       toast.error("Error al aplicar filtros");
+      // Manter dados existentes, não limpar
     }
   }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash]);
 
@@ -362,10 +368,15 @@ const AgenteInventario = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <SearchBarAutocomplete
-            value={searchTerm}
-            onChange={setSearchTerm}
-          />
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 pointer-events-none" />
+            <Input
+              placeholder="Buscar por ciudad, dirección, región..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-12 text-base"
+            />
+          </div>
           {searchTerm && (
             <div className="mt-2 flex items-center gap-2">
               <Badge variant="secondary" className="text-sm">

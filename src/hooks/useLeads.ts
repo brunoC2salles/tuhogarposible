@@ -267,7 +267,8 @@ export const useLeads = () => {
     if (user) {
       fetchLeads();
     }
-  }, [user, isAdmin, profile]);
+  // Usar IDs estáveis para evitar refetch quando apenas referência muda
+  }, [user?.id, isAdmin, profile?.id]);
 
   return {
     leads,
