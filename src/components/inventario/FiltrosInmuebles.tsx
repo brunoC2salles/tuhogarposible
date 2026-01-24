@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/collapsible";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { Filter, X } from "lucide-react";
+import { CiudadCombobox } from "./CiudadCombobox";
 
 interface FiltrosInmueblesProps {
   onFiltrosChange: (filtros: FiltrosBusqueda) => void;
@@ -83,22 +84,11 @@ export function FiltrosInmuebles({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="ciudad">Ciudad</Label>
-          <Select
-            value={filtros.ciudad || ""}
-            onValueChange={(value) => handleFiltroChange("ciudad", value === "todas" ? undefined : value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Todas las ciudades" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todas">Todas las ciudades</SelectItem>
-              {ciudadesDisponibles.map((ciudad) => (
-                <SelectItem key={ciudad} value={ciudad}>
-                  {ciudad}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CiudadCombobox
+            value={filtros.ciudad}
+            onValueChange={(value) => handleFiltroChange("ciudad", value)}
+            ciudades={ciudadesDisponibles}
+          />
         </div>
 
         <div className="space-y-2">
