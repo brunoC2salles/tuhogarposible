@@ -53,12 +53,17 @@ export function InmuebleCard({
     <>
       <Card className="hover-lift rounded-2xl shadow-md border-0 bg-card animate-fade-in overflow-hidden">
         {inmueble.imageUrl && (
-          <div className="w-full h-48 overflow-hidden relative">
+          <div className="w-full h-48 overflow-hidden relative bg-muted">
             <img 
               src={inmueble.imageUrl} 
               alt={inmueble.titulo || `${inmueble.ciudad} (${inmueble.region})`}
-              className="w-full h-full object-cover transition-transform hover:scale-105 duration-300"
+              className="w-full h-full object-cover transition-all duration-300 hover:scale-105 opacity-0"
               loading="lazy"
+              onLoad={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.classList.remove('opacity-0');
+                target.classList.add('opacity-100');
+              }}
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';

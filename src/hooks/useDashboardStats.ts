@@ -50,7 +50,7 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
       setLoading(true);
       setError(null);
 
-      // Calcular data de início baseado no período
+      // Calculate period start date
       const now = new Date();
       let startDate: Date | null = null;
       
@@ -69,46 +69,40 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
           break;
       }
 
-      // Buscar todos os leads (com filtro de período se aplicável)
-      let leadsQuery = supabase
-        .from('leads')
-        .select('*, profiles!agente_asignado_id(nombre)');
+      // OPTIMIZED: Single query for all leads - filter period client-side
+      const [leadsResult, agentsResult] = await Promise.all([
+        supabase
+          .from('leads')
+          .select('*, profiles!agente_asignado_id(nombre)'),
+        supabase
+          .from('profiles')
+          .select('id, nombre')
+          .eq('activo', true)
+      ]);
 
-      if (startDate) {
-        leadsQuery = leadsQuery.gte('created_at', startDate.toISOString());
-      }
+      if (leadsResult.error) throw leadsResult.error;
+      if (agentsResult.error) throw agentsResult.error;
 
-      const { data: leads, error: leadsError } = await leadsQuery;
+      const allLeads = leadsResult.data || [];
+      const agents = agentsResult.data || [];
 
-      if (leadsError) throw leadsError;
+      // Filter leads by period client-side (eliminates duplicate query)
+      const periodLeads = startDate 
+        ? allLeads.filter(l => new Date(l.created_at) >= startDate)
+        : allLeads;
 
-      // Buscar todos os leads (sem filtro) para cálculo de conversão total
-      const { data: allLeads, error: allLeadsError } = await supabase
-        .from('leads')
-        .select('*, profiles!agente_asignado_id(nombre)');
-
-      if (allLeadsError) throw allLeadsError;
-
-      // Buscar agentes ativos
-      const { data: agents, error: agentsError } = await supabase
-        .from('profiles')
-        .select('id, nombre')
-        .eq('activo', true);
-
-      if (agentsError) throw agentsError;
-
-      // Calcular estatísticas
-      const totalLeads = allLeads?.length || 0;
-      const newLeadsThisPeriod = leads?.length || 0;
-      const convertedLeads = allLeads?.filter(l => l.stage === 'finalizada').length || 0;
+      // Calculate statistics
+      const totalLeads = allLeads.length;
+      const newLeadsThisPeriod = periodLeads.length;
+      const convertedLeads = allLeads.filter(l => l.stage === 'finalizada').length;
       const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
-      const activeAgents = agents?.length || 0;
+      const activeAgents = agents.length;
       const avgLeadsPerAgent = activeAgents > 0 ? totalLeads / activeAgents : 0;
 
-      // Dados do funil (baseado em todos os leads)
+      // Funnel data (based on all leads)
       const stageCounts = STAGE_ORDER.map(stage => ({
         stage,
-        count: allLeads?.filter(l => l.stage === stage).length || 0
+        count: allLeads.filter(l => l.stage === stage).length
       }));
 
       const funnelData: FunnelData[] = stageCounts.map((s, index) => ({
@@ -117,10 +111,10 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
         percentage: index === 0 ? 100 : totalLeads > 0 ? (s.count / totalLeads) * 100 : 0
       }));
 
-      // Performance por agente (baseado em todos os leads)
+      // Agent performance (based on all leads)
       const agentMap = new Map<string, { total: number; converted: number }>();
       
-      allLeads?.forEach(lead => {
+      allLeads.forEach(lead => {
         const agentName = (lead as any).profiles?.nombre || 'Sin asignar';
         const current = agentMap.get(agentName) || { total: 0, converted: 0 };
         current.total += 1;
@@ -138,18 +132,18 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
           conversionRate: data.total > 0 ? (data.converted / data.total) * 100 : 0
         }))
         .sort((a, b) => b.totalLeads - a.totalLeads)
-        .slice(0, 10); // Top 10 agentes
+        .slice(0, 10);
 
-      // Distribuição por etapa
+      // Stage distribution
       const stageDistribution: StageDistribution[] = STAGE_ORDER.map(stage => ({
         stage,
-        count: allLeads?.filter(l => l.stage === stage).length || 0
+        count: allLeads.filter(l => l.stage === stage).length
       }));
 
-      // Timeline (baseado no período selecionado)
+      // Timeline (based on period leads)
       const timelineMap = new Map<string, { created: number; converted: number }>();
       
-      leads?.forEach(lead => {
+      periodLeads.forEach(lead => {
         const date = new Date(lead.created_at).toISOString().split('T')[0];
         const current = timelineMap.get(date) || { created: 0, converted: 0 };
         current.created += 1;

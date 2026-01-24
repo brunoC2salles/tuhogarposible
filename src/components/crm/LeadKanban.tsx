@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
@@ -24,9 +24,17 @@ export const LeadKanban = ({
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
 
-  const getLeadsByStage = (stage: LeadStage) => {
-    return leads.filter((lead) => lead.stage === stage);
-  };
+  // OPTIMIZED: Pre-compute leads by stage once per data change (O(n) instead of O(n × stages))
+  const leadsByStage = useMemo(() => {
+    const grouped: Record<LeadStage, Lead[]> = {} as Record<LeadStage, Lead[]>;
+    STAGE_ORDER.forEach(stage => { grouped[stage] = []; });
+    leads.forEach(lead => {
+      if (grouped[lead.stage]) {
+        grouped[lead.stage].push(lead);
+      }
+    });
+    return grouped;
+  }, [leads]);
 
   const handleDragStart = (e: React.DragEvent, leadId: string) => {
     setDraggedLead(leadId);
@@ -60,7 +68,7 @@ export const LeadKanban = ({
       {/* Container horizontal com colunas lado a lado - TODAS as etapas sempre visíveis */}
       <div className="flex gap-4 min-w-max">
         {STAGE_ORDER.map((stage) => {
-          const stageLeads = getLeadsByStage(stage);
+          const stageLeads = leadsByStage[stage] || [];
           const isDragOver = dragOverStage === stage;
           const isNoCualificadoColumn = isNoCualificado(stage);
           const isNuevoLeadColumn = isNuevoLead(stage);

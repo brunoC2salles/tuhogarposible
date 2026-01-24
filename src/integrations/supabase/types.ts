@@ -1206,6 +1206,13 @@ export type Database = {
     }
     Functions: {
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
+      get_distinct_filter_values: {
+        Args: never
+        Returns: {
+          ciudades: string[]
+          tipos: string[]
+        }[]
+      }
       get_next_invoice_number: { Args: never; Returns: string }
       get_protected_inmuebles: {
         Args: { provider: string }
