@@ -26,9 +26,23 @@ export function CiudadCombobox({ value, onValueChange, ciudades }: CiudadCombobo
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Filtrar cidades pelo termo de busca (limite de 50 para performance)
+  // Filtrar cidades pelo termo de busca, priorizando as que COMEÇAM com o termo
+  const searchLower = search.toLowerCase();
   const filteredCiudades = ciudades
-    .filter(c => c.toLowerCase().includes(search.toLowerCase()))
+    .filter(c => c.toLowerCase().includes(searchLower))
+    .sort((a, b) => {
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      const aStartsWith = aLower.startsWith(searchLower);
+      const bStartsWith = bLower.startsWith(searchLower);
+      
+      // Prioridade: cidades que começam com o termo
+      if (aStartsWith && !bStartsWith) return -1;
+      if (!aStartsWith && bStartsWith) return 1;
+      
+      // Se ambas começam ou não, ordenar alfabeticamente
+      return aLower.localeCompare(bLower);
+    })
     .slice(0, 50);
 
   return (
