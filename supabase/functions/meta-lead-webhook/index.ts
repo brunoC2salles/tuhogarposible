@@ -34,7 +34,11 @@ interface MetaLeadData {
   tiene_nie_dni?: string;
   en_fichero_morosidad?: string;
   preferencia_llamada?: string;
-  edad?: number;
+  edad?: number | string;
+  age?: number | string;
+  birth_year?: number | string;
+  ano_nacimiento?: number | string;
+  fecha_nacimiento?: string;
   habitaciones?: number;
   zona_interes?: string;
   rango_ingresos?: string;
@@ -302,6 +306,52 @@ function parseDeudas(deudasInput?: string | number): number {
   return isNaN(parsed) ? 0 : Math.max(0, parsed);
 }
 
+/**
+ * Parseia idade de múltiplos formatos possíveis do Meta Ads
+ * Aceita: edad, age, birth_year, ano_nacimiento, fecha_nacimiento
+ */
+function parseEdad(data: Record<string, any>): number | null {
+  // Lista de campos possíveis para idade
+  const possibleFields = ['edad', 'age', 'ano_nacimiento', 'birth_year', 'fecha_nacimiento'];
+  
+  for (const field of possibleFields) {
+    const value = data[field];
+    if (value === undefined || value === null || value === '') continue;
+    
+    // Se é número direto
+    if (typeof value === 'number') {
+      // Se parece ano de nascimento (ex: 1990), calcular idade
+      if (value > 1900 && value < new Date().getFullYear() - 10) {
+        return new Date().getFullYear() - value;
+      }
+      // Se parece idade direta (0-120)
+      if (value > 0 && value < 120) {
+        return value;
+      }
+    }
+    
+    // Se é string, tentar extrair número
+    if (typeof value === 'string') {
+      const numMatch = value.match(/(\d{4}|\d{1,3})/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        
+        // Se parece ano de nascimento (4 dígitos, ex: 1990)
+        if (num > 1900 && num < new Date().getFullYear() - 10) {
+          return new Date().getFullYear() - num;
+        }
+        
+        // Se parece idade direta (1-3 dígitos, ex: 35)
+        if (num > 0 && num < 120) {
+          return num;
+        }
+      }
+    }
+  }
+  
+  return null;
+}
+
 function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResult {
   // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
   
@@ -523,9 +573,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Calcular simulações
+    // 5. Calcular simulações (usando parseEdad para múltiplos formatos)
+    const edadParsed = parseEdad(data);
+    console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
+    
     const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
-    const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, data.edad);
+    const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
     
     console.log('[meta-lead-webhook] Simulación personal:', simulacionPersonal);
     console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
@@ -657,7 +710,7 @@ Deno.serve(async (req) => {
         nombre: data.nombre,
         telefono: data.telefono,
         email: data.email,
-        edad: data.edad || null,
+        edad: edadParsed || null,
         zona_interes: data.zona_interes || null,
         habitaciones: data.habitaciones || null,
         ingresos_estimados: ingresos,
@@ -729,11 +782,13 @@ Deno.serve(async (req) => {
             lead_nombre: data.nombre,
             lead_telefono: data.telefono,
             lead_email: data.email,
-            lead_edad: data.edad || null,
+            lead_edad: edadParsed || null,
             lead_zona_interes: data.zona_interes || null,
             lead_habitaciones: data.habitaciones || null,
             lead_ingresos_estimados: ingresos,
             lead_ingresos_mensuales: ingresos, // Campo explícito para Make/Bitrix
+            lead_deudas_mensuales: deudas,
+            lead_preferencia_llamada: data.preferencia_llamada || null,
             lead_deudas_mensuales: deudas,
             lead_preferencia_llamada: data.preferencia_llamada || null,
             

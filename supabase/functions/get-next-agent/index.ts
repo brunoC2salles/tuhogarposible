@@ -69,6 +69,10 @@ Deno.serve(async (req) => {
 
     if (agentsError) throw agentsError;
 
+    // Log detalhado de agentes ativos encontrados
+    console.log(`[Round-Robin] Agentes activos encontrados (${region}):`, 
+      allAgents?.map(a => `${a.nombre} (${a.id.substring(0,8)})`).join(', ') || 'ninguno');
+
     if (!allAgents || allAgents.length === 0) {
       console.warn('[Round-Robin] No agents available for region');
       return new Response(
@@ -109,6 +113,16 @@ Deno.serve(async (req) => {
       .single()
 
     if (trackingError && trackingError.code !== 'PGRST116') throw trackingError;
+
+    // Diagnóstico: verificar se último agente está ativo
+    if (tracking?.last_assigned_agent_id) {
+      const lastAgentActive = agents.find(a => a.id === tracking.last_assigned_agent_id);
+      if (!lastAgentActive) {
+        console.warn(`[Round-Robin] ⚠️ Último agente ${tracking.last_assigned_agent_id} NÃO está na lista de ativos. Resetando round-robin.`);
+      } else {
+        console.log(`[Round-Robin] Último agente ativo: ${lastAgentActive.nombre}`);
+      }
+    }
 
     // 4. Calcular próximo agente (round-robin)
     let nextAgentIndex = 0
