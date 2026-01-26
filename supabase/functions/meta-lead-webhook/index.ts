@@ -520,6 +520,10 @@ Deno.serve(async (req) => {
     data.rango_ingresos = sanitizeField(data.rango_ingresos) as string | undefined;
     
     console.log('[meta-lead-webhook] Dados recebidos (sanitizados):', JSON.stringify(data));
+    
+    // LOG DIAGNÓSTICO: Mostrar todos os campos recebidos para debug
+    console.log('[meta-lead-webhook] Campos recebidos do payload:', Object.keys(data).join(', '));
+    console.log('[meta-lead-webhook] Campo edad raw:', data.edad, '| age:', data.age, '| birth_year:', data.birth_year);
 
     // Validar campos obrigatórios
     if (!data.nombre || !data.telefono || !data.email) {
@@ -660,6 +664,7 @@ Deno.serve(async (req) => {
     const notasLead = [
       `Lead do Meta Ads.`,
       `Qualificação automática: ${qualificacao.cualificado ? '✅ CUALIFICADO' : '❌ NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
+      `Edad: ${edadParsed || 'não informada'}`,
       `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
       `Habitaciones: ${data.habitaciones || 'não especificada'}`,
       `Antigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
