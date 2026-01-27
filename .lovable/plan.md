@@ -1,79 +1,117 @@
 
-# Plano de Correção: Filtro de Ingresos e Idade no Webhook
+
+# Plano de Correção: Enviar Idade do Lead para o Bitrix
 
 ## Diagnóstico Confirmado
 
-### 1. Filtro de Ingresos
-- **Valor atual**: 1050€ (linha 398 do meta-lead-webhook)
-- **Valor desejado**: 1300€
-- **Ação**: Alterar `if (ingresos < 1050)` para `if (ingresos < 1300)`
+O problema está no arquivo `supabase/functions/make-webhook-proxy/index.ts`:
 
-### 2. Idade no Webhook
-Os dados confirmam que **o campo de idade NÃO está chegando** do Meta Ads/Make.com:
-- Todos os leads recentes mostram: `Edad: não informada`
-- O campo `lead_edad` está sempre `null` nos webhook_logs
+- **O campo `lead_edad` NÃO está sendo enviado** nos payloads das actions:
+  - `test_meta_bitrix_last_lead` (linha 427-473)
+  - `send_lead_assignment` (linha 578-606)
 
-**Causa raiz**: O formulário do Meta Ads ou o scenario do Make.com **não está enviando o campo de idade**. O sistema está preparado para receber (aceita `edad`, `age`, `birth_year`, etc.), mas o dado simplesmente não chega.
+- **A idade está registrada nas notas** do lead como `Edad: [valor]` (verificado no banco de dados)
+
+- **Já existe uma função `extractFromNotes()`** (linha 420-425) que pode ser usada para extrair a idade
 
 ---
 
-## Alterações no Código
+## Alterações Necessárias
 
-### Arquivo: `supabase/functions/meta-lead-webhook/index.ts`
+### Arquivo: `supabase/functions/make-webhook-proxy/index.ts`
 
-**Linha 397-399** - Alterar filtro de qualificação:
+#### Alteração 1: Action `test_meta_bitrix_last_lead`
+
+**Linha 439** - Adicionar `lead_edad` após `lead_valor_deseado`:
 
 ```typescript
-// ANTES
-// Critério 5: Ingresos >= 1050€
-if (ingresos < 1050) {
-  return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1050€)' };
-}
+// ANTES (linhas 438-442)
+lead_ciudad_interes: lead.ciudad_interes || '',
+lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+
+// Ingresos mensuales - campo fundamental para simuladores
+lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
 
 // DEPOIS
-// Critério 5: Ingresos >= 1300€
-if (ingresos < 1300) {
-  return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1300€)' };
+lead_ciudad_interes: lead.ciudad_interes || '',
+lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+
+// Edad - extraído das notas do lead
+lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
+
+// Ingresos mensuales - campo fundamental para simuladores
+lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+```
+
+#### Alteração 2: Action `send_lead_assignment`
+
+**Linha 590** - Adicionar `lead_edad` após `lead_valor_deseado`:
+
+```typescript
+// ANTES (linhas 589-591)
+lead_ciudad_interes: lead.ciudad_interes || '',
+lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+
+// DEPOIS
+lead_ciudad_interes: lead.ciudad_interes || '',
+lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+lead_edad: extractFromNotesForAssignment(lead.notas, 'Edad') || '',
+lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+```
+
+**Nota**: Para a action `send_lead_assignment`, precisamos criar uma função helper similar à `extractFromNotes` ou mover a função existente para fora do bloco da action anterior.
+
+---
+
+## Estrutura do Código
+
+A função `extractFromNotes` já existe na linha 420-425, mas está dentro do escopo da action `test_meta_bitrix_last_lead`. Para reutilizá-la, vou movê-la para o escopo global do arquivo (após as funções `flattenPayload` e `sendToMake`).
+
+### Nova estrutura:
+
+```typescript
+// Função helper global (após linha 62)
+function extractFromNotes(notas: string | null, key: string): string {
+  if (!notas) return '';
+  const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
+  const match = notas.match(regex);
+  return match ? match[1].trim() : '';
 }
 ```
 
 ---
 
-## Ação Necessária (Externa ao Código)
-
-Para a idade aparecer no webhook do Bitrix, você precisa verificar no **Make.com**:
-
-1. Abra o scenario que processa leads do Facebook Ads
-2. Localize o módulo HTTP que envia dados para `meta-lead-webhook`
-3. Verifique se existe um campo `edad` (ou `age`) sendo mapeado
-4. Se não existir, adicione o mapeamento do campo de idade do Facebook para o payload
-
-**Nomes de campo aceitos pelo sistema**:
-- `edad` (recomendado)
-- `age`
-- `birth_year`
-- `ano_nacimiento`
-- `fecha_nacimiento`
-
----
-
 ## Resumo das Alterações
 
-| Arquivo | Modificação | Risco |
-|---------|-------------|-------|
-| `supabase/functions/meta-lead-webhook/index.ts` | Alterar filtro de 1050€ para 1300€ | Baixo |
+| Localização | Modificação | Risco |
+|-------------|-------------|-------|
+| Linha 62 | Mover `extractFromNotes` para escopo global | Baixo |
+| Linha 420-425 | Remover função duplicada | Baixo |
+| Linha 439 | Adicionar `lead_edad` no payload `test_meta_bitrix_last_lead` | Baixo |
+| Linha 590 | Adicionar `lead_edad` no payload `send_lead_assignment` | Baixo |
 
 ---
 
-## Impacto
+## Fluxo de Dados
 
-- **Leads com ingresos entre 1050€ e 1299€** passarão a ser desqualificados automaticamente
-- A mensagem de erro será atualizada para refletir o novo limite
-- **A idade continuará ausente** até que o campo seja adicionado no Make.com/Meta Ads
+```text
+Meta Ads → meta-lead-webhook → Salva idade nas notas → CRM
+                                                        ↓
+                                   make-webhook-proxy → Extrai idade das notas → Bitrix
+```
 
 ---
 
 ## Validação Pós-Implementação
 
-1. Verificar nos próximos leads se a mensagem de desqualificação mostra "menos de 1300€"
-2. Após configurar o campo de idade no Make.com, verificar se `lead_edad` começa a aparecer nos webhook_logs
+1. Usar o botão "Probar con Último Lead" nas configurações admin
+2. Verificar nos logs do webhook se `lead_edad` aparece no payload
+3. Confirmar no Bitrix se a idade está chegando
+
+---
+
+## Importante
+
+Este fix vai funcionar para todos os leads que já têm a idade registrada nas notas. Para leads onde a idade mostra "não informada", o problema está na origem (Meta Ads/Make.com não está enviando o campo `edad`).
+
