@@ -394,9 +394,9 @@ function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResu
     return { cualificado: false, razon_no_cualificado: 'Edad superior a 65 años' };
   }
   
-  // Critério 5: Ingresos >= 1050€
-  if (ingresos < 1050) {
-    return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1050€)' };
+  // Critério 5: Ingresos >= 1300€
+  if (ingresos < 1300) {
+    return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1300€)' };
   }
   
   // Critério 6: Deudas < 30% de ingresos
