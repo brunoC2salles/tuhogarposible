@@ -1,117 +1,64 @@
 
+# Plano de Correção: Regra de 35% do Simulador Hipotecário
 
-# Plano de Correção: Enviar Idade do Lead para o Bitrix
+## Problema Identificado
 
-## Diagnóstico Confirmado
+A fórmula atual calcula o máximo de cuota mensual de forma incorreta:
 
-O problema está no arquivo `supabase/functions/make-webhook-proxy/index.ts`:
+**Atual**: `(ingresosTotales × 0.35) - creditosPendientes - gastosPension`
 
-- **O campo `lead_edad` NÃO está sendo enviado** nos payloads das actions:
-  - `test_meta_bitrix_last_lead` (linha 427-473)
-  - `send_lead_assignment` (linha 578-606)
+**Correto**: `(ingresosTotales - creditosPendientes - gastosPension) × 0.35`
 
-- **A idade está registrada nas notas** do lead como `Edad: [valor]` (verificado no banco de dados)
-
-- **Já existe uma função `extractFromNotes()`** (linha 420-425) que pode ser usada para extrair a idade
+Isso significa que a cuota máxima permitida deve ser **35% da renda líquida** (após descontar dívidas e pensão), não 35% da renda bruta menos as dívidas.
 
 ---
 
-## Alterações Necessárias
+## Alteração Necessária
 
-### Arquivo: `supabase/functions/make-webhook-proxy/index.ts`
+### Arquivo: `src/lib/simuladorUtils.ts`
 
-#### Alteração 1: Action `test_meta_bitrix_last_lead`
-
-**Linha 439** - Adicionar `lead_edad` após `lead_valor_deseado`:
+**Linhas 521-525** - Corrigir cálculo da hipoteca máxima mensual:
 
 ```typescript
-// ANTES (linhas 438-442)
-lead_ciudad_interes: lead.ciudad_interes || '',
-lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-
-// Ingresos mensuales - campo fundamental para simuladores
-lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+// ANTES
+// 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos)
+const hipotecaMaximaMensual = Math.max(
+  0,
+  (ingresosTotales * 0.35) - creditosPendientesTotales - gastosPension
+);
 
 // DEPOIS
-lead_ciudad_interes: lead.ciudad_interes || '',
-lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-
-// Edad - extraído das notas do lead
-lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-
-// Ingresos mensuales - campo fundamental para simuladores
-lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-```
-
-#### Alteração 2: Action `send_lead_assignment`
-
-**Linha 590** - Adicionar `lead_edad` após `lead_valor_deseado`:
-
-```typescript
-// ANTES (linhas 589-591)
-lead_ciudad_interes: lead.ciudad_interes || '',
-lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-
-// DEPOIS
-lead_ciudad_interes: lead.ciudad_interes || '',
-lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-lead_edad: extractFromNotesForAssignment(lead.notas, 'Edad') || '',
-lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-```
-
-**Nota**: Para a action `send_lead_assignment`, precisamos criar uma função helper similar à `extractFromNotes` ou mover a função existente para fora do bloco da action anterior.
-
----
-
-## Estrutura do Código
-
-A função `extractFromNotes` já existe na linha 420-425, mas está dentro do escopo da action `test_meta_bitrix_last_lead`. Para reutilizá-la, vou movê-la para o escopo global do arquivo (após as funções `flattenPayload` e `sendToMake`).
-
-### Nova estrutura:
-
-```typescript
-// Função helper global (após linha 62)
-function extractFromNotes(notas: string | null, key: string): string {
-  if (!notas) return '';
-  const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
-  const match = notas.match(regex);
-  return match ? match[1].trim() : '';
-}
+// 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos líquidos)
+const ingresosLiquidos = ingresosTotales - creditosPendientesTotales - gastosPension;
+const hipotecaMaximaMensual = Math.max(0, ingresosLiquidos * 0.35);
 ```
 
 ---
 
-## Resumo das Alterações
+## Impacto da Mudança
 
-| Localização | Modificação | Risco |
-|-------------|-------------|-------|
-| Linha 62 | Mover `extractFromNotes` para escopo global | Baixo |
-| Linha 420-425 | Remover função duplicada | Baixo |
-| Linha 439 | Adicionar `lead_edad` no payload `test_meta_bitrix_last_lead` | Baixo |
-| Linha 590 | Adicionar `lead_edad` no payload `send_lead_assignment` | Baixo |
+A nova fórmula é **mais permissiva**, permitindo cuotas maiores para pessoas com dívidas:
+
+| Cenário | Fórmula Antiga | Fórmula Nova |
+|---------|----------------|--------------|
+| 2000€ ingresos, 300€ deudas | 400€ max | 595€ max |
+| 2500€ ingresos, 400€ deudas | 475€ max | 735€ max |
+| 3000€ ingresos, 0€ deudas | 1050€ max | 1050€ max (igual) |
+
+Leads que antes eram rejeitados por margem estreita poderão ser aprovados.
 
 ---
 
-## Fluxo de Dados
+## Resumo
 
-```text
-Meta Ads → meta-lead-webhook → Salva idade nas notas → CRM
-                                                        ↓
-                                   make-webhook-proxy → Extrai idade das notas → Bitrix
-```
+| Arquivo | Modificação | Risco |
+|---------|-------------|-------|
+| `src/lib/simuladorUtils.ts` | Corrigir fórmula de 35% | Baixo |
 
 ---
 
 ## Validação Pós-Implementação
 
-1. Usar o botão "Probar con Último Lead" nas configurações admin
-2. Verificar nos logs do webhook se `lead_edad` aparece no payload
-3. Confirmar no Bitrix se a idade está chegando
-
----
-
-## Importante
-
-Este fix vai funcionar para todos os leads que já têm a idade registrada nas notas. Para leads onde a idade mostra "não informada", o problema está na origem (Meta Ads/Make.com não está enviando o campo `edad`).
-
+1. Testar simulador hipotecário com valores conhecidos
+2. Verificar se leads com dívidas estão sendo avaliados corretamente
+3. Confirmar que a cuota máxima reflete 35% da renda líquida
