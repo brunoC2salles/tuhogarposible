@@ -518,11 +518,9 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const plazoEfectivoAnios = Math.min(datos.plazoHipotecaAnios, plazoMaximoPorEdad);
   const plazoEfectivoMeses = plazoEfectivoAnios * 12;
   
-  // 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos)
-  const hipotecaMaximaMensual = Math.max(
-    0,
-    (ingresosTotales * 0.35) - creditosPendientesTotales - gastosPension
-  );
+  // 11. HIPOTECA MÁXIMA MENSUAL (35% dos ingresos líquidos)
+  const ingresosLiquidos = ingresosTotales - creditosPendientesTotales - gastosPension;
+  const hipotecaMaximaMensual = Math.max(0, ingresosLiquidos * 0.35);
   
   // 11.5. MONTO MÁXIMO FINANCIABLE (baseado na capacidade de pagamento mensal)
   // Fórmula inversa do Sistema Francês: P = cuota × [(1 + r)^n - 1] / [r × (1 + r)^n]
