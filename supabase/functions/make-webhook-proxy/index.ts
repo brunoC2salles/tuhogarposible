@@ -61,6 +61,14 @@ function flattenPayload(obj: Record<string, any>, prefix = ''): Record<string, s
   return result;
 }
 
+// Helper function to extract data from lead notes (used by multiple actions)
+function extractFromNotes(notas: string | null, key: string): string {
+  if (!notas) return '';
+  const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
+  const match = notas.match(regex);
+  return match ? match[1].trim() : '';
+}
+
 // Send webhook with x-www-form-urlencoded
 async function sendToMake(webhookUrl: string, payload: Record<string, any>): Promise<{ success: boolean; status: number; body: string }> {
   const flatPayload = flattenPayload(payload);
@@ -416,14 +424,6 @@ Deno.serve(async (req) => {
       const simPersonal = lead.simulador_personal_data as any || {};
       const simHipoteca = lead.simulador_hipotecario_data as any || {};
 
-      // Helper function to extract data from lead notes
-      const extractFromNotes = (notas: string | null, key: string): string => {
-        if (!notas) return '';
-        const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
-        const match = notas.match(regex);
-        return match ? match[1].trim() : '';
-      };
-
       const payload: Record<string, any> = {
         test: 'true',
         source: lead.source || 'manual',
@@ -437,6 +437,9 @@ Deno.serve(async (req) => {
         lead_zona_interes: lead.zona_interes || '',
         lead_ciudad_interes: lead.ciudad_interes || '',
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+        
+        // Edad - extraído das notas do lead
+        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
         
         // Ingresos mensuales - campo fundamental para simuladores
         lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
@@ -588,6 +591,7 @@ Deno.serve(async (req) => {
         lead_zona_interes: lead.zona_interes || '',
         lead_ciudad_interes: lead.ciudad_interes || '',
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
         lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
         
         agente_id: agente.id,
