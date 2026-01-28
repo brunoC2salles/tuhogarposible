@@ -472,6 +472,11 @@ Deno.serve(async (req) => {
         // Campo de dívidas mensais (extraído das notas se disponível)
         meta_deudas_mensuales: 0,
         
+        // Novos campos Meta Ads (ahorros e vivienda seleccionada)
+        meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
+        meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
+        meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
+        
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
@@ -605,6 +610,11 @@ Deno.serve(async (req) => {
         sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
         sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
         sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
+        
+        // Novos campos Meta Ads (ahorros e vivienda seleccionada)
+        meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
+        meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
+        meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
