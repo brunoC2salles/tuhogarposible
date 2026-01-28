@@ -43,6 +43,10 @@ interface MetaLeadData {
   zona_interes?: string;
   rango_ingresos?: string;
   deudas_mensuales?: number;
+  // Novos campos do formulário Meta Ads
+  tiene_ahorros_impuestos?: string;
+  monto_ahorros?: string | number;
+  tiene_vivienda_seleccionada?: string;
 }
 
 interface QualificationResult {
@@ -518,6 +522,10 @@ Deno.serve(async (req) => {
     data.en_fichero_morosidad = sanitizeField(data.en_fichero_morosidad) as string | undefined;
     data.preferencia_llamada = sanitizeField(data.preferencia_llamada) as string | undefined;
     data.rango_ingresos = sanitizeField(data.rango_ingresos) as string | undefined;
+    // Novos campos Meta Ads
+    data.tiene_ahorros_impuestos = sanitizeField(data.tiene_ahorros_impuestos) as string | undefined;
+    data.monto_ahorros = sanitizeField(data.monto_ahorros) as string | number | undefined;
+    data.tiene_vivienda_seleccionada = sanitizeField(data.tiene_vivienda_seleccionada) as string | undefined;
     
     console.log('[meta-lead-webhook] Dados recebidos (sanitizados):', JSON.stringify(data));
     
@@ -670,7 +678,9 @@ Deno.serve(async (req) => {
       `Antigüedad: ${data.antiguedad_trabajo || 'não especificada'}`,
       `DNI/NIE: ${data.tiene_nie_dni || 'não especificada'}`,
       `Zona: ${data.zona_interes || 'não especificada'}`,
-      zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null
+      zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
+      `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
+      `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`
     ].filter(Boolean).join('\n');
     
     try {
@@ -803,6 +813,10 @@ Deno.serve(async (req) => {
             meta_en_fichero_morosidad: data.en_fichero_morosidad || null,
             meta_rango_ingresos: data.rango_ingresos || null,
             meta_deudas_mensuales: data.deudas_mensuales || 0,
+            // Novos campos Meta Ads (não afetam qualificação)
+            meta_tiene_ahorros: data.tiene_ahorros_impuestos || null,
+            meta_monto_ahorros: data.monto_ahorros || 0,
+            meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
             
             // Dados do agente (achatados)
             agente_id: agenteAsignado?.id || null,
