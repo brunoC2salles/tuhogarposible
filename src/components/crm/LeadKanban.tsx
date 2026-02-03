@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
-import { Ban, Sparkles, FileText, Building2 } from 'lucide-react';
+import { Ban, Sparkles, FileText, Building2, UserCheck } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -66,6 +66,8 @@ export const LeadKanban = ({
         return <Sparkles className="h-4 w-4" />;
       case 'preparacion_expediente':
         return <FileText className="h-4 w-4" />;
+      case 'precualificacion':
+        return <UserCheck className="h-4 w-4" />;
       case 'subida_expediente_bancos':
         return <Building2 className="h-4 w-4" />;
       case 'descualificados':
@@ -76,7 +78,7 @@ export const LeadKanban = ({
   };
 
   const getStageStyles = (stage: LeadStage, isDragOver: boolean) => {
-    const baseStyles = 'w-72 flex-shrink-0 rounded-lg border transition-colors';
+    const baseStyles = 'w-64 flex-shrink-0 rounded-lg border transition-colors';
     
     if (isDragOver) {
       return cn(baseStyles, 'border-primary bg-primary/10');
@@ -87,6 +89,8 @@ export const LeadKanban = ({
         return cn(baseStyles, 'border-primary/30 bg-primary/5');
       case 'preparacion_expediente':
         return cn(baseStyles, 'border-blue-500/30 bg-blue-50 dark:bg-blue-950/20');
+      case 'precualificacion':
+        return cn(baseStyles, 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20');
       case 'subida_expediente_bancos':
         return cn(baseStyles, 'border-green-500/30 bg-green-50 dark:bg-green-950/20');
       case 'descualificados':
@@ -102,6 +106,8 @@ export const LeadKanban = ({
         return 'text-primary border-primary/20';
       case 'preparacion_expediente':
         return 'text-blue-600 dark:text-blue-400 border-blue-500/20';
+      case 'precualificacion':
+        return 'text-amber-600 dark:text-amber-400 border-amber-500/20';
       case 'subida_expediente_bancos':
         return 'text-green-600 dark:text-green-400 border-green-500/20';
       case 'descualificados':
@@ -117,6 +123,8 @@ export const LeadKanban = ({
         return 'bg-primary/10 text-primary';
       case 'preparacion_expediente':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+      case 'precualificacion':
+        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
       case 'subida_expediente_bancos':
         return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
       case 'descualificados':
@@ -151,7 +159,7 @@ export const LeadKanban = ({
               >
                 <div className="flex items-center gap-2">
                   {getStageIcon(stage)}
-                  <h3 className="font-semibold text-sm">{STAGE_LABELS[stage]}</h3>
+                  <h3 className="font-semibold text-xs">{STAGE_LABELS[stage]}</h3>
                 </div>
                 <span className={cn(
                   "text-xs px-2 py-1 rounded-full font-medium",

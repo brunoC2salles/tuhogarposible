@@ -1,4 +1,10 @@
-export type LeadStage = 'nuevo_lead' | 'preparacion_expediente' | 'subida_expediente_bancos' | 'descualificados';
+export type LeadStage = 
+  | 'nuevo_lead' 
+  | 'preparacion_expediente' 
+  | 'precualificacion'
+  | 'subida_expediente_bancos' 
+  | 'descualificados';
+
 export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads';
 
 export interface SimuladorPersonalData {
@@ -73,14 +79,16 @@ export interface LeadFormData {
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
   nuevo_lead: 'Nuevo Leads',
-  preparacion_expediente: 'Preparación Expediente',
-  subida_expediente_bancos: 'Subida Expediente a Bancos',
+  preparacion_expediente: 'Preparación Expediente - Fresha',
+  precualificacion: 'Precualificación - Edu',
+  subida_expediente_bancos: 'Subida Expediente a Bancos - Gibobs',
   descualificados: 'Descualificados'
 };
 
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
   'preparacion_expediente',
+  'precualificacion',
   'subida_expediente_bancos',
   'descualificados'
 ];
