@@ -44,19 +44,19 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   }, [leads, agentId, searchQuery]);
 
   // Contadores
-  const noCualificadosCount = useMemo(() => 
-    agentLeads.filter(lead => lead.stage === 'no_cualificado').length, 
+  const descualificadosCount = useMemo(() => 
+    agentLeads.filter(lead => lead.stage === 'descualificados').length, 
     [agentLeads]
   );
 
   const cualificadosCount = useMemo(() => 
-    agentLeads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    agentLeads.filter(lead => lead.stage !== 'descualificados').length, 
     [agentLeads]
   );
 
-  // Exportar leads no cualificados
-  const handleExportNoCualificados = () => {
-    const noCualificados = agentLeads.filter(lead => lead.stage === 'no_cualificado');
+  // Exportar leads descualificados
+  const handleExportDescualificados = () => {
+    const descualificados = agentLeads.filter(lead => lead.stage === 'descualificados');
     if (noCualificados.length === 0) {
       toast.info('No hay leads no cualificados para exportar');
       return;
