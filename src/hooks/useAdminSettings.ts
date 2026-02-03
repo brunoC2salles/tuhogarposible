@@ -59,6 +59,23 @@ export const useAdminSettings = () => {
     }
   };
 
+  // Buscar configuração do webhook de leads descualificados
+  const fetchDisqualifiedWebhookUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_disqualified_url')
+        .single();
+
+      if (!error && data) {
+        setDisqualifiedWebhookUrl(data.value || '');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching disqualified webhook URL:', err);
+    }
+  };
+
   // Buscar logs de webhook (últimos 20)
   const fetchWebhookLogs = async () => {
     try {
