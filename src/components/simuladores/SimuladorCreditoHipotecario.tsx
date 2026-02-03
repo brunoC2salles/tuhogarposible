@@ -909,7 +909,7 @@ export function SimuladorCreditoHipotecario() {
 
             {/* Checkbox de Política de Privacidad */}
             <div className="space-y-2 pt-6">
-              <div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
+              <div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
                 <Checkbox 
                   id="aceptaPrivacidadHipoteca" 
                   checked={watchAceptaPrivacidad}
@@ -917,7 +917,18 @@ export function SimuladorCreditoHipotecario() {
                 />
                 <div className="grid gap-1.5 leading-none">
                   <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
-                    Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
+                    <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
+                    <a 
+                      href="/docs/consentimiento-hipotecario.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-primary underline hover:text-primary/80"
+                    >
+                      CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA
+                    </a>
+                    <span className="block mt-1 text-xs text-muted-foreground">
+                      Al marcar esta casilla, declaro haber leído y aceptar el documento de consentimiento *
+                    </span>
                   </label>
                 </div>
               </div>
