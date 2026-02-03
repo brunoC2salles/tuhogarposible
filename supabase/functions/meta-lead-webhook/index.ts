@@ -694,8 +694,8 @@ Deno.serve(async (req) => {
           zona_interes: data.zona_interes || null,
           valor_inmueble_deseado: null, // Será preenchido quando um imóvel for vinculado
         agente_asignado_id: agenteAsignado?.id || null,
-        // Leads não qualificados vão direto para 'no_cualificado'
-        stage: qualificacao.cualificado ? 'nuevo_lead' : 'no_cualificado',
+        // Leads não qualificados vão direto para 'descualificados'
+        stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados',
         source: 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonal,
