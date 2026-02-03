@@ -136,17 +136,17 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                   <Users className="h-4 w-4" />
                   <span className="text-sm font-medium">{cualificadosCount} Leads</span>
                 </div>
-                {noCualificadosCount > 0 && (
+                {descualificadosCount > 0 && (
                   <Badge variant="destructive" className="flex items-center gap-1">
                     <Ban className="h-3 w-3" />
-                    {noCualificadosCount} No Cualificados
+                    {descualificadosCount} Descualificados
                   </Badge>
                 )}
               </div>
             </div>
             
-            {noCualificadosCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+            {descualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />
                 Exportar No Cualificados
               </Button>
