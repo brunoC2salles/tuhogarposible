@@ -1,256 +1,198 @@
 
-# Plano de Implementação: Widget Inmovilla/Casafari no Portal do Agente
+# Plano: Atualização do Checkbox de Privacidade nos Simuladores
 
-## Situação Atual
+## Objetivo
 
-### Problema Identificado
-- A sincronização via API retornou **erro 403** porque você não tem produtos próprios no Inmovilla
-- Você usa o Inmovilla como **portal para acessar o catálogo do Casafari**
-- O Casafari tem API própria que requer contrato separado (não disponível para você)
-
-### Credenciais do Inmovilla (painel web)
-- **Oficina**: ofi13611
-- **Usuario**: Albert
-- **Contraseña**: 24isjp
-- **URL**: https://crm.inmovilla.com/panel/
+Atualizar o checkbox de privacidade em ambos os simuladores (Crédito Personal e Crédito Hipotecario) para:
+1. Exibir o texto: **"LECTURA IMPORTANTE AL CLIENTE: CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA"**
+2. Ao clicar no link, abrir o documento PDF de consentimento para visualização
 
 ---
 
-## Solução Proposta: Iframe Aprimorado com Branding
+## Análise do Estado Atual
 
-Como não há acesso API ao Casafari, a melhor solução é:
+### Simulador de Crédito Personal (`SimuladorCreditoPersonal.tsx`)
+- Linhas 262-279: Checkbox com link para `https://tuhogarposible.com/politica-de-privacidad`
+- Texto atual: "Acepto la Política de Privacidad y el tratamiento de mis datos conforme al RGPD"
 
-1. **Iframe do painel Inmovilla** no Portal do Agente
-2. **Tamanho maior** (ocupando toda a área principal)
-3. **Posição prioritária** (primeira seção após o header)
-4. **Branding Tu Hogar Posible** em volta do iframe
-5. **Remover a seção de sincronização API** (não funcional)
+### Simulador de Crédito Hipotecario (`SimuladorCreditoHipotecario.tsx`)
+- Linhas 910-927: Checkbox com link para `https://tuhogarposible.com/politica-de-privacidad`
+- Texto atual: Idêntico ao do simulador personal
 
-### Limitações do Iframe
-
-| Característica | Possível? | Motivo |
-|----------------|-----------|--------|
-| Login automático | ❌ | O Inmovilla não permite autenticação via URL |
-| Ocultar header Inmovilla | ❌ | O CSS é do site deles |
-| Links com branding THP | ❌ | Links são do Inmovilla |
-| Pesquisar produtos | ✅ | O painel Inmovilla permite pesquisa |
-| Ver fotos/detalhes | ✅ | Abre dentro do iframe |
-
-### O que podemos fazer
-
-1. **Enquadrar o iframe** com um header "Búsqueda de Inmuebles - Tu Hogar Posible"
-2. **Instrução aos agentes**: Fazer login 1x no Inmovilla, sessão é mantida
-3. **Tamanho fullscreen** para melhor experiência
-4. **Tab dedicada** "Casafari/Inmovilla" no portal
+### Documento PDF Enviado
+- Título: "CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA"
+- Conteúdo: 8 seções cobrindo dados do titular, intermediário, objeto do consentimento, documentação autorizada, uso e transferência, proteção de dados, vigência e declaração final
+- 2 páginas com campos para assinatura
 
 ---
 
-## Arquitetura da Solução
+## Solução Proposta
 
-### Nova Estrutura do Portal do Agente
+### Abordagem Simples e Leve
 
+1. **Copiar o PDF** para a pasta `public/docs/`
+2. **Modificar apenas as linhas do checkbox** em ambos os simuladores
+3. O link abrirá o PDF diretamente em uma nova aba (comportamento nativo do navegador)
+
+Essa abordagem:
+- Não cria novos componentes
+- Não adiciona peso à aplicação
+- Aproveita o comportamento nativo do navegador para PDFs
+- É a mais simples e eficiente
+
+---
+
+## Alterações Necessárias
+
+### 1. Copiar o PDF para o projeto
+
+**Ação**: Copiar o arquivo PDF enviado para `public/docs/consentimiento-hipotecario.pdf`
+
+**Motivo**: Arquivos na pasta `public` são servidos diretamente e podem ser acessados via URL
+
+---
+
+### 2. Modificar `SimuladorCreditoPersonal.tsx`
+
+**Localização**: Linhas 262-279
+
+**Antes**:
+```tsx
+<div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
+  <Checkbox 
+    id="aceptaPrivacidad" 
+    checked={watchAceptaPrivacidad}
+    onCheckedChange={(checked) => setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+  />
+  <div className="grid gap-1.5 leading-none">
+    <label htmlFor="aceptaPrivacidad" className="text-sm font-medium cursor-pointer">
+      Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
+    </label>
+  </div>
+</div>
 ```
-┌─────────────────────────────────────────────────────┐
-│  Header (Logo Tu Hogar Posible + navegação)         │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌───────────────────────────────────────────────┐  │
-│  │  🏢 Búsqueda Casafari - Tu Hogar Posible      │  │
-│  │  ───────────────────────────────────────────  │  │
-│  │                                               │  │
-│  │        [IFRAME INMOVILLA - 800px altura]      │  │
-│  │                                               │  │
-│  │   (agente faz login 1x e pesquisa normal)     │  │
-│  │                                               │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  Tabs: [Casafari] [Inventario Propio]               │
-│                                                     │
-│  [Grid de produtos próprios - se tab Inventario]    │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
 
----
-
-## Alterações a Fazer
-
-### Arquivo: `src/pages/inventario/AgenteInventario.tsx`
-
-1. **Remover** a seção `InmovillaSyncSection` (sincronização API não funciona)
-2. **Adicionar** tabs "Casafari" e "Inventario Propio"
-3. **Tab Casafari**: Exibe o iframe do Inmovilla em tela grande
-4. **Tab Inventario**: Exibe o grid de produtos próprios (Hipoges, Solvia, etc.)
-
-### Arquivo: `src/components/inventario/InmovillaWidget.tsx`
-
-1. **Altura padrão maior**: 800px em vez de 600px
-2. **Header com branding** Tu Hogar Posible acima do iframe
-3. **Instruções para login** se agente não estiver logado
-4. **Botão de abrir em nova aba** como alternativa
-
-### Arquivo: `src/pages/Index.tsx`
-
-1. Já removemos o widget da página inicial (OK)
-
-### Configuração: `AdminSettings.tsx`
-
-1. Definir a URL padrão como `https://crm.inmovilla.com/panel/` ou URL específica do buscador
-
----
-
-## Código do Componente Atualizado
-
-```typescript
-// InmovillaWidget.tsx - Novo design
-export const InmovillaCasafariSection = () => {
-  const inmovillaUrl = "https://crm.inmovilla.com/panel/";
-  
-  return (
-    <Card className="border-2 border-primary/20">
-      <CardHeader className="bg-primary/5 pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo size="sm" />
-            <div>
-              <CardTitle className="text-lg">
-                Búsqueda de Inmuebles - Casafari
-              </CardTitle>
-              <CardDescription>
-                Accede al catálogo completo de propiedades
-              </CardDescription>
-            </div>
-          </div>
-          <Button variant="outline" size="sm" asChild>
-            <a href={inmovillaUrl} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Abrir en nueva pestaña
-            </a>
-          </Button>
-        </div>
-        
-        <Alert className="mt-4">
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Inicia sesión en Inmovilla con tus credenciales. 
-            La sesión se mantiene activa mientras navegas.
-          </AlertDescription>
-        </Alert>
-      </CardHeader>
-      
-      <CardContent className="p-0">
-        <iframe
-          src={inmovillaUrl}
-          className="w-full border-0 rounded-b-lg"
-          style={{ height: "800px" }}
-          title="Casafari - Tu Hogar Posible"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation"
-        />
-      </CardContent>
-    </Card>
-  );
-};
+**Depois**:
+```tsx
+<div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
+  <Checkbox 
+    id="aceptaPrivacidad" 
+    checked={watchAceptaPrivacidad}
+    onCheckedChange={(checked) => setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+  />
+  <div className="grid gap-1.5 leading-none">
+    <label htmlFor="aceptaPrivacidad" className="text-sm font-medium cursor-pointer">
+      <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
+      <a 
+        href="/docs/consentimiento-hipotecario.pdf" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-primary underline hover:text-primary/80"
+      >
+        CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA
+      </a>
+      <span className="block mt-1 text-xs text-muted-foreground">
+        Al marcar esta casilla, declaro haber leído y aceptar el documento de consentimiento *
+      </span>
+    </label>
+  </div>
+</div>
 ```
 
 ---
 
-## Estrutura de Tabs no Portal
+### 3. Modificar `SimuladorCreditoHipotecario.tsx`
 
-```typescript
-// AgenteInventario.tsx - Nova estrutura
-const [activeTab, setActiveTab] = useState<'casafari' | 'inventario'>('casafari');
+**Localização**: Linhas 910-927
 
-return (
-  <main>
-    <Tabs value={activeTab} onValueChange={setActiveTab}>
-      <TabsList className="mb-6">
-        <TabsTrigger value="casafari" className="gap-2">
-          <Building2 className="h-4 w-4" />
-          Casafari / Inmovilla
-        </TabsTrigger>
-        <TabsTrigger value="inventario" className="gap-2">
-          <Home className="h-4 w-4" />
-          Inventario Propio
-        </TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="casafari">
-        <InmovillaCasafariSection />
-      </TabsContent>
-      
-      <TabsContent value="inventario">
-        {/* Grid de produtos próprios (Hipoges, Solvia, etc.) */}
-        <FiltrosInmuebles ... />
-        <InmuebleGrid ... />
-      </TabsContent>
-    </Tabs>
-  </main>
-);
+**Antes**:
+```tsx
+<div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
+  <Checkbox 
+    id="aceptaPrivacidadHipoteca" 
+    checked={watchAceptaPrivacidad}
+    onCheckedChange={(checked) => form.setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+  />
+  <div className="grid gap-1.5 leading-none">
+    <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
+      Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
+    </label>
+  </div>
+</div>
+```
+
+**Depois**:
+```tsx
+<div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
+  <Checkbox 
+    id="aceptaPrivacidadHipoteca" 
+    checked={watchAceptaPrivacidad}
+    onCheckedChange={(checked) => form.setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
+  />
+  <div className="grid gap-1.5 leading-none">
+    <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
+      <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
+      <a 
+        href="/docs/consentimiento-hipotecario.pdf" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-primary underline hover:text-primary/80"
+      >
+        CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA
+      </a>
+      <span className="block mt-1 text-xs text-muted-foreground">
+        Al marcar esta casilla, declaro haber leído y aceptar el documento de consentimiento *
+      </span>
+    </label>
+  </div>
+</div>
 ```
 
 ---
 
-## O que Será Removido
+## Resumo das Mudanças
 
-| Componente | Motivo |
-|------------|--------|
-| `InmovillaSyncSection` | API retorna 403, não funciona |
-| Tabs de provedor (Todos/THP/Inmovilla) | Não há produtos Inmovilla para filtrar |
-| Edge function `sync-inmovilla-products` | Manter código mas não usar |
-| Hook `useInmovillaSync` | Não será mais necessário |
-
----
-
-## Resultado Final
-
-### Para o Agente
-
-1. Acessa Portal do Agente
-2. Vê tab "Casafari/Inmovilla" em destaque (primeira)
-3. Iframe grande com painel Inmovilla
-4. Faz login 1x com suas credenciais Inmovilla
-5. Pesquisa produtos normalmente
-6. Pode alternar para "Inventario Propio" para ver Hipoges/Solvia
-
-### Branding Mantido
-
-- Header com logo Tu Hogar Posible acima do iframe
-- Título "Búsqueda de Inmuebles - Tu Hogar Posible"
-- Cores e estilo consistentes com o resto do portal
-
-### Limitação Conhecida
-
-- **Links de produtos** abrem no Inmovilla (não podem ser compartilhados com branding THP)
-- Para compartilhar com cliente, agente teria que:
-  1. Encontrar produto no Casafari
-  2. Adicionar manualmente ao inventário próprio (se necessário)
-  3. Compartilhar página pública do portal
+| Arquivo | Ação | Linhas Afetadas |
+|---------|------|-----------------|
+| `public/docs/consentimiento-hipotecario.pdf` | Criar (copiar do upload) | N/A |
+| `SimuladorCreditoPersonal.tsx` | Modificar checkbox | 264-274 |
+| `SimuladorCreditoHipotecario.tsx` | Modificar checkbox | 912-922 |
 
 ---
 
-## Alternativa Futura
+## Resultado Visual Esperado
 
-Se você conseguir **credenciais de API do Casafari** diretamente com eles:
-- Custo: Casafari cobra por acesso API
-- Benefício: White-label completo
-- Implementação: Já temos a estrutura da Edge Function pronta
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/inventario/InmovillaWidget.tsx` | Reformular para seção com branding |
-| `src/pages/inventario/AgenteInventario.tsx` | Tabs Casafari vs Inventario + remover sync |
-| `src/components/inventario/InmovillaSyncSection.tsx` | Remover do uso (arquivo pode ficar) |
+O checkbox terá:
+1. **Borda amarela** para destacar a importância
+2. **Fundo levemente amarelo** para chamar atenção
+3. **Título em negrito** "LECTURA IMPORTANTE AL CLIENTE:"
+4. **Link clicável** que abre o PDF em nova aba
+5. **Texto auxiliar** explicando que marcar a casilla significa concordar
 
 ---
 
-## Perguntas Antes de Implementar
+## O que NÃO será alterado
 
-1. **A URL `https://crm.inmovilla.com/panel/` é a correta?** Ou há uma página específica de busca que você usa?
+- Schema de validação (já funciona com `aceptaPrivacidad: boolean`)
+- Lógica de cálculo dos simuladores
+- Comportamento do formulário
+- Outros componentes ou arquivos
 
-2. **Os agentes têm login individual no Inmovilla?** Ou todos usam as mesmas credenciais (ofi13611/Albert)?
+---
 
-3. **O tab "Casafari" deve ser o padrão** (primeira coisa que agente vê) ou prefere que "Inventario Propio" seja o padrão?
+## Seção Técnica
+
+### Por que usar `public/docs/` em vez de `src/assets/`?
+
+- PDFs na pasta `public` são servidos diretamente via URL (`/docs/arquivo.pdf`)
+- Não precisam de import em JavaScript
+- O navegador abre PDFs nativamente, sem necessidade de biblioteca adicional
+- É a abordagem mais simples e leve para servir documentos estáticos
+
+### Por que não criar um modal de preview?
+
+- Adiciona complexidade desnecessária
+- Requer bibliotecas como `react-pdf` ou iframes
+- O comportamento nativo do navegador (abrir PDF em nova aba) é mais robusto
+- Permite que o usuário baixe/imprima facilmente
+
