@@ -37,7 +37,7 @@ const AdminCRM = () => {
       if (agentId) {
         const current = index.get(agentId) || { total: 0, active: 0 };
         current.total += 1;
-        if (lead.stage !== 'finalizada') {
+        if (lead.stage !== 'subida_expediente_bancos' && lead.stage !== 'descualificados') {
           current.active += 1;
         }
         index.set(agentId, current);

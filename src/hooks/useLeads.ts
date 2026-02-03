@@ -181,10 +181,7 @@ export const useLeads = () => {
 
       if (error) throw error;
 
-      // If stage changed to "cobro", create draft invoice (ready for payment)
-      if (newStage === 'cobro' && currentLead) {
-        await createDraftInvoiceFromServices(leadId, currentLead.nombre_completo, currentLead.agente_asignado_id);
-      }
+      // Simplified: no automatic invoice creation in new 4-stage workflow
 
       await fetchLeads();
       return true;
