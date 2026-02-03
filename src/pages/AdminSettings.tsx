@@ -334,6 +334,49 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Integração Make.com - Leads Descualificados */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Integración Make.com - Leads Descualificados</CardTitle>
+            <CardDescription>
+              Configure el webhook para enviar leads descualificados y disparar emails de agradecimiento
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Este webhook se dispara automáticamente cuando un lead es movido a "Descualificados".
+                Configure un escenario en Make.com para enviar un email de agradecimiento explicando el motivo.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhook-disqualified-url">URL del Webhook (Descualificados)</Label>
+              <Input
+                id="webhook-disqualified-url"
+                type="url"
+                placeholder="https://hook.eu2.make.com/..."
+                value={localDisqualifiedWebhookUrl}
+                onChange={(e) => setLocalDisqualifiedWebhookUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                El payload incluye: nombre, email, teléfono, zona de interés y razón de descualificación
+              </p>
+            </div>
+
+            <Button 
+              onClick={async () => {
+                const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
+                if (success) refreshLogs();
+              }} 
+              disabled={savingDisqualified}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {savingDisqualified ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </CardContent>
+        </Card>
         {/* Logs de Webhook */}
         <Card>
           <CardHeader>
