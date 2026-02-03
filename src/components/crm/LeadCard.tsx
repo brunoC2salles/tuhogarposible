@@ -133,7 +133,7 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
             >
               <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
-            {onDisqualify && lead.stage !== 'no_cualificado' && (
+            {onDisqualify && lead.stage !== 'descualificados' && (
               <Button
                 size="icon"
                 variant="ghost"

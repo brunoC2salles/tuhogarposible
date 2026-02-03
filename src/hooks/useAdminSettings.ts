@@ -14,9 +14,11 @@ interface WebhookLog {
 export const useAdminSettings = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [metaBitrixWebhookUrl, setMetaBitrixWebhookUrl] = useState('');
+  const [disqualifiedWebhookUrl, setDisqualifiedWebhookUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMetaBitrix, setSavingMetaBitrix] = useState(false);
+  const [savingDisqualified, setSavingDisqualified] = useState(false);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [metaBitrixLogs, setMetaBitrixLogs] = useState<WebhookLog[]>([]);
 
@@ -54,6 +56,23 @@ export const useAdminSettings = () => {
       }
     } catch (err: any) {
       console.error('[AdminSettings] Error fetching Meta Bitrix webhook URL:', err);
+    }
+  };
+
+  // Buscar configuração do webhook de leads descualificados
+  const fetchDisqualifiedWebhookUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_disqualified_url')
+        .single();
+
+      if (!error && data) {
+        setDisqualifiedWebhookUrl(data.value || '');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching disqualified webhook URL:', err);
     }
   };
 
@@ -143,6 +162,35 @@ export const useAdminSettings = () => {
     }
   };
 
+  // Guardar URL do webhook de leads descualificados
+  const saveDisqualifiedWebhookUrl = async (url: string) => {
+    try {
+      setSavingDisqualified(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { 
+            key: 'webhook_disqualified_url', 
+            value: url,
+            description: 'URL do webhook Make.com para enviar leads descualificados (email de agradecimento)'
+          },
+          { onConflict: 'key' }
+        );
+
+      if (error) throw error;
+
+      setDisqualifiedWebhookUrl(url);
+      toast.success('URL del webhook de descualificados guardada');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving disqualified webhook URL:', err);
+      toast.error('Error al guardar configuración');
+      return false;
+    } finally {
+      setSavingDisqualified(false);
+    }
+  };
+
   // Testar webhook via Edge Function (sem no-cors!)
   const testWebhook = async (_url: string) => {
     try {
@@ -206,18 +254,22 @@ export const useAdminSettings = () => {
     fetchWebhookLogs();
     fetchMetaBitrixWebhookUrl();
     fetchMetaBitrixLogs();
+    fetchDisqualifiedWebhookUrl();
   }, []);
 
   return {
     webhookUrl,
     metaBitrixWebhookUrl,
+    disqualifiedWebhookUrl,
     loading,
     saving,
     savingMetaBitrix,
+    savingDisqualified,
     webhookLogs,
     metaBitrixLogs,
     saveWebhookUrl,
     saveMetaBitrixWebhookUrl,
+    saveDisqualifiedWebhookUrl,
     testWebhook,
     testMetaBitrixWebhook,
     refreshLogs: fetchWebhookLogs,

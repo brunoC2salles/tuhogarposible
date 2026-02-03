@@ -169,6 +169,23 @@ export const useLeads = () => {
     }
   };
 
+  // Disparar webhook para leads descualificados
+  const triggerDisqualifiedWebhook = async (leadId: string, razon?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('disqualified-lead-webhook', {
+        body: { lead_id: leadId, razon }
+      });
+
+      if (error) {
+        console.error('[Webhook] Erro ao enviar webhook de descualificação:', error);
+      } else {
+        console.log('[Webhook] Disqualified webhook enviado:', data);
+      }
+    } catch (err) {
+      console.error('[Webhook] Exceção no webhook de descualificação:', err);
+    }
+  };
+
   const updateLeadStage = async (leadId: string, newStage: LeadStage) => {
     try {
       // Get current lead data before update
@@ -181,9 +198,9 @@ export const useLeads = () => {
 
       if (error) throw error;
 
-      // If stage changed to "cobro", create draft invoice (ready for payment)
-      if (newStage === 'cobro' && currentLead) {
-        await createDraftInvoiceFromServices(leadId, currentLead.nombre_completo, currentLead.agente_asignado_id);
+      // Disparar webhook se lead foi descualificado
+      if (newStage === 'descualificados') {
+        triggerDisqualifiedWebhook(leadId);
       }
 
       await fetchLeads();

@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      _leads_stage_migration_backup: {
+        Row: {
+          id: string | null
+          migrated_at: string | null
+          old_stage: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Insert: {
+          id?: string | null
+          migrated_at?: string | null
+          old_stage?: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Update: {
+          id?: string | null
+          migrated_at?: string | null
+          old_stage?: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Relationships: []
+      }
       admin_settings: {
         Row: {
           created_at: string | null
@@ -1263,6 +1281,8 @@ export type Database = {
         | "finalizada"
         | "no_cualificado"
         | "nuevo_lead"
+        | "subida_expediente_bancos"
+        | "descualificados"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1425,6 +1445,8 @@ export const Constants = {
         "finalizada",
         "no_cualificado",
         "nuevo_lead",
+        "subida_expediente_bancos",
+        "descualificados",
       ],
       notification_type: [
         "new_lead",

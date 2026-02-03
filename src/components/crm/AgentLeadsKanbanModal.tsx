@@ -44,26 +44,26 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   }, [leads, agentId, searchQuery]);
 
   // Contadores
-  const noCualificadosCount = useMemo(() => 
-    agentLeads.filter(lead => lead.stage === 'no_cualificado').length, 
+  const descualificadosCount = useMemo(() => 
+    agentLeads.filter(lead => lead.stage === 'descualificados').length, 
     [agentLeads]
   );
 
   const cualificadosCount = useMemo(() => 
-    agentLeads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    agentLeads.filter(lead => lead.stage !== 'descualificados').length, 
     [agentLeads]
   );
 
-  // Exportar leads no cualificados
-  const handleExportNoCualificados = () => {
-    const noCualificados = agentLeads.filter(lead => lead.stage === 'no_cualificado');
-    if (noCualificados.length === 0) {
-      toast.info('No hay leads no cualificados para exportar');
+  // Exportar leads descualificados
+  const handleExportDescualificados = () => {
+    const descualificados = agentLeads.filter(lead => lead.stage === 'descualificados');
+    if (descualificados.length === 0) {
+      toast.info('No hay leads descualificados para exportar');
       return;
     }
-    const csv = exportLeadsToCSV(noCualificados, {});
-    downloadCSV(csv, `leads-no-cualificados-${agentName}-${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success(`${noCualificados.length} leads exportados`);
+    const csv = exportLeadsToCSV(descualificados, {});
+    downloadCSV(csv, `leads-descualificados-${agentName}-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${descualificados.length} leads exportados`);
   };
 
   const handleStageChange = async (leadId: string, newStage: LeadStage) => {
@@ -136,19 +136,19 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                   <Users className="h-4 w-4" />
                   <span className="text-sm font-medium">{cualificadosCount} Leads</span>
                 </div>
-                {noCualificadosCount > 0 && (
+                {descualificadosCount > 0 && (
                   <Badge variant="destructive" className="flex items-center gap-1">
                     <Ban className="h-3 w-3" />
-                    {noCualificadosCount} No Cualificados
+                    {descualificadosCount} Descualificados
                   </Badge>
                 )}
               </div>
             </div>
             
-            {noCualificadosCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+            {descualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />
-                Exportar No Cualificados
+                Exportar Descualificados
               </Button>
             )}
           </div>
@@ -161,7 +161,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                 onViewDetails={handleViewDetails}
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
-                onDisqualify={(leadId) => handleStageChange(leadId, 'no_cualificado')}
+                onDisqualify={(leadId) => handleStageChange(leadId, 'descualificados')}
               />
             ) : searchQuery ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

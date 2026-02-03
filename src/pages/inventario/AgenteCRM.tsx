@@ -41,26 +41,26 @@ const AgenteCRM = () => {
   }, [leads, searchQuery]);
 
   // Contadores
-  const noCualificadosCount = useMemo(() => 
-    leads.filter(lead => lead.stage === 'no_cualificado').length, 
+  const descualificadosCount = useMemo(() => 
+    leads.filter(lead => lead.stage === 'descualificados').length, 
     [leads]
   );
 
   const cualificadosCount = useMemo(() => 
-    leads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    leads.filter(lead => lead.stage !== 'descualificados').length, 
     [leads]
   );
 
-  // Exportar leads no cualificados
-  const handleExportNoCualificados = () => {
-    const noCualificados = leads.filter(lead => lead.stage === 'no_cualificado');
-    if (noCualificados.length === 0) {
-      toast.info('No hay leads no cualificados para exportar');
+  // Exportar leads descualificados
+  const handleExportDescualificados = () => {
+    const descualificados = leads.filter(lead => lead.stage === 'descualificados');
+    if (descualificados.length === 0) {
+      toast.info('No hay leads descualificados para exportar');
       return;
     }
-    const csv = exportLeadsToCSV(noCualificados, {});
-    downloadCSV(csv, `leads-no-cualificados-${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success(`${noCualificados.length} leads exportados`);
+    const csv = exportLeadsToCSV(descualificados, {});
+    downloadCSV(csv, `leads-descualificados-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${descualificados.length} leads exportados`);
   };
 
   const handleCreateLead = async (data: any) => {
@@ -138,20 +138,20 @@ const AgenteCRM = () => {
                 <Users className="h-5 w-5" />
                 <span className="text-lg font-semibold">{cualificadosCount} Leads</span>
               </div>
-              {noCualificadosCount > 0 && (
+              {descualificadosCount > 0 && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <Ban className="h-3 w-3" />
-                  {noCualificadosCount} No Cualificados
+                  {descualificadosCount} Descualificados
                 </Badge>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {noCualificadosCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+            {descualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />
-                Exportar No Cualificados
+                Exportar Descualificados
               </Button>
             )}
             <Button onClick={() => setCreateModalOpen(true)}>
@@ -186,7 +186,7 @@ const AgenteCRM = () => {
             onViewDetails={setDetailsLead}
             onEdit={setEditingLead}
             onDelete={setDeleteLeadId}
-            onDisqualify={(leadId) => updateLeadStage(leadId, 'no_cualificado')}
+            onDisqualify={(leadId) => updateLeadStage(leadId, 'descualificados')}
           />
         )}
       </main>
