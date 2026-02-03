@@ -48,6 +48,7 @@ const AdminSettings = () => {
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localDisqualifiedWebhookUrl, setLocalDisqualifiedWebhookUrl] = useState('');
+  const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   
