@@ -138,20 +138,20 @@ const AgenteCRM = () => {
                 <Users className="h-5 w-5" />
                 <span className="text-lg font-semibold">{cualificadosCount} Leads</span>
               </div>
-              {noCualificadosCount > 0 && (
+              {descualificadosCount > 0 && (
                 <Badge variant="destructive" className="flex items-center gap-1">
                   <Ban className="h-3 w-3" />
-                  {noCualificadosCount} No Cualificados
+                  {descualificadosCount} Descualificados
                 </Badge>
               )}
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {noCualificadosCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleExportNoCualificados}>
+            {descualificadosCount > 0 && (
+              <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />
-                Exportar No Cualificados
+                Exportar Descualificados
               </Button>
             )}
             <Button onClick={() => setCreateModalOpen(true)}>
