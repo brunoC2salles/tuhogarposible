@@ -1283,6 +1283,7 @@ export type Database = {
         | "nuevo_lead"
         | "subida_expediente_bancos"
         | "descualificados"
+        | "precualificacion"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1447,6 +1448,7 @@ export const Constants = {
         "nuevo_lead",
         "subida_expediente_bancos",
         "descualificados",
+        "precualificacion",
       ],
       notification_type: [
         "new_lead",

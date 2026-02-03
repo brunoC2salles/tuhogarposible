@@ -26,23 +26,29 @@ const AdminSettings = () => {
     webhookUrl, 
     metaBitrixWebhookUrl,
     disqualifiedWebhookUrl,
+    inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
     savingDisqualified,
+    savingInmovilla,
+    testingDisqualified,
     webhookLogs, 
     metaBitrixLogs,
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
     saveDisqualifiedWebhookUrl,
+    saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
+    testDisqualifiedWebhook,
     refreshLogs,
     refreshMetaBitrixLogs
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localDisqualifiedWebhookUrl, setLocalDisqualifiedWebhookUrl] = useState('');
+  const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   
@@ -74,6 +80,12 @@ const AdminSettings = () => {
       setLocalDisqualifiedWebhookUrl(disqualifiedWebhookUrl);
     }
   }, [disqualifiedWebhookUrl]);
+
+  useEffect(() => {
+    if (inmovillaUrl && !localInmovillaUrl) {
+      setLocalInmovillaUrl(inmovillaUrl);
+    }
+  }, [inmovillaUrl]);
 
   useEffect(() => {
     fetchScrapingStats();
@@ -365,16 +377,30 @@ const AdminSettings = () => {
               </p>
             </div>
 
-            <Button 
-              onClick={async () => {
-                const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
-                if (success) refreshLogs();
-              }} 
-              disabled={savingDisqualified}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingDisqualified ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
+                  if (success) refreshLogs();
+                }} 
+                disabled={savingDisqualified}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingDisqualified ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={testDisqualifiedWebhook} 
+                disabled={testingDisqualified || !localDisqualifiedWebhookUrl.trim()}
+                title="Probar con el último lead descualificado"
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                {testingDisqualified ? 'Probando...' : 'Probar Webhook'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              La prueba enviará los datos del último lead descualificado al webhook configurado
+            </p>
           </CardContent>
         </Card>
         {/* Logs de Webhook */}
@@ -417,6 +443,41 @@ const AdminSettings = () => {
                 ))
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Inmovilla Widget URL */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Widget Inmovilla</CardTitle>
+            <CardDescription>
+              Configure la URL del iframe de Inmovilla para mostrar en la página inicial
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="inmovilla-url">URL del Iframe Inmovilla</Label>
+              <Input
+                id="inmovilla-url"
+                type="url"
+                placeholder="https://crm.inmovilla.com/panel/..."
+                value={localInmovillaUrl}
+                onChange={(e) => setLocalInmovillaUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Esta URL se mostrará como un iframe en la página de inicio para los agentes
+              </p>
+            </div>
+
+            <Button 
+              onClick={async () => {
+                await saveInmovillaUrl(localInmovillaUrl);
+              }} 
+              disabled={savingInmovilla}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {savingInmovilla ? 'Guardando...' : 'Guardar'}
+            </Button>
           </CardContent>
         </Card>
 
