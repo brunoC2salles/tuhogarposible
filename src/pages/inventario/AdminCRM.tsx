@@ -23,7 +23,7 @@ const AdminCRM = () => {
       const created = new Date(l.created_at);
       return created.getMonth() === currentMonth && created.getFullYear() === currentYear;
     }).length;
-    const leadsConvertidos = leads.filter(l => l.stage === 'finalizada').length;
+    const leadsConvertidos = leads.filter(l => l.stage === 'subida_expediente_bancos').length;
     const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
     
     return { totalLeads, leadsThisMonth, leadsConvertidos, tasaConversion };
