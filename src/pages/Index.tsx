@@ -1,38 +1,10 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, Shield, Calculator, LayoutDashboard, WalletCards, GraduationCap, ExternalLink } from "lucide-react";
+import { Users, Shield, Calculator, LayoutDashboard, WalletCards, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
-import { InmovillaWidget } from "@/components/inventario/InmovillaWidget";
-import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
-  const [inmovillaUrl, setInmovillaUrl] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchInmovillaUrl = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('admin_settings')
-          .select('value')
-          .eq('key', 'inmovilla_iframe_url')
-          .single();
-
-        if (!error && data) {
-          setInmovillaUrl(data.value || '');
-        }
-      } catch (err) {
-        console.error('Error fetching Inmovilla URL:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInmovillaUrl();
-  }, []);
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -168,46 +140,6 @@ const Index = () => {
                   Acceder a la Academia
                 </Button>
               </Link>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Inmovilla Widget Section */}
-        <div className="max-w-5xl mx-auto px-2 sm:px-4 mt-8">
-          <Card className="rounded-2xl border-2">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl">Colaboración Inmovilla</CardTitle>
-                    <CardDescription>
-                      Accede a los inmuebles de Inmovilla directamente
-                    </CardDescription>
-                  </div>
-                </div>
-                <a 
-                  href="https://crm.inmovilla.com/panel/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Abrir en nueva pestaña
-                  </Button>
-                </a>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-0">
-              {loading ? (
-                <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/50">
-                  <p className="text-muted-foreground">Cargando widget...</p>
-                </div>
-              ) : (
-                <InmovillaWidget url={inmovillaUrl} height="500px" />
-              )}
             </CardContent>
           </Card>
         </div>

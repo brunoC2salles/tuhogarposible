@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
+import { InmovillaSyncSection } from "@/components/inventario/InmovillaSyncSection";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
@@ -12,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +64,7 @@ const AgenteInventario = () => {
   const [filtrosActivos, setFiltrosActivos] = useState<FiltrosBusqueda>({});
   const [allCiudades, setAllCiudades] = useState<string[]>([]);
   const [allTipos, setAllTipos] = useState<string[]>([]);
+  const [proveedorFiltro, setProveedorFiltro] = useState<'todos' | 'Tu Hogar Posible' | 'Inmovilla'>('todos');
   
   const ciudadesDisponibles = useMemo(() => {
     const allCities = allCiudades.length > 0 ? allCiudades : Array.from(new Set(inmuebles.map(i => i.ciudad)));
@@ -136,6 +139,11 @@ const AgenteInventario = () => {
         query = query.or(`ciudad.ilike.${searchLower},direccion.ilike.${searchLower},region.ilike.${searchLower},titulo.ilike.${searchLower},codigo_inventario.ilike.${searchLower}`);
       }
 
+      // Filter by provider
+      if (proveedorFiltro !== 'todos') {
+        query = query.eq('proveedor', proveedorFiltro);
+      }
+
       if (filtrosActivos.ciudad) {
         query = query.eq('ciudad', filtrosActivos.ciudad);
       }
@@ -181,7 +189,7 @@ const AgenteInventario = () => {
       console.error("[Inventario] Exception:", err);
       toast.error("Error al aplicar filtros");
     }
-  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash]);
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash, proveedorFiltro]);
 
   useEffect(() => {
     console.log('🔵 [Debug] AgenteInventario - useEffect fetchInmueblesWithFilters disparado');
@@ -336,6 +344,25 @@ const AgenteInventario = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Inmovilla Sync Section */}
+        <div className="mb-6">
+          <InmovillaSyncSection onSyncComplete={() => fetchInmueblesWithFilters()} />
+        </div>
+
+        {/* Provider Filter Tabs */}
+        <div className="mb-6">
+          <Tabs value={proveedorFiltro} onValueChange={(v) => {
+            setProveedorFiltro(v as 'todos' | 'Tu Hogar Posible' | 'Inmovilla');
+            setCurrentPage(1);
+          }}>
+            <TabsList>
+              <TabsTrigger value="todos">Todos los productos</TabsTrigger>
+              <TabsTrigger value="Tu Hogar Posible">Tu Hogar Posible</TabsTrigger>
+              <TabsTrigger value="Inmovilla">Inmovilla</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 pointer-events-none" />
@@ -472,18 +499,6 @@ const AgenteInventario = () => {
             </>
         )}
 
-        {/* Link Produtos Adicionales */}
-        <div className="mt-8 text-center">
-          <a
-            href="https://crm.inmovilla.com/panel/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-primary hover:underline"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Ver productos adicionales en Inmovilla
-          </a>
-        </div>
       </main>
     </div>
   );
