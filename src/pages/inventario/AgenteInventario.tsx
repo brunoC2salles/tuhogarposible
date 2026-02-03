@@ -5,15 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { InmuebleCard } from "@/components/inventario/InmuebleCard";
 import { FiltrosInmuebles } from "@/components/inventario/FiltrosInmuebles";
-import { InmovillaSyncSection } from "@/components/inventario/InmovillaSyncSection";
+import { InmovillaCasafariSection } from "@/components/inventario/InmovillaCasafariSection";
 import { FiltrosBusqueda } from "@/types/inventario";
 import { useInmuebles, DatabaseInmueble } from "@/hooks/useInmuebles";
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, ExternalLink, Menu, Search } from "lucide-react";
+import { ArrowLeft, Home, LogOut, UserCircle, ChevronLeft, ChevronRight, Menu, Search, Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,7 +64,7 @@ const AgenteInventario = () => {
   const [filtrosActivos, setFiltrosActivos] = useState<FiltrosBusqueda>({});
   const [allCiudades, setAllCiudades] = useState<string[]>([]);
   const [allTipos, setAllTipos] = useState<string[]>([]);
-  const [proveedorFiltro, setProveedorFiltro] = useState<'todos' | 'Tu Hogar Posible' | 'Inmovilla'>('todos');
+  const [activeTab, setActiveTab] = useState<string>("casafari");
   
   const ciudadesDisponibles = useMemo(() => {
     const allCities = allCiudades.length > 0 ? allCiudades : Array.from(new Set(inmuebles.map(i => i.ciudad)));
@@ -139,11 +139,6 @@ const AgenteInventario = () => {
         query = query.or(`ciudad.ilike.${searchLower},direccion.ilike.${searchLower},region.ilike.${searchLower},titulo.ilike.${searchLower},codigo_inventario.ilike.${searchLower}`);
       }
 
-      // Filter by provider
-      if (proveedorFiltro !== 'todos') {
-        query = query.eq('proveedor', proveedorFiltro);
-      }
-
       if (filtrosActivos.ciudad) {
         query = query.eq('ciudad', filtrosActivos.ciudad);
       }
@@ -189,12 +184,14 @@ const AgenteInventario = () => {
       console.error("[Inventario] Exception:", err);
       toast.error("Error al aplicar filtros");
     }
-  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash, proveedorFiltro]);
+  }, [currentPage, itemsPerPage, debouncedSearchTerm, filtrosActivosHash]);
 
   useEffect(() => {
-    console.log('🔵 [Debug] AgenteInventario - useEffect fetchInmueblesWithFilters disparado');
-    fetchInmueblesWithFilters();
-  }, [fetchInmueblesWithFilters]);
+    if (activeTab === 'inventario') {
+      console.log('🔵 [Debug] AgenteInventario - useEffect fetchInmueblesWithFilters disparado');
+      fetchInmueblesWithFilters();
+    }
+  }, [fetchInmueblesWithFilters, activeTab]);
 
   const handleFiltrosChange = useCallback((filtros: FiltrosBusqueda) => {
     setFiltrosActivos(filtros);
@@ -217,6 +214,8 @@ const AgenteInventario = () => {
   const endIndex = Math.min(startIndex + itemsPerPage, totalInmuebles);
 
   useEffect(() => {
+    if (activeTab !== 'inventario') return;
+    
     console.log('🟢 [Debug] AgenteInventario - useEffect cargarVisitas disparado');
     const cargarVisitas = async () => {
       if (inmueblesFiltrados.length === 0) {
@@ -255,9 +254,9 @@ const AgenteInventario = () => {
     };
     
     cargarVisitas();
-  }, [inmuebleIdsHash]);
+  }, [inmuebleIdsHash, activeTab]);
 
-  if (loading && inmuebles.length === 0) {
+  if (loading && inmuebles.length === 0 && activeTab === 'inventario') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -272,7 +271,7 @@ const AgenteInventario = () => {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
               <Link to="/">
                 <Button variant="ghost" size="sm">
@@ -280,12 +279,12 @@ const AgenteInventario = () => {
                   <span className="hidden sm:inline">Volver</span>
                 </Button>
               </Link>
-          <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
                 <Logo size="sm" />
                 <div>
                   <h1 className="text-xl sm:text-2xl font-bold">Portal del Agente</h1>
                   <p className="text-xs sm:text-sm text-muted-foreground">
-                    Bienvenido, {profile?.nombre} - {totalInmuebles} inmuebles
+                    Bienvenido, {profile?.nombre}
                   </p>
                 </div>
               </div>
@@ -293,212 +292,202 @@ const AgenteInventario = () => {
 
             {/* Botões Desktop */}
             <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
-                  <Button size="sm">
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Colaboración Inmobiliarias
-                  </Button>
-                </a>
-                <Link to="/inventario/agente/crm">
-                  <Button variant="outline" size="sm">
-                    <UserCircle className="w-4 h-4 mr-2" />
-                    CRM
-                  </Button>
-                </Link>
-                <Button variant="outline" size="sm" onClick={signOut}>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Cerrar Sesión
+              <Link to="/inventario/agente/crm">
+                <Button variant="outline" size="sm">
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  CRM
                 </Button>
-              </div>
+              </Link>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
+            </div>
 
-              {/* Menu Hambúrguer Mobile */}
-              <div className="flex sm:hidden items-center gap-2">
-                <a href="https://crm.inmovilla.com/panel/" target="_blank" rel="noopener noreferrer">
-                  <Button size="sm">
-                    <ExternalLink className="w-4 h-4" />
+            {/* Menu Hambúrguer Mobile */}
+            <div className="flex sm:hidden items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Menu className="w-4 h-4" />
                   </Button>
-                </a>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <Menu className="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuItem asChild>
-                      <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
-                        <UserCircle className="w-4 h-4 mr-2" />
-                        CRM
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut} className="flex items-center cursor-pointer">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Cerrar Sesión
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem asChild>
+                    <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
+                      <UserCircle className="w-4 h-4 mr-2" />
+                      CRM
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="flex items-center cursor-pointer">
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Cerrar Sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Inmovilla Sync Section */}
-        <div className="mb-6">
-          <InmovillaSyncSection onSyncComplete={() => fetchInmueblesWithFilters()} />
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="casafari" className="gap-2">
+              <Building2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Casafari / Inmovilla</span>
+              <span className="sm:hidden">Casafari</span>
+            </TabsTrigger>
+            <TabsTrigger value="inventario" className="gap-2">
+              <Home className="h-4 w-4" />
+              <span className="hidden sm:inline">Inventario Propio</span>
+              <span className="sm:hidden">Inventario</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Provider Filter Tabs */}
-        <div className="mb-6">
-          <Tabs value={proveedorFiltro} onValueChange={(v) => {
-            setProveedorFiltro(v as 'todos' | 'Tu Hogar Posible' | 'Inmovilla');
-            setCurrentPage(1);
-          }}>
-            <TabsList>
-              <TabsTrigger value="todos">Todos los productos</TabsTrigger>
-              <TabsTrigger value="Tu Hogar Posible">Tu Hogar Posible</TabsTrigger>
-              <TabsTrigger value="Inmovilla">Inmovilla</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+          <TabsContent value="casafari">
+            <InmovillaCasafariSection />
+          </TabsContent>
 
-        <div className="mb-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 pointer-events-none" />
-            <Input
-              placeholder="Buscar por ciudad, dirección, región..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-base"
-            />
-          </div>
-          {searchTerm && (
-            <div className="mt-2 flex items-center gap-2">
-              <Badge variant="secondary" className="text-sm">
-                Buscando: "{searchTerm}"
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="ml-2 hover:text-foreground"
-                >
-                  ✕
-                </button>
-              </Badge>
-            </div>
-          )}
-        </div>
-
-        <FiltrosInmuebles
-          onFiltrosChange={handleFiltrosChange}
-          ciudadesDisponibles={ciudadesDisponibles}
-          tiposDisponibles={tiposDisponibles}
-        />
-
-        {/* Indicador de resultados e seletor de itens por página */}
-        {totalInmuebles > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <p className="text-sm text-muted-foreground">
-              Mostrando {startIndex + 1}-{endIndex} de {totalInmuebles} inmuebles
-            </p>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Mostrar:</span>
-              <Select value={itemsPerPage.toString()} onValueChange={(val) => {
-                setItemsPerPage(Number(val));
-                setCurrentPage(1);
-              }}>
-                <SelectTrigger className="w-20">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="12">12</SelectItem>
-                  <SelectItem value="24">24</SelectItem>
-                  <SelectItem value="48">48</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-
-        {totalInmuebles === 0 ? (
-          <Card className="text-center py-12">
-            <CardContent>
-              <Home className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No se encontraron inmuebles</h3>
-              <p className="text-muted-foreground mb-4">
-                Prueba ajustando los filtros de búsqueda
-              </p>
-              <Button 
-                variant="outline" 
-                onClick={() => handleFiltrosChange({})}
-              >
-                Limpiar filtros
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {loading ? (
-                  Array.from({ length: 12 }).map((_, i) => (
-                    <Card key={i} className="overflow-hidden">
-                      <CardContent className="p-6">
-                        <Skeleton className="h-48 w-full mb-4" />
-                        <Skeleton className="h-4 w-3/4 mb-2" />
-                        <Skeleton className="h-4 w-1/2" />
-                      </CardContent>
-                    </Card>
-                  ))
-                ) : (
-                  inmueblesFiltrados.map((inmueble) => (
-                    <InmuebleCard 
-                      key={inmueble.id} 
-                      inmueble={{
-                        ...inmueble,
-                        fechaCreacion: new Date(inmueble.created_at),
-                        agenteAsignado: inmueble.agente_asignado || undefined,
-                        titulo: inmueble.titulo || undefined,
-                        imageUrl: inmueble.image_url || undefined,
-                        urlExterna: inmueble.url_externa || undefined,
-                        areaM2: inmueble.area_m2 ? Number(inmueble.area_m2) : undefined,
-                        codigoInventario: inmueble.codigo_inventario || undefined,
-                      }}
-                      onSolicitarVisita={handleSolicitarVisita}
-                      visitasAgendadas={contarMaxVisitasPorSemana(visitasPorInmueble[inmueble.id] || [])}
-                      visitasExistentes={visitasPorInmueble[inmueble.id] || []}
-                    />
-                  ))
-                )}
+          <TabsContent value="inventario">
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5 pointer-events-none" />
+                <Input
+                  placeholder="Buscar por ciudad, dirección, región..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-12 text-base"
+                />
               </div>
-
-              {/* Paginação */}
-              {totalPages > 1 && (
-                <div className="mt-8 flex justify-center items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Siguiente
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+              {searchTerm && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="secondary" className="text-sm">
+                    Buscando: "{searchTerm}"
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="ml-2 hover:text-foreground"
+                    >
+                      ✕
+                    </button>
+                  </Badge>
                 </div>
               )}
-            </>
-        )}
+            </div>
 
+            <FiltrosInmuebles
+              onFiltrosChange={handleFiltrosChange}
+              ciudadesDisponibles={ciudadesDisponibles}
+              tiposDisponibles={tiposDisponibles}
+            />
+
+            {/* Indicador de resultados e seletor de itens por página */}
+            {totalInmuebles > 0 && (
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <p className="text-sm text-muted-foreground">
+                  Mostrando {startIndex + 1}-{endIndex} de {totalInmuebles} inmuebles
+                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Mostrar:</span>
+                  <Select value={itemsPerPage.toString()} onValueChange={(val) => {
+                    setItemsPerPage(Number(val));
+                    setCurrentPage(1);
+                  }}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="12">12</SelectItem>
+                      <SelectItem value="24">24</SelectItem>
+                      <SelectItem value="48">48</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {totalInmuebles === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <Home className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">No se encontraron inmuebles</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Prueba ajustando los filtros de búsqueda
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleFiltrosChange({})}
+                  >
+                    Limpiar filtros
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {loading ? (
+                    Array.from({ length: 12 }).map((_, i) => (
+                      <Card key={i} className="overflow-hidden">
+                        <CardContent className="p-6">
+                          <Skeleton className="h-48 w-full mb-4" />
+                          <Skeleton className="h-4 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-1/2" />
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    inmueblesFiltrados.map((inmueble) => (
+                      <InmuebleCard 
+                        key={inmueble.id} 
+                        inmueble={{
+                          ...inmueble,
+                          fechaCreacion: new Date(inmueble.created_at),
+                          agenteAsignado: inmueble.agente_asignado || undefined,
+                          titulo: inmueble.titulo || undefined,
+                          imageUrl: inmueble.image_url || undefined,
+                          urlExterna: inmueble.url_externa || undefined,
+                          areaM2: inmueble.area_m2 ? Number(inmueble.area_m2) : undefined,
+                          codigoInventario: inmueble.codigo_inventario || undefined,
+                        }}
+                        onSolicitarVisita={handleSolicitarVisita}
+                        visitasAgendadas={contarMaxVisitasPorSemana(visitasPorInmueble[inmueble.id] || [])}
+                        visitasExistentes={visitasPorInmueble[inmueble.id] || []}
+                      />
+                    ))
+                  )}
+                </div>
+
+                {/* Paginação */}
+                {totalPages > 1 && (
+                  <div className="mt-8 flex justify-center items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Anterior
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Página {currentPage} de {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Siguiente
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
