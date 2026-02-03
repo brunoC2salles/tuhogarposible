@@ -162,6 +162,35 @@ export const useAdminSettings = () => {
     }
   };
 
+  // Guardar URL do webhook de leads descualificados
+  const saveDisqualifiedWebhookUrl = async (url: string) => {
+    try {
+      setSavingDisqualified(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { 
+            key: 'webhook_disqualified_url', 
+            value: url,
+            description: 'URL do webhook Make.com para enviar leads descualificados (email de agradecimento)'
+          },
+          { onConflict: 'key' }
+        );
+
+      if (error) throw error;
+
+      setDisqualifiedWebhookUrl(url);
+      toast.success('URL del webhook de descualificados guardada');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving disqualified webhook URL:', err);
+      toast.error('Error al guardar configuración');
+      return false;
+    } finally {
+      setSavingDisqualified(false);
+    }
+  };
+
   // Testar webhook via Edge Function (sem no-cors!)
   const testWebhook = async (_url: string) => {
     try {
