@@ -82,6 +82,12 @@ const AdminSettings = () => {
   }, [disqualifiedWebhookUrl]);
 
   useEffect(() => {
+    if (inmovillaUrl && !localInmovillaUrl) {
+      setLocalInmovillaUrl(inmovillaUrl);
+    }
+  }, [inmovillaUrl]);
+
+  useEffect(() => {
     fetchScrapingStats();
   }, []);
 
