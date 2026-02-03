@@ -254,6 +254,7 @@ export const useAdminSettings = () => {
     fetchWebhookLogs();
     fetchMetaBitrixWebhookUrl();
     fetchMetaBitrixLogs();
+    fetchDisqualifiedWebhookUrl();
   }, []);
 
   return {
