@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      _leads_stage_migration_backup: {
+        Row: {
+          id: string | null
+          migrated_at: string | null
+          old_stage: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Insert: {
+          id?: string | null
+          migrated_at?: string | null
+          old_stage?: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Update: {
+          id?: string | null
+          migrated_at?: string | null
+          old_stage?: Database["public"]["Enums"]["lead_stage"] | null
+        }
+        Relationships: []
+      }
       admin_settings: {
         Row: {
           created_at: string | null
