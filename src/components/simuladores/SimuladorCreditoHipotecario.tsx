@@ -910,7 +910,7 @@ export function SimuladorCreditoHipotecario() {
 
             {/* Checkbox de Política de Privacidad */}
             <div className="space-y-2 pt-6">
-              <div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
+              <div className="flex items-start space-x-3 p-4 border-2 border-sky-blue/50 rounded-lg bg-sky-blue-light/20">
                 <Checkbox 
                   id="aceptaPrivacidadHipoteca" 
                   checked={watchAceptaPrivacidad}
@@ -918,7 +918,7 @@ export function SimuladorCreditoHipotecario() {
                 />
                 <div className="grid gap-1.5 leading-none">
                   <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
-                    <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
+                    <span className="font-bold text-sky-blue-dark block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
                     <a 
                       href="/docs/consentimiento-hipotecario.pdf" 
                       target="_blank" 
