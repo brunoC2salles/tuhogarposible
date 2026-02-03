@@ -41,26 +41,26 @@ const AgenteCRM = () => {
   }, [leads, searchQuery]);
 
   // Contadores
-  const noCualificadosCount = useMemo(() => 
-    leads.filter(lead => lead.stage === 'no_cualificado').length, 
+  const descualificadosCount = useMemo(() => 
+    leads.filter(lead => lead.stage === 'descualificados').length, 
     [leads]
   );
 
   const cualificadosCount = useMemo(() => 
-    leads.filter(lead => lead.stage !== 'no_cualificado').length, 
+    leads.filter(lead => lead.stage !== 'descualificados').length, 
     [leads]
   );
 
-  // Exportar leads no cualificados
-  const handleExportNoCualificados = () => {
-    const noCualificados = leads.filter(lead => lead.stage === 'no_cualificado');
-    if (noCualificados.length === 0) {
-      toast.info('No hay leads no cualificados para exportar');
+  // Exportar leads descualificados
+  const handleExportDescualificados = () => {
+    const descualificados = leads.filter(lead => lead.stage === 'descualificados');
+    if (descualificados.length === 0) {
+      toast.info('No hay leads descualificados para exportar');
       return;
     }
-    const csv = exportLeadsToCSV(noCualificados, {});
-    downloadCSV(csv, `leads-no-cualificados-${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success(`${noCualificados.length} leads exportados`);
+    const csv = exportLeadsToCSV(descualificados, {});
+    downloadCSV(csv, `leads-descualificados-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${descualificados.length} leads exportados`);
   };
 
   const handleCreateLead = async (data: any) => {
