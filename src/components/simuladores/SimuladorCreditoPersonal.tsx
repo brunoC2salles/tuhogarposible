@@ -1,3 +1,4 @@
+// Sync: 2025-02-03 - Blue color scheme update
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
