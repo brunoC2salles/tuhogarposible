@@ -70,6 +70,12 @@ const AdminSettings = () => {
   }, [metaBitrixWebhookUrl]);
 
   useEffect(() => {
+    if (disqualifiedWebhookUrl && !localDisqualifiedWebhookUrl) {
+      setLocalDisqualifiedWebhookUrl(disqualifiedWebhookUrl);
+    }
+  }, [disqualifiedWebhookUrl]);
+
+  useEffect(() => {
     fetchScrapingStats();
   }, []);
 
