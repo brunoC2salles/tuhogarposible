@@ -377,16 +377,30 @@ const AdminSettings = () => {
               </p>
             </div>
 
-            <Button 
-              onClick={async () => {
-                const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
-                if (success) refreshLogs();
-              }} 
-              disabled={savingDisqualified}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingDisqualified ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
+                  if (success) refreshLogs();
+                }} 
+                disabled={savingDisqualified}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingDisqualified ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={testDisqualifiedWebhook} 
+                disabled={testingDisqualified || !localDisqualifiedWebhookUrl.trim()}
+                title="Probar con el último lead descualificado"
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                {testingDisqualified ? 'Probando...' : 'Probar Webhook'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              La prueba enviará los datos del último lead descualificado al webhook configurado
+            </p>
           </CardContent>
         </Card>
         {/* Logs de Webhook */}
