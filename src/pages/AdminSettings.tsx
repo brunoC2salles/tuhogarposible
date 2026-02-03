@@ -25,13 +25,16 @@ const AdminSettings = () => {
   const { 
     webhookUrl, 
     metaBitrixWebhookUrl,
+    disqualifiedWebhookUrl,
     loading, 
     saving, 
     savingMetaBitrix,
+    savingDisqualified,
     webhookLogs, 
     metaBitrixLogs,
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
+    saveDisqualifiedWebhookUrl,
     testWebhook, 
     testMetaBitrixWebhook,
     refreshLogs,
@@ -39,6 +42,7 @@ const AdminSettings = () => {
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
+  const [localDisqualifiedWebhookUrl, setLocalDisqualifiedWebhookUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   
