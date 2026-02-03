@@ -804,8 +804,6 @@ Deno.serve(async (req) => {
             lead_ingresos_mensuales: ingresos, // Campo explícito para Make/Bitrix
             lead_deudas_mensuales: deudas,
             lead_preferencia_llamada: data.preferencia_llamada || null,
-            lead_deudas_mensuales: deudas,
-            lead_preferencia_llamada: data.preferencia_llamada || null,
             
             // DADOS DO FORMULÁRIO META (novos campos)
             meta_dni_nie: data.tiene_nie_dni || null,
