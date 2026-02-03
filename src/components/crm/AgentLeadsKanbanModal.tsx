@@ -148,7 +148,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
             {descualificadosCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />
-                Exportar No Cualificados
+                Exportar Descualificados
               </Button>
             )}
           </div>
