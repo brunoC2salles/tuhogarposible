@@ -14,9 +14,11 @@ interface WebhookLog {
 export const useAdminSettings = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [metaBitrixWebhookUrl, setMetaBitrixWebhookUrl] = useState('');
+  const [disqualifiedWebhookUrl, setDisqualifiedWebhookUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMetaBitrix, setSavingMetaBitrix] = useState(false);
+  const [savingDisqualified, setSavingDisqualified] = useState(false);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [metaBitrixLogs, setMetaBitrixLogs] = useState<WebhookLog[]>([]);
 
