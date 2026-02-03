@@ -1,10 +1,38 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Users, Shield, Calculator, LayoutDashboard, WalletCards, GraduationCap } from "lucide-react";
+import { Building2, Users, Shield, Calculator, LayoutDashboard, WalletCards, GraduationCap, ExternalLink } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
+import { InmovillaWidget } from "@/components/inventario/InmovillaWidget";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const [inmovillaUrl, setInmovillaUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchInmovillaUrl = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('admin_settings')
+          .select('value')
+          .eq('key', 'inmovilla_iframe_url')
+          .single();
+
+        if (!error && data) {
+          setInmovillaUrl(data.value || '');
+        }
+      } catch (err) {
+        console.error('Error fetching Inmovilla URL:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInmovillaUrl();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -31,7 +59,7 @@ const Index = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto px-2 sm:px-4">
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-3 sm:pb-4 px-3 sm:px-6">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Users className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
               </div>
               <CardTitle className="text-lg sm:text-xl md:text-2xl">Portal del Agente</CardTitle>
@@ -50,7 +78,7 @@ const Index = () => {
 
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Panel de Administración</CardTitle>
@@ -69,7 +97,7 @@ const Index = () => {
 
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Calculator className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Simuladores</CardTitle>
@@ -88,7 +116,7 @@ const Index = () => {
 
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <LayoutDashboard className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">CRM - Gestión de Leads</CardTitle>
@@ -107,7 +135,7 @@ const Index = () => {
 
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <WalletCards className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Controle Financiero</CardTitle>
@@ -126,7 +154,7 @@ const Index = () => {
 
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <GraduationCap className="w-8 h-8 text-primary" />
               </div>
               <CardTitle className="text-2xl">Academia de Agentes</CardTitle>
@@ -140,6 +168,46 @@ const Index = () => {
                   Acceder a la Academia
                 </Button>
               </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Inmovilla Widget Section */}
+        <div className="max-w-5xl mx-auto px-2 sm:px-4 mt-8">
+          <Card className="rounded-2xl border-2">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Colaboración Inmovilla</CardTitle>
+                    <CardDescription>
+                      Accede a los inmuebles de Inmovilla directamente
+                    </CardDescription>
+                  </div>
+                </div>
+                <a 
+                  href="https://crm.inmovilla.com/panel/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="outline" size="sm">
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Abrir en nueva pestaña
+                  </Button>
+                </a>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {loading ? (
+                <div className="flex items-center justify-center h-64 border rounded-lg bg-muted/50">
+                  <p className="text-muted-foreground">Cargando widget...</p>
+                </div>
+              ) : (
+                <InmovillaWidget url={inmovillaUrl} height="500px" />
+              )}
             </CardContent>
           </Card>
         </div>
