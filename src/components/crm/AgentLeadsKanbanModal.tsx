@@ -57,13 +57,13 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   // Exportar leads descualificados
   const handleExportDescualificados = () => {
     const descualificados = agentLeads.filter(lead => lead.stage === 'descualificados');
-    if (noCualificados.length === 0) {
-      toast.info('No hay leads no cualificados para exportar');
+    if (descualificados.length === 0) {
+      toast.info('No hay leads descualificados para exportar');
       return;
     }
-    const csv = exportLeadsToCSV(noCualificados, {});
-    downloadCSV(csv, `leads-no-cualificados-${agentName}-${new Date().toISOString().split('T')[0]}.csv`);
-    toast.success(`${noCualificados.length} leads exportados`);
+    const csv = exportLeadsToCSV(descualificados, {});
+    downloadCSV(csv, `leads-descualificados-${agentName}-${new Date().toISOString().split('T')[0]}.csv`);
+    toast.success(`${descualificados.length} leads exportados`);
   };
 
   const handleStageChange = async (leadId: string, newStage: LeadStage) => {
