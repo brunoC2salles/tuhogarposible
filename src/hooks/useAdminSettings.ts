@@ -15,10 +15,13 @@ export const useAdminSettings = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [metaBitrixWebhookUrl, setMetaBitrixWebhookUrl] = useState('');
   const [disqualifiedWebhookUrl, setDisqualifiedWebhookUrl] = useState('');
+  const [inmovillaUrl, setInmovillaUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMetaBitrix, setSavingMetaBitrix] = useState(false);
   const [savingDisqualified, setSavingDisqualified] = useState(false);
+  const [savingInmovilla, setSavingInmovilla] = useState(false);
+  const [testingDisqualified, setTestingDisqualified] = useState(false);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [metaBitrixLogs, setMetaBitrixLogs] = useState<WebhookLog[]>([]);
 
@@ -73,6 +76,23 @@ export const useAdminSettings = () => {
       }
     } catch (err: any) {
       console.error('[AdminSettings] Error fetching disqualified webhook URL:', err);
+    }
+  };
+
+  // Buscar URL do Inmovilla
+  const fetchInmovillaUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'inmovilla_iframe_url')
+        .single();
+
+      if (!error && data) {
+        setInmovillaUrl(data.value || '');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching Inmovilla URL:', err);
     }
   };
 
@@ -191,6 +211,35 @@ export const useAdminSettings = () => {
     }
   };
 
+  // Guardar URL do Inmovilla
+  const saveInmovillaUrl = async (url: string) => {
+    try {
+      setSavingInmovilla(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { 
+            key: 'inmovilla_iframe_url', 
+            value: url,
+            description: 'URL do iframe do Inmovilla para visualização na página inicial'
+          },
+          { onConflict: 'key' }
+        );
+
+      if (error) throw error;
+
+      setInmovillaUrl(url);
+      toast.success('URL del widget Inmovilla guardada');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving Inmovilla URL:', err);
+      toast.error('Error al guardar configuración');
+      return false;
+    } finally {
+      setSavingInmovilla(false);
+    }
+  };
+
   // Testar webhook via Edge Function (sem no-cors!)
   const testWebhook = async (_url: string) => {
     try {
@@ -249,29 +298,71 @@ export const useAdminSettings = () => {
     }
   };
 
+  // Testar webhook de descualificados
+  const testDisqualifiedWebhook = async () => {
+    try {
+      setTestingDisqualified(true);
+      toast.info('Probando webhook de descualificados...');
+      
+      const { data, error } = await supabase.functions.invoke('disqualified-lead-webhook', {
+        body: { 
+          lead_id: 'test', 
+          test_mode: true 
+        }
+      });
+
+      if (error) {
+        console.error('[AdminSettings] Edge function error:', error);
+        toast.error('Error al conectar con Edge Function');
+        return false;
+      }
+
+      if (data?.success) {
+        toast.success(`✅ Webhook de descualificados funcionando! Lead: "${data.lead_name || 'test'}"`);
+        fetchWebhookLogs(); // Refresh logs
+        return true;
+      } else {
+        toast.error(`❌ Error: ${data?.message || data?.error || 'Unknown error'}`);
+        return false;
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error testing disqualified webhook:', err);
+      toast.error('Error al probar webhook');
+      return false;
+    } finally {
+      setTestingDisqualified(false);
+    }
+  };
+
   useEffect(() => {
     fetchWebhookUrl();
     fetchWebhookLogs();
     fetchMetaBitrixWebhookUrl();
     fetchMetaBitrixLogs();
     fetchDisqualifiedWebhookUrl();
+    fetchInmovillaUrl();
   }, []);
 
   return {
     webhookUrl,
     metaBitrixWebhookUrl,
     disqualifiedWebhookUrl,
+    inmovillaUrl,
     loading,
     saving,
     savingMetaBitrix,
     savingDisqualified,
+    savingInmovilla,
+    testingDisqualified,
     webhookLogs,
     metaBitrixLogs,
     saveWebhookUrl,
     saveMetaBitrixWebhookUrl,
     saveDisqualifiedWebhookUrl,
+    saveInmovillaUrl,
     testWebhook,
     testMetaBitrixWebhook,
+    testDisqualifiedWebhook,
     refreshLogs: fetchWebhookLogs,
     refreshMetaBitrixLogs: fetchMetaBitrixLogs,
   };

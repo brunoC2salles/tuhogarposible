@@ -17,11 +17,37 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    const { lead_id, razon } = await req.json();
+    const { lead_id, razon, test_mode } = await req.json();
     
-    console.log('[disqualified-lead-webhook] Recebido lead_id:', lead_id, 'razon:', razon);
+    console.log('[disqualified-lead-webhook] Recebido lead_id:', lead_id, 'razon:', razon, 'test_mode:', test_mode);
     
-    if (!lead_id) {
+    let actualLeadId = lead_id;
+    
+    // Test mode: find the most recent disqualified lead
+    if (test_mode || lead_id === 'test') {
+      console.log('[disqualified-lead-webhook] Modo de teste - buscando último lead descualificado');
+      
+      const { data: lastDisqualified, error: findError } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('stage', 'descualificados')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+      
+      if (findError || !lastDisqualified) {
+        console.log('[disqualified-lead-webhook] Nenhum lead descualificado encontrado para teste');
+        return new Response(
+          JSON.stringify({ success: false, message: 'No hay leads descualificados para test' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      actualLeadId = lastDisqualified.id;
+      console.log('[disqualified-lead-webhook] Usando lead de teste:', actualLeadId);
+    }
+    
+    if (!actualLeadId) {
       return new Response(
         JSON.stringify({ error: 'lead_id required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -35,7 +61,7 @@ Deno.serve(async (req) => {
         *,
         profiles!agente_asignado_id(nombre, email)
       `)
-      .eq('id', lead_id)
+      .eq('id', actualLeadId)
       .single();
 
     if (leadError || !lead) {
@@ -71,7 +97,7 @@ Deno.serve(async (req) => {
     if (!webhookUrl || webhookUrl.trim() === '') {
       console.log('[disqualified-lead-webhook] URL do webhook não configurada');
       return new Response(
-        JSON.stringify({ success: true, message: 'Webhook URL not configured, skipping' }),
+        JSON.stringify({ success: true, message: 'Webhook URL not configured, skipping', lead_name: lead.nombre_completo }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -89,6 +115,7 @@ Deno.serve(async (req) => {
       razon_descualificacion: razonDescualificacion,
       agente_nombre: (lead.profiles as any)?.nombre || null,
       agente_email: (lead.profiles as any)?.email || null,
+      test_mode: test_mode || false,
     };
 
     console.log('[disqualified-lead-webhook] Enviando payload:', JSON.stringify(payload));
@@ -114,7 +141,12 @@ Deno.serve(async (req) => {
     console.log('[disqualified-lead-webhook] Webhook enviado:', logStatus);
 
     return new Response(
-      JSON.stringify({ success: response.ok, status: logStatus }),
+      JSON.stringify({ 
+        success: response.ok, 
+        status: logStatus, 
+        lead_name: lead.nombre_completo,
+        test_mode: test_mode || false
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
