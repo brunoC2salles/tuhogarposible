@@ -1,464 +1,390 @@
 
+# Plano de Implementação - Correções e Melhorias
 
-# Plano de Implementação Completo
+## Resumo dos Problemas Identificados
 
-## Visão Geral
+Após análise completa do código, identifiquei os seguintes problemas:
 
-Este plano aborda 4 grandes mudanças na plataforma. A ordem de implementação foi pensada para minimizar riscos e garantir que nenhum lead seja perdido.
-
----
-
-## 1. Webhook para Leads Descartados
-
-### Objetivo
-Criar um webhook separado que dispara quando um lead é movido para "Descualificados", enviando dados ao Make.com para que um email de agradecimento seja enviado ao cliente.
-
-### Arquivos Afetados
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/disqualified-lead-webhook/index.ts` | Criar (novo) |
-| `supabase/config.toml` | Adicionar config da nova função |
-| `src/pages/AdminSettings.tsx` | Adicionar campo para URL do webhook |
-| `src/hooks/useLeads.ts` | Disparar webhook quando stage = 'descualificados' |
-
-### Lógica do Webhook
-```text
-Lead movido para 'descualificados'
-       ↓
-useLeads.updateLeadStage detecta stage == 'descualificados'
-       ↓
-Invoca edge function 'disqualified-lead-webhook'
-       ↓
-Busca dados do lead + motivo de descualificação das notas
-       ↓
-Envia payload para URL configurada em admin_settings
-       ↓
-Make.com recebe e dispara email de agradecimento
-```
-
-### Payload do Webhook
-```json
-{
-  "source": "disqualified_lead",
-  "timestamp": "2026-02-03T...",
-  "lead_id": "uuid",
-  "lead_nombre": "João Silva",
-  "lead_email": "joao@email.com",
-  "lead_telefono": "+34...",
-  "razon_descualificacion": "Ingresos insuficientes",
-  "agente_nombre": "Maria García",
-  "agente_email": "maria@empresa.com"
-}
-```
+1. **Kanban Incompleto**: Falta o estágio `precualificacion` - você especificou 5 estágios mas só implementamos 4
+2. **Widget Inmovilla**: Não foi criado - precisa ser adicionado à página inicial
+3. **Botão testar webhook**: Não existe para leads descualificados em AdminSettings
+4. **Estatísticas de agentes**: Não mostra por dia/semana/mês, e o modal não tem scroll
+5. **Exportação CSV**: Não existe exportação de estatísticas de todos agentes
+6. **1 lead em stage antigo**: Há 1 lead ainda em `mandamos_expediente` que precisa ser migrado
 
 ---
 
-## 2. Estatísticas de Leads por Período (CRM de Agente)
+## Fase 1: Correção do Kanban (5 Estágios)
 
-### Objetivo
-Melhorar o modal AgentLeadsKanbanModal e a página AdminCRM para mostrar leads atribuídos por período: hoje, esta semana, este mês e total.
+### Ordem Correta dos Estágios
 
-### Arquivos Afetados
-| Arquivo | Ação |
-|---------|------|
-| `src/types/agent.ts` | Expandir interface AgentStatistics |
-| `src/hooks/useAgentStatistics.ts` | Adicionar cálculos por período |
-| `src/components/crm/AgentLeadsKanbanModal.tsx` | Mostrar cards de estatísticas |
-| `src/pages/inventario/AdminCRM.tsx` | Adicionar colunas de período na lista |
+| # | Stage ID | Label Display |
+|---|----------|---------------|
+| 1 | `nuevo_lead` | Nuevo Leads |
+| 2 | `preparacion_expediente` | Preparación Expediente - Fresha |
+| 3 | `precualificacion` | Precualificación - Edu |
+| 4 | `subida_expediente_bancos` | Subida Expediente a Bancos - Gibobs |
+| 5 | `descualificados` | Descualificados |
 
-### Nova Interface de Estatísticas
+### Alterações no Banco de Dados
+
+**Migração 1: Adicionar novo valor ao ENUM**
+```sql
+ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'precualificacion';
+```
+
+**Migração 2: Migrar leads de stages antigos**
+```sql
+-- Migrar o 1 lead que ainda está em mandamos_expediente
+UPDATE leads 
+SET stage = 'subida_expediente_bancos'
+WHERE stage = 'mandamos_expediente';
+```
+
+### Arquivos Afetados (Frontend)
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/types/crm.ts` | Adicionar `precualificacion` ao type e STAGE_ORDER |
+| `src/components/crm/LeadKanban.tsx` | Adicionar cores/ícone para `precualificacion` |
+| `src/integrations/supabase/types.ts` | Atualizar Database types |
+
+### Código TypeScript Atualizado
+
 ```typescript
-interface AgentStatistics {
-  total_leads: number;
-  leads_today: number;
-  leads_this_week: number;
-  leads_this_month: number;
-  converted_leads: number;
-  conversion_rate: number;
-  stage_counts: Record<string, number>;
-}
-```
-
-### Cálculo (Frontend)
-Os cálculos serão feitos no frontend usando os leads já carregados (sem nova query ao banco), filtrando por `created_at`:
-- **Hoje**: `created_at >= início do dia`
-- **Esta semana**: `created_at >= segunda-feira`
-- **Este mês**: `created_at >= dia 1 do mês`
-
----
-
-## 3. Atualização dos Estágios do Kanban
-
-### Mapeamento de Estágios
-
-| Estágio Atual | Novo Estágio | Ação no Banco |
-|---------------|--------------|---------------|
-| `nuevo_lead` | `nuevo_lead` | Mantém |
-| `recopilacion_expediente` | `preparacion_expediente` | Migração de dados |
-| `mandamos_expediente` | `subida_expediente_bancos` | Migração de dados |
-| `aprobacion_bancaria` | `subida_expediente_bancos` | Migração de dados |
-| `tasacion` | `subida_expediente_bancos` | Migração de dados |
-| `cobro` | `subida_expediente_bancos` | Migração de dados |
-| `finalizada` | `subida_expediente_bancos` | Migração de dados |
-| `no_cualificado` | `descualificados` | Migração de dados |
-
-### Novos Estágios (4 + 1)
-```typescript
+// src/types/crm.ts
 export type LeadStage = 
-  | 'nuevo_lead'              // Nuevo leads
-  | 'preparacion_expediente'  // Preparación expediente - Fresha Precualificación - Edu
-  | 'subida_expediente_bancos'// Subida de expediente a bancos - Gibobs
-  | 'descualificados';        // Descualificados
+  | 'nuevo_lead' 
+  | 'preparacion_expediente' 
+  | 'precualificacion'           // NOVO
+  | 'subida_expediente_bancos' 
+  | 'descualificados';
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
   nuevo_lead: 'Nuevo Leads',
-  preparacion_expediente: 'Preparación Expediente',
-  subida_expediente_bancos: 'Subida Expediente a Bancos',
+  preparacion_expediente: 'Preparación Expediente - Fresha',
+  precualificacion: 'Precualificación - Edu',           // NOVO
+  subida_expediente_bancos: 'Subida Expediente a Bancos - Gibobs',
   descualificados: 'Descualificados'
 };
 
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
   'preparacion_expediente',
+  'precualificacion',              // NOVO
   'subida_expediente_bancos',
   'descualificados'
 ];
 ```
 
-### Arquivos Afetados (Frontend)
-| Arquivo | Ação |
-|---------|------|
-| `src/types/crm.ts` | Atualizar LeadStage, STAGE_LABELS, STAGE_ORDER |
-| `src/components/crm/LeadKanban.tsx` | Ajustar cores e ícones |
-| `src/components/crm/LeadCard.tsx` | Botão descualificar → descualificados |
-| `src/hooks/useLeads.ts` | Remover lógica de cobro → fatura (simplificado) |
+### Impacto nos Webhooks
 
-### Migrações de Banco (CRÍTICO)
-```sql
--- Migração 1: Adicionar novos valores ao ENUM
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'preparacion_expediente';
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'subida_expediente_bancos';
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'descualificados';
-
--- Migração 2: Mover leads para novos estágios
-UPDATE leads SET stage = 'preparacion_expediente' 
-WHERE stage = 'recopilacion_expediente';
-
-UPDATE leads SET stage = 'subida_expediente_bancos' 
-WHERE stage IN ('mandamos_expediente', 'aprobacion_bancaria', 'tasacion', 'cobro', 'finalizada');
-
-UPDATE leads SET stage = 'descualificados' 
-WHERE stage = 'no_cualificado';
-```
-
-### Atualização do meta-lead-webhook
-O webhook de Meta Ads deve enviar leads qualificados para `nuevo_lead` e não qualificados para `descualificados`:
-```typescript
-stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados'
-```
-
-### Atualização da Função get_agent_statistics
-```sql
--- Alterar para considerar 'subida_expediente_bancos' como convertido
-SELECT COUNT(*) INTO converted_leads
-FROM leads
-WHERE agente_asignado_id = agent_id
-  AND stage = 'subida_expediente_bancos';
-```
+- **meta-lead-webhook**: Leads qualificados continuam entrando em `nuevo_lead` - sem alteração necessária
+- **disqualified-lead-webhook**: Só dispara quando stage = `descualificados` - sem alteração necessária
+- **Make.com**: Nenhum impacto - os stages são apenas strings no payload
 
 ---
 
-## 4. Integração Inmovilla (Iframe/Widget)
+## Fase 2: Widget Inmovilla na Página Inicial
 
-### Análise da API
-A API da Inmovilla é baseada em PHP e requer:
-- `numagencia`: 13611 (extraído de `13611_244_ext`)
-- `addnumagencia`: `244_ext`
-- `password`: `*xmA8Z!WQ`
+### Arquivos a Criar/Modificar
 
-A API tem **limite de requisições por minuto** e não é recomendada para sincronização via cron.
-
-### Solução Escolhida: Iframe
-Criar uma página/componente que incorpore o portal da Inmovilla via iframe, com a URL configurável pelo admin.
-
-### Arquivos Afetados
 | Arquivo | Ação |
 |---------|------|
-| `src/pages/inventario/AgenteInventario.tsx` | Adicionar aba/botão para Inmovilla |
-| `src/components/inventario/InmovillaWidget.tsx` | Criar componente de iframe |
-| `src/pages/AdminSettings.tsx` | Campo para URL do iframe Inmovilla |
+| `src/components/inventario/InmovillaWidget.tsx` | Criar componente |
+| `src/pages/Index.tsx` | Adicionar card com iframe |
+| `src/pages/AdminSettings.tsx` | Adicionar campo para URL do iframe |
+| `src/hooks/useAdminSettings.ts` | Adicionar fetch/save da URL |
 
 ### Implementação do Widget
+
 ```typescript
-// InmovillaWidget.tsx
-const InmovillaWidget = ({ url }: { url: string }) => {
+// src/components/inventario/InmovillaWidget.tsx
+interface InmovillaWidgetProps {
+  url: string;
+  height?: string;
+}
+
+export const InmovillaWidget = ({ url, height = "600px" }: InmovillaWidgetProps) => {
+  if (!url) {
+    return (
+      <div className="flex items-center justify-center h-64 border rounded-lg bg-muted">
+        <p className="text-muted-foreground">
+          URL de Inmovilla no configurada. Configure en Admin Settings.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <iframe
       src={url}
-      className="w-full h-[calc(100vh-200px)] border rounded-lg"
+      className="w-full border rounded-lg"
+      style={{ height }}
       title="Inmovilla CRM"
-      sandbox="allow-scripts allow-same-origin allow-forms"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
     />
   );
 };
 ```
 
-### Considerações de Segurança
-- O iframe terá sandbox restritivo
-- A URL será validada antes de ser exibida
-- Credenciais da API NÃO serão expostas no frontend
+### Card na Página Inicial
 
----
-
-## Ordem de Implementação
-
-### Fase 1: Estatísticas (Baixo Risco)
-1. Atualizar `src/types/agent.ts`
-2. Atualizar `src/hooks/useAgentStatistics.ts`
-3. Atualizar `src/components/crm/AgentLeadsKanbanModal.tsx`
-4. Atualizar `src/pages/inventario/AdminCRM.tsx`
-
-### Fase 2: Migração de Estágios (Alto Risco - CUIDADO)
-1. Criar migração SQL para adicionar novos valores ao ENUM
-2. Criar migração SQL para mover leads existentes
-3. Atualizar `src/types/crm.ts`
-4. Atualizar `src/components/crm/LeadKanban.tsx`
-5. Atualizar `src/hooks/useLeads.ts`
-6. Atualizar `supabase/functions/meta-lead-webhook/index.ts`
-7. Atualizar função SQL `get_agent_statistics`
-
-### Fase 3: Webhook Descualificados (Médio Risco)
-1. Criar edge function `disqualified-lead-webhook`
-2. Atualizar `supabase/config.toml`
-3. Adicionar campo em AdminSettings
-4. Integrar disparo no `useLeads.ts`
-
-### Fase 4: Inmovilla Widget (Baixo Risco)
-1. Criar `InmovillaWidget.tsx`
-2. Adicionar à página do agente
-3. Configurar URL em AdminSettings
-
----
-
-## Riscos e Mitigações
-
-| Risco | Impacto | Mitigação |
-|-------|---------|-----------|
-| Perda de leads durante migração | Alto | Fazer backup antes; usar transação SQL |
-| Webhooks quebrados | Alto | Manter compatibilidade com stages antigos por 24h |
-| Make.com não reconhecer novos campos | Médio | Testar com lead de teste antes do deploy |
-| Iframe bloqueado por CORS | Baixo | Verificar se Inmovilla permite embedding |
-
----
-
-## Testes Recomendados
-
-1. **Antes da migração**: Exportar CSV de todos os leads com seus stages
-2. **Após migração**: Verificar se contagem de leads por stage bate
-3. **Webhook**: Criar lead de teste e mover para descualificados
-4. **Make.com**: Verificar se cenário recebe o novo payload
-5. **Inmovilla**: Testar se iframe carrega corretamente
-
----
-
-## Seção Técnica: Detalhes de Implementação
-
-### SQL Migrations (ordem exata)
-
-**Migration 1: add_new_stage_values.sql**
-```sql
--- Adicionar novos valores ao ENUM (não remove os antigos ainda)
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'preparacion_expediente';
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'subida_expediente_bancos';
-ALTER TYPE lead_stage ADD VALUE IF NOT EXISTS 'descualificados';
-```
-
-**Migration 2: migrate_leads_to_new_stages.sql**
-```sql
--- Migrar leads para novos estágios
-BEGIN;
-
--- Backup log
-CREATE TABLE IF NOT EXISTS _leads_stage_migration_backup AS
-SELECT id, stage as old_stage, now() as migrated_at FROM leads;
-
--- Preparación expediente
-UPDATE leads 
-SET stage = 'preparacion_expediente'::lead_stage 
-WHERE stage = 'recopilacion_expediente'::lead_stage;
-
--- Subida expediente (todos os estágios avançados)
-UPDATE leads 
-SET stage = 'subida_expediente_bancos'::lead_stage 
-WHERE stage IN (
-  'mandamos_expediente'::lead_stage, 
-  'aprobacion_bancaria'::lead_stage, 
-  'tasacion'::lead_stage, 
-  'cobro'::lead_stage, 
-  'finalizada'::lead_stage
-);
-
--- Descualificados
-UPDATE leads 
-SET stage = 'descualificados'::lead_stage 
-WHERE stage = 'no_cualificado'::lead_stage;
-
-COMMIT;
-```
-
-**Migration 3: update_agent_statistics_function.sql**
-```sql
-CREATE OR REPLACE FUNCTION public.get_agent_statistics(agent_id uuid)
-RETURNS jsonb
-LANGUAGE plpgsql
-STABLE SECURITY DEFINER
-SET search_path TO 'public'
-AS $function$
-DECLARE
-  result jsonb;
-  total_leads int;
-  converted_leads int;
-  stage_counts jsonb;
-BEGIN
-  SELECT COUNT(*) INTO total_leads
-  FROM leads
-  WHERE agente_asignado_id = agent_id;
-  
-  -- Novo: considera 'subida_expediente_bancos' como convertido
-  SELECT COUNT(*) INTO converted_leads
-  FROM leads
-  WHERE agente_asignado_id = agent_id
-    AND stage = 'subida_expediente_bancos';
-  
-  SELECT jsonb_object_agg(stage, count)
-  INTO stage_counts
-  FROM (
-    SELECT stage::text, COUNT(*) as count
-    FROM leads
-    WHERE agente_asignado_id = agent_id
-    GROUP BY stage
-  ) stage_data;
-  
-  result := jsonb_build_object(
-    'total_leads', total_leads,
-    'converted_leads', converted_leads,
-    'conversion_rate', CASE 
-      WHEN total_leads > 0 THEN ROUND((converted_leads::numeric / total_leads::numeric) * 100, 2)
-      ELSE 0
-    END,
-    'stage_counts', COALESCE(stage_counts, '{}'::jsonb)
-  );
-  
-  RETURN result;
-END;
-$function$;
-```
-
-### Edge Function: disqualified-lead-webhook
+Adicionar novo card após "Academia de Agentes":
 
 ```typescript
-// supabase/functions/disqualified-lead-webhook/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    );
-
-    const { lead_id } = await req.json();
-    
-    if (!lead_id) {
-      return new Response(
-        JSON.stringify({ error: 'lead_id required' }),
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // Buscar dados do lead
-    const { data: lead, error: leadError } = await supabase
-      .from('leads')
-      .select('*, profiles!agente_asignado_id(nombre, email)')
-      .eq('id', lead_id)
-      .single();
-
-    if (leadError || !lead) {
-      return new Response(
-        JSON.stringify({ error: 'Lead not found' }),
-        { status: 404, headers: corsHeaders }
-      );
-    }
-
-    // Extrair razão de descualificação das notas
-    const razonMatch = lead.notas?.match(/NO CUALIFICADO - ([^\n]+)/);
-    const razon = razonMatch?.[1] || 'Motivo no especificado';
-
-    // Buscar URL do webhook
-    const { data: setting } = await supabase
-      .from('admin_settings')
-      .select('value')
-      .eq('key', 'webhook_disqualified_url')
-      .single();
-
-    const webhookUrl = setting?.value;
-
-    if (!webhookUrl) {
-      console.log('[disqualified-webhook] URL not configured');
-      return new Response(
-        JSON.stringify({ success: true, message: 'Webhook URL not configured' }),
-        { headers: corsHeaders }
-      );
-    }
-
-    // Montar payload
-    const payload = {
-      source: 'disqualified_lead',
-      timestamp: new Date().toISOString(),
-      lead_id: lead.id,
-      lead_nombre: lead.nombre_completo,
-      lead_email: lead.email,
-      lead_telefono: lead.telefono,
-      razon_descualificacion: razon,
-      agente_nombre: lead.profiles?.nombre || null,
-      agente_email: lead.profiles?.email || null,
-    };
-
-    // Enviar webhook
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    // Log
-    await supabase.from('webhook_logs').insert({
-      webhook_url: webhookUrl + ' (disqualified)',
-      status: response.ok ? 'success' : 'error',
-      error_message: !response.ok ? `HTTP ${response.status}` : null,
-      payload,
-    });
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      { headers: corsHeaders }
-    );
-  } catch (error) {
-    console.error('[disqualified-webhook] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: corsHeaders }
-    );
-  }
-});
+<Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300 col-span-full lg:col-span-2">
+  <CardHeader className="text-center pb-4">
+    <div className="w-16 h-16 bg-sky-blue-light rounded-full flex items-center justify-center mx-auto mb-4">
+      <Building2 className="w-8 h-8 text-primary" />
+    </div>
+    <CardTitle className="text-2xl">Colaboración Inmovilla</CardTitle>
+    <CardDescription className="text-lg">
+      Accede a los inmuebles de Inmovilla directamente
+    </CardDescription>
+  </CardHeader>
+  <CardContent className="pt-0">
+    <InmovillaWidget url={inmovillaUrl} />
+  </CardContent>
+</Card>
 ```
 
+---
+
+## Fase 3: Botão de Testar Webhook Descualificados
+
+### Arquivo Afetado
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/pages/AdminSettings.tsx` | Adicionar botão de teste |
+| `src/hooks/useAdminSettings.ts` | Adicionar função de teste |
+
+### Lógica do Teste
+
+```typescript
+// useAdminSettings.ts
+const testDisqualifiedWebhook = async () => {
+  try {
+    toast.info('Enviando test de webhook descualificados...');
+    
+    const { data, error } = await supabase.functions.invoke('disqualified-lead-webhook', {
+      body: { 
+        lead_id: 'test', 
+        test_mode: true 
+      }
+    });
+
+    if (error) throw error;
+
+    if (data?.success) {
+      toast.success('✅ Webhook de descualificados funcionando!');
+    } else {
+      toast.error(`❌ Error: ${data?.message || 'Unknown'}`);
+    }
+  } catch (err) {
+    toast.error('Error al probar webhook');
+  }
+};
+```
+
+### Atualização da Edge Function
+
+Adicionar modo de teste na `disqualified-lead-webhook`:
+
+```typescript
+// Se for modo de teste, buscar último lead descualificado
+if (test_mode || lead_id === 'test') {
+  const { data: lastDisqualified } = await supabase
+    .from('leads')
+    .select('id')
+    .eq('stage', 'descualificados')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .single();
+    
+  if (!lastDisqualified) {
+    return new Response(
+      JSON.stringify({ success: false, message: 'No hay leads descualificados para test' }),
+      { headers: corsHeaders }
+    );
+  }
+  
+  lead_id = lastDisqualified.id;
+}
+```
+
+---
+
+## Fase 4: Estatísticas de Agentes por Período + Scroll + Exportação
+
+### Problemas Atuais
+
+1. Modal não tem scroll - usa `overflow-hidden` em vez de `overflow-auto`
+2. Não calcula leads por dia/semana/mês
+3. Não há exportação de estatísticas
+
+### Arquivos Afetados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/components/crm/AgentLeadsKanbanModal.tsx` | Adicionar scroll + stats cards |
+| `src/pages/inventario/AdminCRM.tsx` | Mostrar dia/semana/mês por agente + botão export |
+| `src/types/agent.ts` | Expandir interface |
+| `src/lib/csvExporter.ts` | Adicionar função de exportar stats |
+
+### Correção do Scroll no Modal
+
+```typescript
+// AgentLeadsKanbanModal.tsx - linha 156
+// ANTES: 
+<div className="flex-1 overflow-hidden">
+
+// DEPOIS:
+<div className="flex-1 overflow-auto">
+```
+
+### Cálculo de Estatísticas por Período
+
+```typescript
+// Função utilitária para calcular períodos
+const calculatePeriodStats = (leads: Lead[], agentId: string) => {
+  const now = new Date();
+  const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Segunda-feira
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const agentLeads = leads.filter(l => l.agente_asignado_id === agentId);
+  
+  return {
+    today: agentLeads.filter(l => new Date(l.created_at) >= startOfDay).length,
+    thisWeek: agentLeads.filter(l => new Date(l.created_at) >= startOfWeek).length,
+    thisMonth: agentLeads.filter(l => new Date(l.created_at) >= startOfMonth).length,
+    total: agentLeads.length
+  };
+};
+```
+
+### Tabela de Agentes com Estatísticas
+
+```typescript
+// AdminCRM.tsx - Nova estrutura da tabela
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>Agente</TableHead>
+      <TableHead className="text-center">Hoy</TableHead>
+      <TableHead className="text-center">Semana</TableHead>
+      <TableHead className="text-center">Mes</TableHead>
+      <TableHead className="text-center">Total</TableHead>
+      <TableHead className="text-center">Activos</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {agentesWithStats.map(agente => (
+      <TableRow key={agente.id} onClick={() => setSelectedAgent(agente)}>
+        <TableCell>{agente.nombre}</TableCell>
+        <TableCell className="text-center">{agente.today}</TableCell>
+        <TableCell className="text-center">{agente.thisWeek}</TableCell>
+        <TableCell className="text-center">{agente.thisMonth}</TableCell>
+        <TableCell className="text-center font-bold">{agente.total}</TableCell>
+        <TableCell className="text-center">{agente.active}</TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+```
+
+### Exportação de Estatísticas
+
+```typescript
+// Função de exportação
+const exportAgentStats = () => {
+  const headers = ['Agente', 'Email', 'Hoy', 'Semana', 'Mes', 'Total', 'Activos', 'Convertidos', 'Tasa Conversión'];
+  
+  const rows = agentesWithStats.map(a => [
+    a.nombre,
+    a.email,
+    a.today,
+    a.thisWeek,
+    a.thisMonth,
+    a.total,
+    a.active,
+    a.converted,
+    `${a.conversionRate.toFixed(1)}%`
+  ]);
+  
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  downloadCSV(csv, `estadisticas-agentes-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+};
+```
+
+---
+
+## Ordem de Implementação (Minimizar Risco)
+
+### Passo 1: Migração do Banco (precualificacion)
+- Adicionar novo valor ao ENUM
+- Migrar lead em `mandamos_expediente`
+
+### Passo 2: Frontend do Kanban
+- Atualizar types
+- Atualizar LeadKanban com novo estágio
+
+### Passo 3: Modal com Scroll + Stats
+- Corrigir overflow do modal
+- Adicionar cards de estatísticas
+- Adicionar cálculos por período
+
+### Passo 4: Tabela AdminCRM
+- Converter para tabela com colunas de período
+- Adicionar botão de exportação
+
+### Passo 5: Botão Testar Webhook
+- Atualizar edge function
+- Adicionar botão em AdminSettings
+
+### Passo 6: Widget Inmovilla
+- Criar componente
+- Adicionar à página inicial
+- Configuração em AdminSettings
+
+---
+
+## Arquivos Modificados (Resumo)
+
+| Arquivo | Tipo de Alteração |
+|---------|-------------------|
+| `supabase/migrations/xxx_add_precualificacion.sql` | Criar |
+| `src/types/crm.ts` | Modificar |
+| `src/integrations/supabase/types.ts` | Modificar |
+| `src/components/crm/LeadKanban.tsx` | Modificar |
+| `src/components/crm/AgentLeadsKanbanModal.tsx` | Modificar |
+| `src/pages/inventario/AdminCRM.tsx` | Modificar significativamente |
+| `src/pages/AdminSettings.tsx` | Modificar |
+| `src/hooks/useAdminSettings.ts` | Modificar |
+| `supabase/functions/disqualified-lead-webhook/index.ts` | Modificar |
+| `src/components/inventario/InmovillaWidget.tsx` | Criar |
+| `src/pages/Index.tsx` | Modificar |
+
+---
+
+## Garantias de Segurança
+
+1. **Webhooks não serão afetados**: Os stages são strings nos payloads - adicionar `precualificacion` não quebra nada
+2. **Leads não serão perdidos**: A migração só adiciona um novo stage e move 1 lead de stage antigo
+3. **Make.com continua funcionando**: O payload continua idêntico, apenas o valor do campo `stage` pode ser novo
+4. **Performance mantida**: Cálculos de período são feitos no frontend com dados já carregados (sem queries extras)
+
+---
+
+## Validação Pós-Implementação
+
+1. Verificar que Kanban mostra 5 colunas
+2. Arrastar lead entre todas as colunas (testar drag & drop)
+3. Clicar em agente no AdminCRM e verificar scroll no modal
+4. Verificar estatísticas por dia/semana/mês
+5. Testar exportação de estatísticas
+6. Testar botão de webhook descualificados
+7. Verificar widget Inmovilla na página inicial
