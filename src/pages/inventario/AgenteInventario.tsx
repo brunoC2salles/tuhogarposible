@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { matchesAnyField } from "@/lib/textUtils";
 import Logo from "@/components/Logo";
 import {
   DropdownMenu,
@@ -128,16 +129,18 @@ const AgenteInventario = () => {
 
   const fetchInmueblesWithFilters = useCallback(async () => {
     try {
+      // Quando há termo de busca, buscamos TODOS os resultados filtrados por outros critérios
+      // e filtramos client-side com normalização de acentos
+      const hasSearchTerm = debouncedSearchTerm.trim().length > 0;
+      
       let query = supabase
         .from('inmuebles')
         .select('*', { count: 'exact' })
         .eq('disponible', true)
         .order('created_at', { ascending: false });
 
-      if (debouncedSearchTerm.trim()) {
-        const searchLower = `%${debouncedSearchTerm.toLowerCase()}%`;
-        query = query.or(`ciudad.ilike.${searchLower},direccion.ilike.${searchLower},region.ilike.${searchLower},titulo.ilike.${searchLower},codigo_inventario.ilike.${searchLower}`);
-      }
+      // NÃO aplicamos filtro de texto server-side - será feito client-side com normalização
+      // Apenas aplicamos os outros filtros server-side
 
       if (filtrosActivos.ciudad) {
         query = query.eq('ciudad', filtrosActivos.ciudad);
@@ -159,9 +162,16 @@ const AgenteInventario = () => {
         query = query.gte('quartos', filtrosActivos.quartos);
       }
 
-      const start = (currentPage - 1) * itemsPerPage;
-      const end = start + itemsPerPage - 1;
-      query = query.range(start, end);
+      // Se há busca de texto, buscamos mais dados para filtrar client-side
+      // Se não há busca, fazemos paginação normal
+      if (hasSearchTerm) {
+        // Buscar até 500 resultados para filtrar client-side (limite razoável)
+        query = query.limit(500);
+      } else {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage - 1;
+        query = query.range(start, end);
+      }
 
       const { data, error, count } = await query;
       
@@ -171,15 +181,32 @@ const AgenteInventario = () => {
         return;
       }
       
-      const converted = (data || []).map(item => ({
+      let converted = (data || []).map(item => ({
         ...item,
         images: Array.isArray(item.images) ? item.images as string[] : undefined
       }));
-      
-      setInmueblesFiltrados(converted);
-      setTotalInmuebles(count || 0);
-      
-      console.log("[Inventario] Filtrados server-side:", count, "inmuebles, página", currentPage);
+
+      // Se há busca de texto, filtrar client-side com normalização de acentos
+      if (hasSearchTerm) {
+        const searchFields = ['ciudad', 'direccion', 'region', 'titulo', 'codigo_inventario'];
+        converted = converted.filter(item => 
+          matchesAnyField(item as unknown as Record<string, unknown>, searchFields, debouncedSearchTerm)
+        );
+        
+        // Aplicar paginação client-side após filtragem
+        const totalFiltered = converted.length;
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        
+        setTotalInmuebles(totalFiltered);
+        setInmueblesFiltrados(converted.slice(start, end));
+        
+        console.log("[Inventario] Filtrados client-side:", totalFiltered, "inmuebles, página", currentPage);
+      } else {
+        setInmueblesFiltrados(converted);
+        setTotalInmuebles(count || 0);
+        console.log("[Inventario] Filtrados server-side:", count, "inmuebles, página", currentPage);
+      }
     } catch (err) {
       console.error("[Inventario] Exception:", err);
       toast.error("Error al aplicar filtros");
