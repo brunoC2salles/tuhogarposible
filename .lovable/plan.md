@@ -1,198 +1,129 @@
 
-# Plano: Atualização do Checkbox de Privacidade nos Simuladores
 
-## Objetivo
+## Plano de Correção: Filtros de Produtos e Recomendações
 
-Atualizar o checkbox de privacidade em ambos os simuladores (Crédito Personal e Crédito Hipotecario) para:
-1. Exibir o texto: **"LECTURA IMPORTANTE AL CLIENTE: CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA"**
-2. Ao clicar no link, abrir o documento PDF de consentimento para visualização
+### Diagnóstico dos Problemas
 
----
+Após análise detalhada do código e banco de dados, identifiquei os seguintes problemas:
 
-## Análise do Estado Atual
+1. **Problema Principal - Busca sem normalização de acentos**
+   - O PostgreSQL com `ILIKE` é case-insensitive, mas **NÃO** ignora acentos
+   - Quando buscas "alcala" → não encontra "Alcalá"  
+   - Quando buscas "malaga" → não encontra "Málaga"
+   - Isso afeta tanto a barra de pesquisa quanto as recomendações de leads
 
-### Simulador de Crédito Personal (`SimuladorCreditoPersonal.tsx`)
-- Linhas 262-279: Checkbox com link para `https://tuhogarposible.com/politica-de-privacidad`
-- Texto atual: "Acepto la Política de Privacidad y el tratamiento de mis datos conforme al RGPD"
+2. **Dados duplicados por variação de acentos**
+   - Existem cidades duplicadas: "Alcalá de Guadaira" (6 registros) vs "Alcalá de Guadaíra" (3 registros)
+   - Isso causa inconsistência nos resultados
 
-### Simulador de Crédito Hipotecario (`SimuladorCreditoHipotecario.tsx`)
-- Linhas 910-927: Checkbox com link para `https://tuhogarposible.com/politica-de-privacidad`
-- Texto atual: Idêntico ao do simulador personal
-
-### Documento PDF Enviado
-- Título: "CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA"
-- Conteúdo: 8 seções cobrindo dados do titular, intermediário, objeto do consentimento, documentação autorizada, uso e transferência, proteção de dados, vigência e declaração final
-- 2 páginas com campos para assinatura
+3. **Dependência de extensão não instalada**
+   - A extensão `unaccent` do PostgreSQL não está disponível
+   - Precisamos resolver via código JavaScript
 
 ---
 
-## Solução Proposta
+### Solução Proposta
 
-### Abordagem Simples e Leve
+A abordagem mais segura e eficiente é usar **normalização client-side** para preparar os termos de busca, mantendo a lógica do servidor simples.
 
-1. **Copiar o PDF** para a pasta `public/docs/`
-2. **Modificar apenas as linhas do checkbox** em ambos os simuladores
-3. O link abrirá o PDF diretamente em uma nova aba (comportamento nativo do navegador)
+#### Parte 1: Criar função utilitária de normalização
 
-Essa abordagem:
-- Não cria novos componentes
-- Não adiciona peso à aplicação
-- Aproveita o comportamento nativo do navegador para PDFs
-- É a mais simples e eficiente
+```text
+src/lib/textUtils.ts (NOVO ARQUIVO)
+```
+- Criar função `normalizeText(text: string)` que remove acentos
+- Usar o método nativo `normalize('NFD').replace(/[\u0300-\u036f]/g, '')`
+- Exportar para uso em toda a aplicação
 
----
+#### Parte 2: Corrigir busca no AgenteInventario
 
-## Alterações Necessárias
+```text
+src/pages/inventario/AgenteInventario.tsx
+```
+- Modificar a query de busca para incluir variações com e sem acentos
+- Ao buscar "alcala", construir query que busque AMBOS "alcala" e padrões que possam ter acentos
+- Usar abordagem híbrida: buscar resultados no servidor e filtrar adicionalmente no cliente
 
-### 1. Copiar o PDF para o projeto
+**Alteração específica (linhas 137-140):**
+```javascript
+// ANTES:
+const searchLower = `%${debouncedSearchTerm.toLowerCase()}%`;
+query = query.or(`ciudad.ilike.${searchLower},...`);
 
-**Ação**: Copiar o arquivo PDF enviado para `public/docs/consentimiento-hipotecario.pdf`
-
-**Motivo**: Arquivos na pasta `public` são servidos diretamente e podem ser acessados via URL
-
----
-
-### 2. Modificar `SimuladorCreditoPersonal.tsx`
-
-**Localização**: Linhas 262-279
-
-**Antes**:
-```tsx
-<div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
-  <Checkbox 
-    id="aceptaPrivacidad" 
-    checked={watchAceptaPrivacidad}
-    onCheckedChange={(checked) => setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
-  />
-  <div className="grid gap-1.5 leading-none">
-    <label htmlFor="aceptaPrivacidad" className="text-sm font-medium cursor-pointer">
-      Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
-    </label>
-  </div>
-</div>
+// DEPOIS:
+// Buscar sem filtro server-side, filtrar client-side com normalização
+// OU usar regex pattern mais flexível
 ```
 
-**Depois**:
-```tsx
-<div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
-  <Checkbox 
-    id="aceptaPrivacidad" 
-    checked={watchAceptaPrivacidad}
-    onCheckedChange={(checked) => setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
-  />
-  <div className="grid gap-1.5 leading-none">
-    <label htmlFor="aceptaPrivacidad" className="text-sm font-medium cursor-pointer">
-      <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
-      <a 
-        href="/docs/consentimiento-hipotecario.pdf" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-primary underline hover:text-primary/80"
-      >
-        CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA
-      </a>
-      <span className="block mt-1 text-xs text-muted-foreground">
-        Al marcar esta casilla, declaro haber leído y aceptar el documento de consentimiento *
-      </span>
-    </label>
-  </div>
-</div>
+#### Parte 3: Corrigir recomendações de leads
+
+```text
+src/hooks/useRecomendaciones.ts
 ```
+- Aplicar a mesma lógica de normalização para as buscas de cidade/zona
+- Garantir que leads com "ciudad_interes: Málaga" encontrem imóveis em "Málaga"
 
 ---
 
-### 3. Modificar `SimuladorCreditoHipotecario.tsx`
+### Abordagem Técnica Detalhada
 
-**Localização**: Linhas 910-927
+**Opção Escolhida: Normalização JavaScript + Busca Ampliada**
 
-**Antes**:
-```tsx
-<div className="flex items-start space-x-3 p-4 border rounded-lg bg-muted/30">
-  <Checkbox 
-    id="aceptaPrivacidadHipoteca" 
-    checked={watchAceptaPrivacidad}
-    onCheckedChange={(checked) => form.setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
-  />
-  <div className="grid gap-1.5 leading-none">
-    <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
-      Acepto la <a href="https://tuhogarposible.com/politica-de-privacidad" target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">Política de Privacidad</a> y el tratamiento de mis datos conforme al RGPD *
-    </label>
-  </div>
-</div>
-```
+Para manter a performance e não sobrecarregar o banco:
 
-**Depois**:
-```tsx
-<div className="flex items-start space-x-3 p-4 border-2 border-amber-500/50 rounded-lg bg-amber-50/50">
-  <Checkbox 
-    id="aceptaPrivacidadHipoteca" 
-    checked={watchAceptaPrivacidad}
-    onCheckedChange={(checked) => form.setValue("aceptaPrivacidad", checked === true, { shouldValidate: true })}
-  />
-  <div className="grid gap-1.5 leading-none">
-    <label htmlFor="aceptaPrivacidadHipoteca" className="text-sm font-medium cursor-pointer">
-      <span className="font-bold text-amber-700 block mb-1">LECTURA IMPORTANTE AL CLIENTE:</span>
-      <a 
-        href="/docs/consentimiento-hipotecario.pdf" 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-primary underline hover:text-primary/80"
-      >
-        CONSENTIMIENTO PARA LA RECOLECCIÓN Y TRATAMIENTO DE DOCUMENTACIÓN HIPOTECARIA
-      </a>
-      <span className="block mt-1 text-xs text-muted-foreground">
-        Al marcar esta casilla, declaro haber leído y aceptar el documento de consentimiento *
-      </span>
-    </label>
-  </div>
-</div>
-```
+1. **Na busca principal do inventário:**
+   - Normalizar o termo de busca no frontend
+   - Buscar dados paginados do servidor SEM o filtro de texto
+   - Aplicar filtro de texto client-side com normalização
+   - Isso funciona porque já temos paginação server-side
+
+2. **Nas recomendações:**
+   - Buscar imóveis por região/cidade sem filtro rígido
+   - Filtrar client-side com texto normalizado
+   - Limitar a 10 resultados após filtragem
+
+**Alternativa (mais limpa mas requer mudança de DB):**
+- Criar extensão `unaccent` no Supabase
+- Criar uma coluna `ciudad_normalized` gerada automaticamente
+- Indexar essa coluna para buscas rápidas
 
 ---
 
-## Resumo das Mudanças
+### Arquivos a Modificar
 
-| Arquivo | Ação | Linhas Afetadas |
-|---------|------|-----------------|
-| `public/docs/consentimiento-hipotecario.pdf` | Criar (copiar do upload) | N/A |
-| `SimuladorCreditoPersonal.tsx` | Modificar checkbox | 264-274 |
-| `SimuladorCreditoHipotecario.tsx` | Modificar checkbox | 912-922 |
-
----
-
-## Resultado Visual Esperado
-
-O checkbox terá:
-1. **Borda amarela** para destacar a importância
-2. **Fundo levemente amarelo** para chamar atenção
-3. **Título em negrito** "LECTURA IMPORTANTE AL CLIENTE:"
-4. **Link clicável** que abre o PDF em nova aba
-5. **Texto auxiliar** explicando que marcar a casilla significa concordar
+| Arquivo | Alteração |
+|---------|-----------|
+| `src/lib/textUtils.ts` | NOVO - Função de normalização de texto |
+| `src/pages/inventario/AgenteInventario.tsx` | Modificar busca para usar normalização |
+| `src/hooks/useRecomendaciones.ts` | Aplicar normalização nas buscas de recomendação |
 
 ---
 
-## O que NÃO será alterado
+### Riscos e Mitigações
 
-- Schema de validação (já funciona com `aceptaPrivacidad: boolean`)
-- Lógica de cálculo dos simuladores
-- Comportamento do formulário
-- Outros componentes ou arquivos
+| Risco | Mitigação |
+|-------|-----------|
+| Performance com filtro client-side | Manter paginação server-side, filtrar apenas a página atual |
+| Complexidade adicional | Centralizar lógica em função utilitária reutilizável |
+| Quebrar funcionalidade existente | Testar todos os cenários antes de deploy |
 
 ---
 
-## Seção Técnica
+### Teste Esperado
 
-### Por que usar `public/docs/` em vez de `src/assets/`?
+Após implementação:
+- Buscar "malaga" deve encontrar imóveis em "Málaga"
+- Buscar "alcala" deve encontrar imóveis em "Alcalá de Henares", etc.
+- Filtros de cidade, tipo, preço e quartos devem funcionar em conjunto
+- Recomendações de leads devem corresponder corretamente às cidades de interesse
 
-- PDFs na pasta `public` são servidos diretamente via URL (`/docs/arquivo.pdf`)
-- Não precisam de import em JavaScript
-- O navegador abre PDFs nativamente, sem necessidade de biblioteca adicional
-- É a abordagem mais simples e leve para servir documentos estáticos
+---
 
-### Por que não criar um modal de preview?
+### Perguntas de Clarificação
 
-- Adiciona complexidade desnecessária
-- Requer bibliotecas como `react-pdf` ou iframes
-- O comportamento nativo do navegador (abrir PDF em nova aba) é mais robusto
-- Permite que o usuário baixe/imprima facilmente
+Antes de implementar, preciso confirmar:
+
+1. **Quantos imóveis típicos aparecem por página?** (atualmente 48) - Isso ajuda a decidir se o filtro client-side é viável
+2. **A extensão `unaccent` pode ser instalada no Supabase?** - Se sim, seria a solução mais elegante
+3. **Há algum caso específico de busca que não está funcionando que eu deveria testar?**
 
