@@ -256,63 +256,65 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last qualified submission
-      const { data: submission, error: subError } = await supabase
-        .from('form_submissions')
+      // Get last qualified lead from leads table (excludes 'descualificados')
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
         .select('*')
-        .eq('qualificado', true)
+        .neq('stage', 'descualificados')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
 
-      if (subError || !submission) {
+      if (leadError || !lead) {
         return new Response(
-          JSON.stringify({ success: false, error: 'No qualified submissions found' }),
+          JSON.stringify({ success: false, error: 'No qualified leads found in CRM' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       // Get agent
       let agente: any = null;
-      if (submission.agente_asignado_id) {
+      if (lead.agente_asignado_id) {
         const { data: ag } = await supabase
           .from('profiles')
           .select('id, nombre, email, telefono, tidycal_url')
-          .eq('id', submission.agente_asignado_id)
+          .eq('id', lead.agente_asignado_id)
           .single();
         agente = ag;
       }
 
+      // Extract data from lead notes (for Meta Ads fields)
+      const simPersonal = lead.simulador_personal_data as any || {};
+      const simHipoteca = lead.simulador_hipotecario_data as any || {};
+
       const payload = {
         test: 'true',
-        submission_id: submission.id,
-        lead_id: submission.lead_id || '',
+        lead_id: lead.id,
         timestamp: new Date().toISOString(),
         source: 'test_qualified',
         
-        lead_nombre: submission.nombre_completo,
-        lead_email: submission.email,
-        lead_telefono: submission.telefono,
-        lead_edad: submission.edad,
-        lead_ciudad_interes: submission.ciudad_interes || '',
-        lead_comunidad_autonoma: submission.comunidad_autonoma || '',
-        lead_valor_deseado: submission.valor_inmueble_deseado || 0,
+        lead_nombre: lead.nombre_completo,
+        lead_email: lead.email,
+        lead_telefono: lead.telefono,
+        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
+        lead_ciudad_interes: lead.ciudad_interes || '',
+        lead_zona_interes: lead.zona_interes || '',
+        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
         
-        fin_entrada_disponible: submission.entrada_disponible || 0,
-        fin_ingresos_mensuales: submission.ingresos_mensuales,
-        fin_deudas_actuales: submission.deudas_actuales || 0,
+        // Financial data from simulators
+        fin_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
         
         agente_id: agente?.id || '',
         agente_nombre: agente?.nombre || 'Sin asignar',
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
         
-        sim_personal_monto: (submission.simulador_personal_data as any)?.montoSolicitado || 0,
-        sim_personal_cuota: (submission.simulador_personal_data as any)?.cuotaMensual || 0,
-        sim_hipoteca_monto: (submission.simulador_hipotecario_data as any)?.montoFinanciable || 0,
-        sim_hipoteca_cuota: (submission.simulador_hipotecario_data as any)?.cuotaMensual || 0,
+        sim_personal_monto: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
+        sim_personal_cuota: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
         
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${submission.lead_id || submission.id}`,
+        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
       const result = await sendToMake(webhookUrl, payload);
@@ -321,7 +323,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: result.success, 
           http_status: result.status,
-          lead_name: submission.nombre_completo,
+          lead_name: lead.nombre_completo,
           message: result.success ? 'Test webhook sent successfully' : `Failed: HTTP ${result.status}`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
