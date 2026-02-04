@@ -708,10 +708,73 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] Erro ao criar lead:', leadError);
       } else {
         leadId = leadData.id;
-        console.log('[meta-lead-webhook] Lead criado com stage nuevo_lead:', leadId);
+        console.log('[meta-lead-webhook] Lead criado com stage:', qualificacao.cualificado ? 'nuevo_lead' : 'descualificados', leadId);
       }
     } catch (err) {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
+    }
+
+    // 7.5. DISPARO AUTOMÁTICO: Se lead foi descualificado, disparar webhook de descualificação
+    if (!qualificacao.cualificado && leadId) {
+      try {
+        // Buscar URL do webhook de descualificados
+        const { data: disqualifiedSetting } = await supabase
+          .from('admin_settings')
+          .select('value')
+          .eq('key', 'webhook_disqualified_url')
+          .single();
+
+        const disqualifiedWebhookUrl = disqualifiedSetting?.value;
+
+        if (disqualifiedWebhookUrl && disqualifiedWebhookUrl.trim() !== '') {
+          console.log('[meta-lead-webhook] Disparando webhook de descualificação automaticamente');
+
+          const disqualifiedPayload = {
+            source: 'disqualified_lead_auto',
+            timestamp: new Date().toISOString(),
+            lead_id: leadId,
+            lead_nombre: data.nombre,
+            lead_email: data.email,
+            lead_telefono: data.telefono,
+            lead_zona_interes: data.zona_interes || null,
+            lead_ciudad_interes: zonaParseada.ciudad || null,
+            razon_descualificacion: qualificacao.razon_no_cualificado || 'Não qualificado',
+            agente_nombre: agenteAsignado?.nombre || null,
+            agente_email: agenteAsignado?.email || null,
+            test_mode: false
+          };
+
+          const disqualifiedResponse = await fetch(disqualifiedWebhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(disqualifiedPayload)
+          });
+
+          // Registrar log
+          await supabase.from('webhook_logs').insert({
+            webhook_url: disqualifiedWebhookUrl + ' (disqualified_auto)',
+            status: disqualifiedResponse.ok ? 'success' : 'error',
+            error_message: !disqualifiedResponse.ok 
+              ? `HTTP ${disqualifiedResponse.status}: ${disqualifiedResponse.statusText}` 
+              : null,
+            payload: disqualifiedPayload
+          });
+
+          console.log('[meta-lead-webhook] Webhook descualificação automática:', 
+            disqualifiedResponse.ok ? 'success' : 'error');
+        } else {
+          console.log('[meta-lead-webhook] URL do webhook de descualificação não configurada');
+        }
+      } catch (disErr) {
+        console.error('[meta-lead-webhook] Erro ao disparar webhook de descualificação:', disErr);
+        
+        // Registrar erro no log
+        await supabase.from('webhook_logs').insert({
+          webhook_url: 'webhook_disqualified_url (auto_error)',
+          status: 'error',
+          error_message: disErr.message || 'Erro desconhecido'
+        });
+      }
     }
 
     // 8. Montar resposta completa para o Make.com
