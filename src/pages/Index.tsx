@@ -72,15 +72,15 @@ const Index = () => {
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Calculator className="w-8 h-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Simuladores</CardTitle>
+              <CardTitle className="text-2xl">Simulador Financiero</CardTitle>
               <CardDescription className="text-lg">
-                Accede a herramientas de simulación para cálculos inmobiliarios
+                Calcula tu crédito personal e hipotecario en un único formulario integrado
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
               <Link to="/simuladores">
                 <Button className="w-full" size="lg">
-                  Acceder a los simuladores
+                  Acceder al Simulador
                 </Button>
               </Link>
             </CardContent>
