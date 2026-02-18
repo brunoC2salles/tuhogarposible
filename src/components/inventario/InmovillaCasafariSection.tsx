@@ -13,9 +13,9 @@ export const InmovillaCasafariSection = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
-            <div>
+          <div>
               <CardTitle className="text-lg">
-                Búsqueda de Inmuebles - Casafari
+                Compartición Inmobiliarias
               </CardTitle>
               <CardDescription>
                 Accede al catálogo completo de propiedades

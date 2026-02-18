@@ -105,11 +105,11 @@ export default function AgentSettings() {
       <div className="max-w-2xl mx-auto">
         <Button
           variant="ghost"
-          onClick={() => navigate("/inventario/agente/crm")}
+          onClick={() => navigate("/inventario/agente")}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver al CRM
+          Volver al Portal
         </Button>
 
         <Card>

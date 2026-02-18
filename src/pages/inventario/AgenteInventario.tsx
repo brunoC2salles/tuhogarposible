@@ -319,12 +319,6 @@ const AgenteInventario = () => {
 
             {/* Botões Desktop */}
             <div className="hidden sm:flex flex-wrap items-center gap-2 w-full lg:w-auto">
-              <Link to="/inventario/agente/crm">
-                <Button variant="outline" size="sm">
-                  <UserCircle className="w-4 h-4 mr-2" />
-                  CRM
-                </Button>
-              </Link>
               <Button variant="outline" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Cerrar Sesión
@@ -333,26 +327,10 @@ const AgenteInventario = () => {
 
             {/* Menu Hambúrguer Mobile */}
             <div className="flex sm:hidden items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Menu className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem asChild>
-                    <Link to="/inventario/agente/crm" className="flex items-center cursor-pointer">
-                      <UserCircle className="w-4 h-4 mr-2" />
-                      CRM
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="flex items-center cursor-pointer">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Cerrar Sesión
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Button variant="outline" size="sm" onClick={signOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Cerrar Sesión
+              </Button>
             </div>
           </div>
         </div>
@@ -363,8 +341,8 @@ const AgenteInventario = () => {
           <TabsList className="mb-6">
             <TabsTrigger value="casafari" className="gap-2">
               <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Casafari / Inmovilla</span>
-              <span className="sm:hidden">Casafari</span>
+              <span className="hidden sm:inline">Colaboraciones</span>
+              <span className="sm:hidden">Colaboraciones</span>
             </TabsTrigger>
             <TabsTrigger value="inventario" className="gap-2">
               <Home className="h-4 w-4" />
