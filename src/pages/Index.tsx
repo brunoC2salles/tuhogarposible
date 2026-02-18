@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Shield, Calculator, LayoutDashboard, WalletCards, GraduationCap } from "lucide-react";
+import { Users, Shield, Calculator, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 
@@ -89,47 +89,9 @@ const Index = () => {
           <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LayoutDashboard className="w-8 h-8 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">CRM - Gestión de Leads</CardTitle>
-              <CardDescription className="text-lg">
-                Gestiona leads, asigna agentes y da seguimiento a oportunidades
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Link to="/inventario/agente/crm">
-                <Button className="w-full" size="lg">
-                  Acceder al CRM
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <WalletCards className="w-8 h-8 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">Controle Financiero</CardTitle>
-              <CardDescription className="text-lg">
-                Gestiona ingresos, comisiones y reportes financieros
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Link to="/financiero">
-                <Button className="w-full" size="lg">
-                  Acceder a Finanzas
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <GraduationCap className="w-8 h-8 text-primary" />
               </div>
-              <CardTitle className="text-2xl">Academia de Agentes</CardTitle>
+              <CardTitle className="text-2xl">Academia y Documentos</CardTitle>
               <CardDescription className="text-lg">
                 Tutoriales, documentos y materiales de capacitación
               </CardDescription>

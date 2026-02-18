@@ -61,7 +61,7 @@ const App = () => (
             <Route 
               path="/inventario/agente/crm"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireAdmin>
                   <AgenteCRM />
                 </ProtectedRoute>
               } 
