@@ -1,21 +1,56 @@
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, CalendarDays, CalendarRange, Calendar } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, CalendarDays, CalendarRange, Calendar, Search, Kanban } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
+import { LeadKanban } from '@/components/crm/LeadKanban';
+import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
+import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
+import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
+import { RecomendacionesModal } from '@/components/crm/RecomendacionesModal';
 import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
+import { Lead, LeadStage } from '@/types/crm';
 
 const AdminCRM = () => {
-  const { leads } = useLeads();
+  const { leads, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
   const { agentes } = useAgentes();
 
   const [selectedAgent, setSelectedAgent] = useState<{ id: string; nombre: string } | null>(null);
+
+  // Kanban global state
+  const [kanbanSearch, setKanbanSearch] = useState('');
+  const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
+  const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
+
+  // Filtered leads for Kanban
+  const filteredLeadsKanban = useMemo(() => {
+    if (!kanbanSearch.trim()) return leads;
+    return leads.filter(lead =>
+      lead.nombre_completo.toLowerCase().includes(kanbanSearch.toLowerCase())
+    );
+  }, [leads, kanbanSearch]);
+
+  // Kanban handlers
+  const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
+    updateLeadStage(leadId, newStage);
+  };
+
+  const handleKanbanDelete = async (leadId: string) => {
+    await deleteLead(leadId);
+  };
+
+  const handleKanbanDisqualify = (leadId: string) => {
+    updateLeadStage(leadId, 'descualificados');
+  };
 
   // OPTIMIZED: Memoize all metric calculations
   const stats = useMemo(() => {
@@ -204,10 +239,10 @@ const AdminCRM = () => {
                         <span className="font-medium text-primary">{agente.today}</span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <span className="font-medium text-blue-600">{agente.thisWeek}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-medium text-green-600">{agente.thisMonth}</span>
+                         <span className="font-medium text-foreground">{agente.thisWeek}</span>
+                       </TableCell>
+                       <TableCell className="text-center">
+                         <span className="font-medium text-foreground">{agente.thisMonth}</span>
                       </TableCell>
                       <TableCell className="text-center">
                         <span className="font-bold">{agente.total}</span>
@@ -234,6 +269,37 @@ const AdminCRM = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Global Kanban View */}
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Kanban className="h-5 w-5" />
+                Vista Kanban — Todos los Leads
+              </CardTitle>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar lead..."
+                  value={kanbanSearch}
+                  onChange={e => setKanbanSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-3 sm:p-6">
+            <LeadKanban
+              leads={filteredLeadsKanban}
+              onStageChange={handleKanbanStageChange}
+              onViewDetails={lead => setDetailsLead(lead)}
+              onEdit={lead => setEditingLead(lead)}
+              onDelete={handleKanbanDelete}
+              onDisqualify={handleKanbanDisqualify}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Agent Leads Kanban Modal */}
@@ -243,6 +309,48 @@ const AdminCRM = () => {
           onClose={() => setSelectedAgent(null)}
           agentId={selectedAgent.id}
           agentName={selectedAgent.nombre}
+        />
+      )}
+
+      {/* Lead management modals */}
+      {detailsLead && (
+        <LeadDetailsModal
+          lead={detailsLead}
+          open={!!detailsLead}
+          onClose={() => setDetailsLead(null)}
+          onOpenSimulators={lead => { setDetailsLead(null); setSimuladoresLead(lead); }}
+          onOpenRecomendaciones={lead => { setDetailsLead(null); setRecomendacionesLead(lead); }}
+        />
+      )}
+
+      <CreateEditLeadModal
+        open={editingLead !== null}
+        onClose={() => setEditingLead(null)}
+        lead={editingLead}
+        onSave={async (data) => {
+          if (editingLead) {
+            await updateLead(editingLead.id, data);
+          } else {
+            await createLead(data);
+          }
+          setEditingLead(null);
+        }}
+      />
+
+      {simuladoresLead && (
+        <SimuladoresModal
+          lead={simuladoresLead}
+          open={!!simuladoresLead}
+          onClose={() => setSimuladoresLead(null)}
+          onSave={async (leadId, updates) => { await updateLead(leadId, updates); }}
+        />
+      )}
+
+      {recomendacionesLead && (
+        <RecomendacionesModal
+          lead={recomendacionesLead}
+          open={!!recomendacionesLead}
+          onClose={() => setRecomendacionesLead(null)}
         />
       )}
     </AdminLayout>
