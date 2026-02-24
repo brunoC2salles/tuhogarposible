@@ -50,8 +50,8 @@ export function calcularAmortizacionFrancesa(datos: DatosSimulacion): Resultados
   const totalIntereses = montoTotalPagar - principal;
   
   // Verifica qualificação: capacidad mensual >= 350€
-  const capacidadMensual = (ingresos * 0.35) - deudas;
-  const cualificado = capacidadMensual >= 350;
+  const capacidadPagoPersonal = (ingresos * 0.35) - deudas;
+  const cualificado = capacidadPagoPersonal >= 350;
   
   // NOVO: Calcular máximo de crédito pessoal baseado em 35% dos ingresos
   const capacidadMensual = (ingresos * 0.35) - deudas;
