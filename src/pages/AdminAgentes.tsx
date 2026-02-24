@@ -11,8 +11,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Edit, UserCheck, UserX, ArrowLeft, Trash2 } from "lucide-react";
+import { Edit, UserCheck, UserX, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { COMUNIDADES_AUTONOMAS } from "@/lib/comunidadesAutonomas";
 
 interface Agent {
   id: string;
@@ -21,7 +22,7 @@ interface Agent {
   telefono?: string;
   dni_nie?: string;
   tidycal_url?: string;
-  region_round_robin?: string;
+  region_round_robin?: string[];
   activo: boolean;
   comision_porcentaje?: number;
   disponibilidad?: string[];
@@ -52,7 +53,7 @@ export default function AdminAgentes() {
     telefono: "",
     dni_nie: "",
     tidycal_url: "",
-    region_round_robin: "",
+    region_round_robin: [] as string[],
     activo: true,
     comision_porcentaje: 0,
     disponibilidad: ['mañana', 'tarde', 'noche'] as string[],
@@ -86,7 +87,6 @@ export default function AdminAgentes() {
   useEffect(() => {
     let filtered = agents;
 
-    // Filtro por texto
     if (searchTerm) {
       filtered = filtered.filter(
         (a) =>
@@ -95,12 +95,11 @@ export default function AdminAgentes() {
       );
     }
 
-    // Filtro por región
+    // Filter by region (checks if agent has that region in their array)
     if (regionFilter !== "all") {
-      filtered = filtered.filter((a) => a.region_round_robin === regionFilter);
+      filtered = filtered.filter((a) => a.region_round_robin?.includes(regionFilter));
     }
 
-    // Filtro por status
     if (statusFilter !== "all") {
       filtered = filtered.filter((a) => a.activo === (statusFilter === "active"));
     }
@@ -114,7 +113,7 @@ export default function AdminAgentes() {
       telefono: agent.telefono || "",
       dni_nie: agent.dni_nie || "",
       tidycal_url: agent.tidycal_url || "",
-      region_round_robin: agent.region_round_robin || "",
+      region_round_robin: agent.region_round_robin || [],
       activo: agent.activo,
       comision_porcentaje: agent.comision_porcentaje || 0,
       disponibilidad: agent.disponibilidad || ['mañana', 'tarde', 'noche'],
@@ -148,7 +147,7 @@ export default function AdminAgentes() {
           telefono: editFormData.telefono.trim() || null,
           dni_nie: editFormData.dni_nie.trim(),
           tidycal_url: editFormData.tidycal_url.trim() || null,
-          region_round_robin: editFormData.region_round_robin || null,
+          region_round_robin: editFormData.region_round_robin.length > 0 ? editFormData.region_round_robin : null,
           activo: editFormData.activo,
           comision_porcentaje: editFormData.comision_porcentaje,
           disponibilidad: editFormData.disponibilidad,
@@ -194,7 +193,6 @@ export default function AdminAgentes() {
     if (!confirmed) return;
 
     try {
-      // 1. Primero deletar user_roles
       const { error: rolesError } = await supabase
         .from("user_roles")
         .delete()
@@ -202,7 +200,6 @@ export default function AdminAgentes() {
 
       if (rolesError) throw rolesError;
 
-      // 2. Después deletar profile (cascada deletará auth.users)
       const { error: profileError } = await supabase
         .from("profiles")
         .delete()
@@ -216,6 +213,15 @@ export default function AdminAgentes() {
       console.error("Error deleting agent:", error);
       toast.error(`Error al eliminar agente: ${error.message}`);
     }
+  };
+
+  const toggleEditRegion = (region: string) => {
+    setEditFormData(prev => ({
+      ...prev,
+      region_round_robin: prev.region_round_robin.includes(region)
+        ? prev.region_round_robin.filter(r => r !== region)
+        : [...prev.region_round_robin, region]
+    }));
   };
 
   if (isLoading) {
@@ -256,11 +262,12 @@ export default function AdminAgentes() {
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                <SelectItem value="Cataluña">Cataluña</SelectItem>
-                <SelectItem value="General">General</SelectItem>
-              </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {COMUNIDADES_AUTONOMAS.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div>
@@ -288,7 +295,7 @@ export default function AdminAgentes() {
                     <TableHead>Teléfono</TableHead>
                     <TableHead>DNI/NIE</TableHead>
                     <TableHead>URL Tidycal</TableHead>
-                    <TableHead>Región</TableHead>
+                    <TableHead>Regiones</TableHead>
                     <TableHead>Disponibilidad</TableHead>
                     <TableHead>Comisión %</TableHead>
                     <TableHead>Estado</TableHead>
@@ -297,9 +304,7 @@ export default function AdminAgentes() {
                 </TableHeader>
                 <TableBody>
                   {filteredAgents.map((agent) => (
-                    <TableRow 
-                      key={agent.id}
-                    >
+                    <TableRow key={agent.id}>
                       <TableCell className="font-medium">{agent.nombre}</TableCell>
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
@@ -322,8 +327,8 @@ export default function AdminAgentes() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {agent.region_round_robin ? (
-                          <Badge variant="outline">{agent.region_round_robin}</Badge>
+                        {agent.region_round_robin && agent.region_round_robin.length > 0 ? (
+                          <Badge variant="outline">{agent.region_round_robin.length} regiones</Badge>
                         ) : (
                           <span className="text-muted-foreground">-</span>
                         )}
@@ -351,11 +356,7 @@ export default function AdminAgentes() {
                       </TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(agent)}
-                          >
+                          <Button size="sm" variant="outline" onClick={() => handleEdit(agent)}>
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
@@ -363,11 +364,7 @@ export default function AdminAgentes() {
                             variant={agent.activo ? "destructive" : "default"}
                             onClick={() => toggleAgentStatus(agent)}
                           >
-                            {agent.activo ? (
-                              <UserX className="h-4 w-4" />
-                            ) : (
-                              <UserCheck className="h-4 w-4" />
-                            )}
+                            {agent.activo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
                           <Button
                             size="sm"
@@ -383,7 +380,7 @@ export default function AdminAgentes() {
                   ))}
                   {filteredAgents.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                         No se encontraron agentes
                       </TableCell>
                     </TableRow>
@@ -402,10 +399,7 @@ export default function AdminAgentes() {
             </DialogHeader>
             <form 
               id="edit-form" 
-              onSubmit={(e) => { 
-                e.preventDefault(); 
-                handleSaveEdit(); 
-              }} 
+              onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} 
               className="space-y-4 py-4"
             >
               <div className="space-y-2">
@@ -439,9 +433,7 @@ export default function AdminAgentes() {
                   onChange={(e) => setEditFormData({ ...editFormData, dni_nie: e.target.value })}
                   placeholder="12345678X"
                 />
-                <p className="text-xs text-muted-foreground">
-                  ⚠️ El DNI/NIE es obligatorio para generar contratos
-                </p>
+                <p className="text-xs text-muted-foreground">⚠️ El DNI/NIE es obligatorio para generar contratos</p>
               </div>
 
               <div className="space-y-2">
@@ -455,20 +447,30 @@ export default function AdminAgentes() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-region">Región Round-Robin</Label>
-                <Select
-                  value={editFormData.region_round_robin || "none"}
-                  onValueChange={(value) => setEditFormData({ ...editFormData, region_round_robin: value === "none" ? null : value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona región" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No asignada</SelectItem>
-                    <SelectItem value="Cataluña">Cataluña</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                  <Label>Regiones Round-Robin</Label>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditFormData(prev => ({ ...prev, region_round_robin: [...COMUNIDADES_AUTONOMAS] }))}>Todas</Button>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditFormData(prev => ({ ...prev, region_round_robin: [] }))}>Ninguna</Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto border rounded-lg p-2">
+                  {COMUNIDADES_AUTONOMAS.map((region) => (
+                    <div key={region} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-region-${region}`}
+                        checked={editFormData.region_round_robin.includes(region)}
+                        onCheckedChange={() => toggleEditRegion(region)}
+                      />
+                      <Label htmlFor={`edit-region-${region}`} className="font-normal text-xs cursor-pointer">
+                        {region}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {editFormData.region_round_robin.length} regiones seleccionadas
+                </p>
               </div>
 
               <div className="space-y-2">
