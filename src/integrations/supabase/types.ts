@@ -992,7 +992,7 @@ export type Database = {
           email: string
           id: string
           nombre: string
-          region_round_robin: string | null
+          region_round_robin: string[] | null
           role: Database["public"]["Enums"]["user_role"]
           telefono: string | null
           tidycal_url: string | null
@@ -1007,7 +1007,7 @@ export type Database = {
           email: string
           id: string
           nombre: string
-          region_round_robin?: string | null
+          region_round_robin?: string[] | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
           tidycal_url?: string | null
@@ -1022,7 +1022,7 @@ export type Database = {
           email?: string
           id?: string
           nombre?: string
-          region_round_robin?: string | null
+          region_round_robin?: string[] | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
           tidycal_url?: string | null
