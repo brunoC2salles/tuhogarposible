@@ -23,8 +23,56 @@ const RANGO_INGRESOS_MAP: Record<string, number> = {
   'mas de 3000': 3500,
 };
 
-// Regiões da Catalunha
-const CATALUNA_ZONAS = ['barcelona', 'tarragona', 'girona', 'lleida', 'catalunya', 'cataluña'];
+// Mapeamento de cidades/termos para comunidades autónomas
+const CIUDADES_COMUNIDAD_MAP: Record<string, string> = {
+  // Cataluña
+  'barcelona': 'Cataluña', 'tarragona': 'Cataluña', 'girona': 'Cataluña', 'lleida': 'Cataluña',
+  'catalunya': 'Cataluña', 'cataluña': 'Cataluña',
+  // Comunidad de Madrid
+  'madrid': 'Comunidad de Madrid',
+  // Comunidad Valenciana
+  'valencia': 'Comunidad Valenciana', 'alicante': 'Comunidad Valenciana', 'castellón': 'Comunidad Valenciana',
+  'castellon': 'Comunidad Valenciana',
+  // Andalucía
+  'sevilla': 'Andalucía', 'málaga': 'Andalucía', 'malaga': 'Andalucía', 'granada': 'Andalucía',
+  'córdoba': 'Andalucía', 'cordoba': 'Andalucía', 'almería': 'Andalucía', 'almeria': 'Andalucía',
+  'cádiz': 'Andalucía', 'cadiz': 'Andalucía', 'jaén': 'Andalucía', 'jaen': 'Andalucía',
+  'huelva': 'Andalucía', 'andalucía': 'Andalucía', 'andalucia': 'Andalucía',
+  // Aragón
+  'zaragoza': 'Aragón', 'huesca': 'Aragón', 'teruel': 'Aragón', 'aragón': 'Aragón', 'aragon': 'Aragón',
+  // Región de Murcia
+  'murcia': 'Región de Murcia',
+  // Islas Baleares
+  'palma': 'Islas Baleares', 'mallorca': 'Islas Baleares', 'ibiza': 'Islas Baleares',
+  'menorca': 'Islas Baleares', 'baleares': 'Islas Baleares',
+  // Canarias
+  'tenerife': 'Canarias', 'gran canaria': 'Canarias', 'las palmas': 'Canarias',
+  'canarias': 'Canarias', 'lanzarote': 'Canarias', 'fuerteventura': 'Canarias',
+  // Galicia
+  'vigo': 'Galicia', 'coruña': 'Galicia', 'santiago': 'Galicia', 'pontevedra': 'Galicia',
+  'lugo': 'Galicia', 'ourense': 'Galicia', 'galicia': 'Galicia',
+  // País Vasco (no está en la lista de regiones, irá a fallback)
+  'bilbao': 'Cataluña', 'san sebastián': 'Cataluña', 'san sebastian': 'Cataluña', 'vitoria': 'Cataluña',
+  // Cantabria
+  'santander': 'Cantabria', 'cantabria': 'Cantabria',
+  // Principado de Asturias
+  'gijón': 'Principado de Asturias', 'gijon': 'Principado de Asturias', 'oviedo': 'Principado de Asturias',
+  'asturias': 'Principado de Asturias',
+  // Castilla y León
+  'valladolid': 'Castilla y León', 'salamanca': 'Castilla y León', 'león': 'Castilla y León',
+  'leon': 'Castilla y León', 'burgos': 'Castilla y León', 'segovia': 'Castilla y León',
+  'ávila': 'Castilla y León', 'avila': 'Castilla y León', 'soria': 'Castilla y León',
+  'zamora': 'Castilla y León', 'palencia': 'Castilla y León',
+  // Castilla-La Mancha
+  'toledo': 'Castilla-La Mancha', 'ciudad real': 'Castilla-La Mancha', 'albacete': 'Castilla-La Mancha',
+  'cuenca': 'Castilla-La Mancha', 'guadalajara': 'Castilla-La Mancha',
+  // Extremadura
+  'cáceres': 'Extremadura', 'caceres': 'Extremadura', 'badajoz': 'Extremadura', 'extremadura': 'Extremadura',
+  // La Rioja
+  'logroño': 'La Rioja', 'logronyo': 'La Rioja', 'rioja': 'La Rioja',
+  // Navarra (no está en la lista, fallback)
+  'pamplona': 'Comunidad de Madrid', 'navarra': 'Comunidad de Madrid',
+};
 
 interface MetaLeadData {
   nombre: string;
@@ -260,18 +308,19 @@ function parseIngresos(rangoIngresos?: string): number {
   return 1500; // Valor padrão
 }
 
-function determinarRegion(zonaInteres?: string): string {
-  if (!zonaInteres) return 'General';
+function determinarRegion(zonaInteres?: string): string | null {
+  if (!zonaInteres) return null;
   
   const zonaNormalizada = zonaInteres.toLowerCase().trim();
   
-  for (const catalunaZona of CATALUNA_ZONAS) {
-    if (zonaNormalizada.includes(catalunaZona)) {
-      return 'Cataluña';
+  for (const [key, comunidad] of Object.entries(CIUDADES_COMUNIDAD_MAP)) {
+    if (zonaNormalizada.includes(key)) {
+      return comunidad;
     }
   }
   
-  return 'General';
+  // No match found — will trigger fallback in get-next-agent
+  return null;
 }
 
 function normalizarPreferenciaLlamada(preferencia?: string): string {

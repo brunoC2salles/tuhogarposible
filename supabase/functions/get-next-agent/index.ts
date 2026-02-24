@@ -3,27 +3,18 @@ import { corsHeaders } from '../_shared/cors.ts'
 
 /**
  * Determina el turno actual basado en la hora de España
- * Mañana: 08:00-14:00
- * Tarde: 14:00-20:00
- * Noche: 20:00-08:00
  */
 function getTurnoActual(): string {
-  // Obtener hora actual en España (Europe/Madrid)
   const now = new Date();
   const madridTime = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
   const hora = madridTime.getHours();
   
-  if (hora >= 8 && hora < 14) {
-    return 'mañana';
-  } else if (hora >= 14 && hora < 20) {
-    return 'tarde';
-  } else {
-    return 'noche';
-  }
+  if (hora >= 8 && hora < 14) return 'mañana';
+  else if (hora >= 14 && hora < 20) return 'tarde';
+  else return 'noche';
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -32,116 +23,107 @@ Deno.serve(async (req) => {
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
+      { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
     const { region, considerarTurno = true, turnoOverride } = await req.json()
 
-    // Validar região
-    if (!region || !['Cataluña', 'General'].includes(region)) {
-      return new Response(
-        JSON.stringify({ error: 'Región inválida. Use "Cataluña" o "General"' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    // region is now a specific comunidad autónoma (e.g. "Cataluña") or null
+    console.log(`[Round-Robin] Región solicitada: ${region || 'null'}, TurnoOverride: ${turnoOverride || 'none'}`);
 
-    // CORREÇÃO: Só filtrar por turno se o lead especificou preferência (turnoOverride)
-    // Se não há preferência, usar round-robin puro com TODOS os agentes ativos
-    const deveConsiderarTurno = considerarTurno && !!turnoOverride;
-    const turnoParaFiltrar = turnoOverride || null;
-    
-    console.log(`[Round-Robin] Región: ${region}, TurnoOverride: ${turnoOverride || 'none'}, Filtrar por turno: ${deveConsiderarTurno}`);
-
-    // 1. Buscar agentes disponíveis da região (CORREÇÃO: removido filtro de tidycal_url)
-    let query = supabaseAdmin
+    // 1. Buscar TODOS los agentes activos
+    const { data: allAgents, error: agentsError } = await supabaseAdmin
       .from('profiles')
-      .select('id, nombre, email, tidycal_url, telefono, disponibilidad')
+      .select('id, nombre, email, tidycal_url, telefono, disponibilidad, region_round_robin')
       .eq('activo', true)
-      .eq('region_round_robin', region)
       .order('nombre');
-
-    const { data: allAgents, error: agentsError } = await query;
 
     if (agentsError) throw agentsError;
 
-    // Log detalhado de agentes ativos encontrados
-    console.log(`[Round-Robin] Agentes activos encontrados (${region}):`, 
-      allAgents?.map(a => `${a.nombre} (${a.id.substring(0,8)})`).join(', ') || 'ninguno');
+    console.log(`[Round-Robin] Agentes activos totales: ${allAgents?.length || 0}`);
 
     if (!allAgents || allAgents.length === 0) {
-      console.warn('[Round-Robin] No agents available for region');
       return new Response(
-        JSON.stringify({ 
-          error: `No hay agentes disponibles para la región ${region}. Por favor, contacte al administrador.` 
-        }),
+        JSON.stringify({ error: 'No hay agentes disponibles. Contacte al administrador.' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 2. Filtrar por turno APENAS se lead especificou preferência de horário
-    let agents = allAgents;
-    
-    if (deveConsiderarTurno && turnoParaFiltrar) {
-      agents = allAgents.filter(agent => {
-        const disponibilidad = agent.disponibilidad || ['mañana', 'tarde', 'noche'];
-        return disponibilidad.includes(turnoParaFiltrar);
-      });
-      
-      // Fallback: se nenhum agente disponível no turno preferido, usar todos
-      if (agents.length === 0) {
-        console.warn(`[Round-Robin] No agents available in turno ${turnoParaFiltrar}, using all agents`);
-        agents = allAgents;
-      }
-      
-      console.log(`[Round-Robin] Agents após filtro turno ${turnoParaFiltrar}: ${agents.length}`);
-    } else {
-      console.log(`[Round-Robin] Round-robin puro (sem filtro de turno): ${agents.length} agentes`);
+    // 2. Filtrar agentes por región
+    let agents: typeof allAgents = [];
+    let regionTracking = region || 'unknown'; // Para el tracking de round-robin
+
+    if (region) {
+      // Filtrar agentes que tengan esta comunidad autónoma en su array
+      agents = allAgents.filter(a => 
+        a.region_round_robin && Array.isArray(a.region_round_robin) && a.region_round_robin.includes(region)
+      );
+      console.log(`[Round-Robin] Agentes con región "${region}": ${agents.length}`);
     }
 
-    console.log(`[Round-Robin] Agents disponíveis: ${agents.length} de ${allAgents.length}`);
+    // FALLBACK: Si no hay agentes para la región (o región desconocida),
+    // seleccionar agentes con MÁS regiones (mayor cobertura)
+    if (agents.length === 0) {
+      console.warn(`[Round-Robin] Sin agentes para región "${region}". Usando fallback por cobertura.`);
+      regionTracking = 'fallback';
+      
+      // Ordenar por cantidad de regiones (mayor cobertura primero)
+      agents = allAgents
+        .filter(a => a.region_round_robin && Array.isArray(a.region_round_robin) && a.region_round_robin.length > 0)
+        .sort((a, b) => (b.region_round_robin?.length || 0) - (a.region_round_robin?.length || 0));
+      
+      // Si aún no hay agentes con regiones, usar TODOS los activos
+      if (agents.length === 0) {
+        console.warn('[Round-Robin] Ningún agente tiene regiones configuradas. Usando todos los activos.');
+        agents = allAgents;
+      }
+    }
 
-    // 3. Buscar último agente designado
+    // 3. Filtrar por turno SOLO si el lead especificó preferencia
+    const deveConsiderarTurno = considerarTurno && !!turnoOverride;
+    
+    if (deveConsiderarTurno && turnoOverride) {
+      const agentsTurno = agents.filter(agent => {
+        const disponibilidad = agent.disponibilidad || ['mañana', 'tarde', 'noche'];
+        return disponibilidad.includes(turnoOverride);
+      });
+      
+      if (agentsTurno.length > 0) {
+        agents = agentsTurno;
+        console.log(`[Round-Robin] Filtro turno ${turnoOverride}: ${agents.length} agentes`);
+      } else {
+        console.warn(`[Round-Robin] Sin agentes en turno ${turnoOverride}, manteniendo todos`);
+      }
+    }
+
+    console.log(`[Round-Robin] Agentes finales: ${agents.length}`);
+
+    // 4. Buscar último agente designado para esta región de tracking
     const { data: tracking, error: trackingError } = await supabaseAdmin
       .from('agent_assignment_tracking')
       .select('last_assigned_agent_id')
-      .eq('region', region)
+      .eq('region', regionTracking)
       .single()
 
     if (trackingError && trackingError.code !== 'PGRST116') throw trackingError;
 
-    // Diagnóstico: verificar se último agente está ativo
-    if (tracking?.last_assigned_agent_id) {
-      const lastAgentActive = agents.find(a => a.id === tracking.last_assigned_agent_id);
-      if (!lastAgentActive) {
-        console.warn(`[Round-Robin] ⚠️ Último agente ${tracking.last_assigned_agent_id} NÃO está na lista de ativos. Resetando round-robin.`);
-      } else {
-        console.log(`[Round-Robin] Último agente ativo: ${lastAgentActive.nombre}`);
-      }
-    }
-
-    // 4. Calcular próximo agente (round-robin)
+    // 5. Calcular próximo agente (round-robin)
     let nextAgentIndex = 0
     
     if (tracking?.last_assigned_agent_id) {
       const lastIndex = agents.findIndex(a => a.id === tracking.last_assigned_agent_id)
-      // Se encontrou o último, pega o próximo; senão, começa do primeiro
       nextAgentIndex = lastIndex >= 0 ? (lastIndex + 1) % agents.length : 0
     }
 
     const nextAgent = agents[nextAgentIndex]
 
-    console.log(`[Round-Robin] Próximo agente: ${nextAgent.nombre} (turno preferido: ${turnoParaFiltrar || 'cualquiera'})`);
+    console.log(`[Round-Robin] Próximo agente: ${nextAgent.nombre} (tracking: ${regionTracking})`);
 
-    // 5. Atualizar tracking
+    // 6. Actualizar tracking
     const { error: updateError } = await supabaseAdmin
       .from('agent_assignment_tracking')
       .upsert({
-        region,
+        region: regionTracking,
         last_assigned_agent_id: nextAgent.id,
         last_assignment_at: new Date().toISOString()
       }, { onConflict: 'region' })
@@ -150,7 +132,7 @@ Deno.serve(async (req) => {
       console.error('[Round-Robin] Tracking update failed:', updateError)
     }
 
-    // 6. Retornar dados do agente (formato agente para compatibilidade)
+    // 7. Retornar datos del agente
     return new Response(
       JSON.stringify({
         agent_id: nextAgent.id,
@@ -158,8 +140,7 @@ Deno.serve(async (req) => {
         nombre: nextAgent.nombre,
         telefono: nextAgent.telefono,
         email: nextAgent.email,
-        turno_asignado: turnoParaFiltrar || 'cualquiera',
-        // Formato alternativo para meta-lead-webhook
+        turno_asignado: turnoOverride || 'cualquiera',
         agente: {
           id: nextAgent.id,
           nombre: nextAgent.nombre,
@@ -172,7 +153,7 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('[Round-Robin] Erro:', error)
+    console.error('[Round-Robin] Error:', error)
     return new Response(
       JSON.stringify({ error: error.message || 'Error al asignar agente' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
