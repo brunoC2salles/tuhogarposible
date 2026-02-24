@@ -48,6 +48,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
       const datosHipoteca = {
         nombreCompleto: lead.nombre_completo,
         edad: 30,
+        tipoDocumento: 'dni' as const,
         numeroTitulares: '1' as const,
         numeroPagas: 12,
         cobraBonusAnual: false,
