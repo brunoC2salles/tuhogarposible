@@ -53,6 +53,7 @@ const SimuladoresIndex = () => {
     defaultValues: {
       nombreCompleto: '',
       edad: 30,
+      tipoDocumento: undefined as any,
       numeroTitulares: '1',
       titulares: [],
       precioVivienda: 150000,
@@ -215,6 +216,22 @@ const SimuladoresIndex = () => {
                         </div>
                       </div>
 
+                      <div className="space-y-2">
+                        <Label>Tipo de Documento *</Label>
+                        <RadioGroup value={form.watch("tipoDocumento")} onValueChange={(v) => form.setValue("tipoDocumento", v as any, { shouldValidate: true })}>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="dni" id="doc-dni" />
+                            <Label htmlFor="doc-dni">DNI (Ciudadano español)</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="nie" id="doc-nie" />
+                            <Label htmlFor="doc-nie">NIE (Residente extranjero)</Label>
+                          </div>
+                        </RadioGroup>
+                        {form.formState.errors.tipoDocumento && (
+                          <p className="text-sm text-destructive">{form.formState.errors.tipoDocumento.message}</p>
+                        )}
+                      </div>
                       <div className="space-y-2">
                         <Label>Número de Titulares *</Label>
                         <RadioGroup value={watchNumeroTitulares} onValueChange={(v) => form.setValue("numeroTitulares", v as any)}>

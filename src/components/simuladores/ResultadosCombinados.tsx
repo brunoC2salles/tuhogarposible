@@ -155,6 +155,15 @@ export function ResultadosCombinados({
                 </div>
               )}
 
+              {resultadosHipoteca.hipotecaMaximaMensual < 350 && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
+                  <p className="font-semibold text-destructive">⚠️ Capacidad de Pago Insuficiente</p>
+                  <p className="text-destructive/80 mt-1">
+                    Capacidad mensual: <strong>{formatEuro(resultadosHipoteca.hipotecaMaximaMensual)}</strong> — Mínimo requerido: <strong>350€/mes</strong>
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-center">
                 {resultadosHipoteca.aprobable ? (
                   <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">✓ HIPOTECA APROBABLE</Badge>

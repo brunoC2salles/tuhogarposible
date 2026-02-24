@@ -4,12 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { COMUNIDADES_AUTONOMAS } from "@/lib/comunidadesAutonomas";
 
 const TURNOS_DISPONIBILIDAD = [
   { value: 'mañana', label: 'Mañana (08:00-14:00)', icon: '☀️' },
@@ -25,7 +25,7 @@ export default function AgentSettings() {
     nombre: "",
     telefono: "",
     tidycal_url: "",
-    region_round_robin: "",
+    region_round_robin: [] as string[],
     disponibilidad: ['mañana', 'tarde', 'noche'] as string[],
   });
   
@@ -38,7 +38,7 @@ export default function AgentSettings() {
         nombre: profile.nombre || "",
         telefono: profile.telefono || "",
         tidycal_url: (profile as any).tidycal_url || "",
-        region_round_robin: (profile as any).region_round_robin || "",
+        region_round_robin: (profile as any).region_round_robin || [],
         disponibilidad: (profile as any).disponibilidad || ['mañana', 'tarde', 'noche'],
       });
       setIsLoading(false);
@@ -46,7 +46,6 @@ export default function AgentSettings() {
   }, [profile]);
 
   const handleSave = async () => {
-    // Validação básica
     if (!formData.nombre.trim()) {
       toast.error("El nombre es obligatorio");
       return;
@@ -66,7 +65,7 @@ export default function AgentSettings() {
           nombre: formData.nombre.trim(),
           telefono: formData.telefono.trim() || null,
           tidycal_url: formData.tidycal_url.trim() || null,
-          region_round_robin: formData.region_round_robin || null,
+          region_round_robin: formData.region_round_robin.length > 0 ? formData.region_round_robin : null,
           disponibilidad: formData.disponibilidad,
         })
         .eq("id", user?.id);
@@ -83,17 +82,29 @@ export default function AgentSettings() {
   };
 
   const toggleDisponibilidad = (turno: string) => {
-    if (formData.disponibilidad.includes(turno)) {
-      setFormData({
-        ...formData,
-        disponibilidad: formData.disponibilidad.filter(t => t !== turno)
-      });
-    } else {
-      setFormData({
-        ...formData,
-        disponibilidad: [...formData.disponibilidad, turno]
-      });
-    }
+    setFormData(prev => ({
+      ...prev,
+      disponibilidad: prev.disponibilidad.includes(turno)
+        ? prev.disponibilidad.filter(t => t !== turno)
+        : [...prev.disponibilidad, turno]
+    }));
+  };
+
+  const toggleRegion = (region: string) => {
+    setFormData(prev => ({
+      ...prev,
+      region_round_robin: prev.region_round_robin.includes(region)
+        ? prev.region_round_robin.filter(r => r !== region)
+        : [...prev.region_round_robin, region]
+    }));
+  };
+
+  const selectAllRegions = () => {
+    setFormData(prev => ({ ...prev, region_round_robin: [...COMUNIDADES_AUTONOMAS] }));
+  };
+
+  const deselectAllRegions = () => {
+    setFormData(prev => ({ ...prev, region_round_robin: [] }));
   };
 
   if (isLoading) {
@@ -164,23 +175,30 @@ export default function AgentSettings() {
               </p>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="region">Región Round-Robin</Label>
-              <Select
-                value={formData.region_round_robin || "none"}
-                onValueChange={(value) => setFormData({ ...formData, region_round_robin: value === "none" ? "" : value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una región" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No asignada al Round Robin</SelectItem>
-                  <SelectItem value="Cataluña">Cataluña</SelectItem>
-                  <SelectItem value="General">General (todas las demás regiones)</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>Regiones Round-Robin</Label>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={selectAllRegions}>Todas</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={deselectAllRegions}>Ninguna</Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto border rounded-lg p-3">
+                {COMUNIDADES_AUTONOMAS.map((region) => (
+                  <div key={region} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`agent-region-${region}`}
+                      checked={formData.region_round_robin.includes(region)}
+                      onCheckedChange={() => toggleRegion(region)}
+                    />
+                    <Label htmlFor={`agent-region-${region}`} className="font-normal cursor-pointer text-sm">
+                      {region}
+                    </Label>
+                  </div>
+                ))}
+              </div>
               <p className="text-sm text-muted-foreground">
-                Selecciona la región donde quieres recibir leads
+                Selecciona las regiones donde quieres recibir leads ({formData.region_round_robin.length} seleccionadas)
               </p>
             </div>
 

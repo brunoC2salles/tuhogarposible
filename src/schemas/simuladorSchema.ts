@@ -50,6 +50,10 @@ export const simuladorHipotecaSchema = z.object({
     .min(3, 'Nombre debe tener mínimo 3 caracteres')
     .max(100, 'Nombre muy largo'),
   
+  tipoDocumento: z.enum(['dni', 'nie'], {
+    required_error: 'Debe seleccionar tipo de documento (DNI o NIE)'
+  }),
+  
   edad: z.number()
     .int('Edad debe ser un número entero')
     .min(18, 'Edad mínima: 18 años')

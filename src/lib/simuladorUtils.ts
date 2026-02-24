@@ -49,9 +49,9 @@ export function calcularAmortizacionFrancesa(datos: DatosSimulacion): Resultados
   const montoTotalPagar = cuotaMensual * plazoMeses;
   const totalIntereses = montoTotalPagar - principal;
   
-  // Verifica qualificação: (Ingresos - Deudas) >= 1050
-  const capacidadPago = ingresos - deudas;
-  const cualificado = capacidadPago >= 1050;
+  // Verifica qualificação: capacidad mensual >= 350€
+  const capacidadPagoPersonal = (ingresos * 0.35) - deudas;
+  const cualificado = capacidadPagoPersonal >= 350;
   
   // NOVO: Calcular máximo de crédito pessoal baseado em 35% dos ingresos
   const capacidadMensual = (ingresos * 0.35) - deudas;
@@ -101,6 +101,8 @@ export function formatDateTime(): string {
 // ========== SIMULADOR HIPOTECARIO ==========
 
 export interface DatosSimulacionHipoteca {
+  // Tipo de documento
+  tipoDocumento: 'dni' | 'nie';
   // Dados dos titulares
   nombreCompleto: string;
   edad: number;
@@ -286,22 +288,20 @@ function determinarMejorContrato(
 }
 
 /**
- * Calcula el porcentaje de financiamiento aplicando el MENOR porcentaje entre todas las limitaciones
+ * Calcula el porcentaje de financiamiento con reglas DNI vs NIE
  * REGLAS:
  * 1. No residente fiscal → máximo 70%
  * 2. Inversión → máximo 50%
  * 3. Segunda residencia → máximo 70%
- * 4. Tipo de contrato:
- *    - Funcionario: 100%
- *    - Interino/Fijo Discontinuo/Indefinido: 90%
- *    - Temporal: 0%
- * 
- * SE APLICA EL MENOR PORCENTAJE (ejemplo: no residente + inversión = 50%)
+ * 4. Vivienda habitual + residente:
+ *    - DNI (español): funcionario 100%, indefinido/interino/fijo_disc 90%, temporal 0%
+ *    - NIE (extranjero): temporal 0%, otros 80%
  */
 function calcularPorcentajeFinanciamiento(
   mejorContrato: string,
   finalidadCompra: 'vivienda_habitual' | 'segunda_residencia' | 'inversion',
-  esResidenteFiscal: boolean
+  esResidenteFiscal: boolean,
+  tipoDocumento: 'dni' | 'nie' = 'dni'
 ): number {
   const limitaciones: number[] = [];
 
@@ -317,33 +317,38 @@ function calcularPorcentajeFinanciamiento(
     limitaciones.push(70);
   }
 
-  // 3. LIMITACIÓN POR TIPO DE CONTRATO (solo si es vivienda habitual Y residente fiscal)
+  // 3. LIMITACIÓN POR TIPO DE CONTRATO + DOCUMENTO
   if (finalidadCompra === 'vivienda_habitual' && esResidenteFiscal) {
-    if (mejorContrato === 'funcionario') {
-      limitaciones.push(100);
-    } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
-      limitaciones.push(90);
+    if (tipoDocumento === 'dni') {
+      // Español: DNI = hasta 90% (funcionario 100%)
+      if (mejorContrato === 'funcionario') {
+        limitaciones.push(100);
+      } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
+        limitaciones.push(90);
+      } else {
+        limitaciones.push(0); // temporal
+      }
     } else {
-      limitaciones.push(0); // temporal
+      // Extranjero: NIE = hasta 80%
+      if (mejorContrato === 'temporal') {
+        limitaciones.push(0);
+      } else {
+        limitaciones.push(80);
+      }
     }
   }
 
-  // Si no hay limitaciones específicas, aplicar regla de contrato
+  // Si no hay limitaciones específicas, aplicar regla de contrato base
   if (limitaciones.length === 0) {
     if (mejorContrato === 'funcionario') return 100;
-    if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return 90;
+    if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return tipoDocumento === 'dni' ? 90 : 80;
     return 0;
   }
 
-  // APLICAR EL MENOR PORCENTAJE
   const porcentajeFinal = Math.min(...limitaciones);
   
   console.log('[Financiamiento] Cálculo:', {
-    mejorContrato,
-    finalidadCompra,
-    esResidenteFiscal,
-    limitaciones,
-    porcentajeFinal
+    mejorContrato, finalidadCompra, esResidenteFiscal, tipoDocumento, limitaciones, porcentajeFinal
   });
 
   return porcentajeFinal;
@@ -497,7 +502,8 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const porcentajeFinanciamiento = calcularPorcentajeFinanciamiento(
     mejorContrato,
     datos.finalidadCompra,
-    datos.esResidenteFiscalEspana
+    datos.esResidenteFiscalEspana,
+    datos.tipoDocumento || 'dni'
   );
   
   // 8. MONTO FINANCIABLE
@@ -542,12 +548,22 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const totalIntereses = montoTotalPagar - montoFinanciable;
   
   // 14. APROBABLE
-  // Separar critérios: aprovação por ingresos vs capital próprio
+  // Criterio 1: cuota <= capacidad de pago
   const aprobablePorIngresos = cuotaMensual <= hipotecaMaximaMensual;
+  // Criterio 2: capacidad mínima de 350€
+  const capacidadMinimaSuficiente = hipotecaMaximaMensual >= 350;
   const capitalPropioSuficiente = datos.ahorrosDisponibles >= capitalPropioNecesario;
   
-  // Definir aprobable baseado principalmente na capacidade de pagamento
-  const aprobable = aprobablePorIngresos;
+  // Aprobable requiere ambos criterios de ingresos
+  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente;
+  
+  // Razón de no aprobación
+  let razonNoAprobado: string | undefined;
+  if (!capacidadMinimaSuficiente) {
+    razonNoAprobado = `Capacidad de pago insuficiente: ${formatEuro(hipotecaMaximaMensual)}/mes (mínimo requerido: 350€/mes)`;
+  } else if (!aprobablePorIngresos) {
+    razonNoAprobado = `La cuota mensual (${formatEuro(cuotaMensual)}) supera la capacidad de pago (${formatEuro(hipotecaMaximaMensual)})`;
+  }
   
   return {
     montoFinanciable,
