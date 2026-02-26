@@ -1,280 +1,98 @@
 
-# Plano de Implementacao: Regioes Multi-Selecao, Simulador DNI/NIE e Round-Robin
+# Plan: Fix Round-Robin Agent Assignment and Retroactive Lead Fix
 
-## Resumo das Mudancas
+## Root Cause Analysis
 
-4 blocos de alteracoes:
+The `get-next-agent` edge function is returning a **500 error**: `malformed array literal: "Cataluña"`. This happens because the database column `region_round_robin` was migrated from `text` to `text[]`, but the **deployed** edge functions were never redeployed to match the new code. The old deployed version likely uses `.eq()` queries that fail with array columns.
 
-1. **Migrar regiao de texto simples para array** (DB + frontend + edge functions)
-2. **Round-robin multi-regiao** (edge function get-next-agent + meta-lead-webhook)
-3. **Simulador: DNI vs NIE = 90% vs 80% + minimo 350EUR** (simuladorUtils.ts + schema + UI)
-4. **Garantir idade no webhook Bitrix** (verificacao — ja esta implementado)
+**Result:** Every qualified lead from Meta Ads enters the CRM with `agente_asignado_id = null` and no Bitrix webhook is triggered (since the webhook only fires when an agent is assigned).
 
----
-
-## 1. Migracao da Base de Dados
-
-**Migracao SQL:**
-
-```sql
--- Mudar region_round_robin de text para text[]
-ALTER TABLE profiles 
-  ALTER COLUMN region_round_robin TYPE text[] 
-  USING CASE 
-    WHEN region_round_robin = 'General' THEN ARRAY['Andalucía','Aragón','Principado de Asturias','Islas Baleares','Canarias','Cantabria','Castilla-La Mancha','Castilla y León','Comunidad Valenciana','Extremadura','Galicia','La Rioja','Comunidad de Madrid','Región de Murcia','Ceuta','Melilla']
-    WHEN region_round_robin = 'Cataluña' THEN ARRAY['Cataluña']
-    WHEN region_round_robin IS NULL THEN NULL
-    ELSE ARRAY[region_round_robin]
-  END;
-```
-
-**Nota:** A tabela `agent_assignment_tracking` usa `region` como texto para tracking do round-robin. Com multi-regiao, o tracking passa a ser feito por comunidade autonoma individual (cada comunidade tem o seu proprio tracking).
+**35 leads** are currently in `nuevo_lead` stage without an agent.
 
 ---
 
-## 2. Lista de Comunidades Autonomas (constante partilhada)
+## Plan (3 parts)
 
-Usar em todos os ficheiros que precisam:
+### Part 1: Redeploy Edge Functions
 
-```
-Andalucía, Aragón, Principado de Asturias, Islas Baleares, Canarias, 
-Cantabria, Castilla-La Mancha, Castilla y León, Cataluña, 
-Comunidad Valenciana, Extremadura, Galicia, La Rioja, 
-Comunidad de Madrid, Región de Murcia, Ceuta, Melilla
-```
+Simply redeploy `get-next-agent` and `meta-lead-webhook`. The code in the repository is already correct (uses JS-level array filtering, not PostgREST array operators). The issue is only that the deployed version is stale.
 
-(17 comunidades no total - as 15 pedidas + Ceuta e Melilla para completude)
+**Files:** No changes needed. Just deploy.
 
----
+### Part 2: Create One-Time Fix Edge Function
 
-## 3. Ficheiros a Modificar
+Create a new edge function `fix-unassigned-leads` that:
 
-### 3.1. Frontend — AgentSettings.tsx
+1. Queries all leads with `stage = 'nuevo_lead' AND agente_asignado_id IS NULL`
+2. For each lead:
+   - Determines the comunidad autonoma from `zona_interes` (using the same `CIUDADES_COMUNIDAD_MAP`)
+   - Runs round-robin logic inline (same as `get-next-agent`): find agents with matching region, fallback to highest coverage
+   - Assigns the agent via `UPDATE leads SET agente_asignado_id = ...`
+   - Sends the Bitrix webhook payload (same flattened format as `meta-lead-webhook`)
+3. Returns a summary of all assignments made
 
-**Mudanca:** Substituir o `Select` de regiao unica por checkboxes multi-selecao (igual ao padrao dos turnos).
+**Round-robin for 35 leads distribution:**
+- 4 active agents with regions: Gerardo (16 regions), Jose Maria (16), Marie (16), Xavier (1 = Cataluna)
+- Leads in Cataluna zones go to Xavier
+- All other leads rotate between Gerardo, Jose Maria, and Marie
+- Unknown zones go to fallback (agents with most regions = Gerardo/Jose Maria/Marie)
 
-- `formData.region_round_robin` muda de `string` para `string[]`
-- UI: Lista de checkboxes com as 17 comunidades
-- Salvar: `region_round_robin: formData.regiones` (array)
-- Botao "Seleccionar Todas" / "Deseleccionar Todas" para conveniencia
+**File to create:** `supabase/functions/fix-unassigned-leads/index.ts`
 
-### 3.2. Frontend — AdminAgentes.tsx
+This function will be called once manually, then can be deleted.
 
-**Mudanca:** 
-- Substituir o `Select` de regiao no modal de edicao por checkboxes multi-selecao
-- Atualizar filtro por regiao na tabela (agora filtra por "contem regiao X")
-- Mostrar badges com as regioes selecionadas na tabela (ex: "3 regiones")
+### Part 3: Expand City-to-Region Mapping
 
-### 3.3. Frontend — AgenteDetails.tsx
+Some leads have locations not currently mapped (e.g., "Alovera", "Paterna", "Seseña", "colmenar viejo", "puerto del rosario", "Ponferrada", "La alberca"). I'll add these to both `meta-lead-webhook` and `fix-unassigned-leads`:
 
-**Mudanca:** Mostrar array de regioes como badges em vez de texto unico.
+- Alovera -> Castilla-La Mancha (Guadalajara)
+- Paterna -> Comunidad Valenciana
+- Sesena -> Castilla-La Mancha
+- Colmenar Viejo -> Comunidad de Madrid
+- Puerto del Rosario -> Canarias (Fuerteventura)
+- Ponferrada -> Castilla y Leon
+- La Alberca -> Region de Murcia (or Salamanca - will use Murcia as more common)
+- Sabadell -> Cataluna
+- Vilanova/Geltru -> Cataluna
+- Mostoles/Leganes/Pinto -> Comunidad de Madrid
+- Yuncos/Illescas -> Castilla-La Mancha
 
-### 3.4. Edge Function — get-next-agent/index.ts
+Also fix the incorrect mappings in the current code:
+- `'bilbao': 'Cataluna'` is WRONG -> should be fallback (null) since Pais Vasco is not in the list
+- `'pamplona': 'Comunidad de Madrid'` is WRONG -> should be null (Navarra not in list)
 
-**Mudanca completa da logica:**
-
-**Antes:** Recebe `region: "Cataluña" | "General"`, filtra agentes por `eq('region_round_robin', region)`.
-
-**Depois:** 
-- Recebe `region: "Cataluña"` (comunidade autonoma especifica detectada do lead)
-- Busca TODOS os agentes ativos
-- Filtra os que tem a comunidade no seu array `region_round_robin` (usando `contains`)
-- Se nenhum agente tem essa regiao, **fallback**: selecionar o agente com MAIS regioes selecionadas (nunca deixar lead sem agente)
-- Round-robin tracking por comunidade autonoma (upsert na tabela com region = comunidade especifica)
-
-**Logica de fallback para localizacao desconhecida:**
-- Se `region` vier como `null` ou nao corresponder a nenhuma comunidade, buscar o agente com mais regioes selecionadas
-
-```typescript
-// Pseudocodigo
-const agentesComRegiao = allAgents.filter(a => 
-  a.region_round_robin?.includes(region)
-);
-
-if (agentesComRegiao.length === 0) {
-  // Fallback: agente com mais regioes
-  const agentePorCobertura = allAgents.sort((a, b) => 
-    (b.region_round_robin?.length || 0) - (a.region_round_robin?.length || 0)
-  );
-  agents = agentePorCobertura;
-}
-```
-
-### 3.5. Edge Function — meta-lead-webhook/index.ts
-
-**Mudanca:** Atualizar `determinarRegion()` para retornar a comunidade autonoma especifica em vez de apenas "General"/"Cataluña".
-
-```typescript
-function determinarRegion(zonaInteres?: string): string | null {
-  // Mapa expandido de cidades -> comunidade autonoma
-  const ciudadesMap = {
-    'madrid': 'Comunidad de Madrid',
-    'barcelona': 'Cataluña',
-    'valencia': 'Comunidad Valenciana',
-    'sevilla': 'Andalucía',
-    'malaga': 'Andalucía',
-    'zaragoza': 'Aragón',
-    'murcia': 'Región de Murcia',
-    'bilbao': 'Cataluña', // corrigir: Pais Vasco nao esta na lista
-    // ... etc
-  };
-  // Retorna null se nao encontrar (triggera fallback)
-}
-```
-
-**Nota importante:** O `parseZonaInteres()` ja existe e extrai cidade/regiao. Vou reaproveitar e apenas expandir o mapeamento para retornar comunidades autonomas corretas.
-
-### 3.6. Simulador — simuladorUtils.ts
-
-**3 mudancas:**
-
-#### A) Novo campo: tipoDocumento (DNI vs NIE)
-
-Adicionar ao `DatosSimulacionHipoteca`:
-```typescript
-tipoDocumento: 'dni' | 'nie';
-```
-
-#### B) Regra de financiamento por tipo de documento
-
-Atualizar `calcularPorcentajeFinanciamiento()`:
-
-**Regras atuais (erradas):**
-- Nao residente fiscal: 70%
-- Vivienda habitual + residente: funcionario 100%, indefinido 90%, temporal 0%
-
-**Regras novas (corretas):**
-- Nao residente fiscal: 70% (mantida)
-- DNI (espanhol): maximo 90% para vivienda habitual
-- NIE (imigrante): maximo 80% para vivienda habitual  
-- Funcionario: mantem 100% (so se DNI)
-- Inversao: 50%, segunda residencia: 70% (mantidas)
-
-```typescript
-// Nova logica
-if (finalidadCompra === 'vivienda_habitual' && esResidenteFiscal) {
-  if (tipoDocumento === 'dni') {
-    // Espanhol: ate 90% (funcionario pode 100%)
-    if (mejorContrato === 'funcionario') limitaciones.push(100);
-    else if (['interino','fijo_discontinuo','indefinido'].includes(mejorContrato)) limitaciones.push(90);
-    else limitaciones.push(0);
-  } else {
-    // NIE/imigrante: ate 80%
-    if (mejorContrato === 'temporal') limitaciones.push(0);
-    else limitaciones.push(80);
-  }
-}
-```
-
-#### C) Minimo 350EUR de capacidade de pagamento
-
-No `calcularSimulacionHipoteca()`, adicionar validacao:
-
-```typescript
-// Apos calcular hipotecaMaximaMensual
-const aprobablePorIngresos = cuotaMensual <= hipotecaMaximaMensual && hipotecaMaximaMensual >= 350;
-```
-
-E no credito pessoal (`calcularAmortizacionFrancesa`):
-```typescript
-const capacidadMensual = (ingresos * 0.35) - deudas;
-const cualificado = capacidadMensual >= 350;
-```
-
-### 3.7. Schema — simuladorSchema.ts
-
-Adicionar campo `tipoDocumento`:
-```typescript
-tipoDocumento: z.enum(['dni', 'nie'], {
-  required_error: 'Debe seleccionar tipo de documento'
-}),
-```
-
-### 3.8. UI Simulador — SimuladoresIndex.tsx
-
-Adicionar campo de selecao DNI/NIE no formulario (secao dados pessoais):
-```html
-<Label>Tipo de documento *</Label>
-<RadioGroup>
-  <RadioGroupItem value="dni" /> DNI (Ciudadano español)
-  <RadioGroupItem value="nie" /> NIE (Residente extranjero)
-</RadioGroup>
-```
-
-### 3.9. ResultadosCombinados.tsx
-
-Atualizar para mostrar mensagem quando `hipotecaMaximaMensual < 350`:
-- "Capacidad de pago insuficiente (minimo 350EUR)"
+**Files to modify:**
+- `supabase/functions/meta-lead-webhook/index.ts` (lines 55, 74: fix Bilbao/Pamplona mapping + add new cities)
 
 ---
 
-## 4. Idade no Webhook Bitrix
+## Files Summary
 
-**Verificacao:** O campo `lead_edad` JA esta incluido no payload do Bitrix (linha 863 do meta-lead-webhook):
-```typescript
-lead_edad: edadParsed || null,
-```
-
-E o `parseEdad()` ja funciona corretamente. **Nao e necessaria nenhuma alteracao.** Apenas confirmo que esta implementado.
-
----
-
-## 5. Supabase Types — types.ts
-
-Atualizar o tipo de `region_round_robin` de `string | null` para `string[] | null` nas interfaces Row, Insert e Update.
-
----
-
-## Sequencia de Implementacao
-
-1. Migracao SQL (alterar coluna para array, migrar dados existentes)
-2. Atualizar types.ts
-3. Frontend: AgentSettings, AdminAgentes, AgenteDetails (multi-selecao)
-4. Edge Functions: get-next-agent (multi-regiao + fallback)
-5. Edge Function: meta-lead-webhook (determinarRegion expandido)
-6. Simulador: schema + utils + UI (DNI/NIE + minimo 350EUR)
-7. Deploy edge functions
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Tipo | Mudanca |
+| File | Action | Change |
 |---|---|---|
-| SQL Migration | Criar | ALTER TABLE profiles, alterar region_round_robin para text[] |
-| `src/integrations/supabase/types.ts` | Editar | region_round_robin: string[] |
-| `src/pages/AgentSettings.tsx` | Editar | Multi-selecao de regioes |
-| `src/pages/AdminAgentes.tsx` | Editar | Multi-selecao no modal + filtro + display |
-| `src/pages/AgenteDetails.tsx` | Editar | Mostrar array de regioes |
-| `supabase/functions/get-next-agent/index.ts` | Editar | Logica multi-regiao + fallback |
-| `supabase/functions/meta-lead-webhook/index.ts` | Editar | determinarRegion() expandido |
-| `src/lib/simuladorUtils.ts` | Editar | tipoDocumento + 350EUR minimo |
-| `src/schemas/simuladorSchema.ts` | Editar | Adicionar tipoDocumento |
-| `src/pages/simuladores/SimuladoresIndex.tsx` | Editar | Campo DNI/NIE na UI |
-| `src/components/simuladores/ResultadosCombinados.tsx` | Editar | Mostrar alerta 350EUR |
+| `supabase/functions/get-next-agent/index.ts` | Deploy only | No code changes needed |
+| `supabase/functions/meta-lead-webhook/index.ts` | Edit + Deploy | Fix wrong city mappings (Bilbao, Pamplona) + add ~15 new cities |
+| `supabase/functions/fix-unassigned-leads/index.ts` | Create + Deploy | One-time function to assign 35 leads + send to Bitrix |
+| `supabase/config.toml` | Edit | Add `fix-unassigned-leads` with `verify_jwt = false` |
 
 ---
 
-## Riscos e Mitigacoes
+## Execution Sequence
 
-| Risco | Mitigacao |
-|---|---|
-| Migracao DB quebrar queries existentes | A query do get-next-agent usa `eq()` que nao funciona com arrays — sera atualizada para `contains()` |
-| Leads sem regiao ficarem sem agente | Fallback para agente com mais regioes garante que NUNCA ficam sem agente |
-| Simulador individual (CRM) quebrar | Adicionar valor default para tipoDocumento nos simuladores individuais |
-| agent_assignment_tracking com regioes antigas | Criar novos registros por comunidade conforme necessario (upsert) |
+1. Fix city mappings in `meta-lead-webhook`
+2. Create `fix-unassigned-leads` function
+3. Update `config.toml`
+4. Deploy all 3 functions
+5. Call `fix-unassigned-leads` once to fix the 35 leads
+6. Verify with DB query that agents are assigned
+7. Delete `fix-unassigned-leads` after confirmation
 
 ---
 
-## Secao Tecnica: Detalhes da Query Supabase para Arrays
+## What is NOT touched
 
-Para filtrar agentes que contem uma regiao especifica no array:
-```typescript
-// PostgREST: contains operator
-.contains('region_round_robin', [region])
-```
-
-Para a migracao, o `USING CASE` converte automaticamente os dados existentes:
-- "General" -> array com 16 comunidades (todas exceto Cataluña)
-- "Cataluña" -> ['Cataluña']
-- NULL -> NULL
+- Frontend code (zero changes)
+- Database schema (no migrations)
+- `get-next-agent` code (already correct, just needs deploy)
+- RLS policies
+- Other edge functions
