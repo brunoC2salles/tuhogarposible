@@ -51,8 +51,6 @@ const CIUDADES_COMUNIDAD_MAP: Record<string, string> = {
   // Galicia
   'vigo': 'Galicia', 'coruña': 'Galicia', 'santiago': 'Galicia', 'pontevedra': 'Galicia',
   'lugo': 'Galicia', 'ourense': 'Galicia', 'galicia': 'Galicia',
-  // País Vasco (no está en la lista de regiones, irá a fallback)
-  'bilbao': 'Cataluña', 'san sebastián': 'Cataluña', 'san sebastian': 'Cataluña', 'vitoria': 'Cataluña',
   // Cantabria
   'santander': 'Cantabria', 'cantabria': 'Cantabria',
   // Principado de Asturias
@@ -62,16 +60,35 @@ const CIUDADES_COMUNIDAD_MAP: Record<string, string> = {
   'valladolid': 'Castilla y León', 'salamanca': 'Castilla y León', 'león': 'Castilla y León',
   'leon': 'Castilla y León', 'burgos': 'Castilla y León', 'segovia': 'Castilla y León',
   'ávila': 'Castilla y León', 'avila': 'Castilla y León', 'soria': 'Castilla y León',
-  'zamora': 'Castilla y León', 'palencia': 'Castilla y León',
+  'zamora': 'Castilla y León', 'palencia': 'Castilla y León', 'ponferrada': 'Castilla y León',
   // Castilla-La Mancha
   'toledo': 'Castilla-La Mancha', 'ciudad real': 'Castilla-La Mancha', 'albacete': 'Castilla-La Mancha',
   'cuenca': 'Castilla-La Mancha', 'guadalajara': 'Castilla-La Mancha',
+  'alovera': 'Castilla-La Mancha', 'seseña': 'Castilla-La Mancha', 'sesena': 'Castilla-La Mancha',
+  'yuncos': 'Castilla-La Mancha', 'illescas': 'Castilla-La Mancha',
   // Extremadura
   'cáceres': 'Extremadura', 'caceres': 'Extremadura', 'badajoz': 'Extremadura', 'extremadura': 'Extremadura',
   // La Rioja
   'logroño': 'La Rioja', 'logronyo': 'La Rioja', 'rioja': 'La Rioja',
-  // Navarra (no está en la lista, fallback)
-  'pamplona': 'Comunidad de Madrid', 'navarra': 'Comunidad de Madrid',
+  // Cidades adicionais (Comunidad de Madrid)
+  'colmenar viejo': 'Comunidad de Madrid', 'mostoles': 'Comunidad de Madrid', 'móstoles': 'Comunidad de Madrid',
+  'leganes': 'Comunidad de Madrid', 'leganés': 'Comunidad de Madrid', 'pinto': 'Comunidad de Madrid',
+  'getafe': 'Comunidad de Madrid', 'alcobendas': 'Comunidad de Madrid', 'alcalá': 'Comunidad de Madrid',
+  'alcala': 'Comunidad de Madrid', 'torrejon': 'Comunidad de Madrid', 'torrejón': 'Comunidad de Madrid',
+  'vallecas': 'Comunidad de Madrid', 'fuenlabrada': 'Comunidad de Madrid', 'parla': 'Comunidad de Madrid',
+  'arganda': 'Comunidad de Madrid', 'rivas': 'Comunidad de Madrid', 'coslada': 'Comunidad de Madrid',
+  // Cidades adicionais (Cataluña)
+  'sabadell': 'Cataluña', 'terrassa': 'Cataluña', 'hospitalet': 'Cataluña', 'llobregat': 'Cataluña',
+  'badalona': 'Cataluña', 'mataró': 'Cataluña', 'mataro': 'Cataluña', 'reus': 'Cataluña',
+  'vilanova': 'Cataluña', 'geltru': 'Cataluña', 'olot': 'Cataluña', 'manresa': 'Cataluña',
+  'valles': 'Cataluña', 'vallès': 'Cataluña',
+  // Cidades adicionais (Comunidad Valenciana)
+  'paterna': 'Comunidad Valenciana', 'benidorm': 'Comunidad Valenciana', 'elche': 'Comunidad Valenciana',
+  'torrevieja': 'Comunidad Valenciana', 'gandia': 'Comunidad Valenciana',
+  // Cidades adicionais (Canarias)
+  'puerto del rosario': 'Canarias',
+  // Cidades adicionais (Región de Murcia)
+  'la alberca': 'Región de Murcia', 'cartagena': 'Región de Murcia', 'lorca': 'Región de Murcia',
 };
 
 interface MetaLeadData {

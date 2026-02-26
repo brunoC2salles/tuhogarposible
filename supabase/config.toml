@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.sync-inmovilla-products]
 verify_jwt = false
+
+[functions.fix-unassigned-leads]
+verify_jwt = false
