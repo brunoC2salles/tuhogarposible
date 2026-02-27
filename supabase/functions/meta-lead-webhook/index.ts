@@ -422,7 +422,7 @@ function parseEdad(data: Record<string, any>): number | null {
   return null;
 }
 
-function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResult {
+function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: number | null): QualificationResult {
   // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
   
   // Critério 1: Antigüedad en trabajo >= 1 año
@@ -459,8 +459,8 @@ function qualificarLead(data: MetaLeadData, ingresos: number): QualificationResu
     }
   }
   
-  // Critério 4: Edad < 66
-  if (data.edad && data.edad >= 66) {
+  // Critério 4: Edad < 66 (usa valor parseado para suportar strings e anos de nascimento)
+  if (edadParsed && edadParsed >= 66) {
     return { cualificado: false, razon_no_cualificado: 'Edad superior a 65 años' };
   }
   
@@ -617,8 +617,12 @@ Deno.serve(async (req) => {
     
     console.log('[meta-lead-webhook] Ingresos parseados:', ingresos, 'Deudas parseadas:', deudas);
 
-    // 2. Qualificar lead
-    const qualificacao = qualificarLead(data, ingresos);
+    // 2. Parsear edad ANTES da qualificação (para que o check >= 66 funcione com strings)
+    const edadParsed = parseEdad(data);
+    console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
+
+    // 3. Qualificar lead (passa edad parseada)
+    const qualificacao = qualificarLead(data, ingresos, edadParsed);
     console.log('[meta-lead-webhook] Qualificação:', qualificacao);
 
     // 3. Determinar região e turno
@@ -683,10 +687,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. Calcular simulações (usando parseEdad para múltiplos formatos)
-    const edadParsed = parseEdad(data);
-    console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
-    
+    // 7. Calcular simulações (edadParsed já calculado acima)
     const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
     const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
     
