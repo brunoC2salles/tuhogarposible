@@ -49,12 +49,12 @@ export function calcularAmortizacionFrancesa(datos: DatosSimulacion): Resultados
   const montoTotalPagar = cuotaMensual * plazoMeses;
   const totalIntereses = montoTotalPagar - principal;
   
-  // Verifica qualificação: capacidad mensual >= 350€
-  const capacidadPagoPersonal = (ingresos * 0.35) - deudas;
-  const cualificado = capacidadPagoPersonal >= 350;
+  // Verifica qualificação: cuota <= 25% de (ingresos - deudas)
+  const capacidadPagoPersonal = (ingresos - deudas) * 0.25;
+  const cualificado = cuotaMensual <= capacidadPagoPersonal;
   
-  // NOVO: Calcular máximo de crédito pessoal baseado em 35% dos ingresos
-  const capacidadMensual = (ingresos * 0.35) - deudas;
+  // Calcular máximo de crédito pessoal baseado em 25% de (ingresos - deudas)
+  const capacidadMensual = (ingresos - deudas) * 0.25;
   let montoMaximoCredito = 0;
   
   if (capacidadMensual > 0 && tasaMensual > 0) {
@@ -536,6 +536,10 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     montoMaximoFinanciable = hipotecaMaximaMensual * (factor - 1) / (tasaMensual * factor);
   }
   
+  // 11.6. CAP por número de titulares: 1 titular → 180k, 2+ titulares → 210k
+  const topeMaximoPorTitulares = datos.numeroTitulares === '1' ? 180000 : 210000;
+  montoMaximoFinanciable = Math.min(montoMaximoFinanciable, topeMaximoPorTitulares);
+  
   // 12. CUOTA MENSUAL (Sistema Francês)
   let cuotaMensual = 0;
   if (montoFinanciable > 0 && plazoEfectivoMeses > 0) {
@@ -554,12 +558,18 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const capacidadMinimaSuficiente = hipotecaMaximaMensual >= 350;
   const capitalPropioSuficiente = datos.ahorrosDisponibles >= capitalPropioNecesario;
   
-  // Aprobable requiere ambos criterios de ingresos
-  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente;
+  // Criterio 3: Mínimo 70k€ para hipoteca
+  const montoMinimoFinanciable = 70000;
+  const cumpleMinimoFinanciable = montoFinanciable >= montoMinimoFinanciable;
+  
+  // Aprobable requiere todos los criterios
+  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable;
   
   // Razón de no aprobación
   let razonNoAprobado: string | undefined;
-  if (!capacidadMinimaSuficiente) {
+  if (!cumpleMinimoFinanciable) {
+    razonNoAprobado = `El importe a financiar (${formatEuro(montoFinanciable)}) es inferior al mínimo de 70.000€`;
+  } else if (!capacidadMinimaSuficiente) {
     razonNoAprobado = `Capacidad de pago insuficiente: ${formatEuro(hipotecaMaximaMensual)}/mes (mínimo requerido: 350€/mes)`;
   } else if (!aprobablePorIngresos) {
     razonNoAprobado = `La cuota mensual (${formatEuro(cuotaMensual)}) supera la capacidad de pago (${formatEuro(hipotecaMaximaMensual)})`;
