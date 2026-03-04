@@ -61,8 +61,8 @@ export function ResultadosCombinados({
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Valor Inmueble</p>
-                  <p className="font-bold">{formatEuro(datos.valorInmueble)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Importe a Financiar</p>
+                  <p className="font-bold">{formatEuro(resultadosPersonal.montoFinanciar + datos.entrada)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Entrada</p>
@@ -82,7 +82,7 @@ export function ResultadosCombinados({
                 <div className="bg-green-50 dark:bg-green-950 border-2 border-green-500 rounded-lg p-3">
                   <p className="text-xs text-green-700 dark:text-green-300 mb-1">Máximo Crédito Personal</p>
                   <p className="text-xl font-bold text-green-800 dark:text-green-200">{formatEuro(resultadosPersonal.montoMaximoCredito)}</p>
-                  <p className="text-xs text-green-600 dark:text-green-400">35% de los ingresos</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">25% de (ingresos - deudas)</p>
                 </div>
                 <div className="bg-primary/10 border-2 border-primary rounded-lg p-3">
                   <p className="text-xs text-primary mb-1">Cuota Mensual</p>
@@ -94,11 +94,18 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-2">
                 {resultadosPersonal.cualificado ? (
                   <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">✓ CANDIDATO CUALIFICADO</Badge>
                 ) : (
-                  <Badge variant="destructive" className="text-sm py-1 px-4">⚠️ CANDIDATO NO CUALIFICADO</Badge>
+                  <>
+                    <Badge variant="destructive" className="text-sm py-1 px-4">⚠️ CANDIDATO NO CUALIFICADO</Badge>
+                    <p className="text-xs text-destructive text-center max-w-md">
+                      La cuota mensual ({formatEuro(resultadosPersonal.cuotaMensual)}) supera el 25% de los ingresos netos 
+                      ({formatEuro((datos.ingresosMensuales - datos.deudasActuales) * 0.25)}/mes). 
+                      Fórmula: cuota ≤ 25% × (ingresos − deudas)
+                    </p>
+                  </>
                 )}
               </div>
             </div>

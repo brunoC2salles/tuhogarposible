@@ -124,18 +124,18 @@ const SimuladoresIndex = () => {
 
   const onSubmit = (data: SimuladorUnificadoFormData) => {
     try {
-      // Calculate personal credit
+      // 1. Calculate hipoteca FIRST to get capitalPropioNecesario
+      const resHipoteca = calcularSimulacionHipoteca(data as any);
+
+      // 2. Calculate personal credit using capitalPropioNecesario as the amount to finance
       const resPersonal = calcularAmortizacionFrancesa({
-        valorInmueble: data.valorInmueble,
+        valorInmueble: resHipoteca.capitalPropioNecesario,
         entrada: data.entrada,
         plazoMeses: data.plazoMeses,
         tasaAnual: data.tasaAnual,
         ingresos: data.ingresosMensuales,
         deudas: data.deudasActuales,
       });
-
-      // Calculate hipoteca
-      const resHipoteca = calcularSimulacionHipoteca(data as any);
 
       setResultadosPersonal(resPersonal);
       setResultadosHipoteca(resHipoteca);
