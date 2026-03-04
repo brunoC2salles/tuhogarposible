@@ -119,7 +119,7 @@ export function ResultadosSimulacion({
               </div>
               <div className="flex justify-between items-center p-3 bg-muted/50 rounded">
                 <span className="text-sm">% de ingresos comprometido</span>
-                <Badge variant={(datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100 <= 35 ? "default" : "destructive"}>
+                <Badge variant={(datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100 <= 25 ? "default" : "destructive"}>
                   {((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100).toFixed(2)}%
                 </Badge>
               </div>
@@ -132,7 +132,8 @@ export function ResultadosSimulacion({
             <ul className="text-sm space-y-1 text-muted-foreground">
               <li>• Tasa de interés: <strong>{datos.tasaAnual}% anual</strong></li>
               <li>• Tipo de amortización: <strong>Sistema Francés (cuotas fijas)</strong></li>
-              <li>• Relación cuota/ingreso: <strong>{((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100).toFixed(2)}%</strong> {((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100) <= 35 ? '✓' : '⚠️'}</li>
+              <li>• Relación cuota/ingreso: <strong>{((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100).toFixed(2)}%</strong> {((datos.deudasActuales + resultados.cuotaMensual) / datos.ingresosMensuales * 100) <= 25 ? '✓' : '⚠️'}</li>
+              <li>• Regla: cuota ≤ <strong>25% de (ingresos − deudas)</strong></li>
             </ul>
           </div>
 

@@ -477,7 +477,7 @@ export function generateSimulacionCombinadaPDF(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Valor del inmueble: ${formatEuro(datos.valorInmueble)}`, margin, currentY);
+  doc.text(`Importe a financiar (capital propio necesario): ${formatEuro(datos.valorInmueble)}`, margin, currentY);
   currentY += 5;
   doc.text(`Entrada: ${formatEuro(datos.entrada)}`, margin, currentY);
   currentY += 5;
@@ -494,7 +494,7 @@ export function generateSimulacionCombinadaPDF(
     startY: currentY,
     head: [['Concepto', 'Valor']],
     body: [
-      ['Máximo de Crédito Personal', formatEuro(resultadosPersonal.montoMaximoCredito)],
+      ['Máximo Crédito Personal (25% ingresos netos)', formatEuro(resultadosPersonal.montoMaximoCredito)],
       ['Cantidad solicitada', formatEuro(resultadosPersonal.montoFinanciar)],
       ['Cuota mensual', formatEuro(resultadosPersonal.cuotaMensual)],
       ['Total de intereses', formatEuro(resultadosPersonal.totalIntereses)],
