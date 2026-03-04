@@ -49,19 +49,15 @@ export function calcularAmortizacionFrancesa(datos: DatosSimulacion): Resultados
   const montoTotalPagar = cuotaMensual * plazoMeses;
   const totalIntereses = montoTotalPagar - principal;
   
-  // Verifica qualificação: cuota <= 25% de (ingresos - deudas)
-  const capacidadPagoPersonal = (ingresos - deudas) * 0.25;
+  // Verifica qualificação: cuota <= (ingresos × 0.20) - deudas
+  const capacidadPagoPersonal = (ingresos * 0.20) - deudas;
   const cualificado = cuotaMensual <= capacidadPagoPersonal;
   
-  // Calcular máximo de crédito pessoal baseado em 25% de (ingresos - deudas)
-  const capacidadMensual = (ingresos - deudas) * 0.25;
+  // Calcular máximo de crédito pessoal: ((ingresos × 0.20) - deudas) × plazoMeses
+  const capacidadMensual = (ingresos * 0.20) - deudas;
   let montoMaximoCredito = 0;
   
-  if (capacidadMensual > 0 && tasaMensual > 0) {
-    // Fórmula inversa: P = C * [(1 + r)^n - 1] / [r * (1 + r)^n]
-    const factor = Math.pow(1 + tasaMensual, plazoMeses);
-    montoMaximoCredito = capacidadMensual * (factor - 1) / (tasaMensual * factor);
-  } else if (capacidadMensual > 0 && tasaMensual === 0) {
+  if (capacidadMensual > 0) {
     montoMaximoCredito = capacidadMensual * plazoMeses;
   }
   

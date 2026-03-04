@@ -82,7 +82,7 @@ export function ResultadosCombinados({
                 <div className="bg-green-50 dark:bg-green-950 border-2 border-green-500 rounded-lg p-3">
                   <p className="text-xs text-green-700 dark:text-green-300 mb-1">Máximo Crédito Personal</p>
                   <p className="text-xl font-bold text-green-800 dark:text-green-200">{formatEuro(resultadosPersonal.montoMaximoCredito)}</p>
-                  <p className="text-xs text-green-600 dark:text-green-400">25% de (ingresos - deudas)</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">20% de ingresos - deudas</p>
                 </div>
                 <div className="bg-primary/10 border-2 border-primary rounded-lg p-3">
                   <p className="text-xs text-primary mb-1">Cuota Mensual</p>
@@ -101,9 +101,9 @@ export function ResultadosCombinados({
                   <>
                     <Badge variant="destructive" className="text-sm py-1 px-4">⚠️ CANDIDATO NO CUALIFICADO</Badge>
                     <p className="text-xs text-destructive text-center max-w-md">
-                      La cuota mensual ({formatEuro(resultadosPersonal.cuotaMensual)}) supera el 25% de los ingresos netos 
-                      ({formatEuro((datos.ingresosMensuales - datos.deudasActuales) * 0.25)}/mes). 
-                      Fórmula: cuota ≤ 25% × (ingresos − deudas)
+                      La cuota mensual ({formatEuro(resultadosPersonal.cuotaMensual)}) supera la capacidad de pago 
+                      ({formatEuro((datos.ingresosMensuales * 0.20) - datos.deudasActuales)}/mes). 
+                      Fórmula: cuota ≤ (ingresos × 20%) − deudas
                     </p>
                   </>
                 )}

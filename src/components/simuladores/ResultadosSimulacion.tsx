@@ -87,7 +87,7 @@ export function ResultadosSimulacion({
                   {formatEuro(resultados.montoMaximoCredito)}
                 </p>
                 <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                  Basado en el 35% de tus ingresos
+                  Basado en el 20% de tus ingresos
                 </p>
               </div>
               <div className="bg-green-500 text-white rounded-full p-4">
