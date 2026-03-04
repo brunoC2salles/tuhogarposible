@@ -558,12 +558,12 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const capacidadMinimaSuficiente = hipotecaMaximaMensual >= 350;
   const capitalPropioSuficiente = datos.ahorrosDisponibles >= capitalPropioNecesario;
   
-  // Aprobable requiere ambos criterios de ingresos
-  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable;
-  
-  // Mínimo 70k€ para hipoteca
+  // Criterio 3: Mínimo 70k€ para hipoteca
   const montoMinimoFinanciable = 70000;
   const cumpleMinimoFinanciable = montoFinanciable >= montoMinimoFinanciable;
+  
+  // Aprobable requiere todos los criterios
+  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable;
   
   // Razón de no aprobación
   let razonNoAprobado: string | undefined;
