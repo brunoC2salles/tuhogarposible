@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link, ExternalLink, Hash } from "lucide-react";
+import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link, ExternalLink, Hash, TrendingDown, TrendingUp } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
 import { toast } from "sonner";
+import type { MarketComparison } from "@/lib/marketPriceUtils";
 
 interface InmuebleCardProps {
   inmueble: Inmueble;
@@ -15,6 +16,7 @@ interface InmuebleCardProps {
   onEdit?: (inmueble: Inmueble) => void;
   visitasAgendadas?: number;
   visitasExistentes?: any[];
+  marketComparison?: MarketComparison | null;
 }
 
 export function InmuebleCard({ 
