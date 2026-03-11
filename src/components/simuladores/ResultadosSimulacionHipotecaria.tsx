@@ -27,6 +27,8 @@ export function ResultadosSimulacionHipotecaria({
   salvandoNoLead,
   leadNombre
 }: ResultadosSimulacionHipotecariaProps) {
+  const { map: marketPrices } = useMarketPrices();
+  
   const handleExportPDF = () => {
     generateSimulacionHipotecariaPDF(datos, resultados);
   };
@@ -34,6 +36,11 @@ export function ResultadosSimulacionHipotecaria({
   const plazoTexto = resultados.plazoMaximoMeses % 12 === 0 
     ? `${resultados.plazoMaximoAnios} años`
     : `${Math.floor(resultados.plazoMaximoAnios)} años y ${resultados.plazoMaximoMeses % 12} meses`;
+
+  // Market comparison - use comunidad autónoma as proxy for municipality
+  const marketComparison = marketPrices 
+    ? comparePriceToMarket(marketPrices, datos.precioVivienda, null, datos.comunidadAutonoma)
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
