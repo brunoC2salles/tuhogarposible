@@ -131,6 +131,41 @@ export function ResultadosSimulacionHipotecaria({
             </div>
           </div>
 
+          {/* Contexto de Mercado */}
+          {marketComparison && (
+            <div className="p-4 border rounded-lg bg-muted/30">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                {marketComparison.diferenciaPorcentaje > 5 ? (
+                  <TrendingUp className="h-4 w-4 text-amber-500" />
+                ) : marketComparison.diferenciaPorcentaje < -5 ? (
+                  <TrendingDown className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Minus className="h-4 w-4 text-muted-foreground" />
+                )}
+                CONTEXTO DE MERCADO
+              </h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Precio medio en <strong>{marketComparison.municipio}</strong>: {formatEuro(marketComparison.precioMedioMercado)}
+                {marketComparison.precioM2Mercado > 0 && ` (${marketComparison.precioM2Mercado.toLocaleString('es-ES')}€/m²)`}
+              </p>
+              <Badge 
+                variant={Math.abs(marketComparison.diferenciaPorcentaje) <= 5 ? 'secondary' : 'outline'}
+                className={
+                  marketComparison.diferenciaPorcentaje > 20 ? 'border-destructive text-destructive' :
+                  marketComparison.diferenciaPorcentaje > 5 ? 'border-amber-500 text-amber-600' :
+                  marketComparison.diferenciaPorcentaje < -5 ? 'border-green-500 text-green-600' : ''
+                }
+              >
+                {formatMarketComparison(marketComparison)}
+              </Badge>
+              {marketComparison.totalInformados < 10 && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  ⚠️ Datos basados en una muestra pequeña ({marketComparison.totalInformados} inmuebles)
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Badge de Aprobação */}
           <div className="flex flex-col items-center gap-3">
             {resultados.aprobable ? (
