@@ -34,6 +34,7 @@ export function SimuladorCreditoHipotecario() {
     mode: "onChange",
     defaultValues: {
       nombreCompleto: '',
+      tipoDocumento: 'dni',
       edad: 30,
       numeroTitulares: '1',
       titulares: [],

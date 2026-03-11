@@ -13,6 +13,29 @@ export interface MarketComparison {
   totalInformados: number;
 }
 
+// Map comunidad autónoma names to their capital/main municipality for lookup
+const CCAA_CAPITAL_MAP: Record<string, string> = {
+  'comunidad de madrid': 'madrid',
+  'cataluna': 'barcelona',
+  'andalucia': 'sevilla',
+  'comunidad valenciana': 'valencia',
+  'galicia': 'santiago de compostela',
+  'castilla y leon': 'valladolid',
+  'castilla-la mancha': 'toledo',
+  'pais vasco': 'bilbao',
+  'canarias': 'las palmas de gran canaria',
+  'aragon': 'zaragoza',
+  'murcia': 'murcia',
+  'baleares': 'palma de mallorca',
+  'extremadura': 'merida',
+  'asturias': 'oviedo',
+  'navarra': 'pamplona',
+  'cantabria': 'santander',
+  'la rioja': 'logrono',
+  'ceuta': 'ceuta',
+  'melilla': 'melilla',
+};
+
 /**
  * Look up market price for a municipality name (accent-insensitive)
  */
@@ -26,6 +49,10 @@ export function getMarketPrice(
   
   // Direct lookup
   if (map[key]) return map[key];
+  
+  // Try CCAA capital mapping
+  const ccaaKey = CCAA_CAPITAL_MAP[key];
+  if (ccaaKey && map[ccaaKey]) return map[ccaaKey];
   
   // Partial match: try to find a key that contains/is contained by the search
   for (const [k, v] of Object.entries(map)) {
