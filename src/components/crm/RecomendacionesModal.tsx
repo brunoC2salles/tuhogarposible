@@ -6,7 +6,9 @@ import { Lead } from '@/types/crm';
 import { useRecomendaciones } from '@/hooks/useRecomendaciones';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, MapPin, Bed, Bath, Maximize, CheckCircle2, Plus } from 'lucide-react';
+import { useMarketPrices } from '@/hooks/useMarketPrices';
+import { comparePriceToMarket, getMarketBadgeColor } from '@/lib/marketPriceUtils';
+import { Building2, MapPin, Bed, Bath, Maximize, CheckCircle2, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface RecomendacionesModalProps {
