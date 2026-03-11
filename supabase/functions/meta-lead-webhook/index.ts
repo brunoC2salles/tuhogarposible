@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -767,6 +768,14 @@ Deno.serve(async (req) => {
     
     // zonaParseada já foi definido antes (na busca de imóveis)
     
+    // Market price validation
+    const ciudadParaValidar = zonaParseada.ciudad || data.zona_interes;
+    const marketValidation = ciudadParaValidar ? validateBudget(
+      simulacionHipotecaria.valor_maximo_inmueble || 0,
+      ciudadParaValidar
+    ) : null;
+    const marketInfo = ciudadParaValidar ? getProvinceMarketPrice(ciudadParaValidar) : null;
+
     // Montar notas com informações de qualificação
     const notasLead = [
       `Lead do Meta Ads.`,
@@ -779,7 +788,9 @@ Deno.serve(async (req) => {
       `Zona: ${data.zona_interes || 'não especificada'}`,
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
-      `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`
+      `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
+      marketValidation ? `📊 Mercado: ${marketValidation.mensaje}` : null,
+      marketInfo ? `💰 Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
     
     try {
@@ -1012,7 +1023,13 @@ Deno.serve(async (req) => {
             recom_3_url: recom[2]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[2].id}` : null,
             
             // URL do CRM
-            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
+            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`,
+            
+            // Dados de mercado
+            mercado_precio_medio: marketInfo?.precioMedio || null,
+            mercado_precio_m2: marketInfo?.precioM2 || null,
+            mercado_presupuesto_realista: marketValidation?.realista ?? null,
+            mercado_mensaje: marketValidation?.mensaje || null
           };
 
           // Disparar webhook

@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link, ExternalLink, Hash } from "lucide-react";
+import { MapPin, Euro, Calendar, Edit, BedDouble, Bath, Maximize, Link, ExternalLink, Hash, TrendingDown, TrendingUp } from "lucide-react";
 import { Inmueble } from "@/types/inventario";
 import { SolicitarVisitaModal } from "./SolicitarVisitaModal";
 import { toast } from "sonner";
+import type { MarketComparison } from "@/lib/marketPriceUtils";
 
 interface InmuebleCardProps {
   inmueble: Inmueble;
@@ -15,6 +16,7 @@ interface InmuebleCardProps {
   onEdit?: (inmueble: Inmueble) => void;
   visitasAgendadas?: number;
   visitasExistentes?: any[];
+  marketComparison?: MarketComparison | null;
 }
 
 export function InmuebleCard({ 
@@ -24,7 +26,8 @@ export function InmuebleCard({
   onSolicitarVisita,
   onEdit,
   visitasAgendadas = 0,
-  visitasExistentes = []
+  visitasExistentes = [],
+  marketComparison
 }: InmuebleCardProps) {
   const [showVisitaModal, setShowVisitaModal] = useState(false);
 
@@ -104,10 +107,30 @@ export function InmuebleCard({
               <span className="text-sm">{inmueble.direccion}</span>
             </div>
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center text-primary font-semibold text-lg">
-                <Euro className="w-5 h-5 mr-1" />
-                <span>{formatPrice(inmueble.precio)}</span>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center text-primary font-semibold text-lg">
+                  <Euro className="w-5 h-5 mr-1" />
+                  <span>{formatPrice(inmueble.precio)}</span>
+                </div>
+                {marketComparison && (
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      marketComparison.diferenciaPorcentaje <= -15 ? 'border-green-500 text-green-600' :
+                      marketComparison.diferenciaPorcentaje <= -5 ? 'border-green-400 text-green-500' :
+                      marketComparison.diferenciaPorcentaje <= 5 ? '' :
+                      marketComparison.diferenciaPorcentaje <= 20 ? 'border-amber-500 text-amber-600' :
+                      'border-destructive text-destructive'
+                    }`}
+                  >
+                    {marketComparison.diferenciaPorcentaje < -5 && <TrendingDown className="h-3 w-3 mr-1" />}
+                    {marketComparison.diferenciaPorcentaje > 5 && <TrendingUp className="h-3 w-3 mr-1" />}
+                    {Math.abs(marketComparison.diferenciaPorcentaje) <= 5 
+                      ? 'En media' 
+                      : `${Math.abs(marketComparison.diferenciaPorcentaje)}% ${marketComparison.diferenciaPorcentaje > 0 ? 'sobre' : 'bajo'} media`}
+                  </Badge>
+                )}
               </div>
               
               {(inmueble.quartos || inmueble.banheiros || inmueble.areaM2) && (

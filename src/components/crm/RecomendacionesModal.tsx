@@ -6,7 +6,9 @@ import { Lead } from '@/types/crm';
 import { useRecomendaciones } from '@/hooks/useRecomendaciones';
 import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useAuth } from '@/contexts/AuthContext';
-import { Building2, MapPin, Bed, Bath, Maximize, CheckCircle2, Plus } from 'lucide-react';
+import { useMarketPrices } from '@/hooks/useMarketPrices';
+import { comparePriceToMarket, getMarketBadgeColor } from '@/lib/marketPriceUtils';
+import { Building2, MapPin, Bed, Bath, Maximize, CheckCircle2, Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface RecomendacionesModalProps {
@@ -19,6 +21,7 @@ export const RecomendacionesModal = ({ open, onClose, lead }: RecomendacionesMod
   const { user } = useAuth();
   const { recomendaciones, loading } = useRecomendaciones({ lead: lead || undefined, enabled: open });
   const { inmuebles: linkedInmuebles, linkInmueble } = useLeadInmuebles(lead?.id);
+  const { map: marketPrices } = useMarketPrices();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -88,6 +91,25 @@ export const RecomendacionesModal = ({ open, onClose, lead }: RecomendacionesMod
                             </div>
                             <div className="text-right">
                               <p className="text-xl font-bold text-primary">{formatCurrency(precio)}</p>
+                              {(() => {
+                                const comparison = marketPrices 
+                                  ? comparePriceToMarket(marketPrices, precio, inmueble.areaM2, inmueble.ciudad)
+                                  : null;
+                                if (!comparison) return null;
+                                const { className } = getMarketBadgeColor(comparison.diferenciaPorcentaje);
+                                const abs = Math.abs(comparison.diferenciaPorcentaje);
+                                const icon = comparison.diferenciaPorcentaje < -5 
+                                  ? <TrendingDown className="h-3 w-3" /> 
+                                  : comparison.diferenciaPorcentaje > 5 
+                                    ? <TrendingUp className="h-3 w-3" /> 
+                                    : null;
+                                return (
+                                  <Badge variant="outline" className={`mt-1 text-xs ${className}`}>
+                                    {icon}
+                                    {abs <= 5 ? 'En media' : `${abs}% ${comparison.diferenciaPorcentaje > 0 ? 'sobre' : 'bajo'} media`}
+                                  </Badge>
+                                );
+                              })()}
                               {!withinBudget && (
                                 <Badge variant="outline" className="mt-1 text-xs">
                                   Sobre presupuesto

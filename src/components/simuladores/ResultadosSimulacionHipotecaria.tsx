@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Save, Loader2, CheckCircle } from "lucide-react";
+import { Download, Save, Loader2, CheckCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionHipotecariaPDF } from "@/lib/pdfGenerator";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { comparePriceToMarket, formatMarketComparison } from "@/lib/marketPriceUtils";
 
 interface ResultadosSimulacionHipotecariaProps {
   open: boolean;
@@ -25,6 +27,8 @@ export function ResultadosSimulacionHipotecaria({
   salvandoNoLead,
   leadNombre
 }: ResultadosSimulacionHipotecariaProps) {
+  const { map: marketPrices } = useMarketPrices();
+  
   const handleExportPDF = () => {
     generateSimulacionHipotecariaPDF(datos, resultados);
   };
@@ -32,6 +36,11 @@ export function ResultadosSimulacionHipotecaria({
   const plazoTexto = resultados.plazoMaximoMeses % 12 === 0 
     ? `${resultados.plazoMaximoAnios} años`
     : `${Math.floor(resultados.plazoMaximoAnios)} años y ${resultados.plazoMaximoMeses % 12} meses`;
+
+  // Market comparison - use comunidad autónoma as proxy for municipality
+  const marketComparison = marketPrices 
+    ? comparePriceToMarket(marketPrices, datos.precioVivienda, null, datos.comunidadAutonoma)
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -121,6 +130,41 @@ export function ResultadosSimulacionHipotecaria({
               </div>
             </div>
           </div>
+
+          {/* Contexto de Mercado */}
+          {marketComparison && (
+            <div className="p-4 border rounded-lg bg-muted/30">
+              <h3 className="font-semibold mb-2 flex items-center gap-2">
+                {marketComparison.diferenciaPorcentaje > 5 ? (
+                  <TrendingUp className="h-4 w-4 text-amber-500" />
+                ) : marketComparison.diferenciaPorcentaje < -5 ? (
+                  <TrendingDown className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Minus className="h-4 w-4 text-muted-foreground" />
+                )}
+                CONTEXTO DE MERCADO
+              </h3>
+              <p className="text-sm text-muted-foreground mb-2">
+                Precio medio en <strong>{marketComparison.municipio}</strong>: {formatEuro(marketComparison.precioMedioMercado)}
+                {marketComparison.precioM2Mercado > 0 && ` (${marketComparison.precioM2Mercado.toLocaleString('es-ES')}€/m²)`}
+              </p>
+              <Badge 
+                variant={Math.abs(marketComparison.diferenciaPorcentaje) <= 5 ? 'secondary' : 'outline'}
+                className={
+                  marketComparison.diferenciaPorcentaje > 20 ? 'border-destructive text-destructive' :
+                  marketComparison.diferenciaPorcentaje > 5 ? 'border-amber-500 text-amber-600' :
+                  marketComparison.diferenciaPorcentaje < -5 ? 'border-green-500 text-green-600' : ''
+                }
+              >
+                {formatMarketComparison(marketComparison)}
+              </Badge>
+              {marketComparison.totalInformados < 10 && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  ⚠️ Datos basados en una muestra pequeña ({marketComparison.totalInformados} inmuebles)
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Badge de Aprobação */}
           <div className="flex flex-col items-center gap-3">
