@@ -21,6 +21,7 @@ export const RecomendacionesModal = ({ open, onClose, lead }: RecomendacionesMod
   const { user } = useAuth();
   const { recomendaciones, loading } = useRecomendaciones({ lead: lead || undefined, enabled: open });
   const { inmuebles: linkedInmuebles, linkInmueble } = useLeadInmuebles(lead?.id);
+  const { map: marketPrices } = useMarketPrices();
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CL', {
