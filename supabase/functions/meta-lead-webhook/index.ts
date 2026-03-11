@@ -768,6 +768,14 @@ Deno.serve(async (req) => {
     
     // zonaParseada já foi definido antes (na busca de imóveis)
     
+    // Market price validation
+    const ciudadParaValidar = zonaParseada.ciudad || data.zona_interes;
+    const marketValidation = ciudadParaValidar ? validateBudget(
+      simulacionHipotecaria.valor_maximo_inmueble || 0,
+      ciudadParaValidar
+    ) : null;
+    const marketInfo = ciudadParaValidar ? getProvinceMarketPrice(ciudadParaValidar) : null;
+
     // Montar notas com informações de qualificação
     const notasLead = [
       `Lead do Meta Ads.`,
@@ -780,7 +788,9 @@ Deno.serve(async (req) => {
       `Zona: ${data.zona_interes || 'não especificada'}`,
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
-      `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`
+      `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
+      marketValidation ? `📊 Mercado: ${marketValidation.mensaje}` : null,
+      marketInfo ? `💰 Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
     
     try {
