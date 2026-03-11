@@ -1023,7 +1023,13 @@ Deno.serve(async (req) => {
             recom_3_url: recom[2]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[2].id}` : null,
             
             // URL do CRM
-            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
+            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`,
+            
+            // Dados de mercado
+            mercado_precio_medio: marketInfo?.precioMedio || null,
+            mercado_precio_m2: marketInfo?.precioM2 || null,
+            mercado_presupuesto_realista: marketValidation?.realista ?? null,
+            mercado_mensaje: marketValidation?.mensaje || null
           };
 
           // Disparar webhook
