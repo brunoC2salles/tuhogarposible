@@ -1,10 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Save, Loader2, CheckCircle } from "lucide-react";
+import { Download, Save, Loader2, CheckCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionHipotecariaPDF } from "@/lib/pdfGenerator";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { comparePriceToMarket, formatMarketComparison } from "@/lib/marketPriceUtils";
 
 interface ResultadosSimulacionHipotecariaProps {
   open: boolean;
