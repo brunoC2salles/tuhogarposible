@@ -26,7 +26,8 @@ export function InmuebleCard({
   onSolicitarVisita,
   onEdit,
   visitasAgendadas = 0,
-  visitasExistentes = []
+  visitasExistentes = [],
+  marketComparison
 }: InmuebleCardProps) {
   const [showVisitaModal, setShowVisitaModal] = useState(false);
 
