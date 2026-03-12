@@ -190,6 +190,67 @@ export function ResultadosCombinados({
             </div>
           </div>
 
+          {/* SECCIÓN 3: COMPROMISO FINANCIERO TOTAL */}
+          <div className={`border-2 rounded-lg overflow-hidden ${
+            nivelRiesgo === 'alto' ? 'border-destructive bg-destructive/5' :
+            nivelRiesgo === 'medio' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' :
+            'border-green-500 bg-green-50 dark:bg-green-950'
+          }`}>
+            <div className={`px-4 py-3 ${
+              nivelRiesgo === 'alto' ? 'bg-destructive/10' :
+              nivelRiesgo === 'medio' ? 'bg-amber-100 dark:bg-amber-900' :
+              'bg-green-100 dark:bg-green-900'
+            }`}>
+              <span className="font-bold text-lg">📊 Compromiso Financiero Total</span>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+                <div className="bg-background/80 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Cuota Hipotecaria</p>
+                  <p className="text-lg font-bold">{formatEuro(resultadosHipoteca.cuotaMensual)}/mes</p>
+                </div>
+                <div className="bg-background/80 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Cuota Crédito Personal</p>
+                  <p className="text-lg font-bold">{formatEuro(resultadosPersonal.cuotaMensual)}/mes</p>
+                </div>
+                <div className={`rounded-lg p-3 border-2 ${
+                  nivelRiesgo === 'alto' ? 'border-destructive bg-destructive/10' :
+                  nivelRiesgo === 'medio' ? 'border-amber-500 bg-amber-100 dark:bg-amber-900' :
+                  'border-green-500 bg-green-100 dark:bg-green-900'
+                }`}>
+                  <p className="text-xs text-muted-foreground mb-1">Total Mensual</p>
+                  <p className="text-xl font-bold">{formatEuro(compromisoTotal)}/mes</p>
+                  <p className="text-xs text-muted-foreground">{porcentajeIngresos.toFixed(1)}% de ingresos</p>
+                </div>
+              </div>
+
+              {nivelRiesgo === 'alto' && (
+                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-center">
+                  <p className="font-semibold text-destructive">
+                    ⚠️ Atención: el compromiso total ({porcentajeIngresos.toFixed(1)}%) supera el 60% de los ingresos netos.
+                    Riesgo elevado de sobreendeudamiento.
+                  </p>
+                </div>
+              )}
+              {nivelRiesgo === 'medio' && (
+                <div className="p-3 bg-amber-100 dark:bg-amber-900 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-center">
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">
+                    ⚠️ Atención: el compromiso total ({porcentajeIngresos.toFixed(1)}%) supera el 50% de los ingresos netos.
+                  </p>
+                </div>
+              )}
+              {nivelRiesgo === 'bajo' && (
+                <p className="text-sm text-green-700 dark:text-green-300 text-center font-medium">
+                  ✓ El compromiso financiero total está dentro de los parámetros recomendados.
+                </p>
+              )}
+
+              <p className="text-xs text-muted-foreground text-center italic">
+                Este análisis es informativo. La cuota del crédito personal no afecta la aprobación hipotecaria.
+              </p>
+            </div>
+          </div>
+
           {/* RGPD */}
           <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
             <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
