@@ -343,6 +343,9 @@ Deno.serve(async (req) => {
         sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
         sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
         
+        // Plan de pagos combinado
+        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
+        
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
