@@ -491,9 +491,28 @@ function calcularSimulacionPersonal(ingresos: number, deudas: number, montoNeces
   // Monto máximo = cuota * ((1 - (1+r)^-n) / r)
   const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
   const montoMaximo = Math.round(capacidadDisponible * factorAnualidad);
+  const montoMaximoFinal = Math.min(montoMaximo, 50000); // Límite de crédito personal
+  
+  // Si se solicita un monto específico (gap de hipoteca), calcular cuota para ese monto
+  if (montoNecesario && montoNecesario > 0) {
+    const montoFinanciado = Math.min(montoNecesario, montoMaximoFinal);
+    const cuotaEspecifica = montoFinanciado > 0 
+      ? Math.round(montoFinanciado * tasaMensual / (1 - Math.pow(1 + tasaMensual, -plazoMeses)))
+      : 0;
+    
+    return {
+      monto_maximo: montoMaximoFinal,
+      monto_financiado: montoFinanciado, // monto real financiado (el gap)
+      cuota_mensual: cuotaEspecifica,
+      plazo_meses: plazoMeses,
+      tae_estimada: 8,
+      aprobado: montoFinanciado <= montoMaximoFinal && capacidadDisponible >= 100
+    };
+  }
   
   return {
-    monto_maximo: Math.min(montoMaximo, 50000), // Límite de crédito personal
+    monto_maximo: montoMaximoFinal,
+    monto_financiado: 0,
     cuota_mensual: Math.round(capacidadDisponible),
     plazo_meses: plazoMeses,
     tae_estimada: 8,
