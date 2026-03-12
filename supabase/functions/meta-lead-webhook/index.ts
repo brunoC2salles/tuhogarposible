@@ -480,7 +480,7 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   return { cualificado: true };
 }
 
-function calcularSimulacionPersonal(ingresos: number, deudas: number) {
+function calcularSimulacionPersonal(ingresos: number, deudas: number, montoNecesario?: number) {
   const capacidadPago = ingresos * 0.35;
   const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
   
@@ -491,9 +491,28 @@ function calcularSimulacionPersonal(ingresos: number, deudas: number) {
   // Monto máximo = cuota * ((1 - (1+r)^-n) / r)
   const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
   const montoMaximo = Math.round(capacidadDisponible * factorAnualidad);
+  const montoMaximoFinal = Math.min(montoMaximo, 50000); // Límite de crédito personal
+  
+  // Si se solicita un monto específico (gap de hipoteca), calcular cuota para ese monto
+  if (montoNecesario && montoNecesario > 0) {
+    const montoFinanciado = Math.min(montoNecesario, montoMaximoFinal);
+    const cuotaEspecifica = montoFinanciado > 0 
+      ? Math.round(montoFinanciado * tasaMensual / (1 - Math.pow(1 + tasaMensual, -plazoMeses)))
+      : 0;
+    
+    return {
+      monto_maximo: montoMaximoFinal,
+      monto_financiado: montoFinanciado, // monto real financiado (el gap)
+      cuota_mensual: cuotaEspecifica,
+      plazo_meses: plazoMeses,
+      tae_estimada: 8,
+      aprobado: montoFinanciado <= montoMaximoFinal && capacidadDisponible >= 100
+    };
+  }
   
   return {
-    monto_maximo: Math.min(montoMaximo, 50000), // Límite de crédito personal
+    monto_maximo: montoMaximoFinal,
+    monto_financiado: 0,
     cuota_mensual: Math.round(capacidadDisponible),
     plazo_meses: plazoMeses,
     tae_estimada: 8,
@@ -689,11 +708,42 @@ Deno.serve(async (req) => {
     }
 
     // 7. Calcular simulações (edadParsed já calculado acima)
-    const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
+    // Parse ahorros do Meta Ads para calcular o gap
+    const montoAhorros = parseDeudas(data.monto_ahorros); // reusa parseDeudas para limpar o valor
+    
     const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
+    
+    // Calcular gap: capital necesario - ahorros del cliente
+    const capitalNecesario = simulacionHipotecaria.capital_necesario || 0;
+    const gap = Math.max(capitalNecesario - montoAhorros, 0);
+    
+    // Calcular crédito personal para financiar el gap específico
+    const simulacionPersonal = gap > 0 
+      ? calcularSimulacionPersonal(ingresos, deudas, gap)
+      : calcularSimulacionPersonal(ingresos, deudas);
+    
+    // Calcular plan de pagos combinado (dos fases)
+    const cuotaHipoteca = simulacionHipotecaria.cuota_maxima_mensual || 0;
+    const cuotaPersonal = simulacionPersonal.cuota_mensual || 0;
+    const fase1Meses = simulacionPersonal.plazo_meses || 84;
+    const plazoHipotecaMeses = (simulacionHipotecaria.plazo_anos || 25) * 12;
+    const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
+    
+    const planPagos = {
+      fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
+      fase1_duracion_meses: fase1Meses,
+      fase2_cuota_total: cuotaHipoteca,
+      fase2_duracion_meses: fase2Meses,
+      ahorro_mensual_tras_personal: cuotaPersonal,
+      total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
+      monto_financiado_personal: simulacionPersonal.monto_financiado || 0,
+      gap_calculado: gap,
+      ahorros_cliente: montoAhorros,
+    };
     
     console.log('[meta-lead-webhook] Simulación personal:', simulacionPersonal);
     console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
+    console.log('[meta-lead-webhook] Plan de pagos combinado:', planPagos);
 
     // 6. Buscar recomendações de imóveis
     // CORREÇÃO: Parsear zona ANTES de usar na query para extrair cidade limpa
@@ -789,6 +839,8 @@ Deno.serve(async (req) => {
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
+      gap > 0 ? `📋 Plan de pagos: Fase 1 (${fase1Meses} meses): ${planPagos.fase1_cuota_total}€/mes | Fase 2 (${fase2Meses} meses): ${planPagos.fase2_cuota_total}€/mes` : null,
+      gap > 0 ? `💳 Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
       marketValidation ? `📊 Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `💰 Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
@@ -997,6 +1049,7 @@ Deno.serve(async (req) => {
             
             // Simulação pessoal (achatados) - campos claros
             sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
+            sim_personal_monto_financiado: simulacionPersonal.monto_financiado || 0,
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
             sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
             sim_personal_tae: simulacionPersonal.tae_estimada,
@@ -1010,6 +1063,16 @@ Deno.serve(async (req) => {
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
             sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
+            
+            // Plan de pagos combinado (dos fases)
+            plan_fase1_cuota_total: planPagos.fase1_cuota_total,
+            plan_fase1_duracion_meses: planPagos.fase1_duracion_meses,
+            plan_fase2_cuota_total: planPagos.fase2_cuota_total,
+            plan_fase2_duracion_meses: planPagos.fase2_duracion_meses,
+            plan_ahorro_mensual_tras_personal: planPagos.ahorro_mensual_tras_personal,
+            plan_total_coste: planPagos.total_coste,
+            plan_gap_calculado: planPagos.gap_calculado,
+            plan_ahorros_cliente: planPagos.ahorros_cliente,
             
             // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
             recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
