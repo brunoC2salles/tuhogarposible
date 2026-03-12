@@ -1049,6 +1049,7 @@ Deno.serve(async (req) => {
             
             // Simulação pessoal (achatados) - campos claros
             sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
+            sim_personal_monto_financiado: simulacionPersonal.monto_financiado || 0,
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
             sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
             sim_personal_tae: simulacionPersonal.tae_estimada,
@@ -1062,6 +1063,16 @@ Deno.serve(async (req) => {
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
             sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
+            
+            // Plan de pagos combinado (dos fases)
+            plan_fase1_cuota_total: planPagos.fase1_cuota_total,
+            plan_fase1_duracion_meses: planPagos.fase1_duracion_meses,
+            plan_fase2_cuota_total: planPagos.fase2_cuota_total,
+            plan_fase2_duracion_meses: planPagos.fase2_duracion_meses,
+            plan_ahorro_mensual_tras_personal: planPagos.ahorro_mensual_tras_personal,
+            plan_total_coste: planPagos.total_coste,
+            plan_gap_calculado: planPagos.gap_calculado,
+            plan_ahorros_cliente: planPagos.ahorros_cliente,
             
             // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
             recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
