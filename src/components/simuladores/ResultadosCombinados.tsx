@@ -30,6 +30,23 @@ export function ResultadosCombinados({
   const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
   const nivelRiesgo = porcentajeIngresos > 60 ? 'alto' : porcentajeIngresos > 50 ? 'medio' : 'bajo';
 
+  // Combined approval logic: if personal credit covers the capital gap, mortgage is approvable
+  const personalCubreGap = resultadosPersonal.cualificado &&
+    resultadosPersonal.montoFinanciar <= resultadosPersonal.montoMaximoCredito;
+
+  const otrosCriteriosHipotecaCumplen =
+    resultadosHipoteca.cuotaMensual <= resultadosHipoteca.hipotecaMaximaMensual &&
+    resultadosHipoteca.hipotecaMaximaMensual >= 350 &&
+    resultadosHipoteca.montoFinanciable >= 70000 &&
+    resultadosHipoteca.montoFinanciable <= resultadosHipoteca.montoMaximoFinanciable;
+
+  const hipotecaAprobableConPersonal = !resultadosHipoteca.aprobable &&
+    !resultadosHipoteca.capitalPropioSuficiente &&
+    personalCubreGap &&
+    otrosCriteriosHipotecaCumplen;
+
+  const hipotecaAprobableFinal = resultadosHipoteca.aprobable || hipotecaAprobableConPersonal;
+
   const handleExportPDF = () => {
     generateSimulacionCombinadaPDF(datos, resultadosPersonal, resultadosHipoteca);
   };
