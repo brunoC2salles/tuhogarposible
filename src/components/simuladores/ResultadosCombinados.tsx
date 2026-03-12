@@ -324,6 +324,10 @@ export function ResultadosCombinados({
                       <div className="border-2 border-primary rounded-lg p-1">
                         <p className="text-xs text-primary font-medium">Total Pagado</p>
                         <p className="text-lg font-bold text-primary">{formatEuro(costoTotal)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Capital: {formatEuro(resultadosHipoteca.montoFinanciable + resultadosPersonal.montoFinanciar)}
+                          {' · '}Intereses: {formatEuro(costoTotal - resultadosHipoteca.montoFinanciable - resultadosPersonal.montoFinanciar)}
+                        </p>
                       </div>
                     </div>
                   </div>
