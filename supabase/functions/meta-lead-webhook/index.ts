@@ -708,11 +708,42 @@ Deno.serve(async (req) => {
     }
 
     // 7. Calcular simulações (edadParsed já calculado acima)
-    const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
+    // Parse ahorros do Meta Ads para calcular o gap
+    const montoAhorros = parseDeudas(data.monto_ahorros); // reusa parseDeudas para limpar o valor
+    
     const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
+    
+    // Calcular gap: capital necesario - ahorros del cliente
+    const capitalNecesario = simulacionHipotecaria.capital_necesario || 0;
+    const gap = Math.max(capitalNecesario - montoAhorros, 0);
+    
+    // Calcular crédito personal para financiar el gap específico
+    const simulacionPersonal = gap > 0 
+      ? calcularSimulacionPersonal(ingresos, deudas, gap)
+      : calcularSimulacionPersonal(ingresos, deudas);
+    
+    // Calcular plan de pagos combinado (dos fases)
+    const cuotaHipoteca = simulacionHipotecaria.cuota_maxima_mensual || 0;
+    const cuotaPersonal = simulacionPersonal.cuota_mensual || 0;
+    const fase1Meses = simulacionPersonal.plazo_meses || 84;
+    const plazoHipotecaMeses = (simulacionHipotecaria.plazo_anos || 25) * 12;
+    const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
+    
+    const planPagos = {
+      fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
+      fase1_duracion_meses: fase1Meses,
+      fase2_cuota_total: cuotaHipoteca,
+      fase2_duracion_meses: fase2Meses,
+      ahorro_mensual_tras_personal: cuotaPersonal,
+      total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
+      monto_financiado_personal: simulacionPersonal.monto_financiado || 0,
+      gap_calculado: gap,
+      ahorros_cliente: montoAhorros,
+    };
     
     console.log('[meta-lead-webhook] Simulación personal:', simulacionPersonal);
     console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
+    console.log('[meta-lead-webhook] Plan de pagos combinado:', planPagos);
 
     // 6. Buscar recomendações de imóveis
     // CORREÇÃO: Parsear zona ANTES de usar na query para extrair cidade limpa
