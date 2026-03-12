@@ -190,66 +190,144 @@ export function ResultadosCombinados({
             </div>
           </div>
 
-          {/* SECCIÓN 3: COMPROMISO FINANCIERO TOTAL */}
-          <div className={`border-2 rounded-lg overflow-hidden ${
-            nivelRiesgo === 'alto' ? 'border-destructive bg-destructive/5' :
-            nivelRiesgo === 'medio' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' :
-            'border-green-500 bg-green-50 dark:bg-green-950'
-          }`}>
-            <div className={`px-4 py-3 ${
-              nivelRiesgo === 'alto' ? 'bg-destructive/10' :
-              nivelRiesgo === 'medio' ? 'bg-amber-100 dark:bg-amber-900' :
-              'bg-green-100 dark:bg-green-900'
-            }`}>
-              <span className="font-bold text-lg">📊 Compromiso Financiero Total</span>
-            </div>
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
-                <div className="bg-background/80 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Cuota Hipotecaria</p>
-                  <p className="text-lg font-bold">{formatEuro(resultadosHipoteca.cuotaMensual)}/mes</p>
-                </div>
-                <div className="bg-background/80 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Cuota Crédito Personal</p>
-                  <p className="text-lg font-bold">{formatEuro(resultadosPersonal.cuotaMensual)}/mes</p>
-                </div>
-                <div className={`rounded-lg p-3 border-2 ${
-                  nivelRiesgo === 'alto' ? 'border-destructive bg-destructive/10' :
-                  nivelRiesgo === 'medio' ? 'border-amber-500 bg-amber-100 dark:bg-amber-900' :
-                  'border-green-500 bg-green-100 dark:bg-green-900'
+          {/* SECCIÓN 3: PLAN DE PAGOS TEMPORAL */}
+          {(() => {
+            const fase1Meses = datos.plazoMeses;
+            const fase2Meses = resultadosHipoteca.plazoMaximoMeses - datos.plazoMeses;
+            const cuotaFase1 = resultadosHipoteca.cuotaMensual + resultadosPersonal.cuotaMensual;
+            const cuotaFase2 = resultadosHipoteca.cuotaMensual;
+            const totalFase1 = fase1Meses * cuotaFase1;
+            const totalFase2 = Math.max(0, fase2Meses) * cuotaFase2;
+            const costoTotal = totalFase1 + totalFase2;
+            const ahorroMensual = resultadosPersonal.cuotaMensual;
+
+            const fase1Anios = Math.floor(fase1Meses / 12);
+            const fase1MesesResto = fase1Meses % 12;
+            const fase1Texto = fase1MesesResto > 0 ? `${fase1Anios} años y ${fase1MesesResto} meses` : `${fase1Anios} años`;
+
+            const fase2AniosInicio = fase1Anios + (fase1MesesResto > 0 ? 1 : 0);
+            const fase2Texto = fase2Meses > 0
+              ? `Año ${fase1Anios + 1} – ${resultadosHipoteca.plazoMaximoAnios}`
+              : null;
+
+            const barFase1Pct = Math.min(100, (fase1Meses / resultadosHipoteca.plazoMaximoMeses) * 100);
+
+            return (
+              <div className={`border-2 rounded-lg overflow-hidden ${
+                nivelRiesgo === 'alto' ? 'border-destructive bg-destructive/5' :
+                nivelRiesgo === 'medio' ? 'border-amber-500 bg-amber-50 dark:bg-amber-950' :
+                'border-green-500 bg-green-50 dark:bg-green-950'
+              }`}>
+                <div className={`px-4 py-3 ${
+                  nivelRiesgo === 'alto' ? 'bg-destructive/10' :
+                  nivelRiesgo === 'medio' ? 'bg-amber-100 dark:bg-amber-900' :
+                  'bg-green-100 dark:bg-green-900'
                 }`}>
-                  <p className="text-xs text-muted-foreground mb-1">Total Mensual</p>
-                  <p className="text-xl font-bold">{formatEuro(compromisoTotal)}/mes</p>
-                  <p className="text-xs text-muted-foreground">{porcentajeIngresos.toFixed(1)}% de ingresos</p>
+                  <span className="font-bold text-lg">📊 Plan de Pagos — Compromiso Financiero Total</span>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Timeline bar */}
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground font-medium">Línea temporal de pagos</p>
+                    <div className="flex h-6 rounded-md overflow-hidden border">
+                      <div
+                        className="bg-primary flex items-center justify-center text-[10px] font-bold text-primary-foreground"
+                        style={{ width: `${barFase1Pct}%` }}
+                      >
+                        Fase 1
+                      </div>
+                      {fase2Meses > 0 && (
+                        <div
+                          className="bg-secondary flex items-center justify-center text-[10px] font-bold text-secondary-foreground"
+                          style={{ width: `${100 - barFase1Pct}%` }}
+                        >
+                          Fase 2
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Fase 1 */}
+                  <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 space-y-1">
+                    <p className="text-sm font-bold text-primary">Fase 1 — Primeros {fase1Texto}</p>
+                    <p className="text-xs text-muted-foreground">Hipoteca + Crédito Personal</p>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-xl font-bold">{formatEuro(cuotaFase1)}/mes</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({formatEuro(resultadosHipoteca.cuotaMensual)} hipoteca + {formatEuro(resultadosPersonal.cuotaMensual)} personal)
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {porcentajeIngresos.toFixed(1)}% de los ingresos netos
+                    </p>
+                  </div>
+
+                  {/* Fase 2 */}
+                  {fase2Meses > 0 && fase2Texto && (
+                    <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-3 space-y-1">
+                      <p className="text-sm font-bold text-secondary-foreground">Fase 2 — {fase2Texto}</p>
+                      <p className="text-xs text-muted-foreground">Solo hipoteca (crédito personal liquidado)</p>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-xl font-bold">{formatEuro(cuotaFase2)}/mes</span>
+                        <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                          ↓ Ahorro de {formatEuro(ahorroMensual)}/mes
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {((cuotaFase2 / datos.ingresosMensuales) * 100).toFixed(1)}% de los ingresos netos
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Resumen total */}
+                  <div className="bg-muted/50 border rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground mb-2 font-medium">Resumen del coste total de adquisición</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Fase 1 ({fase1Meses} cuotas)</p>
+                        <p className="font-bold">{formatEuro(totalFase1)}</p>
+                      </div>
+                      {fase2Meses > 0 && (
+                        <div>
+                          <p className="text-xs text-muted-foreground">Fase 2 ({fase2Meses} cuotas)</p>
+                          <p className="font-bold">{formatEuro(totalFase2)}</p>
+                        </div>
+                      )}
+                      <div className="border-2 border-primary rounded-lg p-1">
+                        <p className="text-xs text-primary font-medium">Total Pagado</p>
+                        <p className="text-lg font-bold text-primary">{formatEuro(costoTotal)}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Warnings */}
+                  {nivelRiesgo === 'alto' && (
+                    <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-center">
+                      <p className="font-semibold text-destructive">
+                        ⚠️ Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 60% de los ingresos netos. Riesgo elevado de sobreendeudamiento.
+                      </p>
+                    </div>
+                  )}
+                  {nivelRiesgo === 'medio' && (
+                    <div className="p-3 bg-amber-100 dark:bg-amber-900 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-center">
+                      <p className="font-semibold text-amber-800 dark:text-amber-200">
+                        ⚠️ Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 50% de los ingresos netos.
+                      </p>
+                    </div>
+                  )}
+                  {nivelRiesgo === 'bajo' && (
+                    <p className="text-sm text-green-700 dark:text-green-300 text-center font-medium">
+                      ✓ El compromiso financiero total está dentro de los parámetros recomendados.
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground text-center italic">
+                    Este análisis es informativo. La cuota del crédito personal no afecta la aprobación hipotecaria. Las parcelas disminuyen tras liquidar el crédito personal.
+                  </p>
                 </div>
               </div>
-
-              {nivelRiesgo === 'alto' && (
-                <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-center">
-                  <p className="font-semibold text-destructive">
-                    ⚠️ Atención: el compromiso total ({porcentajeIngresos.toFixed(1)}%) supera el 60% de los ingresos netos.
-                    Riesgo elevado de sobreendeudamiento.
-                  </p>
-                </div>
-              )}
-              {nivelRiesgo === 'medio' && (
-                <div className="p-3 bg-amber-100 dark:bg-amber-900 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-center">
-                  <p className="font-semibold text-amber-800 dark:text-amber-200">
-                    ⚠️ Atención: el compromiso total ({porcentajeIngresos.toFixed(1)}%) supera el 50% de los ingresos netos.
-                  </p>
-                </div>
-              )}
-              {nivelRiesgo === 'bajo' && (
-                <p className="text-sm text-green-700 dark:text-green-300 text-center font-medium">
-                  ✓ El compromiso financiero total está dentro de los parámetros recomendados.
-                </p>
-              )}
-
-              <p className="text-xs text-muted-foreground text-center italic">
-                Este análisis es informativo. La cuota del crédito personal no afecta la aprobación hipotecaria.
-              </p>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* RGPD */}
           <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
