@@ -26,6 +26,10 @@ export function ResultadosCombinados({
 }: ResultadosCombinadosProps) {
   const totalDeudas = datos.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
 
+  const compromisoTotal = resultadosPersonal.cuotaMensual + resultadosHipoteca.cuotaMensual;
+  const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
+  const nivelRiesgo = porcentajeIngresos > 60 ? 'alto' : porcentajeIngresos > 50 ? 'medio' : 'bajo';
+
   const handleExportPDF = () => {
     generateSimulacionCombinadaPDF(datos, resultadosPersonal, resultadosHipoteca);
   };
