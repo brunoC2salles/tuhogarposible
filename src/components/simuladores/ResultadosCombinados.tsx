@@ -10,12 +10,8 @@ interface ResultadosCombinadosProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   datos: SimuladorHipotecaFormData & {
-    // Campos extra del crédito personal
-    entrada: number;
     plazoMeses: number;
     tasaAnual: number;
-    deudasActuales: number;
-    valorInmueble: number;
   };
   resultadosPersonal: ResultadosSimulacion;
   resultadosHipoteca: ResultadosSimulacionHipoteca;
@@ -28,6 +24,8 @@ export function ResultadosCombinados({
   resultadosPersonal,
   resultadosHipoteca,
 }: ResultadosCombinadosProps) {
+  const totalDeudas = datos.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
+
   const handleExportPDF = () => {
     generateSimulacionCombinadaPDF(datos, resultadosPersonal, resultadosHipoteca);
   };
@@ -61,12 +59,12 @@ export function ResultadosCombinados({
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Importe a Financiar</p>
-                  <p className="font-bold">{formatEuro(resultadosPersonal.montoFinanciar + datos.entrada)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Capital Propio Necesario</p>
+                  <p className="font-bold">{formatEuro(resultadosPersonal.montoFinanciar + datos.ahorrosDisponibles)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Entrada</p>
-                  <p className="font-bold">{formatEuro(datos.entrada)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Ahorros (Entrada)</p>
+                  <p className="font-bold">{formatEuro(datos.ahorrosDisponibles)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Plazo</p>
@@ -102,7 +100,7 @@ export function ResultadosCombinados({
                     <Badge variant="destructive" className="text-sm py-1 px-4">⚠️ CANDIDATO NO CUALIFICADO</Badge>
                     <p className="text-xs text-destructive text-center max-w-md">
                       La cuota mensual ({formatEuro(resultadosPersonal.cuotaMensual)}) supera la capacidad de pago 
-                      ({formatEuro((datos.ingresosMensuales * 0.20) - datos.deudasActuales)}/mes). 
+                      ({formatEuro((datos.ingresosMensuales * 0.20) - totalDeudas)}/mes). 
                       Fórmula: cuota ≤ (ingresos × 20%) − deudas
                     </p>
                   </>
@@ -153,7 +151,7 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              {!resultadosHipoteca.capitalPropioSuficiente && resultadosHipoteca.aprobable && (
+              {!resultadosHipoteca.capitalPropioSuficiente && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
                   <p className="font-semibold text-amber-800 dark:text-amber-200">⚠️ Capital Propio Insuficiente</p>
                   <p className="text-amber-700 dark:text-amber-300 mt-1">
