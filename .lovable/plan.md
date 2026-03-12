@@ -1,22 +1,31 @@
 
-# Plano de Implementacao: Dados de Mercado Integrados
 
-## Status: ✅ IMPLEMENTADO
+# Plan: Add Personal Credit Cuota as Informational Warning in Combined Results
 
-### Ficheiros Criados
-- `src/data/datos_raw.json` — Dados brutos (~162k registos, ~7k municípios com tipo=99, clase=99)
-- `src/data/marketPrices.ts` — Módulo de lazy-loading e processamento dos dados
-- `src/lib/marketPriceUtils.ts` — Utilitários: lookup, comparação, formatação, badges
-- `src/hooks/useMarketPrices.ts` — Hook React para carregamento lazy dos dados
-- `supabase/functions/_shared/marketPrices.ts` — Lookup compacto por província para edge functions
+## What changes
 
-### Ficheiros Modificados
-- `src/components/simuladores/ResultadosSimulacionHipotecaria.tsx` — Secção "Contexto de Mercado" nos resultados
-- `src/components/crm/RecomendacionesModal.tsx` — Badge de mercado em cada imóvel recomendado
-- `src/components/inventario/InmuebleCard.tsx` — Prop `marketComparison` para badge de mercado
-- `supabase/functions/meta-lead-webhook/index.ts` — Validação de presupuesto + dados de mercado no payload Bitrix
+### `ResultadosCombinados.tsx`
+Add an informational alert between the two result sections showing the combined monthly financial commitment:
 
-### Funcionalidades
-1. **Simulador**: Mostra preço médio da comunidade autónoma e desvio percentual
-2. **Recomendações CRM**: Badge colorido (verde=abaixo média, amarelo=acima, vermelho=muito acima)
-3. **Webhook Meta Ads**: Valida se o orçamento é realista para a zona, adiciona info de mercado às notas do lead e ao payload Bitrix
+- After the mortgage section, add a highlighted box:
+  - "**Compromiso financiero total:** Cuota hipotecaria (X€/mes) + Cuota crédito personal (Y€/mes) = **Z€/mes**"
+  - Show what percentage of net income this represents
+  - If total > 50% of income, show amber warning: "Atención: el compromiso total supera el 50% de los ingresos netos"
+  - If total > 60%, show red warning
+
+### No changes to:
+- `simuladorUtils.ts` — approval logic stays as-is (personal cuota does NOT affect mortgage approval)
+- `SimuladoresIndex.tsx` — calculation flow unchanged
+- Schema, PDF generators, CRM
+
+## Technical detail
+
+In `ResultadosCombinados.tsx`, after the mortgage section and before the RGPD section, insert:
+
+```tsx
+const compromisoTotal = resultadosPersonal.cuotaMensual + resultadosHipoteca.cuotaMensual;
+const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
+```
+
+Display a card with the total, percentage, and conditional warning color (green ≤50%, amber 50-60%, red >60%).
+
