@@ -30,6 +30,23 @@ export function ResultadosCombinados({
   const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
   const nivelRiesgo = porcentajeIngresos > 60 ? 'alto' : porcentajeIngresos > 50 ? 'medio' : 'bajo';
 
+  // Combined approval logic: if personal credit covers the capital gap, mortgage is approvable
+  const personalCubreGap = resultadosPersonal.cualificado &&
+    resultadosPersonal.montoFinanciar <= resultadosPersonal.montoMaximoCredito;
+
+  const otrosCriteriosHipotecaCumplen =
+    resultadosHipoteca.cuotaMensual <= resultadosHipoteca.hipotecaMaximaMensual &&
+    resultadosHipoteca.hipotecaMaximaMensual >= 350 &&
+    resultadosHipoteca.montoFinanciable >= 70000 &&
+    resultadosHipoteca.montoFinanciable <= resultadosHipoteca.montoMaximoFinanciable;
+
+  const hipotecaAprobableConPersonal = !resultadosHipoteca.aprobable &&
+    !resultadosHipoteca.capitalPropioSuficiente &&
+    personalCubreGap &&
+    otrosCriteriosHipotecaCumplen;
+
+  const hipotecaAprobableFinal = resultadosHipoteca.aprobable || hipotecaAprobableConPersonal;
+
   const handleExportPDF = () => {
     generateSimulacionCombinadaPDF(datos, resultadosPersonal, resultadosHipoteca);
   };
@@ -155,11 +172,20 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              {!resultadosHipoteca.capitalPropioSuficiente && (
+              {!resultadosHipoteca.capitalPropioSuficiente && !hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
                   <p className="font-semibold text-amber-800 dark:text-amber-200">⚠️ Capital Propio Insuficiente</p>
                   <p className="text-amber-700 dark:text-amber-300 mt-1">
                     Faltan: <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> para cubrir entrada e impuestos.
+                  </p>
+                </div>
+              )}
+
+              {!resultadosHipoteca.capitalPropioSuficiente && hipotecaAprobableConPersonal && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+                  <p className="font-semibold text-blue-800 dark:text-blue-200">💳 Capital cubierto por crédito personal</p>
+                  <p className="text-blue-700 dark:text-blue-300 mt-1">
+                    El crédito personal cubre los <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> restantes para entrada e impuestos.
                   </p>
                 </div>
               )}
@@ -174,14 +200,16 @@ export function ResultadosCombinados({
               )}
 
               <div className="flex justify-center">
-                {resultadosHipoteca.aprobable ? (
-                  <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">✓ HIPOTECA APROBABLE</Badge>
+                {hipotecaAprobableFinal ? (
+                  <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">
+                    {hipotecaAprobableConPersonal ? '✓ HIPOTECA APROBABLE (con crédito personal)' : '✓ HIPOTECA APROBABLE'}
+                  </Badge>
                 ) : (
                   <Badge variant="destructive" className="text-sm py-1 px-4">✗ HIPOTECA NO APROBABLE</Badge>
                 )}
               </div>
 
-              {resultadosHipoteca.razonNoAprobado && (
+              {resultadosHipoteca.razonNoAprobado && !hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
                   <p className="font-semibold text-destructive">Razón de No Aprobación:</p>
                   <p className="text-destructive/80 mt-1">{resultadosHipoteca.razonNoAprobado}</p>
@@ -296,6 +324,10 @@ export function ResultadosCombinados({
                       <div className="border-2 border-primary rounded-lg p-1">
                         <p className="text-xs text-primary font-medium">Total Pagado</p>
                         <p className="text-lg font-bold text-primary">{formatEuro(costoTotal)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          Capital: {formatEuro(resultadosHipoteca.montoFinanciable + resultadosPersonal.montoFinanciar)}
+                          {' · '}Intereses: {formatEuro(costoTotal - resultadosHipoteca.montoFinanciable - resultadosPersonal.montoFinanciar)}
+                        </p>
                       </div>
                     </div>
                   </div>
