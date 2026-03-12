@@ -653,6 +653,9 @@ Deno.serve(async (req) => {
         meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
         meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
         
+        // Plan de pagos combinado
+        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
+        
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
