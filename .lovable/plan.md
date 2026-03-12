@@ -1,22 +1,28 @@
 
-# Plano de Implementacao: Dados de Mercado Integrados
 
-## Status: ✅ IMPLEMENTADO
+# Plan: Show Payment Timeline with Two Phases in Combined Results
 
-### Ficheiros Criados
-- `src/data/datos_raw.json` — Dados brutos (~162k registos, ~7k municípios com tipo=99, clase=99)
-- `src/data/marketPrices.ts` — Módulo de lazy-loading e processamento dos dados
-- `src/lib/marketPriceUtils.ts` — Utilitários: lookup, comparação, formatação, badges
-- `src/hooks/useMarketPrices.ts` — Hook React para carregamento lazy dos dados
-- `supabase/functions/_shared/marketPrices.ts` — Lookup compacto por província para edge functions
+## Current State
+The flow is already correct: mortgage calculates first, personal credit finances the gap (`capitalPropioNecesario - ahorrosDisponibles`), and total monthly commitment is shown. What's missing is a clear **timeline view** showing that payments decrease after the personal credit ends.
 
-### Ficheiros Modificados
-- `src/components/simuladores/ResultadosSimulacionHipotecaria.tsx` — Secção "Contexto de Mercado" nos resultados
-- `src/components/crm/RecomendacionesModal.tsx` — Badge de mercado em cada imóvel recomendado
-- `src/components/inventario/InmuebleCard.tsx` — Prop `marketComparison` para badge de mercado
-- `supabase/functions/meta-lead-webhook/index.ts` — Validação de presupuesto + dados de mercado no payload Bitrix
+## Changes — `ResultadosCombinados.tsx` only
 
-### Funcionalidades
-1. **Simulador**: Mostra preço médio da comunidade autónoma e desvio percentual
-2. **Recomendações CRM**: Badge colorido (verde=abaixo média, amarelo=acima, vermelho=muito acima)
-3. **Webhook Meta Ads**: Valida se o orçamento é realista para a zona, adiciona info de mercado às notas do lead e ao payload Bitrix
+### Add a "Plan de Pagos" section in the Compromiso Financiero Total area:
+
+**Phase 1** — From month 1 to `plazoMeses` (personal credit duration):
+- Monthly payment = cuota hipotecaria + cuota crédito personal
+- Example: "Primeros 7 años: 1.200€/mes (hipoteca 800€ + personal 400€)"
+
+**Phase 2** — From end of personal credit to end of mortgage:
+- Monthly payment = cuota hipotecaria only
+- Example: "Años 8-30: 800€/mes (solo hipoteca)"
+- Highlight the savings: "Ahorro mensual tras liquidar crédito personal: 400€/mes"
+
+**Summary box:**
+- Total paid over full mortgage life = (Phase 1 months × Phase 1 cuota) + (Phase 2 months × Phase 2 cuota)
+- This gives the true total cost of acquiring the property
+
+### Visual: simple two-row timeline with colored bars showing the payment reduction
+
+No changes to `simuladorUtils.ts`, `SimuladoresIndex.tsx`, or any calculation logic. Pure UI/display enhancement.
+
