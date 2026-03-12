@@ -172,11 +172,20 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              {!resultadosHipoteca.capitalPropioSuficiente && (
+              {!resultadosHipoteca.capitalPropioSuficiente && !hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
                   <p className="font-semibold text-amber-800 dark:text-amber-200">⚠️ Capital Propio Insuficiente</p>
                   <p className="text-amber-700 dark:text-amber-300 mt-1">
                     Faltan: <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> para cubrir entrada e impuestos.
+                  </p>
+                </div>
+              )}
+
+              {!resultadosHipoteca.capitalPropioSuficiente && hipotecaAprobableConPersonal && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
+                  <p className="font-semibold text-blue-800 dark:text-blue-200">💳 Capital cubierto por crédito personal</p>
+                  <p className="text-blue-700 dark:text-blue-300 mt-1">
+                    El crédito personal cubre los <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> restantes para entrada e impuestos.
                   </p>
                 </div>
               )}
@@ -191,14 +200,16 @@ export function ResultadosCombinados({
               )}
 
               <div className="flex justify-center">
-                {resultadosHipoteca.aprobable ? (
-                  <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">✓ HIPOTECA APROBABLE</Badge>
+                {hipotecaAprobableFinal ? (
+                  <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">
+                    {hipotecaAprobableConPersonal ? '✓ HIPOTECA APROBABLE (con crédito personal)' : '✓ HIPOTECA APROBABLE'}
+                  </Badge>
                 ) : (
                   <Badge variant="destructive" className="text-sm py-1 px-4">✗ HIPOTECA NO APROBABLE</Badge>
                 )}
               </div>
 
-              {resultadosHipoteca.razonNoAprobado && (
+              {resultadosHipoteca.razonNoAprobado && !hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
                   <p className="font-semibold text-destructive">Razón de No Aprobación:</p>
                   <p className="text-destructive/80 mt-1">{resultadosHipoteca.razonNoAprobado}</p>
