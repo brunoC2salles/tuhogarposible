@@ -477,9 +477,10 @@ export function generateSimulacionCombinadaPDF(
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Importe a financiar (capital propio necesario): ${formatEuro(datos.valorInmueble)}`, margin, currentY);
+  const capitalPropioNecesario = resultadosHipoteca.capitalPropioNecesario || 0;
+  doc.text(`Importe a financiar (capital propio necesario): ${formatEuro(capitalPropioNecesario)}`, margin, currentY);
   currentY += 5;
-  doc.text(`Entrada: ${formatEuro(datos.entrada)}`, margin, currentY);
+  doc.text(`Ahorros (Entrada): ${formatEuro(datos.ahorrosDisponibles || 0)}`, margin, currentY);
   currentY += 5;
 
   const plazoAnios = Math.floor(datos.plazoMeses / 12);
