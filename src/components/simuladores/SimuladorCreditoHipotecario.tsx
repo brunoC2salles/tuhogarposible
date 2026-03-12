@@ -163,7 +163,7 @@ export function SimuladorCreditoHipotecario() {
             Simulador de Crédito Hipotecario
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Tipo de interés fijo: <strong>3.5% anual</strong>
+            Tipo de interés fijo: <strong>2.5% anual</strong>
           </p>
           <Alert className="mt-4">
             <Info className="h-4 w-4" />

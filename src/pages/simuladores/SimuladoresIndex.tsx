@@ -1,4 +1,4 @@
-// Sync: 2026-02-18 - Unified simulator form
+// Sync: 2026-03-12 - Unified simulator form — removed duplicated fields
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -18,26 +18,19 @@ import { calcularAmortizacionFrancesa, calcularSimulacionHipoteca } from "@/lib/
 import { ResultadosCombinados } from "@/components/simuladores/ResultadosCombinados";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
+import { z } from "zod";
+import { cn } from "@/lib/utils";
 
-// Extended type that includes personal credit fields
+// Extended type: only plazoMeses and tasaAnual are personal-credit-specific
 type SimuladorUnificadoFormData = SimuladorHipotecaFormData & {
-  // Personal credit extra fields
-  entrada: number;
   plazoMeses: number;
   tasaAnual: number;
-  deudasActuales: number;
-  valorInmueble: number;
 };
-
-import { z } from "zod";
 
 const simuladorUnificadoSchema = simuladorHipotecaSchema.and(
   z.object({
-    entrada: z.number().min(0, "Entrada no puede ser negativa"),
     plazoMeses: z.number().int().min(60, "Plazo mínimo: 60 meses").max(144, "Plazo máximo: 144 meses"),
     tasaAnual: z.number().min(3, "Tasa mínima: 3%").max(12, "Tasa máxima: 12%"),
-    deudasActuales: z.number().min(0, "Deudas no pueden ser negativas"),
-    valorInmueble: z.number().min(1000, "Valor del inmueble debe ser mayor a 1000€"),
   })
 );
 
@@ -81,11 +74,8 @@ const SimuladoresIndex = () => {
       valorManutención: undefined,
       aceptaPrivacidad: false,
       // Personal credit fields
-      entrada: 0,
       plazoMeses: 84,
       tasaAnual: 6,
-      deudasActuales: 0,
-      valorInmueble: 150000,
     }
   });
 
@@ -122,19 +112,33 @@ const SimuladoresIndex = () => {
 
   const plazoMaximoPermitido = watchEdad && watchEdad >= 45 ? Math.min(30, 75 - watchEdad) : 30;
 
+  // Helper to get error class for inputs
+  const errorClass = (fieldName: string) => {
+    const keys = fieldName.split('.');
+    let err: any = form.formState.errors;
+    for (const k of keys) {
+      if (!err) return '';
+      err = err[k];
+    }
+    return err ? 'border-destructive' : '';
+  };
+
   const onSubmit = (data: SimuladorUnificadoFormData) => {
     try {
       // 1. Calculate hipoteca FIRST to get capitalPropioNecesario
       const resHipoteca = calcularSimulacionHipoteca(data as any);
 
-      // 2. Calculate personal credit using capitalPropioNecesario as the amount to finance
+      // 2. Derive personal credit inputs from unified fields
+      const totalDeudas = data.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
+
+      // 3. Calculate personal credit using capitalPropioNecesario as the amount to finance
       const resPersonal = calcularAmortizacionFrancesa({
         valorInmueble: resHipoteca.capitalPropioNecesario,
-        entrada: data.entrada,
+        entrada: data.ahorrosDisponibles,
         plazoMeses: data.plazoMeses,
         tasaAnual: data.tasaAnual,
         ingresos: data.ingresosMensuales,
-        deudas: data.deudasActuales,
+        deudas: totalDeudas,
       });
 
       setResultadosPersonal(resPersonal);
@@ -188,6 +192,8 @@ const SimuladoresIndex = () => {
                 <Info className="h-4 w-4" />
                 <AlertDescription>
                   Complete todos los campos marcados con <strong>*</strong>. Se calcularán simultáneamente el <strong>crédito personal</strong> y el <strong>crédito hipotecario</strong>.
+                  <br />
+                  <span className="text-xs">Hipoteca: tasa fija <strong>2.5%</strong> anual · Personal: tasa configurable</span>
                 </AlertDescription>
               </Alert>
             </CardHeader>
@@ -202,14 +208,14 @@ const SimuladoresIndex = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Nombre Completo *</Label>
-                          <Input {...form.register("nombreCompleto")} placeholder="Ingrese su nombre completo" />
+                          <Input className={errorClass('nombreCompleto')} {...form.register("nombreCompleto")} placeholder="Ingrese su nombre completo" />
                           {form.formState.errors.nombreCompleto && (
                             <p className="text-sm text-destructive">{form.formState.errors.nombreCompleto.message}</p>
                           )}
                         </div>
                         <div className="space-y-2">
                           <Label>Edad *</Label>
-                          <Input type="number" {...form.register("edad", { valueAsNumber: true })} min="18" max="65" placeholder="Edad (18-65 años)" />
+                          <Input className={errorClass('edad')} type="number" {...form.register("edad", { valueAsNumber: true })} min="18" max="65" placeholder="Edad (18-65 años)" />
                           {form.formState.errors.edad && (
                             <p className="text-sm text-destructive">{form.formState.errors.edad.message}</p>
                           )}
@@ -359,39 +365,21 @@ const SimuladoresIndex = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* === SECTION 2: CRÉDITO PERSONAL === */}
+                  {/* === SECTION 2: CRÉDITO PERSONAL (only plazo + tasa) === */}
                   <AccordionItem value="personal_credit">
-                    <AccordionTrigger>2. Crédito Personal — Datos del Préstamo</AccordionTrigger>
+                    <AccordionTrigger>2. Crédito Personal — Plazo e Interés</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <Alert>
                         <Info className="h-4 w-4" />
-                        <AlertDescription>Estos datos se usan para calcular el crédito personal. El valor del inmueble se comparte también con la hipoteca.</AlertDescription>
+                        <AlertDescription>
+                          El crédito personal financia el <strong>capital propio necesario</strong> (entrada + impuestos) calculado por la hipoteca.
+                          Los ahorros y deudas se toman de la sección financiera.
+                        </AlertDescription>
                       </Alert>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Valor del Inmueble Deseado (€) *</Label>
-                          <Input type="number" step="0.01" {...form.register("valorInmueble", { valueAsNumber: true })} placeholder="Valor del inmueble" min="1000" />
-                          {form.formState.errors.valorInmueble && (
-                            <p className="text-sm text-destructive">{(form.formState.errors.valorInmueble as any).message}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Entrada - Pago Inicial (€) *</Label>
-                          <Input type="number" step="0.01" {...form.register("entrada", { valueAsNumber: true })} placeholder="Pago inicial" min="0" />
-                          {form.formState.errors.entrada && (
-                            <p className="text-sm text-destructive">{(form.formState.errors.entrada as any).message}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Deudas Actuales (€) *</Label>
-                          <Input type="number" step="0.01" {...form.register("deudasActuales", { valueAsNumber: true })} placeholder="Total deudas actuales" min="0" />
-                          {form.formState.errors.deudasActuales && (
-                            <p className="text-sm text-destructive">{(form.formState.errors.deudasActuales as any).message}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
                           <Label>Plazo Deseado (meses) *</Label>
-                          <Input type="number" {...form.register("plazoMeses", { valueAsNumber: true })} placeholder="60-144 meses" min="60" max="144" />
+                          <Input className={errorClass('plazoMeses')} type="number" {...form.register("plazoMeses", { valueAsNumber: true })} placeholder="60-144 meses" min="60" max="144" />
                           <p className="text-xs text-muted-foreground">Entre 60 (5 años) y 144 (12 años)</p>
                           {form.formState.errors.plazoMeses && (
                             <p className="text-sm text-destructive">{(form.formState.errors.plazoMeses as any).message}</p>
@@ -399,7 +387,7 @@ const SimuladoresIndex = () => {
                         </div>
                         <div className="space-y-2">
                           <Label>Tasa Anual de Interés (%) *</Label>
-                          <Input type="number" step="0.01" {...form.register("tasaAnual", { valueAsNumber: true })} placeholder="6.00" min="3" max="12" />
+                          <Input className={errorClass('tasaAnual')} type="number" step="0.01" {...form.register("tasaAnual", { valueAsNumber: true })} placeholder="6.00" min="3" max="12" />
                           <p className="text-xs text-muted-foreground">Entre 3% y 12%</p>
                           {form.formState.errors.tasaAnual && (
                             <p className="text-sm text-destructive">{(form.formState.errors.tasaAnual as any).message}</p>
@@ -416,7 +404,7 @@ const SimuladoresIndex = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Precio de la Vivienda (€) *</Label>
-                          <Input type="number" {...form.register("precioVivienda", { valueAsNumber: true })} min="10000" placeholder="Precio de la vivienda" />
+                          <Input className={errorClass('precioVivienda')} type="number" {...form.register("precioVivienda", { valueAsNumber: true })} min="10000" placeholder="Precio de la vivienda" />
                           {form.formState.errors.precioVivienda && (
                             <p className="text-sm text-destructive">{form.formState.errors.precioVivienda.message}</p>
                           )}
@@ -520,8 +508,11 @@ const SimuladoresIndex = () => {
                       </div>
                       <div className="space-y-2">
                         <Label>Ingresos Mensuales NETO (€) *</Label>
-                        <Input type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} placeholder="Ingresos netos mensuales" min="0" />
+                        <Input className={errorClass('ingresosMensuales')} type="number" {...form.register("ingresosMensuales", { valueAsNumber: true })} placeholder="Ingresos netos mensuales" min="0" />
                         <p className="text-xs text-muted-foreground">Ingresos netos (después de impuestos)</p>
+                        {form.formState.errors.ingresosMensuales && (
+                          <p className="text-sm text-destructive">{form.formState.errors.ingresosMensuales.message}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Número de Pagas Anuales *</Label>
@@ -566,15 +557,25 @@ const SimuladoresIndex = () => {
 
                   {/* === SECTION 5: SITUACIÓN FINANCIERA === */}
                   <AccordionItem value="financiero">
-                    <AccordionTrigger>5. Situación Financiera — Hipoteca</AccordionTrigger>
+                    <AccordionTrigger>5. Situación Financiera</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          Los ahorros se usan como <strong>entrada</strong> tanto para la hipoteca como para el crédito personal.
+                          Los créditos activos se descuentan de la capacidad de pago en ambos cálculos.
+                        </AlertDescription>
+                      </Alert>
                       <div className="space-y-2">
                         <Label>Ahorros Disponibles (€) *</Label>
-                        <Input type="number" {...form.register("ahorrosDisponibles", { valueAsNumber: true })} placeholder="Total de ahorros disponibles" min="0" />
+                        <Input className={errorClass('ahorrosDisponibles')} type="number" {...form.register("ahorrosDisponibles", { valueAsNumber: true })} placeholder="Total de ahorros disponibles" min="0" />
+                        {form.formState.errors.ahorrosDisponibles && (
+                          <p className="text-sm text-destructive">{form.formState.errors.ahorrosDisponibles.message}</p>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Plazo Hipoteca Deseado (años) *</Label>
-                        <Input type="number" {...form.register("plazoHipotecaAnios", { valueAsNumber: true })} min="10" max={plazoMaximoPermitido} />
+                        <Input className={errorClass('plazoHipotecaAnios')} type="number" {...form.register("plazoHipotecaAnios", { valueAsNumber: true })} min="10" max={plazoMaximoPermitido} />
                         {watchEdad && watchEdad >= 45 && (
                           <p className="text-xs text-muted-foreground">Máximo {plazoMaximoPermitido} años (75 - {watchEdad} años de edad)</p>
                         )}
@@ -675,7 +676,10 @@ const SimuladoresIndex = () => {
 
                 {/* Privacy Consent */}
                 <div className="space-y-2 pt-6">
-                  <div className="flex items-start space-x-3 p-4 border-2 border-primary/30 rounded-lg bg-primary/5">
+                  <div className={cn(
+                    "flex items-start space-x-3 p-4 border-2 rounded-lg bg-primary/5",
+                    form.formState.errors.aceptaPrivacidad ? "border-destructive" : "border-primary/30"
+                  )}>
                     <Checkbox
                       id="aceptaPrivacidad"
                       checked={watchAceptaPrivacidad}

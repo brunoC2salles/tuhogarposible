@@ -80,7 +80,7 @@ export async function generateLeadCompletePDF(lead: Lead) {
         montoMaximoCredito: resultados.montoFinanciable,
         capitalPropioNecesario: resultados.capitalPropioNecesario,
         porcentajeFinanciamiento: 80,
-        tasaInteres: 3.5,
+        tasaInteres: 2.5,
         plazoAnios: resultados.plazoMaximoAnios,
         plazoMeses: resultados.plazoMaximoMeses,
         aprobable: resultados.aprobable,
