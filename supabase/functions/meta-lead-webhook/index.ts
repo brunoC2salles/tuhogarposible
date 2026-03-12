@@ -480,7 +480,7 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   return { cualificado: true };
 }
 
-function calcularSimulacionPersonal(ingresos: number, deudas: number) {
+function calcularSimulacionPersonal(ingresos: number, deudas: number, montoNecesario?: number) {
   const capacidadPago = ingresos * 0.35;
   const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
   
