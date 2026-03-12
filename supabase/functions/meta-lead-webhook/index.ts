@@ -839,6 +839,8 @@ Deno.serve(async (req) => {
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
+      gap > 0 ? `📋 Plan de pagos: Fase 1 (${fase1Meses} meses): ${planPagos.fase1_cuota_total}€/mes | Fase 2 (${fase2Meses} meses): ${planPagos.fase2_cuota_total}€/mes` : null,
+      gap > 0 ? `💳 Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
       marketValidation ? `📊 Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `💰 Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
