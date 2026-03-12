@@ -366,7 +366,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   }
 
   // 1. TAXA FIXA
-  const tasaAnualFija = 3.5;
+  const tasaAnualFija = 2.5;
   const tasaMensual = tasaAnualFija / 12 / 100;
   
   // Função auxiliar para calcular ingresos anualizados
