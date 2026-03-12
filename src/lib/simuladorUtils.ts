@@ -558,8 +558,11 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const montoMinimoFinanciable = 70000;
   const cumpleMinimoFinanciable = montoFinanciable >= montoMinimoFinanciable;
   
+  // Criterio 4: monto a financiar no supera máximo financiable
+  const montoNoSuperaMaximo = montoFinanciable <= montoMaximoFinanciable;
+  
   // Aprobable requiere todos los criterios
-  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable;
+  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable && montoNoSuperaMaximo && capitalPropioSuficiente;
   
   // Razón de no aprobación
   let razonNoAprobado: string | undefined;
@@ -567,8 +570,12 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     razonNoAprobado = `El importe a financiar (${formatEuro(montoFinanciable)}) es inferior al mínimo de 70.000€`;
   } else if (!capacidadMinimaSuficiente) {
     razonNoAprobado = `Capacidad de pago insuficiente: ${formatEuro(hipotecaMaximaMensual)}/mes (mínimo requerido: 350€/mes)`;
+  } else if (!montoNoSuperaMaximo) {
+    razonNoAprobado = `El monto a financiar (${formatEuro(montoFinanciable)}) supera el máximo financiable según capacidad de pago (${formatEuro(montoMaximoFinanciable)})`;
   } else if (!aprobablePorIngresos) {
     razonNoAprobado = `La cuota mensual (${formatEuro(cuotaMensual)}) supera la capacidad de pago (${formatEuro(hipotecaMaximaMensual)})`;
+  } else if (!capitalPropioSuficiente) {
+    razonNoAprobado = `Capital propio insuficiente: dispone de ${formatEuro(datos.ahorrosDisponibles)} pero necesita ${formatEuro(capitalPropioNecesario)}`;
   }
   
   return {
