@@ -285,9 +285,36 @@ const SimuladoresIndex = () => {
                     <AccordionTrigger>1. Datos del Titular</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative" ref={suggestionsRef}>
                           <Label>Nombre Completo *</Label>
-                          <Input className={errorClass('nombreCompleto')} {...form.register("nombreCompleto")} placeholder="Ingrese su nombre completo" />
+                          <div className="relative">
+                            <Input
+                              className={errorClass('nombreCompleto')}
+                              {...form.register("nombreCompleto", {
+                                onChange: (e) => searchLeads(e.target.value),
+                              })}
+                              placeholder="Ingrese su nombre completo"
+                              autoComplete="off"
+                            />
+                            {isAuthenticated && (
+                              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            )}
+                          </div>
+                          {showSuggestions && leadSuggestions.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                              {leadSuggestions.map((lead) => (
+                                <button
+                                  key={lead.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm transition-colors"
+                                  onClick={() => selectLead(lead)}
+                                >
+                                  <span className="font-medium">{lead.nombre_completo}</span>
+                                  <span className="text-muted-foreground ml-2 text-xs">{lead.telefono}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {form.formState.errors.nombreCompleto && (
                             <p className="text-sm text-destructive">{form.formState.errors.nombreCompleto.message}</p>
                           )}
