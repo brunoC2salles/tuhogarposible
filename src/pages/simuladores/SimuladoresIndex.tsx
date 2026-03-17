@@ -107,7 +107,78 @@ const SimuladoresIndex = () => {
     name: 'creditos'
   });
 
-  // Auto-adjust hipoteca plazo by age
+  // Check if user is authenticated (for lead auto-fill)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session);
+    });
+  }, []);
+
+  // Lead name search with debounce
+  const searchLeads = useCallback((name: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!isAuthenticated || name.length < 2) {
+      setLeadSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('leads')
+        .select('id, nombre_completo, telefono, email, valor_inmueble_deseado, simulador_hipotecario_data, simulador_personal_data')
+        .ilike('nombre_completo', `%${name}%`)
+        .limit(5);
+      if (data && data.length > 0) {
+        setLeadSuggestions(data);
+        setShowSuggestions(true);
+      } else {
+        setLeadSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+  }, [isAuthenticated]);
+
+  const selectLead = useCallback((lead: any) => {
+    form.setValue('nombreCompleto', lead.nombre_completo);
+    if (lead.valor_inmueble_deseado) {
+      form.setValue('precioVivienda', lead.valor_inmueble_deseado);
+    }
+    // Pre-fill from stored simulation data
+    const simData = lead.simulador_hipotecario_data as any;
+    if (simData) {
+      if (simData.edad) form.setValue('edad', simData.edad);
+      if (simData.tipoDocumento) form.setValue('tipoDocumento', simData.tipoDocumento);
+      if (simData.precioVivienda) form.setValue('precioVivienda', simData.precioVivienda);
+      if (simData.ingresosMensuales) form.setValue('ingresosMensuales', simData.ingresosMensuales);
+      if (simData.ahorrosDisponibles !== undefined) form.setValue('ahorrosDisponibles', simData.ahorrosDisponibles);
+      if (simData.situacionLaboral) form.setValue('situacionLaboral', simData.situacionLaboral);
+      if (simData.tipoContrato) form.setValue('tipoContrato', simData.tipoContrato);
+      if (simData.comunidadAutonoma) form.setValue('comunidadAutonoma', simData.comunidadAutonoma);
+      if (simData.estadoCivil) form.setValue('estadoCivil', simData.estadoCivil);
+      if (simData.numeroPagas) form.setValue('numeroPagas', simData.numeroPagas);
+      if (simData.plazoHipotecaAnios) form.setValue('plazoHipotecaAnios', simData.plazoHipotecaAnios);
+    }
+    const simPersonal = lead.simulador_personal_data as any;
+    if (simPersonal) {
+      if (simPersonal.plazoMeses) form.setValue('plazoMeses', simPersonal.plazoMeses);
+      if (simPersonal.tasaAnual) form.setValue('tasaAnual', simPersonal.tasaAnual);
+    }
+    setShowSuggestions(false);
+    setLeadSuggestions([]);
+    toast.success(`Datos del lead "${lead.nombre_completo}" cargados`);
+  }, [form]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   useEffect(() => {
     if (watchEdad && watchEdad >= 45) {
       const plazoMaximo = Math.max(1, 75 - watchEdad);
