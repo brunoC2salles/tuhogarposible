@@ -40,6 +40,13 @@ const SimuladoresIndex = () => {
   const [resultadosPersonal, setResultadosPersonal] = useState<any>(null);
   const [resultadosHipoteca, setResultadosHipoteca] = useState<any>(null);
   const [datosFormulario, setDatosFormulario] = useState<SimuladorUnificadoFormData | null>(null);
+  
+  // Lead auto-fill state
+  const [leadSuggestions, setLeadSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<SimuladorUnificadoFormData>({
     resolver: zodResolver(simuladorUnificadoSchema),
