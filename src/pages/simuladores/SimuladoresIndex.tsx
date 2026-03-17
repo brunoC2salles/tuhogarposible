@@ -1,5 +1,5 @@
-// Sync: 2026-03-12 - Unified simulator form — removed duplicated fields
-import { useState, useEffect } from "react";
+// Sync: 2026-03-17 - Unified simulator form + lead auto-fill
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Home, Plus, Trash2, Info, Calculator } from "lucide-react";
+import { Home, Plus, Trash2, Info, Calculator, Search } from "lucide-react";
 import { simuladorHipotecaSchema, type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { calcularAmortizacionFrancesa, calcularSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosCombinados } from "@/components/simuladores/ResultadosCombinados";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import Logo from "@/components/Logo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 // Extended type: only plazoMeses and tasaAnual are personal-credit-specific
 type SimuladorUnificadoFormData = SimuladorHipotecaFormData & {
