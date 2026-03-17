@@ -1,5 +1,5 @@
-// Sync: 2026-03-12 - Unified simulator form — removed duplicated fields
-import { useState, useEffect } from "react";
+// Sync: 2026-03-17 - Unified simulator form + lead auto-fill
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,7 +12,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Home, Plus, Trash2, Info, Calculator } from "lucide-react";
+import { Home, Plus, Trash2, Info, Calculator, Search } from "lucide-react";
 import { simuladorHipotecaSchema, type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { calcularAmortizacionFrancesa, calcularSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosCombinados } from "@/components/simuladores/ResultadosCombinados";
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import Logo from "@/components/Logo";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 // Extended type: only plazoMeses and tasaAnual are personal-credit-specific
 type SimuladorUnificadoFormData = SimuladorHipotecaFormData & {
@@ -39,6 +40,13 @@ const SimuladoresIndex = () => {
   const [resultadosPersonal, setResultadosPersonal] = useState<any>(null);
   const [resultadosHipoteca, setResultadosHipoteca] = useState<any>(null);
   const [datosFormulario, setDatosFormulario] = useState<SimuladorUnificadoFormData | null>(null);
+  
+  // Lead auto-fill state
+  const [leadSuggestions, setLeadSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<SimuladorUnificadoFormData>({
     resolver: zodResolver(simuladorUnificadoSchema),
@@ -99,7 +107,78 @@ const SimuladoresIndex = () => {
     name: 'creditos'
   });
 
-  // Auto-adjust hipoteca plazo by age
+  // Check if user is authenticated (for lead auto-fill)
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsAuthenticated(!!data.session);
+    });
+  }, []);
+
+  // Lead name search with debounce
+  const searchLeads = useCallback((name: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!isAuthenticated || name.length < 2) {
+      setLeadSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      const { data } = await supabase
+        .from('leads')
+        .select('id, nombre_completo, telefono, email, valor_inmueble_deseado, simulador_hipotecario_data, simulador_personal_data')
+        .ilike('nombre_completo', `%${name}%`)
+        .limit(5);
+      if (data && data.length > 0) {
+        setLeadSuggestions(data);
+        setShowSuggestions(true);
+      } else {
+        setLeadSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+  }, [isAuthenticated]);
+
+  const selectLead = useCallback((lead: any) => {
+    form.setValue('nombreCompleto', lead.nombre_completo);
+    if (lead.valor_inmueble_deseado) {
+      form.setValue('precioVivienda', lead.valor_inmueble_deseado);
+    }
+    // Pre-fill from stored simulation data
+    const simData = lead.simulador_hipotecario_data as any;
+    if (simData) {
+      if (simData.edad) form.setValue('edad', simData.edad);
+      if (simData.tipoDocumento) form.setValue('tipoDocumento', simData.tipoDocumento);
+      if (simData.precioVivienda) form.setValue('precioVivienda', simData.precioVivienda);
+      if (simData.ingresosMensuales) form.setValue('ingresosMensuales', simData.ingresosMensuales);
+      if (simData.ahorrosDisponibles !== undefined) form.setValue('ahorrosDisponibles', simData.ahorrosDisponibles);
+      if (simData.situacionLaboral) form.setValue('situacionLaboral', simData.situacionLaboral);
+      if (simData.tipoContrato) form.setValue('tipoContrato', simData.tipoContrato);
+      if (simData.comunidadAutonoma) form.setValue('comunidadAutonoma', simData.comunidadAutonoma);
+      if (simData.estadoCivil) form.setValue('estadoCivil', simData.estadoCivil);
+      if (simData.numeroPagas) form.setValue('numeroPagas', simData.numeroPagas);
+      if (simData.plazoHipotecaAnios) form.setValue('plazoHipotecaAnios', simData.plazoHipotecaAnios);
+    }
+    const simPersonal = lead.simulador_personal_data as any;
+    if (simPersonal) {
+      if (simPersonal.plazoMeses) form.setValue('plazoMeses', simPersonal.plazoMeses);
+      if (simPersonal.tasaAnual) form.setValue('tasaAnual', simPersonal.tasaAnual);
+    }
+    setShowSuggestions(false);
+    setLeadSuggestions([]);
+    toast.success(`Datos del lead "${lead.nombre_completo}" cargados`);
+  }, [form]);
+
+  // Close suggestions on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   useEffect(() => {
     if (watchEdad && watchEdad >= 45) {
       const plazoMaximo = Math.max(1, 75 - watchEdad);
@@ -206,9 +285,36 @@ const SimuladoresIndex = () => {
                     <AccordionTrigger>1. Datos del Titular</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
+                        <div className="space-y-2 relative" ref={suggestionsRef}>
                           <Label>Nombre Completo *</Label>
-                          <Input className={errorClass('nombreCompleto')} {...form.register("nombreCompleto")} placeholder="Ingrese su nombre completo" />
+                          <div className="relative">
+                            <Input
+                              className={errorClass('nombreCompleto')}
+                              {...form.register("nombreCompleto", {
+                                onChange: (e) => searchLeads(e.target.value),
+                              })}
+                              placeholder="Ingrese su nombre completo"
+                              autoComplete="off"
+                            />
+                            {isAuthenticated && (
+                              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            )}
+                          </div>
+                          {showSuggestions && leadSuggestions.length > 0 && (
+                            <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                              {leadSuggestions.map((lead) => (
+                                <button
+                                  key={lead.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm transition-colors"
+                                  onClick={() => selectLead(lead)}
+                                >
+                                  <span className="font-medium">{lead.nombre_completo}</span>
+                                  <span className="text-muted-foreground ml-2 text-xs">{lead.telefono}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           {form.formState.errors.nombreCompleto && (
                             <p className="text-sm text-destructive">{form.formState.errors.nombreCompleto.message}</p>
                           )}
