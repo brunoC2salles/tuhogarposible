@@ -74,12 +74,17 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
 
   const formatCurrency = (value?: number) => {
     if (!value) return '-';
-    return new Intl.NumberFormat('es-CL', {
+    return new Intl.NumberFormat('es-ES', {
       style: 'currency',
-      currency: 'CLP',
+      currency: 'EUR',
       minimumFractionDigits: 0,
     }).format(value);
   };
+
+  // Extract ingresos from simulation data
+  const ingresosMensuales = (lead.simulador_hipotecario_data as any)?.ingresosMensuales
+    || (lead.simulador_personal_data as any)?.ingresosMensuales
+    || null;
 
   return (
     <Card 
@@ -183,6 +188,13 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-3 w-3 flex-shrink-0" />
             <span className="truncate text-xs">{formatCurrency(lead.valor_inmueble_deseado)}</span>
+          </div>
+        )}
+
+        {ingresosMensuales && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <DollarSign className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate text-xs">Ingresos: {formatCurrency(ingresosMensuales)}/mes</span>
           </div>
         )}
 
