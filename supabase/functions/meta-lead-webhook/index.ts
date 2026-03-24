@@ -460,9 +460,9 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
     }
   }
   
-  // Critério 4: Edad < 66 (usa valor parseado para suportar strings e anos de nascimento)
-  if (edadParsed && edadParsed >= 66) {
-    return { cualificado: false, razon_no_cualificado: 'Edad superior a 65 años' };
+  // Critério 4: Edad >= 55
+  if (edadParsed && edadParsed >= 55) {
+    return { cualificado: false, razon_no_cualificado: 'Edad superior a 54 años' };
   }
   
   // Critério 5: Ingresos >= 1300€
@@ -829,7 +829,7 @@ Deno.serve(async (req) => {
     // Montar notas com informações de qualificação
     const notasLead = [
       `Lead do Meta Ads.`,
-      `Qualificação automática: ${qualificacao.cualificado ? '✅ CUALIFICADO' : '❌ NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
+      `Qualificação automática: ${qualificacao.cualificado ? 'CUALIFICADO' : 'NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
       `Edad: ${edadParsed || 'não informada'}`,
       `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
       `Habitaciones: ${data.habitaciones || 'não especificada'}`,
@@ -839,10 +839,14 @@ Deno.serve(async (req) => {
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
-      gap > 0 ? `📋 Plan de pagos: Fase 1 (${fase1Meses} meses): ${planPagos.fase1_cuota_total}€/mes | Fase 2 (${fase2Meses} meses): ${planPagos.fase2_cuota_total}€/mes` : null,
-      gap > 0 ? `💳 Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
-      marketValidation ? `📊 Mercado: ${marketValidation.mensaje}` : null,
-      marketInfo ? `💰 Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
+      (cuotaHipoteca > 0 || cuotaPersonal > 0)
+        ? (gap > 0
+          ? `Plan de pagos: Fase 1 (${fase1Meses} meses): ${Math.round(planPagos.fase1_cuota_total)}€/mes | Fase 2 (${fase2Meses} meses): ${Math.round(planPagos.fase2_cuota_total)}€/mes`
+          : `Plan de pagos: Sin necesidad de crédito personal adicional. Cuota hipotecaria: ${Math.round(cuotaHipoteca)}€/mes`)
+        : null,
+      gap > 0 ? `Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
+      marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
+      marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
     
     try {

@@ -567,6 +567,14 @@ export function generateSimulacionCombinadaPDF(
   });
   currentY = (doc as any).lastAutoTable.finalY + 5;
 
+  // TIN/TAE disclosure
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(100, 100, 100);
+  doc.text('TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)', margin, currentY);
+  doc.setTextColor(0, 0, 0);
+  currentY += 6;
+
   if (resultadosHipoteca.aprobable) {
     doc.setFillColor(34, 197, 94);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');

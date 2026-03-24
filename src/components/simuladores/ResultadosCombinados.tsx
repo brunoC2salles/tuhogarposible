@@ -75,7 +75,7 @@ export function ResultadosCombinados({
           {/* SECCIÓN 1: CRÉDITO PERSONAL */}
           <div className="border rounded-lg overflow-hidden">
             <div className="bg-primary px-4 py-3 flex items-center gap-2">
-              <span className="text-primary-foreground font-bold text-lg">💳 Crédito Personal</span>
+              <span className="text-primary-foreground font-bold text-lg">Crédito Personal</span>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -129,7 +129,7 @@ export function ResultadosCombinados({
           {/* SECCIÓN 2: CRÉDITO HIPOTECARIO */}
           <div className="border rounded-lg overflow-hidden">
             <div className="bg-secondary px-4 py-3 flex items-center gap-2">
-              <span className="text-secondary-foreground font-bold text-lg">🏠 Crédito Hipotecario</span>
+              <span className="text-secondary-foreground font-bold text-lg">Crédito Hipotecario</span>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -157,6 +157,7 @@ export function ResultadosCombinados({
                   <p className="text-xl font-bold text-primary">{formatEuro(resultadosHipoteca.cuotaMensual)}/mes</p>
                   <p className="text-xs text-muted-foreground">{plazoHipotecaTexto} · {resultadosHipoteca.tasaAnualFija}% fijo</p>
                   <p className="text-xs text-muted-foreground mt-1">Máx. financiable: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Ingresos Totales</p>
@@ -166,7 +167,7 @@ export function ResultadosCombinados({
 
               {!resultadosHipoteca.capitalPropioSuficiente && !hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-                  <p className="font-semibold text-amber-800 dark:text-amber-200">⚠️ Capital Propio Insuficiente</p>
+                  <p className="font-semibold text-amber-800 dark:text-amber-200">Capital Propio Insuficiente</p>
                   <p className="text-amber-700 dark:text-amber-300 mt-1">
                     Faltan: <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> para cubrir entrada e impuestos.
                   </p>
@@ -175,7 +176,7 @@ export function ResultadosCombinados({
 
               {!resultadosHipoteca.capitalPropioSuficiente && hipotecaAprobableConPersonal && (
                 <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg text-sm">
-                  <p className="font-semibold text-blue-800 dark:text-blue-200">💳 Capital cubierto por crédito personal</p>
+                  <p className="font-semibold text-blue-800 dark:text-blue-200">Capital cubierto por crédito personal</p>
                   <p className="text-blue-700 dark:text-blue-300 mt-1">
                     El crédito personal cubre los <strong>{formatEuro(resultadosHipoteca.capitalPropioNecesario - datos.ahorrosDisponibles)}</strong> restantes para entrada e impuestos.
                   </p>
@@ -184,7 +185,7 @@ export function ResultadosCombinados({
 
               {resultadosHipoteca.hipotecaMaximaMensual < 350 && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
-                  <p className="font-semibold text-destructive">⚠️ Capacidad de Pago Insuficiente</p>
+                  <p className="font-semibold text-destructive">Capacidad de Pago Insuficiente</p>
                   <p className="text-destructive/80 mt-1">
                     Capacidad mensual: <strong>{formatEuro(resultadosHipoteca.hipotecaMaximaMensual)}</strong> — Mínimo requerido: <strong>350€/mes</strong>
                   </p>
@@ -243,7 +244,7 @@ export function ResultadosCombinados({
                   nivelRiesgo === 'medio' ? 'bg-amber-100 dark:bg-amber-900' :
                   'bg-green-100 dark:bg-green-900'
                 }`}>
-                  <span className="font-bold text-lg">📊 Plan de Pagos — Compromiso Financiero Total</span>
+                  <span className="font-bold text-lg">Plan de Pagos — Compromiso Financiero Total</span>
                 </div>
                 <div className="p-4 space-y-4">
                   {/* Timeline bar */}
@@ -328,14 +329,14 @@ export function ResultadosCombinados({
                   {nivelRiesgo === 'alto' && (
                     <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-center">
                       <p className="font-semibold text-destructive">
-                        ⚠️ Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 60% de los ingresos netos. Riesgo elevado de sobreendeudamiento.
+                        Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 60% de los ingresos netos. Riesgo elevado de sobreendeudamiento.
                       </p>
                     </div>
                   )}
                   {nivelRiesgo === 'medio' && (
                     <div className="p-3 bg-amber-100 dark:bg-amber-900 border border-amber-300 dark:border-amber-700 rounded-lg text-sm text-center">
                       <p className="font-semibold text-amber-800 dark:text-amber-200">
-                        ⚠️ Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 50% de los ingresos netos.
+                        Atención: el compromiso total en Fase 1 ({porcentajeIngresos.toFixed(1)}%) supera el 50% de los ingresos netos.
                       </p>
                     </div>
                   )}
