@@ -583,6 +583,8 @@ export function generateSimulacionCombinadaPDF(
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
   doc.text('TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)', margin, currentY);
+  currentY += 4;
+  doc.text('*Precio máximo considerando hipoteca + crédito personal máx. + ahorros disponibles', margin, currentY);
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 
