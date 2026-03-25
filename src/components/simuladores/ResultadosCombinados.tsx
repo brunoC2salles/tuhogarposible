@@ -224,12 +224,15 @@ export function ResultadosCombinados({
                     </div>
                   )}
                 </div>
-                <div className="text-center text-xs text-muted-foreground border-t pt-2">
-                  <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</span>
-                  <span className="mx-1">+</span>
-                  <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)}</span>
-                  <span className="mx-1">+</span>
-                  <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
+                <div className="text-center text-xs text-muted-foreground border-t pt-2 space-y-1">
+                  <div>
+                    <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)} (cuota: {formatEuro(cuotaMaxHipoteca)}/mes)</span>
+                    <span className="mx-1">+</span>
+                    <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)} (cuota: {formatEuro(cuotaMaxPersonal)}/mes)</span>
+                    <span className="mx-1">+</span>
+                    <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
+                  </div>
+                  <p className="font-semibold text-foreground">Cuota total máxima: {formatEuro(cuotaTotalMaxima)}/mes</p>
                 </div>
               </div>
 
