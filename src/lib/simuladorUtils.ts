@@ -314,7 +314,7 @@ function determinarMejorContrato(
  * 3. Segunda residencia → máximo 70%
  * 4. Vivienda habitual + residente:
  *    - DNI (español): funcionario 100%, indefinido/interino/fijo_disc 90%, temporal 0%
- *    - NIE (extranjero): temporal 0%, otros 80%
+ *    - NIE (extranjero): temporal 0%, otros 90%
  */
 function calcularPorcentajeFinanciamiento(
   mejorContrato: string,
@@ -352,7 +352,7 @@ function calcularPorcentajeFinanciamiento(
       if (mejorContrato === 'temporal') {
         limitaciones.push(0);
       } else {
-        limitaciones.push(80);
+        limitaciones.push(90);
       }
     }
   }
@@ -360,7 +360,7 @@ function calcularPorcentajeFinanciamiento(
   // Si no hay limitaciones específicas, aplicar regla de contrato base
   if (limitaciones.length === 0) {
     if (mejorContrato === 'funcionario') return 100;
-    if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return tipoDocumento === 'dni' ? 90 : 80;
+    if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) return 90;
     return 0;
   }
 
