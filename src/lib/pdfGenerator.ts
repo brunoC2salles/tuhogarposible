@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca } from './simuladorUtils';
+import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca, getTasaITP } from './simuladorUtils';
 import { type SimuladorCreditoFormData } from '@/schemas/simuladorSchema';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, STAGE_LABELS } from '@/types/crm';

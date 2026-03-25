@@ -191,12 +191,12 @@ export function ResultadosCombinados({
               </div>
 
               {/* Highlighted: Max property price + market context */}
-              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-2">
+              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
-                    <p className="text-[10px] text-muted-foreground">Basado en financiamiento al {porcentajeFinanciamiento.toFixed(0)}%</p>
+                    <p className="text-[10px] text-muted-foreground">Financiamiento al {porcentajeFinanciamiento.toFixed(0)}% + crédito personal + ahorros</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
@@ -209,6 +209,13 @@ export function ResultadosCombinados({
                       <p className="text-[10px] text-muted-foreground">{formatEuro(marketPrice.precioM2)}/m²</p>
                     </div>
                   )}
+                </div>
+                <div className="text-center text-xs text-muted-foreground border-t pt-2">
+                  <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</span>
+                  <span className="mx-1">+</span>
+                  <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)}</span>
+                  <span className="mx-1">+</span>
+                  <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
                 </div>
               </div>
 
