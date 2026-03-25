@@ -52,6 +52,14 @@ export function ResultadosCombinados({
   // Market price for context
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
 
+  // Calculate max personal credit cuota using French amortization
+  const tasaMensualPersonal = datos.tasaAnual / 12 / 100;
+  const cuotaMaxPersonal = tasaMensualPersonal > 0 && datos.plazoMeses > 0
+    ? resultadosPersonal.montoMaximoCredito * (tasaMensualPersonal * Math.pow(1 + tasaMensualPersonal, datos.plazoMeses)) / (Math.pow(1 + tasaMensualPersonal, datos.plazoMeses) - 1)
+    : resultadosPersonal.montoMaximoCredito / (datos.plazoMeses || 1);
+  const cuotaMaxHipoteca = resultadosHipoteca.hipotecaMaximaMensual;
+  const cuotaTotalMaxima = cuotaMaxPersonal + cuotaMaxHipoteca;
+
   const compromisoTotal = resultadosPersonal.cuotaMensual + resultadosHipoteca.cuotaMensual;
   const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
   const nivelRiesgo = porcentajeIngresos > 60 ? 'alto' : porcentajeIngresos > 50 ? 'medio' : 'bajo';
