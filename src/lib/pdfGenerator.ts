@@ -557,6 +557,11 @@ export function generateSimulacionCombinadaPDF(
       ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
       ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
       ['Monto máximo financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
+      ['Precio máximo de vivienda', formatEuro(
+        (resultadosHipoteca.porcentajeFinanciamiento || 80) > 0
+          ? resultadosHipoteca.montoMaximoFinanciable / ((resultadosHipoteca.porcentajeFinanciamiento || 80) / 100)
+          : 0
+      )],
       ['Total de intereses', formatEuro(resultadosHipoteca.totalIntereses)],
       ['Monto total a pagar', formatEuro(resultadosHipoteca.montoTotalPagar)],
     ],
@@ -575,12 +580,29 @@ export function generateSimulacionCombinadaPDF(
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 
-  if (resultadosHipoteca.aprobable) {
+  // Combined approval logic (mirrors ResultadosCombinados.tsx)
+  const personalCubreGap = resultadosPersonal.cualificado &&
+    resultadosPersonal.montoFinanciar <= resultadosPersonal.montoMaximoCredito;
+  const otrosCriteriosHipotecaCumplen =
+    resultadosHipoteca.cuotaMensual <= resultadosHipoteca.hipotecaMaximaMensual &&
+    resultadosHipoteca.hipotecaMaximaMensual >= 350 &&
+    resultadosHipoteca.montoFinanciable >= 70000 &&
+    resultadosHipoteca.montoFinanciable <= resultadosHipoteca.montoMaximoFinanciable;
+  const hipotecaAprobableConPersonal = !resultadosHipoteca.aprobable &&
+    !resultadosHipoteca.capitalPropioSuficiente &&
+    personalCubreGap &&
+    otrosCriteriosHipotecaCumplen;
+  const hipotecaAprobableFinal = resultadosHipoteca.aprobable || hipotecaAprobableConPersonal;
+
+  if (hipotecaAprobableFinal) {
     doc.setFillColor(34, 197, 94);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.text('✓ HIPOTECA APROBABLE', pageWidth / 2, currentY + 6, { align: 'center' });
+    const label = hipotecaAprobableConPersonal
+      ? '✓ HIPOTECA APROBABLE (con crédito personal)'
+      : '✓ HIPOTECA APROBABLE';
+    doc.text(label, pageWidth / 2, currentY + 6, { align: 'center' });
   } else {
     doc.setFillColor(220, 38, 38);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
