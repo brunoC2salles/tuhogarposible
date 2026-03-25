@@ -5,6 +5,8 @@ import { FileDown, X, CheckCircle } from "lucide-react";
 import { formatEuro, formatDateTime, type ResultadosSimulacion, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionCombinadaPDF } from "@/lib/pdfGenerator";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { getMarketPrice } from "@/lib/marketPriceUtils";
 
 interface ResultadosCombinadosProps {
   open: boolean;
@@ -24,7 +26,17 @@ export function ResultadosCombinados({
   resultadosPersonal,
   resultadosHipoteca,
 }: ResultadosCombinadosProps) {
+  const { map: marketMap } = useMarketPrices();
   const totalDeudas = datos.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
+
+  // Calculate max property price from max financiable amount
+  const porcentajeFinanciamiento = resultadosHipoteca.porcentajeFinanciamiento || 80;
+  const precioMaximoVivienda = porcentajeFinanciamiento > 0
+    ? resultadosHipoteca.montoMaximoFinanciable / (porcentajeFinanciamiento / 100)
+    : 0;
+
+  // Market price for context
+  const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
 
   const compromisoTotal = resultadosPersonal.cuotaMensual + resultadosHipoteca.cuotaMensual;
   const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
@@ -156,12 +168,33 @@ export function ResultadosCombinados({
                   <p className="text-xs text-primary mb-1">Cuota Mensual</p>
                   <p className="text-xl font-bold text-primary">{formatEuro(resultadosHipoteca.cuotaMensual)}/mes</p>
                   <p className="text-xs text-muted-foreground">{plazoHipotecaTexto} · {resultadosHipoteca.tasaAnualFija}% fijo</p>
-                  <p className="text-xs text-muted-foreground mt-1">Máx. financiable: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
                   <p className="text-[10px] text-muted-foreground mt-1">TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Ingresos Totales</p>
                   <p className="text-xl font-bold">{formatEuro(resultadosHipoteca.ingresosTotales)}/mes</p>
+                </div>
+              </div>
+
+              {/* Highlighted: Max property price + market context */}
+              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-2">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
+                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
+                    <p className="text-[10px] text-muted-foreground">Basado en financiamiento al {porcentajeFinanciamiento.toFixed(0)}%</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
+                    <p className="text-xl font-bold">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                  </div>
+                  {marketPrice && (
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Precio Medio en {marketPrice.municipio}</p>
+                      <p className="text-xl font-bold">{formatEuro(marketPrice.precioMedio)}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatEuro(marketPrice.precioM2)}/m²</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
