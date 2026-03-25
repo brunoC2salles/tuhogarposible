@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileDown, X, CheckCircle } from "lucide-react";
-import { formatEuro, formatDateTime, type ResultadosSimulacion, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
+import { formatEuro, formatDateTime, type ResultadosSimulacion, type ResultadosSimulacionHipoteca, getTasaITP } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionCombinadaPDF } from "@/lib/pdfGenerator";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -29,11 +29,25 @@ export function ResultadosCombinados({
   const { map: marketMap } = useMarketPrices();
   const totalDeudas = datos.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
 
-  // Calculate max property price from max financiable amount
+  // Calculate max property price considering personal credit + savings
   const porcentajeFinanciamiento = resultadosHipoteca.porcentajeFinanciamiento || 80;
-  const precioMaximoVivienda = porcentajeFinanciamiento > 0
-    ? resultadosHipoteca.montoMaximoFinanciable / (porcentajeFinanciamiento / 100)
+  const pctDecimal = porcentajeFinanciamiento / 100;
+
+  // Constraint 1: mortgage ceiling
+  const precioMaxHipoteca = pctDecimal > 0
+    ? resultadosHipoteca.montoMaximoFinanciable / pctDecimal
     : 0;
+
+  // Constraint 2: capital available (savings + max personal credit) must cover down payment + taxes + 2000€ fixed costs
+  const tasaITP = getTasaITP(datos.comunidadAutonoma, datos.familiaNumerosa, datos.menorDe35);
+  const fondosDisponibles = (datos.ahorrosDisponibles || 0) + resultadosPersonal.montoMaximoCredito;
+  const denominadorCapital = (1 - pctDecimal) + tasaITP;
+  const precioMaxCapital = denominadorCapital > 0
+    ? (fondosDisponibles - 2000) / denominadorCapital
+    : 0;
+
+  // Effective max = min of both constraints (both must hold)
+  const precioMaximoVivienda = Math.max(0, Math.min(precioMaxHipoteca, precioMaxCapital));
 
   // Market price for context
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
