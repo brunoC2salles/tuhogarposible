@@ -52,6 +52,14 @@ export function ResultadosCombinados({
   // Market price for context
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
 
+  // Calculate max personal credit cuota using French amortization
+  const tasaMensualPersonal = datos.tasaAnual / 12 / 100;
+  const cuotaMaxPersonal = tasaMensualPersonal > 0 && datos.plazoMeses > 0
+    ? resultadosPersonal.montoMaximoCredito * (tasaMensualPersonal * Math.pow(1 + tasaMensualPersonal, datos.plazoMeses)) / (Math.pow(1 + tasaMensualPersonal, datos.plazoMeses) - 1)
+    : resultadosPersonal.montoMaximoCredito / (datos.plazoMeses || 1);
+  const cuotaMaxHipoteca = resultadosHipoteca.hipotecaMaximaMensual;
+  const cuotaTotalMaxima = cuotaMaxPersonal + cuotaMaxHipoteca;
+
   const compromisoTotal = resultadosPersonal.cuotaMensual + resultadosHipoteca.cuotaMensual;
   const porcentajeIngresos = (compromisoTotal / datos.ingresosMensuales) * 100;
   const nivelRiesgo = porcentajeIngresos > 60 ? 'alto' : porcentajeIngresos > 50 ? 'medio' : 'bajo';
@@ -201,10 +209,12 @@ export function ResultadosCombinados({
                     <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
                     <p className="text-[10px] text-muted-foreground">Financiamiento al {porcentajeFinanciamiento.toFixed(0)}% + crédito personal + ahorros</p>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">Cuota total: {formatEuro(cuotaTotalMaxima)}/mes</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
                     <p className="text-xl font-bold">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Cuota: {formatEuro(cuotaMaxHipoteca)}/mes</p>
                   </div>
                   {marketPrice && (
                     <div className="text-center">
@@ -214,12 +224,15 @@ export function ResultadosCombinados({
                     </div>
                   )}
                 </div>
-                <div className="text-center text-xs text-muted-foreground border-t pt-2">
-                  <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</span>
-                  <span className="mx-1">+</span>
-                  <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)}</span>
-                  <span className="mx-1">+</span>
-                  <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
+                <div className="text-center text-xs text-muted-foreground border-t pt-2 space-y-1">
+                  <div>
+                    <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)} (cuota: {formatEuro(cuotaMaxHipoteca)}/mes)</span>
+                    <span className="mx-1">+</span>
+                    <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)} (cuota: {formatEuro(cuotaMaxPersonal)}/mes)</span>
+                    <span className="mx-1">+</span>
+                    <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
+                  </div>
+                  <p className="font-semibold text-foreground">Cuota total máxima: {formatEuro(cuotaTotalMaxima)}/mes</p>
                 </div>
               </div>
 
