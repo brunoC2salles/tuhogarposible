@@ -1,39 +1,34 @@
 
 
-# Plan: Factor Personal Credit into Max Property Price
+# Plan: Show Monthly Installments for Maximum Amounts
 
-## What changes
+## What
 
-The "Precio Máximo de Vivienda" currently only considers the mortgage ceiling: `montoMaxFinanciable / (porcentaje/100)`. This ignores that the lead can also use personal credit to cover the down payment and taxes, potentially reaching a higher property price.
+In the green highlighted box of `ResultadosCombinados.tsx`, add the monthly installment (cuota) that corresponds to each maximum amount:
+- **Cuota máx. hipoteca**: the monthly payment if the lead finances `montoMaximoFinanciable` (this is already `hipotecaMaximaMensual` from `resultadosHipoteca`)
+- **Cuota máx. crédito personal**: the monthly payment if the lead takes `montoMaximoCredito` (recalculate using French amortization with the personal loan rate/term)
+- **Cuota total máxima**: sum of both
 
-### New calculation logic
+## Changes
 
-Two constraints determine the real max property price:
+### `ResultadosCombinados.tsx`
+1. **Calculate max personal credit cuota**: Using French amortization formula with `resultadosPersonal.montoMaximoCredito`, `datos.tasaAnual`, and `datos.plazoMeses`
+2. **Get max mortgage cuota**: Already available as `resultadosHipoteca.hipotecaMaximaMensual` (35% of net income — this is the cuota ceiling that determines `montoMaximoFinanciable`)
+3. **Update the green box** to show under each max amount its corresponding monthly installment, plus the combined total cuota
 
-1. **Mortgage constraint**: `P <= montoMaxFinanciable / (porcentaje/100)` (unchanged)
-2. **Capital constraint**: `P*(1 - porcentaje/100) + P*tasaITP + 2000 <= ahorros + montoMaximoCredito`
-   → `P <= (ahorros + montoMaximoCredito - 2000) / (1 - porcentaje/100 + tasaITP)`
+### Layout update in the green box
+The breakdown line at the bottom will be enhanced to show cuotas:
+```
+Hipoteca máx: 150.000€ (cuota: 525€/mes)
++ Crédito personal máx: 24.000€ (cuota: 400€/mes)  
++ Ahorros: 10.000€
+Cuota total máxima: 925€/mes
+```
 
-The effective max = `min(constraint1, constraint2)`. We need the ITP rate for the selected region (already available via `calcularGastosHipoteca` logic — we'll extract the rate directly).
-
-### Changes in `ResultadosCombinados.tsx`
-- Import `calcularGastosHipoteca` or extract ITP rate logic
-- Calculate `precioMaxConPersonal` using both constraints
-- Display the enhanced max price in the green box, with a note showing that personal credit is factored in
-- Show breakdown: "Hipoteca máx: X€ + Crédito personal máx: Y€ + Ahorros: Z€"
-
-### Changes in `pdfGenerator.ts`
-- Add same calculation to the combined PDF
-- Update the "Precio máximo de vivienda" row to use the new value
-- Add a note indicating personal credit is included
+## Technical detail
+- Personal max cuota formula: `P * [r*(1+r)^n] / [(1+r)^n - 1]` where P = `montoMaximoCredito`, r = `tasaAnual/12/100`, n = `plazoMeses`
+- Mortgage max cuota = `resultadosHipoteca.hipotecaMaximaMensual`
 
 ## Files modified
-- `src/components/simuladores/ResultadosCombinados.tsx`
-- `src/lib/pdfGenerator.ts`
-
-## What does NOT change
-- `simuladorUtils.ts` calculation logic
-- Approval rules
-- Personal credit section
-- Plan de Pagos section
+- `src/components/simuladores/ResultadosCombinados.tsx` only
 
