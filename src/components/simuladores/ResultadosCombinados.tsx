@@ -209,10 +209,12 @@ export function ResultadosCombinados({
                     <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
                     <p className="text-[10px] text-muted-foreground">Financiamiento al {porcentajeFinanciamiento.toFixed(0)}% + crédito personal + ahorros</p>
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">Cuota total: {formatEuro(cuotaTotalMaxima)}/mes</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
                     <p className="text-xl font-bold">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Cuota: {formatEuro(cuotaMaxHipoteca)}/mes</p>
                   </div>
                   {marketPrice && (
                     <div className="text-center">
