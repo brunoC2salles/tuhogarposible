@@ -123,11 +123,15 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div className="bg-primary/10 border-2 border-primary rounded-lg p-3">
                   <p className="text-xs text-primary mb-1">Cuota Mensual</p>
                   <p className="text-xl font-bold text-primary">{formatEuro(resultadosPersonal.cuotaMensual)}/mes</p>
-                  <p className="text-xs text-muted-foreground mt-1">Crédito máximo: {formatEuro(resultadosPersonal.montoMaximoCredito)} (20% ingresos - deudas)</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Crédito Máximo</p>
+                  <p className="text-xl font-bold">{formatEuro(resultadosPersonal.montoMaximoCredito)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">20% ingresos - deudas</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Total a Pagar</p>
