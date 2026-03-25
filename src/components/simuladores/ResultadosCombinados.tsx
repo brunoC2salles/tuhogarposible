@@ -202,37 +202,65 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              {/* Highlighted: Max property price + market context */}
-              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
-                    <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
-                    <p className="text-[10px] text-muted-foreground">Financiamiento al {porcentajeFinanciamiento.toFixed(0)}% + crédito personal + ahorros</p>
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400 mt-1">Cuota total: {formatEuro(cuotaTotalMaxima)}/mes</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
-                    <p className="text-xl font-bold">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Cuota: {formatEuro(cuotaMaxHipoteca)}/mes</p>
-                  </div>
-                  {marketPrice && (
-                    <div className="text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Precio Medio en {marketPrice.municipio}</p>
-                      <p className="text-xl font-bold">{formatEuro(marketPrice.precioMedio)}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatEuro(marketPrice.precioM2)}/m²</p>
-                    </div>
-                  )}
+              {/* CAPACIDAD MÁXIMA DE COMPRA */}
+              <div className="border-2 border-green-500 rounded-lg overflow-hidden">
+                <div className="bg-green-500 px-4 py-2.5">
+                  <span className="text-white font-bold text-sm uppercase tracking-wide">Capacidad Máxima de Compra</span>
                 </div>
-                <div className="text-center text-xs text-muted-foreground border-t pt-2 space-y-1">
-                  <div>
-                    <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)} (cuota: {formatEuro(cuotaMaxHipoteca)}/mes)</span>
-                    <span className="mx-1">+</span>
-                    <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)} (cuota: {formatEuro(cuotaMaxPersonal)}/mes)</span>
-                    <span className="mx-1">+</span>
-                    <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
+                <div className="bg-green-50 dark:bg-green-950 p-4 space-y-4">
+                  {/* Row 1: Three source cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Hipoteca Máxima</p>
+                      <p className="text-lg font-bold text-foreground">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                      <div className="mt-1.5 pt-1.5 border-t border-green-200 dark:border-green-800">
+                        <p className="text-[10px] text-muted-foreground">Cuota mensual máxima</p>
+                        <p className="text-sm font-semibold text-primary">{formatEuro(cuotaMaxHipoteca)}/mes</p>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-1">35% ingresos líquidos</p>
+                    </div>
+                    <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Crédito Personal Máximo</p>
+                      <p className="text-lg font-bold text-foreground">{formatEuro(resultadosPersonal.montoMaximoCredito)}</p>
+                      <div className="mt-1.5 pt-1.5 border-t border-green-200 dark:border-green-800">
+                        <p className="text-[10px] text-muted-foreground">Cuota mensual máxima</p>
+                        <p className="text-sm font-semibold text-primary">{formatEuro(cuotaMaxPersonal)}/mes</p>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-1">20% ingresos − deudas</p>
+                    </div>
+                    <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Ahorros Disponibles</p>
+                      <p className="text-lg font-bold text-foreground">{formatEuro(datos.ahorrosDisponibles || 0)}</p>
+                      <div className="mt-1.5 pt-1.5 border-t border-green-200 dark:border-green-800">
+                        <p className="text-[10px] text-muted-foreground">Sin cuota asociada</p>
+                        <p className="text-sm font-semibold text-muted-foreground">—</p>
+                      </div>
+                      <p className="text-[9px] text-muted-foreground mt-1">Capital propio</p>
+                    </div>
                   </div>
-                  <p className="font-semibold text-foreground">Cuota total máxima: {formatEuro(cuotaTotalMaxima)}/mes</p>
+
+                  {/* Row 2: Summary — max price, total cuota, market */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-green-100 dark:bg-green-900 border-2 border-green-500 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-green-700 dark:text-green-300 font-semibold mb-1">Precio Máximo de Vivienda</p>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
+                      <p className="text-[10px] text-green-600 dark:text-green-400 mt-1">Hipoteca + Crédito personal + Ahorros</p>
+                    </div>
+                    <div className="bg-white dark:bg-green-900/50 border border-green-300 dark:border-green-700 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Cuota Total Máxima</p>
+                      <p className="text-2xl font-bold text-primary">{formatEuro(cuotaTotalMaxima)}/mes</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatEuro(cuotaMaxHipoteca)} hipoteca + {formatEuro(cuotaMaxPersonal)} personal
+                      </p>
+                    </div>
+                    {marketPrice && (
+                      <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                        <p className="text-[11px] text-muted-foreground font-medium mb-1">Precio Medio en {marketPrice.municipio}</p>
+                        <p className="text-xl font-bold text-foreground">{formatEuro(marketPrice.precioMedio)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{formatEuro(marketPrice.precioM2)}/m²</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
