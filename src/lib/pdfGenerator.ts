@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca } from './simuladorUtils';
+import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca, getTasaITP } from './simuladorUtils';
 import { type SimuladorCreditoFormData } from '@/schemas/simuladorSchema';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, STAGE_LABELS } from '@/types/crm';
@@ -552,19 +552,25 @@ export function generateSimulacionCombinadaPDF(
   autoTable(doc, {
     startY: currentY,
     head: [['Concepto', 'Valor']],
-    body: [
-      [`Monto a financiar (${resultadosHipoteca.porcentajeFinanciamiento?.toFixed(0)}%)`, formatEuro(resultadosHipoteca.montoFinanciable)],
-      ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
-      ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
-      ['Monto máximo financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
-      ['Precio máximo de vivienda', formatEuro(
-        (resultadosHipoteca.porcentajeFinanciamiento || 80) > 0
-          ? resultadosHipoteca.montoMaximoFinanciable / ((resultadosHipoteca.porcentajeFinanciamiento || 80) / 100)
-          : 0
-      )],
-      ['Total de intereses', formatEuro(resultadosHipoteca.totalIntereses)],
-      ['Monto total a pagar', formatEuro(resultadosHipoteca.montoTotalPagar)],
-    ],
+    body: (() => {
+      const pct = resultadosHipoteca.porcentajeFinanciamiento || 80;
+      const pctDec = pct / 100;
+      const precioMaxHipoteca = pctDec > 0 ? resultadosHipoteca.montoMaximoFinanciable / pctDec : 0;
+      const tasaITP = getTasaITP(datos.comunidadAutonoma, datos.familiaNumerosa, datos.menorDe35);
+      const fondos = (datos.ahorrosDisponibles || 0) + resultadosPersonal.montoMaximoCredito;
+      const denom = (1 - pctDec) + tasaITP;
+      const precioMaxCapital = denom > 0 ? (fondos - 2000) / denom : 0;
+      const precioMax = Math.max(0, Math.min(precioMaxHipoteca, precioMaxCapital));
+      return [
+        [`Monto a financiar (${pct.toFixed(0)}%)`, formatEuro(resultadosHipoteca.montoFinanciable)],
+        ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
+        ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
+        ['Monto máximo financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
+        ['Precio máximo de vivienda*', formatEuro(precioMax)],
+        ['Total de intereses', formatEuro(resultadosHipoteca.totalIntereses)],
+        ['Monto total a pagar', formatEuro(resultadosHipoteca.montoTotalPagar)],
+      ];
+    })(),
     theme: 'grid',
     headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold' },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 'auto' } },
@@ -577,6 +583,8 @@ export function generateSimulacionCombinadaPDF(
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
   doc.text('TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)', margin, currentY);
+  currentY += 4;
+  doc.text('*Precio máximo considerando hipoteca + crédito personal máx. + ahorros disponibles', margin, currentY);
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 

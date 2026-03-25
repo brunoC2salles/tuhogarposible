@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileDown, X, CheckCircle } from "lucide-react";
-import { formatEuro, formatDateTime, type ResultadosSimulacion, type ResultadosSimulacionHipoteca } from "@/lib/simuladorUtils";
+import { formatEuro, formatDateTime, type ResultadosSimulacion, type ResultadosSimulacionHipoteca, getTasaITP } from "@/lib/simuladorUtils";
 import { type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
 import { generateSimulacionCombinadaPDF } from "@/lib/pdfGenerator";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -29,11 +29,25 @@ export function ResultadosCombinados({
   const { map: marketMap } = useMarketPrices();
   const totalDeudas = datos.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
 
-  // Calculate max property price from max financiable amount
+  // Calculate max property price considering personal credit + savings
   const porcentajeFinanciamiento = resultadosHipoteca.porcentajeFinanciamiento || 80;
-  const precioMaximoVivienda = porcentajeFinanciamiento > 0
-    ? resultadosHipoteca.montoMaximoFinanciable / (porcentajeFinanciamiento / 100)
+  const pctDecimal = porcentajeFinanciamiento / 100;
+
+  // Constraint 1: mortgage ceiling
+  const precioMaxHipoteca = pctDecimal > 0
+    ? resultadosHipoteca.montoMaximoFinanciable / pctDecimal
     : 0;
+
+  // Constraint 2: capital available (savings + max personal credit) must cover down payment + taxes + 2000€ fixed costs
+  const tasaITP = getTasaITP(datos.comunidadAutonoma, datos.familiaNumerosa, datos.menorDe35);
+  const fondosDisponibles = (datos.ahorrosDisponibles || 0) + resultadosPersonal.montoMaximoCredito;
+  const denominadorCapital = (1 - pctDecimal) + tasaITP;
+  const precioMaxCapital = denominadorCapital > 0
+    ? (fondosDisponibles - 2000) / denominadorCapital
+    : 0;
+
+  // Effective max = min of both constraints (both must hold)
+  const precioMaximoVivienda = Math.max(0, Math.min(precioMaxHipoteca, precioMaxCapital));
 
   // Market price for context
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
@@ -177,12 +191,12 @@ export function ResultadosCombinados({
               </div>
 
               {/* Highlighted: Max property price + market context */}
-              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-2">
+              <div className="border-2 border-green-500 bg-green-50 dark:bg-green-950 rounded-lg p-4 space-y-3">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Precio Máximo de Vivienda</p>
                     <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
-                    <p className="text-[10px] text-muted-foreground">Basado en financiamiento al {porcentajeFinanciamiento.toFixed(0)}%</p>
+                    <p className="text-[10px] text-muted-foreground">Financiamiento al {porcentajeFinanciamiento.toFixed(0)}% + crédito personal + ahorros</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-muted-foreground mb-1">Máx. Financiable</p>
@@ -195,6 +209,13 @@ export function ResultadosCombinados({
                       <p className="text-[10px] text-muted-foreground">{formatEuro(marketPrice.precioM2)}/m²</p>
                     </div>
                   )}
+                </div>
+                <div className="text-center text-xs text-muted-foreground border-t pt-2">
+                  <span>Hipoteca máx: {formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</span>
+                  <span className="mx-1">+</span>
+                  <span>Crédito personal máx: {formatEuro(resultadosPersonal.montoMaximoCredito)}</span>
+                  <span className="mx-1">+</span>
+                  <span>Ahorros: {formatEuro(datos.ahorrosDisponibles || 0)}</span>
                 </div>
               </div>
 

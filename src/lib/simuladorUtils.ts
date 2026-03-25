@@ -237,6 +237,29 @@ export function calcularGastosHipoteca(
 }
 
 /**
+ * Returns the effective ITP rate for a given region (after discounts).
+ * Useful for max-price calculations without computing full gastos.
+ */
+export function getTasaITP(
+  comunidad: string,
+  familiaNumerosa: boolean,
+  menorDe35: boolean
+): number {
+  const tasasComunidad: Record<string, number> = {
+    'Andalucía': 0.07, 'Aragón': 0.08, 'Asturias': 0.08, 'Baleares': 0.08,
+    'Canarias': 0.065, 'Cantabria': 0.10, 'Castilla-La Mancha': 0.09,
+    'Castilla y León': 0.08, 'Cataluña': 0.10, 'Ceuta': 0.06,
+    'Comunidad de Madrid': 0.06, 'Comunidad Valenciana': 0.10,
+    'Extremadura': 0.08, 'Galicia': 0.08, 'La Rioja': 0.07, 'Melilla': 0.06,
+    'Murcia': 0.08, 'Navarra': 0.06, 'País Vasco': 0.04
+  };
+  let tasa = tasasComunidad[comunidad] || 0.08;
+  if (familiaNumerosa) tasa *= 0.5;
+  if (menorDe35) tasa *= 0.9;
+  return tasa;
+}
+
+/**
  * Calcula plazo máximo en años según edad
  * Regla simplificada:
  * - Plazo máximo padrón: 30 años
