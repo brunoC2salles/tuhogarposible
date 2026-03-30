@@ -109,7 +109,7 @@ export function ResultadosCombinados({
           {/* SECCIÓN 1: CRÉDITO PERSONAL */}
           <div className="border rounded-lg overflow-hidden">
             <div className="bg-primary px-4 py-3 flex items-center gap-2">
-              <span className="text-primary-foreground font-bold text-lg">Crédito Personal</span>
+              <span className="text-primary-foreground font-bold text-lg">Crédito Personal de Acuerdo con Documentación</span>
             </div>
             <div className="p-4 space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
