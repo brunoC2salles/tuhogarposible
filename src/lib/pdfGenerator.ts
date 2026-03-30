@@ -497,7 +497,6 @@ export function generateSimulacionCombinadaPDF(
     body: [
       ['Máximo Crédito Personal (20% ingresos − deudas)', formatEuro(resultadosPersonal.montoMaximoCredito)],
       ['Cantidad solicitada', formatEuro(resultadosPersonal.montoFinanciar)],
-      ['Cuota mensual', formatEuro(resultadosPersonal.cuotaMensual)],
       ['Total de intereses', formatEuro(resultadosPersonal.totalIntereses)],
       ['Monto total a pagar', formatEuro(resultadosPersonal.montoTotalPagar)],
     ],
