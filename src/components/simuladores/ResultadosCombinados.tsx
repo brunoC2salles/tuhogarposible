@@ -112,25 +112,6 @@ export function ResultadosCombinados({
               <span className="text-primary-foreground font-bold text-lg">Crédito Personal de Acuerdo con Documentación</span>
             </div>
             <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Capital Propio Necesario</p>
-                  <p className="font-bold">{formatEuro(resultadosPersonal.montoFinanciar + datos.ahorrosDisponibles)}</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Ahorros (Entrada)</p>
-                  <p className="font-bold">{formatEuro(datos.ahorrosDisponibles)}</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Plazo</p>
-                  <p className="font-bold">{plazoPersonalTexto}</p>
-                </div>
-                <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Tasa</p>
-                  <p className="font-bold">{datos.tasaAnual}% anual</p>
-                </div>
-              </div>
-
               <div className="bg-primary/10 border border-primary/30 rounded-lg p-3">
                 <p className="text-sm text-foreground">
                   <strong>Monto extra a financiar:</strong> {formatEuro(resultadosPersonal.montoFinanciar)}
