@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ExternalLink, Info } from "lucide-react";
 import Logo from "@/components/Logo";
 
-const INMOVILLA_URL = "https://crm.inmovilla.com/panel/";
+const INMOVILLA_URL = "https://crm.tuhogarposible.net/login";
 
 export const InmovillaCasafariSection = () => {
   return (
