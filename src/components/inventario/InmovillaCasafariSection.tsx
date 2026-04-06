@@ -30,13 +30,6 @@ export const InmovillaCasafariSection = () => {
           </Button>
         </div>
         
-        <Alert className="mt-4">
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Inicia sesión en Inmovilla con tus credenciales. 
-            La sesión se mantiene activa mientras navegas.
-          </AlertDescription>
-        </Alert>
       </CardHeader>
       
       <CardContent className="p-0">
