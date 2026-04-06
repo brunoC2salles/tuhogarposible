@@ -1,7 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ExternalLink, Info } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import Logo from "@/components/Logo";
 
 const INMOVILLA_URL = "https://crm.tuhogarposible.net/login";
@@ -30,13 +29,6 @@ export const InmovillaCasafariSection = () => {
           </Button>
         </div>
         
-        <Alert className="mt-4">
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            Inicia sesión en Inmovilla con tus credenciales. 
-            La sesión se mantiene activa mientras navegas.
-          </AlertDescription>
-        </Alert>
       </CardHeader>
       
       <CardContent className="p-0">
