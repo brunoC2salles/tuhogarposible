@@ -309,12 +309,12 @@ function determinarMejorContrato(
 /**
  * Calcula el porcentaje de financiamiento con reglas DNI vs NIE
  * REGLAS:
- * 1. No residente fiscal → máximo 70%
- * 2. Inversión → máximo 50%
- * 3. Segunda residencia → máximo 70%
- * 4. Vivienda habitual + residente:
- *    - DNI (español): funcionario 100%, indefinido/interino/fijo_disc 90%, temporal 0%
- *    - NIE (extranjero): temporal 0%, otros 90%
+ * 1. NIE → 0% siempre (descualificado)
+ * 2. No residente fiscal → máximo 70%
+ * 3. Inversión → máximo 50%
+ * 4. Segunda residencia → máximo 70%
+ * 5. Vivienda habitual + residente + DNI:
+ *    - funcionario 100%, indefinido/interino/fijo_disc 90%, temporal 0%
  */
 function calcularPorcentajeFinanciamiento(
   mejorContrato: string,
@@ -322,6 +322,12 @@ function calcularPorcentajeFinanciamiento(
   esResidenteFiscal: boolean,
   tipoDocumento: 'dni' | 'nie' = 'dni'
 ): number {
+  // NIE = 0% siempre (descualificado)
+  if (tipoDocumento === 'nie') {
+    console.log('[Financiamiento] NIE detectado - descualificado (0%)');
+    return 0;
+  }
+
   const limitaciones: number[] = [];
 
   // 1. LIMITACIÓN POR RESIDENCIA FISCAL
@@ -336,24 +342,14 @@ function calcularPorcentajeFinanciamiento(
     limitaciones.push(70);
   }
 
-  // 3. LIMITACIÓN POR TIPO DE CONTRATO + DOCUMENTO
+  // 3. LIMITACIÓN POR TIPO DE CONTRATO (solo DNI llega aquí)
   if (finalidadCompra === 'vivienda_habitual' && esResidenteFiscal) {
-    if (tipoDocumento === 'dni') {
-      // Español: DNI = hasta 90% (funcionario 100%)
-      if (mejorContrato === 'funcionario') {
-        limitaciones.push(100);
-      } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
-        limitaciones.push(90);
-      } else {
-        limitaciones.push(0); // temporal
-      }
+    if (mejorContrato === 'funcionario') {
+      limitaciones.push(100);
+    } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
+      limitaciones.push(90);
     } else {
-      // Extranjero: NIE = hasta 80%
-      if (mejorContrato === 'temporal') {
-        limitaciones.push(0);
-      } else {
-        limitaciones.push(90);
-      }
+      limitaciones.push(0); // temporal
     }
   }
 
