@@ -342,24 +342,14 @@ function calcularPorcentajeFinanciamiento(
     limitaciones.push(70);
   }
 
-  // 3. LIMITACIÓN POR TIPO DE CONTRATO + DOCUMENTO
+  // 3. LIMITACIÓN POR TIPO DE CONTRATO (solo DNI llega aquí)
   if (finalidadCompra === 'vivienda_habitual' && esResidenteFiscal) {
-    if (tipoDocumento === 'dni') {
-      // Español: DNI = hasta 90% (funcionario 100%)
-      if (mejorContrato === 'funcionario') {
-        limitaciones.push(100);
-      } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
-        limitaciones.push(90);
-      } else {
-        limitaciones.push(0); // temporal
-      }
+    if (mejorContrato === 'funcionario') {
+      limitaciones.push(100);
+    } else if (['interino', 'fijo_discontinuo', 'indefinido'].includes(mejorContrato)) {
+      limitaciones.push(90);
     } else {
-      // Extranjero: NIE = hasta 80%
-      if (mejorContrato === 'temporal') {
-        limitaciones.push(0);
-      } else {
-        limitaciones.push(90);
-      }
+      limitaciones.push(0); // temporal
     }
   }
 
