@@ -437,10 +437,6 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   if (!dniResult.tiene) {
     return { cualificado: false, razon_no_cualificado: 'No tiene NIE/DNI' };
   }
-  // NIE = descualificado automáticamente
-  if (dniResult.tipo && dniResult.tipo.includes('nie')) {
-    return { cualificado: false, razon_no_cualificado: 'Tiene NIE - no cualificado' };
-  }
   
   // Critério 3: NO está en fichero de morosidad
   if (data.en_fichero_morosidad) {
