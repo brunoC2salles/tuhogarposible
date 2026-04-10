@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca, getTasaITP } from './simuladorUtils';
+import { formatEuro, formatDateTime, type ResultadosSimulacion, calcularAmortizacionFrancesa, calcularSimulacionHipoteca, type DatosSimulacion, type DatosSimulacionHipoteca } from './simuladorUtils';
 import { type SimuladorCreditoFormData } from '@/schemas/simuladorSchema';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, STAGE_LABELS } from '@/types/crm';
@@ -14,39 +14,33 @@ export function generateSimulacionPDF(
 ) {
   const doc = new jsPDF();
   
-  // Configurações
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   let currentY = margin;
 
-  // Logo centralizada
   const logoWidth = 30;
   const logoHeight = 30;
   const logoX = (pageWidth - logoWidth) / 2;
   doc.addImage(logo, 'PNG', logoX, currentY, logoWidth, logoHeight);
   currentY += logoHeight + 10;
 
-  // Título
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('SIMULACIÓN DE CRÉDITO PERSONAL', pageWidth / 2, currentY, { align: 'center' });
   currentY += 10;
 
-  // Data e hora
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${formatDateTime()}`, pageWidth / 2, currentY, { align: 'center' });
   currentY += 15;
 
-  // Linha separadora
   doc.setDrawColor(200, 200, 200);
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // DADOS DO CLIENTE
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
@@ -64,11 +58,9 @@ export function generateSimulacionPDF(
   doc.text(`Deudas actuales: ${formatEuro(datos.deudasActuales)}`, margin, currentY);
   currentY += 12;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // CONDICIONES DEL PRÉSTAMO
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('CONDICIONES DEL PRÉSTAMO', margin, currentY);
@@ -92,17 +84,14 @@ export function generateSimulacionPDF(
   doc.text(`Tasa de interés: ${datos.tasaAnual}% anual`, margin, currentY);
   currentY += 12;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // RESULTADOS DE LA SIMULACIÓN
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('RESULTADOS DE LA SIMULACIÓN', margin, currentY);
   currentY += 10;
 
-  // Tabela de resultados
   autoTable(doc, {
     startY: currentY,
     head: [['Concepto', 'Valor']],
@@ -114,23 +103,15 @@ export function generateSimulacionPDF(
       ['Monto total a pagar', formatEuro(resultados.montoTotalPagar)]
     ],
     theme: 'grid',
-    headStyles: {
-      fillColor: [41, 98, 255],
-      textColor: 255,
-      fontStyle: 'bold'
-    },
-    columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 80 },
-      1: { halign: 'right', cellWidth: 'auto' }
-    },
+    headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: 'bold' },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 80 }, 1: { halign: 'right', cellWidth: 'auto' } },
     margin: { left: margin, right: margin }
   });
 
   currentY = (doc as any).lastAutoTable.finalY + 10;
 
-  // Badge de cualificación
   if (!resultados.cualificado) {
-    doc.setFillColor(220, 38, 38); // Vermelho
+    doc.setFillColor(220, 38, 38);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 10, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -138,7 +119,7 @@ export function generateSimulacionPDF(
     doc.setTextColor(0, 0, 0);
     currentY += 15;
   } else {
-    doc.setFillColor(34, 197, 94); // Verde
+    doc.setFillColor(34, 197, 94);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 10, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -147,14 +128,10 @@ export function generateSimulacionPDF(
     currentY += 15;
   }
 
-  // Espaço antes do disclaimer
   currentY += 5;
-
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // RGPD Badge
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(34, 139, 34);
@@ -166,33 +143,22 @@ export function generateSimulacionPDF(
   doc.text('El usuario ha aceptado la Política de Privacidad y el tratamiento de sus datos conforme al RGPD.', margin, currentY);
   currentY += 10;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // Disclaimer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
-  
   const disclaimerText = 
     'Cálculo realizado según las reglas de Tu Hogar Posible. Los valores son orientativos y sujetos a aprobación crediticia. ' +
     'Esta simulación no constituye una oferta vinculante. Para información oficial, consulte con nuestros asesores.';
-  
   const splitDisclaimer = doc.splitTextToSize(disclaimerText, pageWidth - 2 * margin);
   doc.text(splitDisclaimer, margin, currentY);
 
-  // Footer com data
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(
-    `Documento generado el ${formatDateTime()}`,
-    pageWidth / 2,
-    pageHeight - 10,
-    { align: 'center' }
-  );
+  doc.text(`Documento generado el ${formatDateTime()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-  // Salvar PDF
   const fileName = `Simulacion_${datos.nombreCompleto.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
   doc.save(fileName);
 }
@@ -205,39 +171,33 @@ export function generateSimulacionHipotecariaPDF(
 ) {
   const doc = new jsPDF();
   
-  // Configurações
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
   let currentY = margin;
 
-  // Logo centralizada
   const logoWidth = 30;
   const logoHeight = 30;
   const logoX = (pageWidth - logoWidth) / 2;
   doc.addImage(logo, 'PNG', logoX, currentY, logoWidth, logoHeight);
   currentY += logoHeight + 10;
 
-  // Título
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text('SIMULACIÓN DE CRÉDITO HIPOTECARIO', pageWidth / 2, currentY, { align: 'center' });
   currentY += 10;
 
-  // Data e hora
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(`Fecha: ${formatDateTime()}`, pageWidth / 2, currentY, { align: 'center' });
   currentY += 15;
 
-  // Linha separadora
   doc.setDrawColor(200, 200, 200);
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // DADOS DO CLIENTE
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
@@ -257,11 +217,9 @@ export function generateSimulacionHipotecariaPDF(
   doc.text(`Créditos pendientes: ${formatEuro(datos.creditosPendientes)}`, margin, currentY);
   currentY += 12;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // DATOS DE LA VIVIENDA
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('DATOS DE LA VIVIENDA', margin, currentY);
@@ -282,11 +240,9 @@ export function generateSimulacionHipotecariaPDF(
   doc.text(`Gastos e impuestos: ${formatEuro(resultados.gastosImpuestos)}`, margin, currentY);
   currentY += 12;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // CONDICIONES FINANCIERAS
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('CONDICIONES FINANCIERAS', margin, currentY);
@@ -305,17 +261,14 @@ export function generateSimulacionHipotecariaPDF(
   doc.text(`Hipoteca máxima mensual: ${formatEuro(resultados.hipotecaMaximaMensual)}`, margin, currentY);
   currentY += 12;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // RESULTADOS DE LA SIMULACIÓN
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.text('RESULTADOS DE LA SIMULACIÓN', margin, currentY);
   currentY += 10;
 
-  // Tabela de resultados
   autoTable(doc, {
     startY: currentY,
     head: [['Concepto', 'Valor']],
@@ -327,23 +280,15 @@ export function generateSimulacionHipotecariaPDF(
       ['Monto total a pagar', formatEuro(resultados.montoTotalPagar)]
     ],
     theme: 'grid',
-    headStyles: {
-      fillColor: [41, 98, 255],
-      textColor: 255,
-      fontStyle: 'bold'
-    },
-    columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 100 },
-      1: { halign: 'right', cellWidth: 'auto' }
-    },
+    headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: 'bold' },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 'auto' } },
     margin: { left: margin, right: margin }
   });
 
   currentY = (doc as any).lastAutoTable.finalY + 10;
 
-  // Badge de aprobación
   if (resultados.aprobable) {
-    doc.setFillColor(34, 197, 94); // Verde
+    doc.setFillColor(34, 197, 94);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 10, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -351,7 +296,7 @@ export function generateSimulacionHipotecariaPDF(
     doc.setTextColor(0, 0, 0);
     currentY += 15;
   } else {
-    doc.setFillColor(220, 38, 38); // Vermelho
+    doc.setFillColor(220, 38, 38);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 10, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -360,14 +305,10 @@ export function generateSimulacionHipotecariaPDF(
     currentY += 15;
   }
 
-  // Espaço antes do disclaimer
   currentY += 5;
-
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // RGPD Badge
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(34, 139, 34);
@@ -379,43 +320,31 @@ export function generateSimulacionHipotecariaPDF(
   doc.text('El usuario ha aceptado la Política de Privacidad y el tratamiento de sus datos conforme al RGPD.', margin, currentY);
   currentY += 10;
 
-  // Linha separadora
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 10;
 
-  // Disclaimer
   doc.setFontSize(8);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(100, 100, 100);
-  
   const disclaimerText = 
     'Cálculo realizado según las reglas de Tu Hogar Posible. Los valores son orientativos y sujetos a aprobación crediticia. ' +
     'El plazo máximo depende de la edad del solicitante. Los gastos e impuestos varían según la comunidad autónoma. ' +
     'Esta simulación no constituye una oferta vinculante. Para información oficial, consulte con nuestros asesores.';
-  
   const splitDisclaimer = doc.splitTextToSize(disclaimerText, pageWidth - 2 * margin);
   doc.text(splitDisclaimer, margin, currentY);
 
-  // Footer com data
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(
-    `Documento generado el ${formatDateTime()}`,
-    pageWidth / 2,
-    pageHeight - 10,
-    { align: 'center' }
-  );
+  doc.text(`Documento generado el ${formatDateTime()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-  // Salvar PDF
   const fileName = `Simulacion_Hipoteca_${datos.nombreCompleto.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
   doc.save(fileName);
 }
 
-// ========== SIMULADOR COMBINADO ==========
+// ========== SIMULADOR COMBINADO (now mortgage-only) ==========
 
 export function generateSimulacionCombinadaPDF(
   datos: any,
-  resultadosPersonal: any,
   resultadosHipoteca: any
 ) {
   const doc = new jsPDF();
@@ -435,7 +364,7 @@ export function generateSimulacionCombinadaPDF(
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('SIMULACIÓN FINANCIERA COMBINADA', pageWidth / 2, currentY, { align: 'center' });
+  doc.text('SIMULACIÓN HIPOTECARIA', pageWidth / 2, currentY, { align: 'center' });
   currentY += 8;
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
@@ -460,70 +389,14 @@ export function generateSimulacionCombinadaPDF(
   doc.text(`Edad: ${datos.edad} años`, margin, currentY);
   currentY += 5;
   doc.text(`Ingresos mensuales: ${formatEuro(datos.ingresosMensuales)}`, margin, currentY);
+  currentY += 5;
+  doc.text(`Ahorros disponibles: ${formatEuro(datos.ahorrosDisponibles || 0)}`, margin, currentY);
   currentY += 10;
 
   doc.line(margin, currentY, pageWidth - margin, currentY);
   currentY += 8;
 
-  // ===== SECCIÓN 1: CRÉDITO PERSONAL =====
-  doc.setFontSize(13);
-  doc.setFont('helvetica', 'bold');
-  doc.setFillColor(41, 98, 255);
-  doc.rect(margin, currentY - 1, pageWidth - 2 * margin, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.text('CRÉDITO PERSONAL', margin + 2, currentY + 5);
-  doc.setTextColor(0, 0, 0);
-  currentY += 14;
-
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  const capitalPropioNecesario = resultadosHipoteca.capitalPropioNecesario || 0;
-  doc.text(`Importe a financiar (capital propio necesario): ${formatEuro(capitalPropioNecesario)}`, margin, currentY);
-  currentY += 5;
-  doc.text(`Ahorros (Entrada): ${formatEuro(datos.ahorrosDisponibles || 0)}`, margin, currentY);
-  currentY += 5;
-
-  const plazoAnios = Math.floor(datos.plazoMeses / 12);
-  const plazoMesesR = datos.plazoMeses % 12;
-  const plazoTextoP = plazoMesesR > 0 ? `${plazoAnios} años y ${plazoMesesR} meses` : `${plazoAnios} años`;
-  doc.text(`Plazo: ${datos.plazoMeses} meses (${plazoTextoP})`, margin, currentY);
-  currentY += 5;
-  doc.text(`Tasa de interés: ${datos.tasaAnual}% anual`, margin, currentY);
-  currentY += 8;
-
-  autoTable(doc, {
-    startY: currentY,
-    head: [['Concepto', 'Valor']],
-    body: [
-      ['Máximo Crédito Personal (20% ingresos − deudas)', formatEuro(resultadosPersonal.montoMaximoCredito)],
-      ['Cantidad solicitada', formatEuro(resultadosPersonal.montoFinanciar)],
-      ['Total de intereses', formatEuro(resultadosPersonal.totalIntereses)],
-      ['Monto total a pagar', formatEuro(resultadosPersonal.montoTotalPagar)],
-    ],
-    theme: 'grid',
-    headStyles: { fillColor: [41, 98, 255], textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 'auto' } },
-    margin: { left: margin, right: margin }
-  });
-  currentY = (doc as any).lastAutoTable.finalY + 5;
-
-  if (resultadosPersonal.cualificado) {
-    doc.setFillColor(34, 197, 94);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('✓ CANDIDATO CUALIFICADO', pageWidth / 2, currentY + 6, { align: 'center' });
-  } else {
-    doc.setFillColor(220, 38, 38);
-    doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.text('⚠ CANDIDATO NO CUALIFICADO', pageWidth / 2, currentY + 6, { align: 'center' });
-  }
-  doc.setTextColor(0, 0, 0);
-  currentY += 14;
-
-  // ===== SECCIÓN 2: CRÉDITO HIPOTECARIO =====
+  // ===== CRÉDITO HIPOTECARIO =====
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.setFillColor(15, 118, 110);
@@ -548,28 +421,24 @@ export function generateSimulacionCombinadaPDF(
   doc.text(`Plazo máximo: ${resultadosHipoteca.plazoMaximoMeses} meses (${plazoHTexto})`, margin, currentY);
   currentY += 8;
 
+  // Max price based on mortgage only
+  const pct = resultadosHipoteca.porcentajeFinanciamiento || 80;
+  const pctDec = pct / 100;
+  const precioMaxHipoteca = pctDec > 0 ? resultadosHipoteca.montoMaximoFinanciable / pctDec : 0;
+  const precioMax = Math.max(0, precioMaxHipoteca);
+
   autoTable(doc, {
     startY: currentY,
     head: [['Concepto', 'Valor']],
-    body: (() => {
-      const pct = resultadosHipoteca.porcentajeFinanciamiento || 80;
-      const pctDec = pct / 100;
-      const precioMaxHipoteca = pctDec > 0 ? resultadosHipoteca.montoMaximoFinanciable / pctDec : 0;
-      const tasaITP = getTasaITP(datos.comunidadAutonoma, datos.familiaNumerosa, datos.menorDe35);
-      const fondos = (datos.ahorrosDisponibles || 0) + resultadosPersonal.montoMaximoCredito;
-      const denom = (1 - pctDec) + tasaITP;
-      const precioMaxCapital = denom > 0 ? (fondos - 2000) / denom : 0;
-      const precioMax = Math.max(0, Math.min(precioMaxHipoteca, precioMaxCapital));
-      return [
-        [`Monto a financiar (${pct.toFixed(0)}%)`, formatEuro(resultadosHipoteca.montoFinanciable)],
-        ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
-        ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
-        ['Monto máximo financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
-        ['Precio máximo de vivienda*', formatEuro(precioMax)],
-        ['Total de intereses', formatEuro(resultadosHipoteca.totalIntereses)],
-        ['Monto total a pagar', formatEuro(resultadosHipoteca.montoTotalPagar)],
-      ];
-    })(),
+    body: [
+      [`Monto a financiar (${pct.toFixed(0)}%)`, formatEuro(resultadosHipoteca.montoFinanciable)],
+      ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
+      ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
+      ['Hipoteca máxima financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
+      ['Precio máximo de vivienda*', formatEuro(precioMax)],
+      ['Total de intereses', formatEuro(resultadosHipoteca.totalIntereses)],
+      ['Monto total a pagar', formatEuro(resultadosHipoteca.montoTotalPagar)],
+    ],
     theme: 'grid',
     headStyles: { fillColor: [15, 118, 110], textColor: 255, fontStyle: 'bold' },
     columnStyles: { 0: { fontStyle: 'bold', cellWidth: 100 }, 1: { halign: 'right', cellWidth: 'auto' } },
@@ -583,33 +452,28 @@ export function generateSimulacionCombinadaPDF(
   doc.setTextColor(100, 100, 100);
   doc.text('TIN 1,6% (primeros 10 años) · TAE 1,72% - Euribor + 0,35% (resto de años)', margin, currentY);
   currentY += 4;
-  doc.text('*Precio máximo considerando hipoteca + crédito personal máx. + ahorros disponibles', margin, currentY);
+  doc.text('*Precio máximo basado en la hipoteca máxima financiable', margin, currentY);
   doc.setTextColor(0, 0, 0);
   currentY += 6;
 
-  // Combined approval logic (mirrors ResultadosCombinados.tsx)
-  const personalCubreGap = resultadosPersonal.cualificado &&
-    resultadosPersonal.montoFinanciar <= resultadosPersonal.montoMaximoCredito;
-  const otrosCriteriosHipotecaCumplen =
-    resultadosHipoteca.cuotaMensual <= resultadosHipoteca.hipotecaMaximaMensual &&
-    resultadosHipoteca.hipotecaMaximaMensual >= 350 &&
-    resultadosHipoteca.montoFinanciable >= 70000 &&
-    resultadosHipoteca.montoFinanciable <= resultadosHipoteca.montoMaximoFinanciable;
-  const hipotecaAprobableConPersonal = !resultadosHipoteca.aprobable &&
-    !resultadosHipoteca.capitalPropioSuficiente &&
-    personalCubreGap &&
-    otrosCriteriosHipotecaCumplen;
-  const hipotecaAprobableFinal = resultadosHipoteca.aprobable || hipotecaAprobableConPersonal;
+  // Capital gap
+  const capitalFaltante = Math.max(0, resultadosHipoteca.capitalPropioNecesario - (datos.ahorrosDisponibles || 0));
+  if (capitalFaltante > 0) {
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(180, 100, 0);
+    doc.text(`Valor a completar con otros recursos (ahorros, crédito personal): ${formatEuro(capitalFaltante)}`, margin, currentY);
+    doc.setTextColor(0, 0, 0);
+    currentY += 8;
+  }
 
-  if (hipotecaAprobableFinal) {
+  // Approval badge
+  if (resultadosHipoteca.aprobable) {
     doc.setFillColor(34, 197, 94);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    const label = hipotecaAprobableConPersonal
-      ? '✓ HIPOTECA APROBABLE (con crédito personal)'
-      : '✓ HIPOTECA APROBABLE';
-    doc.text(label, pageWidth / 2, currentY + 6, { align: 'center' });
+    doc.text('✓ HIPOTECA APROBABLE', pageWidth / 2, currentY + 6, { align: 'center' });
   } else {
     doc.setFillColor(220, 38, 38);
     doc.rect(margin, currentY, pageWidth - 2 * margin, 8, 'F');
@@ -642,6 +506,6 @@ export function generateSimulacionCombinadaPDF(
   doc.setFont('helvetica', 'normal');
   doc.text(`Documento generado el ${formatDateTime()}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
-  const fileName = `Simulacion_Combinada_${datos.nombreCompleto.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
+  const fileName = `Simulacion_Hipotecaria_${datos.nombreCompleto.replace(/\s+/g, '_')}_${Date.now()}.pdf`;
   doc.save(fileName);
 }
