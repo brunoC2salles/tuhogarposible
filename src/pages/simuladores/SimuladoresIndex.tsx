@@ -13,35 +13,19 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Home, Plus, Trash2, Info, Calculator } from "lucide-react";
 import { simuladorHipotecaSchema, type SimuladorHipotecaFormData } from "@/schemas/simuladorSchema";
-import { calcularAmortizacionFrancesa, calcularSimulacionHipoteca } from "@/lib/simuladorUtils";
+import { calcularSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosCombinados } from "@/components/simuladores/ResultadosCombinados";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
-import { z } from "zod";
 import { cn } from "@/lib/utils";
-
-// Extended type: only plazoMeses and tasaAnual are personal-credit-specific
-type SimuladorUnificadoFormData = SimuladorHipotecaFormData & {
-  plazoMeses: number;
-  tasaAnual: number;
-};
-
-const simuladorUnificadoSchema = simuladorHipotecaSchema.and(
-  z.object({
-    plazoMeses: z.number().int().min(60, "Plazo mínimo: 60 meses").max(144, "Plazo máximo: 144 meses"),
-    tasaAnual: z.number().min(3, "Tasa mínima: 3%").max(12, "Tasa máxima: 12%"),
-  })
-);
 
 const SimuladoresIndex = () => {
   const [resultadosOpen, setResultadosOpen] = useState(false);
-  const [resultadosPersonal, setResultadosPersonal] = useState<any>(null);
   const [resultadosHipoteca, setResultadosHipoteca] = useState<any>(null);
-  const [datosFormulario, setDatosFormulario] = useState<SimuladorUnificadoFormData | null>(null);
-  
+  const [datosFormulario, setDatosFormulario] = useState<SimuladorHipotecaFormData | null>(null);
 
-  const form = useForm<SimuladorUnificadoFormData>({
-    resolver: zodResolver(simuladorUnificadoSchema),
+  const form = useForm<SimuladorHipotecaFormData>({
+    resolver: zodResolver(simuladorHipotecaSchema),
     mode: "onChange",
     defaultValues: {
       nombreCompleto: '',
@@ -73,9 +57,6 @@ const SimuladoresIndex = () => {
       pagaManutención: false,
       valorManutención: undefined,
       aceptaPrivacidad: false,
-      // Personal credit fields
-      plazoMeses: 84,
-      tasaAnual: 6,
     }
   });
 
@@ -99,7 +80,6 @@ const SimuladoresIndex = () => {
     name: 'creditos'
   });
 
-
   useEffect(() => {
     if (watchEdad && watchEdad >= 45) {
       const plazoMaximo = Math.max(1, 75 - watchEdad);
@@ -112,7 +92,6 @@ const SimuladoresIndex = () => {
 
   const plazoMaximoPermitido = watchEdad && watchEdad >= 45 ? Math.min(30, 75 - watchEdad) : 30;
 
-  // Helper to get error class for inputs
   const errorClass = (fieldName: string) => {
     const keys = fieldName.split('.');
     let err: any = form.formState.errors;
@@ -123,25 +102,9 @@ const SimuladoresIndex = () => {
     return err ? 'border-destructive' : '';
   };
 
-  const onSubmit = (data: SimuladorUnificadoFormData) => {
+  const onSubmit = (data: SimuladorHipotecaFormData) => {
     try {
-      // 1. Calculate hipoteca FIRST to get capitalPropioNecesario
       const resHipoteca = calcularSimulacionHipoteca(data as any);
-
-      // 2. Derive personal credit inputs from unified fields
-      const totalDeudas = data.creditos?.reduce((s, c) => s + c.cuotaMensual, 0) ?? 0;
-
-      // 3. Calculate personal credit using capitalPropioNecesario as the amount to finance
-      const resPersonal = calcularAmortizacionFrancesa({
-        valorInmueble: resHipoteca.capitalPropioNecesario,
-        entrada: data.ahorrosDisponibles,
-        plazoMeses: data.plazoMeses,
-        tasaAnual: data.tasaAnual,
-        ingresos: data.ingresosMensuales,
-        deudas: totalDeudas,
-      });
-
-      setResultadosPersonal(resPersonal);
       setResultadosHipoteca(resHipoteca);
       setDatosFormulario(data);
       setResultadosOpen(true);
@@ -178,7 +141,7 @@ const SimuladoresIndex = () => {
           <div className="text-center mb-8">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3">Simulador Financiero</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Calcula simultáneamente tu crédito personal e hipotecario
+              Calcula tu crédito hipotecario y conoce tu capacidad de compra
             </p>
           </div>
 
@@ -186,20 +149,20 @@ const SimuladoresIndex = () => {
             <CardHeader>
               <CardTitle className="text-2xl flex items-center gap-2">
                 <Calculator className="h-6 w-6" />
-                Formulario Unificado
+                Simulador Hipotecario
               </CardTitle>
               <Alert className="mt-4">
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Complete todos los campos marcados con <strong>*</strong>. Se calcularán simultáneamente el <strong>crédito personal</strong> y el <strong>crédito hipotecario</strong>.
+                  Complete todos los campos marcados con <strong>*</strong> para calcular su hipoteca.
                   <br />
-                  <span className="text-xs">Hipoteca: tasa fija <strong>2.5%</strong> anual · Personal: tasa configurable</span>
+                  <span className="text-xs">Tasa fija: <strong>2.5%</strong> anual</span>
                 </AlertDescription>
               </Alert>
             </CardHeader>
             <CardContent>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <Accordion type="multiple" defaultValue={["titular", "personal_credit", "vivienda", "laboral", "financiero", "personal"]} className="w-full">
+                <Accordion type="multiple" defaultValue={["titular", "vivienda", "laboral", "financiero", "personal"]} className="w-full">
 
                   {/* === SECTION 1: TITULAR DATA === */}
                   <AccordionItem value="titular">
@@ -369,41 +332,9 @@ const SimuladoresIndex = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* === SECTION 2: CRÉDITO PERSONAL (only plazo + tasa) === */}
-                  <AccordionItem value="personal_credit">
-                    <AccordionTrigger>2. Crédito Personal — Plazo e Interés</AccordionTrigger>
-                    <AccordionContent className="space-y-4 pt-4">
-                      <Alert>
-                        <Info className="h-4 w-4" />
-                        <AlertDescription>
-                          El crédito personal financia el <strong>capital propio necesario</strong> (entrada + impuestos) calculado por la hipoteca.
-                          Los ahorros y deudas se toman de la sección financiera.
-                        </AlertDescription>
-                      </Alert>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Plazo Deseado (meses) *</Label>
-                          <Input className={errorClass('plazoMeses')} type="number" {...form.register("plazoMeses", { valueAsNumber: true })} placeholder="60-144 meses" min="60" max="144" />
-                          <p className="text-xs text-muted-foreground">Entre 60 (5 años) y 144 (12 años)</p>
-                          {form.formState.errors.plazoMeses && (
-                            <p className="text-sm text-destructive">{(form.formState.errors.plazoMeses as any).message}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Tasa Anual de Interés (%) *</Label>
-                          <Input className={errorClass('tasaAnual')} type="number" step="0.01" {...form.register("tasaAnual", { valueAsNumber: true })} placeholder="6.00" min="3" max="12" />
-                          <p className="text-xs text-muted-foreground">Entre 3% y 12%</p>
-                          {form.formState.errors.tasaAnual && (
-                            <p className="text-sm text-destructive">{(form.formState.errors.tasaAnual as any).message}</p>
-                          )}
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* === SECTION 3: VIVIENDA (HIPOTECA) === */}
+                  {/* === SECTION 2: VIVIENDA (HIPOTECA) === */}
                   <AccordionItem value="vivienda">
-                    <AccordionTrigger>3. Datos de la Vivienda — Hipoteca</AccordionTrigger>
+                    <AccordionTrigger>2. Datos de la Vivienda</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -465,9 +396,9 @@ const SimuladoresIndex = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* === SECTION 4: SITUACIÓN LABORAL === */}
+                  {/* === SECTION 3: SITUACIÓN LABORAL === */}
                   <AccordionItem value="laboral">
-                    <AccordionTrigger>4. Situación Laboral</AccordionTrigger>
+                    <AccordionTrigger>3. Situación Laboral</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <div className="space-y-2">
                         <Label>Situación Laboral *</Label>
@@ -559,15 +490,15 @@ const SimuladoresIndex = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* === SECTION 5: SITUACIÓN FINANCIERA === */}
+                  {/* === SECTION 4: SITUACIÓN FINANCIERA === */}
                   <AccordionItem value="financiero">
-                    <AccordionTrigger>5. Situación Financiera</AccordionTrigger>
+                    <AccordionTrigger>4. Situación Financiera</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <Alert>
                         <Info className="h-4 w-4" />
                         <AlertDescription>
-                          Los ahorros se usan como <strong>entrada</strong> tanto para la hipoteca como para el crédito personal.
-                          Los créditos activos se descuentan de la capacidad de pago en ambos cálculos.
+                          Los ahorros se usan como <strong>entrada</strong> para cubrir el capital propio necesario (entrada + impuestos).
+                          Los créditos activos se descuentan de la capacidad de pago.
                         </AlertDescription>
                       </Alert>
                       <div className="space-y-2">
@@ -632,9 +563,9 @@ const SimuladoresIndex = () => {
                     </AccordionContent>
                   </AccordionItem>
 
-                  {/* === SECTION 6: DATOS PERSONALES === */}
+                  {/* === SECTION 5: DATOS PERSONALES === */}
                   <AccordionItem value="personal">
-                    <AccordionTrigger>6. Datos Personales</AccordionTrigger>
+                    <AccordionTrigger>5. Datos Personales</AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
                       <div className="space-y-2">
                         <Label>Estado Civil *</Label>
@@ -729,13 +660,12 @@ const SimuladoresIndex = () => {
         </div>
       </main>
 
-      {/* Resultados Combinados */}
-      {resultadosPersonal && resultadosHipoteca && datosFormulario && (
+      {/* Resultados */}
+      {resultadosHipoteca && datosFormulario && (
         <ResultadosCombinados
           open={resultadosOpen}
           onOpenChange={setResultadosOpen}
           datos={datosFormulario}
-          resultadosPersonal={resultadosPersonal}
           resultadosHipoteca={resultadosHipoteca}
         />
       )}
