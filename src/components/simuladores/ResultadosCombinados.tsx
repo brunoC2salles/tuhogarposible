@@ -24,12 +24,6 @@ export function ResultadosCombinados({
   const { map: marketMap } = useMarketPrices();
 
   const porcentajeFinanciamiento = resultadosHipoteca.porcentajeFinanciamiento || 80;
-  const pctDecimal = porcentajeFinanciamiento / 100;
-
-  const precioMaxHipoteca = pctDecimal > 0
-    ? resultadosHipoteca.montoMaximoFinanciable / pctDecimal
-    : 0;
-  const precioMaximoVivienda = Math.max(0, precioMaxHipoteca);
 
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
 
@@ -111,37 +105,33 @@ export function ResultadosCombinados({
                 </div>
               </div>
 
-              {/* CAPACIDAD MÁXIMA DE COMPRA */}
-              <div className="border-2 border-green-500 rounded-lg overflow-hidden">
-                <div className="bg-green-500 px-4 py-2.5">
-                  <span className="text-white font-bold text-sm uppercase tracking-wide">Capacidad Máxima de Compra</span>
+              {/* CAPACIDAD MÁXIMA — HIPOTECA */}
+              <div className="border-2 border-primary rounded-lg overflow-hidden">
+                <div className="bg-primary px-4 py-2.5">
+                  <span className="text-primary-foreground font-bold text-sm uppercase tracking-wide">Capacidad Máxima — Hipoteca</span>
                 </div>
-                <div className="bg-green-50 dark:bg-green-950 p-4 space-y-4">
+                <div className="bg-primary/5 dark:bg-primary/10 p-4 space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
-                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Hipoteca Máxima Financiable</p>
-                      <p className="text-lg font-bold text-foreground">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
-                      <div className="mt-1.5 pt-1.5 border-t border-green-200 dark:border-green-800">
-                        <p className="text-[10px] text-muted-foreground">Cuota mensual máxima</p>
-                        <p className="text-sm font-semibold text-primary">{formatEuro(cuotaHipotecaMaxima)}/mes</p>
-                      </div>
+                    <div className="bg-primary/10 border-2 border-primary rounded-lg p-4 text-center">
+                      <p className="text-[11px] text-primary font-semibold mb-1">Cuota Mensual Máxima</p>
+                      <p className="text-2xl font-bold text-primary">{formatEuro(cuotaHipotecaMaxima)}/mes</p>
                       <p className="text-[9px] text-muted-foreground mt-1">35% ingresos líquidos · Tope: {datos.numeroTitulares === '1' ? '180.000€' : '210.000€'}</p>
                     </div>
-                    <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
-                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Ahorros Disponibles</p>
-                      <p className="text-lg font-bold text-foreground">{formatEuro(datos.ahorrosDisponibles || 0)}</p>
-                      <p className="text-[9px] text-muted-foreground mt-1">Capital propio</p>
+                    <div className="bg-background border border-primary/20 rounded-lg p-4 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Hipoteca Máxima Financiable</p>
+                      <p className="text-2xl font-bold text-foreground">{formatEuro(resultadosHipoteca.montoMaximoFinanciable)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">Valor máximo que el banco puede financiar</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="bg-green-100 dark:bg-green-900 border-2 border-green-500 rounded-lg p-3 text-center">
-                      <p className="text-[11px] text-green-700 dark:text-green-300 font-semibold mb-1">Precio Máximo de Vivienda</p>
-                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">{formatEuro(precioMaximoVivienda)}</p>
-                      <p className="text-[10px] text-green-600 dark:text-green-400 mt-1">Basado en la hipoteca máxima financiable</p>
+                    <div className="bg-background border border-primary/20 rounded-lg p-3 text-center">
+                      <p className="text-[11px] text-muted-foreground font-medium mb-1">Ahorros Disponibles</p>
+                      <p className="text-lg font-bold text-foreground">{formatEuro(datos.ahorrosDisponibles || 0)}</p>
+                      <p className="text-[9px] text-muted-foreground mt-1">Capital propio</p>
                     </div>
                     {marketPrice && (
-                      <div className="bg-white dark:bg-green-900/50 border border-green-200 dark:border-green-800 rounded-lg p-3 text-center">
+                      <div className="bg-background border border-primary/20 rounded-lg p-3 text-center">
                         <p className="text-[11px] text-muted-foreground font-medium mb-1">Precio Medio en {marketPrice.municipio}</p>
                         <p className="text-xl font-bold text-foreground">{formatEuro(marketPrice.precioMedio)}</p>
                         <p className="text-[10px] text-muted-foreground mt-1">{formatEuro(marketPrice.precioM2)}/m²</p>
@@ -153,10 +143,10 @@ export function ResultadosCombinados({
 
               {/* Capital gap warning */}
               {capitalFaltante > 0 && (
-                <div className="p-3 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg text-sm">
-                  <p className="font-semibold text-amber-800 dark:text-amber-200">Valor a completar con otros recursos</p>
-                  <p className="text-amber-700 dark:text-amber-300 mt-1">
-                    Necesita <strong>{formatEuro(capitalFaltante)}</strong> adicionales (ahorros, crédito personal u otros) para cubrir la entrada e impuestos.
+                <div className="p-3 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg text-sm">
+                  <p className="font-semibold text-foreground">Valor a completar con otros recursos</p>
+                  <p className="text-muted-foreground mt-1">
+                    Necesita <strong>{formatEuro(capitalFaltante)}</strong> adicionales (ahorros, crédito personal y otros) para cubrir la entrada e impuestos.
                   </p>
                 </div>
               )}
@@ -173,7 +163,7 @@ export function ResultadosCombinados({
               {/* Approval verdict */}
               <div className="flex justify-center">
                 {resultadosHipoteca.aprobable ? (
-                  <Badge className="bg-green-500 hover:bg-green-600 text-sm py-1 px-4">HIPOTECA APROBABLE</Badge>
+                  <Badge className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm py-1 px-4">HIPOTECA APROBABLE</Badge>
                 ) : (
                   <Badge variant="destructive" className="text-sm py-1 px-4">HIPOTECA NO APROBABLE</Badge>
                 )}
@@ -189,9 +179,9 @@ export function ResultadosCombinados({
           </div>
 
           {/* RGPD */}
-          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
-            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-            <span className="text-sm text-green-700 dark:text-green-300 font-medium">
+          <div className="flex items-center gap-2 p-3 bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-lg">
+            <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
+            <span className="text-sm text-foreground font-medium">
               Política de Privacidad aceptada conforme al RGPD
             </span>
           </div>
