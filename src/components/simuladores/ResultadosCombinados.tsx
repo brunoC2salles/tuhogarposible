@@ -24,12 +24,6 @@ export function ResultadosCombinados({
   const { map: marketMap } = useMarketPrices();
 
   const porcentajeFinanciamiento = resultadosHipoteca.porcentajeFinanciamiento || 80;
-  const pctDecimal = porcentajeFinanciamiento / 100;
-
-  const precioMaxHipoteca = pctDecimal > 0
-    ? resultadosHipoteca.montoMaximoFinanciable / pctDecimal
-    : 0;
-  const precioMaximoVivienda = Math.max(0, precioMaxHipoteca);
 
   const marketPrice = marketMap ? getMarketPrice(marketMap, datos.comunidadAutonoma) : null;
 
