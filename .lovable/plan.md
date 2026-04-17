@@ -1,35 +1,132 @@
 
 
-# Plan: Fix Approval Logic, Clean Layout, Remove Resumen de Pagos
+# Plan: Integração Bewor Extractor — Análise de Documentos do Cliente
 
-## Problem Analysis
+## Visão Geral
 
-The screenshot shows "HIPOTECA NO APROBABLE" for a client with 150k€ property, 3,000€/mes income, cuota 533€ — well within capacity. The reason: **`capitalPropioSuficiente`** (savings ≥ capital propio) is blocking approval. Since we now treat the savings gap as "valor a completar con otros recursos" (covered by savings + personal credit), this should NOT block mortgage approval.
+Adicionar fluxo onde o agente gera um **link público com branding** dentro do lead → cliente sobe **PDF de movimientos bancarios (6 meses)** → Bewor processa via OCR → resultado volta via webhook → sistema sugere viabilidade hipotecária (híbrido: cálculo automático + agente confirma).
 
-## Changes
+## Arquitetura
 
-### 1. Fix approval logic (`src/lib/simuladorUtils.ts`)
+```text
+Agente (CRM) ──"Solicitar Documentos"──> gera token único
+                                              │
+                                              ▼
+                            Cliente abre /documentos/{token} (público, com branding)
+                                              │
+                            ┌─────────────────┴─────────────────┐
+                            ▼                                   ▼
+                  Upload PDF (5MB max)                  edge fn: bewor-upload
+                                                              │
+                                                  POST Bewor /third-party/request
+                                                  (file + webhook_url da nossa edge fn)
+                                                              │
+                                              Bewor processa (assíncrono)
+                                                              │
+                                                              ▼
+                                              POST nossa edge fn: bewor-webhook
+                                              (status FINISHED + metadata)
+                                                              │
+                                              GET resultado completo da Bewor
+                                                              │
+                                              Salvar em lead_document_analysis
+                                              + executar simuladorUtils
+                                              + notificar agente
+```
 
-**Line 588**: Remove `capitalPropioSuficiente` from the `aprobable` formula. The mortgage is approved based on income capacity only:
-- `aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable && montoNoSuperaMaximo`
+## 1. Banco de Dados (1 migração)
 
-**Lines 600-601**: Remove the capital propio reason from `razonNoAprobado`. The capital gap is already shown as an informational warning, not a blocker.
+**Tabela `lead_document_analysis`:**
+- `id`, `lead_id` (FK leads), `request_id` (UUID Bewor), `tipo` ('movimientos_bancarios'), `status` ('CREATED'/'PROCESSING'/'FINISHED'/'ERROR'), `file_path` (storage), `result` (jsonb com dados OCR), `viabilidade_sugerida` (jsonb: aprobable, ingresos_detectados, hipoteca_max, razon), `created_at`, `finished_at`
+- RLS: agentes veem da própria carteira, admins/supervisores veem tudo
 
-### 2. Remove "Resumen de Pagos" section (`ResultadosCombinados.tsx`)
+**Tabela `lead_document_tokens`:**
+- `id`, `lead_id`, `token` (random 32 chars, único), `expires_at` (7 dias), `used_at` (nullable), `created_at`, `created_by`
+- RLS: público só pode `SELECT` por token (RLS policy específica que valida expires_at), agentes criam para seus leads
 
-Delete lines 188-230 (the entire "Resumen de Pagos — Hipoteca" section). The cuota, total costs, and interest info are already visible in the main section above.
+**Bucket storage:** reutilizar `lead-documents` existente (subpath `bewor/{lead_id}/{request_id}.pdf`)
 
-### 3. Improve layout clarity (`ResultadosCombinados.tsx`)
+## 2. Secrets a configurar
 
-- Move the approval badge + capital gap warning to a clear final verdict area after "Capacidad Máxima de Compra"
-- Integrate the total cost breakdown (Capital Financiado, Total Intereses, Total a Pagar) into the main "Crédito Hipotecario" section as a compact summary row — so removing Resumen de Pagos doesn't lose that data
+- `BEWOR_BASE_URL` = `https://extractor.bewor.tech`
+- `BEWOR_EMAIL` = (fornecido)
+- `BEWOR_PASSWORD` = (fornecido)
+- `BEWOR_THIRD_PARTY_JWT` = gerado uma vez via edge fn admin (ver §3)
+- `BEWOR_WEBHOOK_SECRET` = string aleatória própria, usada para validar callbacks
 
-### 4. Update PDF (`src/lib/pdfGenerator.ts`)
+## 3. Edge Functions (4 novas, todas com `verify_jwt = false` exceto admin)
 
-Remove the "Resumen de Pagos" section from the PDF to match the UI. Keep total cost data inline.
+| Função | Propósito | Auth |
+|---|---|---|
+| `bewor-admin-token` | Admin-only. Faz login na Bewor (email/senha) → cria token third-party → guarda em secret. Roda 1x. | Validar role admin via JWT |
+| `bewor-public-upload` | Recebe PDF do cliente via token público, valida token+expiração, faz upload para Storage, chama Bewor `/third-party/request` com `webhook_url` apontando para nossa `bewor-webhook?secret=...` | Pública, valida token de lead |
+| `bewor-webhook` | Recebe callback da Bewor (FINISHED). Valida `secret` query param. Faz GET no resultado completo, salva em `lead_document_analysis`, calcula viabilidade via lógica de simulador, notifica agente | Pública (webhook) |
+| `bewor-get-token-info` | Endpoint público que retorna info mínima do lead (só nome do cliente + branding) para a página pública renderizar | Pública, valida token |
 
-## Files modified
-- `src/lib/simuladorUtils.ts` — approval logic fix
-- `src/components/simuladores/ResultadosCombinados.tsx` — remove Resumen de Pagos, improve layout
-- `src/lib/pdfGenerator.ts` — align PDF with UI changes
+**Importante:** Bewor tem 5MB max e só PDF — validar client-side e edge function.
+
+## 4. Frontend
+
+### Página pública nova: `/documentos/:token`
+- Layout com Logo da Tu Hogar Posible (já existe em `Logo.tsx`)
+- Saudação personalizada ("Hola {nome}")
+- Texto explicativo: "Sube tus movimientos bancarios de los últimos 6 meses (PDF, máx 5MB)"
+- Componente upload com validação
+- Estado de envio + confirmação ("Recibido, te contactaremos en breve")
+- Sem auth necessária
+
+### Modal CRM: `RequestDocumentsModal.tsx`
+- Botão "Solicitar Documentos" no `LeadDetailsModal` (aba Documentos)
+- Ao clicar: gera token, mostra link copiável + botões WhatsApp/Email pré-preenchidos
+- Lista análises anteriores do lead com status
+
+### Aba "Análisis Bewor" no LeadDetailsModal
+- Mostra histórico de uploads e seus status
+- Quando `FINISHED`: card com dados extraídos (ingresos médios, deudas detectadas) + **veredicto sugerido** + botão "Aplicar al simulador del lead" / "Ignorar sugerencia"
+- Hook novo: `useLeadDocumentAnalysis(leadId)` com realtime para atualizar quando webhook chegar
+
+## 5. Lógica Híbrida de Viabilidade
+
+Na `bewor-webhook`, ao receber resultado:
+1. Extrair `ingresos_mensuales_promedio` e `deudas_mensuales` do JSON OCR
+2. Rodar regras já existentes (35% DTI, caps 180k/210k de `simuladorUtils.ts` — replicar lógica em TS na edge function)
+3. Salvar `viabilidade_sugerida` com: `{aprobable: bool, hipoteca_maxima: number, cuota_max: number, razon: string}`
+4. Criar notificação para o agente: "Análisis de documentos completado para {lead}"
+5. Agente vê na UI e decide aplicar ou ajustar manualmente
+
+## 6. Performance & Segurança
+
+- Token público com expiração 7 dias + uso único opcional
+- Webhook valida `secret` em query string para evitar callbacks falsos
+- RLS estrita em `lead_document_analysis` e `lead_document_tokens`
+- Validação client+server: tipo PDF, tamanho ≤5MB
+- Não bloqueia UI: upload assíncrono, agente é notificado quando terminar
+
+## Arquivos modificados/criados
+
+**Novos:**
+- `supabase/migrations/<ts>_bewor_integration.sql`
+- `supabase/functions/bewor-admin-token/index.ts`
+- `supabase/functions/bewor-public-upload/index.ts`
+- `supabase/functions/bewor-webhook/index.ts`
+- `supabase/functions/bewor-get-token-info/index.ts`
+- `src/pages/PublicDocumentUpload.tsx` (rota `/documentos/:token`)
+- `src/components/crm/RequestDocumentsModal.tsx`
+- `src/components/crm/BeworAnalysisTab.tsx`
+- `src/hooks/useLeadDocumentAnalysis.ts`
+- `src/hooks/useLeadDocumentTokens.ts`
+
+**Editados (mínimo):**
+- `src/App.tsx` — rota pública `/documentos/:token`
+- `src/components/crm/LeadDetailsModal.tsx` — botão + nova aba
+- `supabase/config.toml` — registrar 4 edge functions com `verify_jwt = false`
+
+## Ordem de implementação
+
+1. Migração DB + secrets
+2. Edge function `bewor-admin-token` (rodar 1x para gerar JWT)
+3. Edge functions `bewor-public-upload`, `bewor-webhook`, `bewor-get-token-info`
+4. Página pública `/documentos/:token`
+5. Modal "Solicitar Documentos" + aba "Análisis Bewor" no CRM
+6. Teste end-to-end com PDF real
 
