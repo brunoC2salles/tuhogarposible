@@ -6,7 +6,7 @@ import { Loader2, Upload, CheckCircle2, AlertCircle, FileText, Clock } from "luc
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 
-const MAX_SIZE = 5 * 1024 * 1024;
+const MAX_SIZE = 10 * 1024 * 1024;
 const SUPABASE_URL = "https://tnzgpzablwfptagfbnvb.supabase.co";
 
 type ProcessingStatus = "uploading" | "processing" | "finished" | "error";
@@ -98,7 +98,7 @@ const PublicDocumentUpload = () => {
       return;
     }
     if (f.size > MAX_SIZE) {
-      toast.error("El archivo supera 5 MB");
+      toast.error("El archivo supera 10 MB");
       return;
     }
     setFile(f);
@@ -259,7 +259,7 @@ const PublicDocumentUpload = () => {
                   <p className="text-muted-foreground">
                     Sube tus <strong>movimientos bancarios de los últimos 6 meses</strong> en formato PDF.
                   </p>
-                  <p className="text-sm text-muted-foreground">Tamaño máximo: 5 MB</p>
+                  <p className="text-sm text-muted-foreground">Tamaño máximo: 10 MB</p>
                 </div>
 
                 <div
