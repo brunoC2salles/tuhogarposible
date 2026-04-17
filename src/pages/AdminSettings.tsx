@@ -63,6 +63,42 @@ const AdminSettings = () => {
   const [scrapingProcessing, setScrapingProcessing] = useState(false);
   const [scrapingMessage, setScrapingMessage] = useState('');
 
+  // Bewor JWT
+  const [generatingJwt, setGeneratingJwt] = useState(false);
+  const [beworJwt, setBeworJwt] = useState('');
+  const [beworJwtRaw, setBeworJwtRaw] = useState<any>(null);
+
+  const handleGenerateBeworJwt = async () => {
+    setGeneratingJwt(true);
+    setBeworJwt('');
+    setBeworJwtRaw(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('bewor-admin-token', {
+        method: 'POST',
+      });
+      if (error) throw error;
+      if (data?.third_party_token) {
+        setBeworJwt(data.third_party_token);
+        setBeworJwtRaw(data.raw);
+        toast.success('JWT generado. Copia y guarda como secret BEWOR_THIRD_PARTY_JWT.');
+      } else {
+        setBeworJwtRaw(data);
+        toast.error('No se recibió token. Revisa la respuesta abajo.');
+      }
+    } catch (err: any) {
+      console.error('Error generando JWT Bewor:', err);
+      toast.error(err?.message || 'Error generando JWT Bewor');
+    } finally {
+      setGeneratingJwt(false);
+    }
+  };
+
+  const handleCopyBeworJwt = async () => {
+    if (!beworJwt) return;
+    await navigator.clipboard.writeText(beworJwt);
+    toast.success('Token copiado al portapapeles');
+  };
+
   useEffect(() => {
     if (webhookUrl && !localWebhookUrl) {
       setLocalWebhookUrl(webhookUrl);
