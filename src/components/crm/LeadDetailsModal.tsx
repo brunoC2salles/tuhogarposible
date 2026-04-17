@@ -11,6 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Lead, STAGE_LABELS } from '@/types/crm';
 import { LeadComments } from './LeadComments';
+import BeworAnalysisTab from './BeworAnalysisTab';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -185,12 +186,13 @@ export const LeadDetailsModal = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1 h-auto">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 h-auto">
           <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
           <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
           <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles ({inmuebles.length})</TabsTrigger>
           <TabsTrigger value="servicios" className="text-xs sm:text-sm">Servicios</TabsTrigger>
           <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
+          <TabsTrigger value="bewor" className="text-xs sm:text-sm">Análisis</TabsTrigger>
           <TabsTrigger value="comentarios" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
         </TabsList>
 
@@ -624,6 +626,15 @@ export const LeadDetailsModal = ({
           <LeadServicesComponent 
             leadId={lead.id} 
             propertyPrice={inmuebles && inmuebles.length > 0 ? inmuebles[0].precio : 0}
+          />
+        </TabsContent>
+
+        <TabsContent value="bewor" className="space-y-4">
+          <BeworAnalysisTab
+            leadId={lead.id}
+            leadName={lead.nombre_completo}
+            leadPhone={lead.telefono}
+            leadEmail={lead.email}
           />
         </TabsContent>
 
