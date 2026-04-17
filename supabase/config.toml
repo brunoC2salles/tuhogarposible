@@ -30,3 +30,13 @@ verify_jwt = false
 [functions.sync-inmovilla-products]
 verify_jwt = false
 
+[functions.bewor-public-upload]
+verify_jwt = false
+
+[functions.bewor-webhook]
+verify_jwt = false
+
+[functions.bewor-get-token-info]
+verify_jwt = false
+
+
