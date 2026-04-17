@@ -1,18 +1,62 @@
 
 
-Perfeito. Vou avançar com:
-- `BEWOR_BASE_URL` = `https://extractor.bewor.tech`
-- `BEWOR_EMAIL` = `apuig@apuntogrowthgroup.com`
-- `BEWOR_PASSWORD` = `ES9OWtegb2U7QnGexlu7KZ2Tw`
-- `BEWOR_WEBHOOK_SECRET` = `bwr_7k3n9p2q4r8s1t5w6x0y3z7a2b4c8d1e` (gerado por mim)
+## Diagnóstico
 
-Próximos passos depois dos secrets adicionados:
+Ao clicar em "Generar JWT Bewor" a edge function falha com:
+```
+TypeError: supabase.auth.getClaims is not a function
+```
 
-1. Edge function `bewor-admin-token` — admin roda 1x para fazer login na Bewor e gerar o JWT third-party (vai pedir 1 secret extra `BEWOR_THIRD_PARTY_JWT` depois disso)
-2. Edge functions `bewor-public-upload`, `bewor-webhook`, `bewor-get-token-info`
-3. Página pública `/documentos/:token` com branding
-4. Modal "Solicitar Documentos" + aba "Análisis Bewor" no `LeadDetailsModal`
-5. Hook realtime `useLeadDocumentAnalysis` para atualizar UI quando webhook chegar
+Investigando os logs **e** comparando o código com a documentação oficial Bewor (PDF + Postman), encontrei **3 bugs críticos** em todas as 3 edge functions:
 
-Vou pedir os 4 secrets agora numa só ação.
+### Bug 1 — Validação admin quebrada (`bewor-admin-token`)
+Uso `supabase.auth.getClaims(token)` que não existe no SDK v2.45. O método correto é `supabase.auth.getUser(token)`.
+
+### Bug 2 — URLs erradas (todas as 3 functions)
+A documentação Bewor é clara: **todos os endpoints começam com `/api/v1/`**.
+
+| Endpoint | Código atual (errado) | Correto (docs) |
+|---|---|---|
+| Login | `POST /auth/login` | `POST /api/v1/login` |
+| Criar token | `POST /third-party/token` | `POST /api/v1/company/token` |
+| Criar request | `POST /third-party/request` | `POST /api/v1/third-party/request` |
+| Obter request | `GET /third-party/request/{id}` | `GET /api/v1/third-party/request/{id}` |
+
+### Bug 3 — Campos do payload errados
+- Login retorna `{ token: "..." }` — código procura `access_token`
+- Upload manda `type: "bank_statements"` — Bewor exige `"movimientos_bancarios"` (espanhol, conforme docs e Postman)
+- Upload manda `webhook_url` — está OK ✓ (mas faltava header `Accept: application/json`)
+- Faltam headers `Accept: application/json` em todas chamadas (docs exigem)
+
+## Plano de Correção
+
+### 1. Corrigir `bewor-admin-token/index.ts`
+- Trocar `supabase.auth.getClaims(token)` → `supabase.auth.getUser(token)`
+- `POST /auth/login` → `POST /api/v1/login`
+- `POST /third-party/token` → `POST /api/v1/company/token`
+- Ler `loginData.token` (não `access_token`)
+- Adicionar header `Accept: application/json` em ambas chamadas
+- Body do token continua `{ name: "Tu Hogar Posible CRM" }` ✓
+
+### 2. Corrigir `bewor-public-upload/index.ts`
+- `POST /third-party/request` → `POST /api/v1/third-party/request`
+- `type: "bank_statements"` → `type: "movimientos_bancarios"`
+- Adicionar header `Accept: application/json`
+- Manter resto da lógica intacta (storage, token, webhook URL com secret)
+
+### 3. Corrigir `bewor-webhook/index.ts`
+- `GET /third-party/request/{id}` → `GET /api/v1/third-party/request/{id}`
+- Adicionar header `Accept: application/json`
+- Resto da lógica (extração income/debts, cálculo viabilidade, notificações) está OK ✓
+
+## O que NÃO vou tocar
+- Schema do DB (tabelas `lead_document_analysis`, `lead_document_tokens`) — está correto
+- Componentes React (`RequestDocumentsModal`, `BeworAnalysisTab`, `PublicDocumentUpload`) — não são afetados
+- Hooks (`useLeadDocumentAnalysis`, `useLeadDocumentTokens`) — não são afetados
+- Botão "Generar JWT" no `AdminSettings` — está correto, só a function falhava
+- Outros secrets — todos já configurados
+
+## Após a correção
+
+Você clica novamente em "Generar JWT Bewor" no Admin Settings → o token será exibido → você adiciona como secret `BEWOR_THIRD_PARTY_JWT` → fluxo end-to-end funcionará.
 
