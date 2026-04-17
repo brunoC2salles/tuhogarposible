@@ -1,4 +1,5 @@
 // Recebe PDF do cliente via token público, valida, faz upload para Storage e envia para Bewor.
+// Suporta tokens standalone (sem lead_id) para testes ou novos clientes não cadastrados.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -61,9 +62,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const leadId = tokenRow.lead_id;
+    const leadId = tokenRow.lead_id; // pode ser null (standalone)
 
-    // 2. Criar registro de análise (status CREATED)
+    // 2. Criar registro de análise (status CREATED) — lead_id pode ser null
     const { data: analysis, error: insErr } = await admin
       .from("lead_document_analysis")
       .insert({
@@ -83,7 +84,9 @@ Deno.serve(async (req) => {
     }
 
     // 3. Upload para Storage (bucket lead-documents)
-    const filePath = `bewor/${leadId}/${analysis.id}.pdf`;
+    // Para tokens standalone, usa pasta "standalone/"
+    const folder = leadId || "standalone";
+    const filePath = `bewor/${folder}/${analysis.id}.pdf`;
     const arrayBuf = await file.arrayBuffer();
     const { error: upErr } = await admin.storage
       .from("lead-documents")
@@ -121,10 +124,10 @@ Deno.serve(async (req) => {
           error_message: "BEWOR_THIRD_PARTY_JWT no configurado",
         })
         .eq("id", analysis.id);
-      // Mesmo assim retorna sucesso ao cliente - admin será notificado depois
       return new Response(
         JSON.stringify({
           success: true,
+          analysis_id: analysis.id,
           message: "Documento recibido. Te contactaremos en breve.",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -174,7 +177,7 @@ Deno.serve(async (req) => {
         })
         .eq("id", analysis.id);
 
-      // Marcar token como usado
+      // Marcar token como usado (mas continua válido até expires_at para re-uploads)
       await admin
         .from("lead_document_tokens")
         .update({ used_at: new Date().toISOString() })
@@ -184,6 +187,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        analysis_id: analysis.id,
         message: "Documento recibido. Te contactaremos en breve.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
