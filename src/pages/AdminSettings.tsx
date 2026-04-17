@@ -608,6 +608,52 @@ const AdminSettings = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Bewor JWT Generator */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5" />
+              Generar JWT Third-Party Bewor
+            </CardTitle>
+            <CardDescription>
+              Ejecuta esto una vez para generar el token JWT de Bewor. Después cópialo y guárdalo como secret <code className="text-xs bg-muted px-1 rounded">BEWOR_THIRD_PARTY_JWT</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button onClick={handleGenerateBeworJwt} disabled={generatingJwt}>
+              <Key className="h-4 w-4 mr-2" />
+              {generatingJwt ? 'Generando...' : 'Generar JWT Bewor'}
+            </Button>
+
+            {beworJwt && (
+              <div className="space-y-2">
+                <Label>Third-Party Token</Label>
+                <div className="flex gap-2">
+                  <Input value={beworJwt} readOnly className="font-mono text-xs" />
+                  <Button variant="outline" onClick={handleCopyBeworJwt}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Copia este valor y agrégalo como secret <strong>BEWOR_THIRD_PARTY_JWT</strong> en la configuración de Edge Functions.
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
+
+            {beworJwtRaw && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">Ver respuesta raw</summary>
+                <pre className="mt-2 p-2 bg-muted rounded overflow-auto max-h-64">
+                  {JSON.stringify(beworJwtRaw, null, 2)}
+                </pre>
+              </details>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AdminLayout>
   );
