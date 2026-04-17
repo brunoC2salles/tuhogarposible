@@ -26,6 +26,7 @@ import Dashboard from "./pages/admin/Dashboard";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
+import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,7 @@ const App = () => (
               } 
             />
             <Route path="/produto/:id" element={<ProdutoPublico />} />
+            <Route path="/documentos/:token" element={<PublicDocumentUpload />} />
             <Route 
               path="/academia"
               element={
