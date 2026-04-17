@@ -1,4 +1,5 @@
-// Endpoint público que retorna info mínima do lead (só nome) para a página pública renderizar saudação
+// Endpoint público que retorna info mínima do lead (só nome) para a página pública renderizar saudação.
+// Suporta tokens standalone (sem lead_id) — retorna nombre vazio nesse caso.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -44,16 +45,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: lead } = await admin
-      .from("leads")
-      .select("nombre_completo")
-      .eq("id", tokenRow.lead_id)
-      .maybeSingle();
+    let nombre = "";
+    if (tokenRow.lead_id) {
+      const { data: lead } = await admin
+        .from("leads")
+        .select("nombre_completo")
+        .eq("id", tokenRow.lead_id)
+        .maybeSingle();
+      nombre = lead?.nombre_completo ?? "";
+    }
 
     return new Response(
       JSON.stringify({
         valid: true,
-        nombre: lead?.nombre_completo ?? "",
+        nombre,
+        standalone: !tokenRow.lead_id,
         used: !!tokenRow.used_at,
         expires_at: tokenRow.expires_at,
       }),

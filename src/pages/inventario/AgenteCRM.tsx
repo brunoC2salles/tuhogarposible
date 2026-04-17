@@ -18,6 +18,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Link } from 'react-router-dom';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { Badge } from '@/components/ui/badge';
+import StandaloneDocsButton from '@/components/crm/StandaloneDocsButton';
 
 const AgenteCRM = () => {
   const navigate = useNavigate();
@@ -148,6 +149,7 @@ const AgenteCRM = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <StandaloneDocsButton />
             {descualificadosCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleExportDescualificados}>
                 <Download className="h-4 w-4 mr-2" />

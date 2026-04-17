@@ -425,7 +425,7 @@ export type Database = {
           file_path: string | null
           finished_at: string | null
           id: string
-          lead_id: string
+          lead_id: string | null
           request_id: string | null
           result: Json | null
           status: string
@@ -439,7 +439,7 @@ export type Database = {
           file_path?: string | null
           finished_at?: string | null
           id?: string
-          lead_id: string
+          lead_id?: string | null
           request_id?: string | null
           result?: Json | null
           status?: string
@@ -453,7 +453,7 @@ export type Database = {
           file_path?: string | null
           finished_at?: string | null
           id?: string
-          lead_id?: string
+          lead_id?: string | null
           request_id?: string | null
           result?: Json | null
           status?: string
@@ -587,7 +587,7 @@ export type Database = {
           created_by: string | null
           expires_at: string
           id: string
-          lead_id: string
+          lead_id: string | null
           token: string
           used_at: string | null
         }
@@ -596,7 +596,7 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           id?: string
-          lead_id: string
+          lead_id?: string | null
           token: string
           used_at?: string | null
         }
@@ -605,7 +605,7 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           id?: string
-          lead_id?: string
+          lead_id?: string | null
           token?: string
           used_at?: string | null
         }
@@ -1314,6 +1314,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_bewor_token: { Args: never; Returns: string }
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
       get_distinct_filter_values: {
         Args: never

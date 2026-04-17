@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Upload, CheckCircle2, AlertCircle, FileText } from "lucide-react";
+import { Loader2, Upload, CheckCircle2, AlertCircle, FileText, Clock } from "lucide-react";
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 
 const MAX_SIZE = 5 * 1024 * 1024;
+const SUPABASE_URL = "https://tnzgpzablwfptagfbnvb.supabase.co";
+
+type ProcessingStatus = "uploading" | "processing" | "finished" | "error";
 
 const PublicDocumentUpload = () => {
   const { token } = useParams<{ token: string }>();
@@ -17,9 +20,11 @@ const PublicDocumentUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [statusFlow, setStatusFlow] = useState<ProcessingStatus>("uploading");
+  const [aprobable, setAprobable] = useState<boolean | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-
-  const SUPABASE_URL = "https://tnzgpzablwfptagfbnvb.supabase.co";
+  const pollRef = useRef<number | null>(null);
 
   useEffect(() => {
     const check = async () => {
@@ -35,7 +40,7 @@ const PublicDocumentUpload = () => {
           setValid(true);
           setNombre(data.nombre || "");
         }
-      } catch (e) {
+      } catch {
         setError("No se pudo verificar el enlace");
       } finally {
         setLoading(false);
@@ -43,6 +48,48 @@ const PublicDocumentUpload = () => {
     };
     if (token) check();
   }, [token]);
+
+  // Polling do status
+  useEffect(() => {
+    if (!analysisId || !done) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(
+          `${SUPABASE_URL}/functions/v1/bewor-public-status?analysis_id=${analysisId}`
+        );
+        const data = await res.json();
+        if (data.status === "FINISHED") {
+          setStatusFlow("finished");
+          setAprobable(data.aprobable);
+          if (pollRef.current) {
+            window.clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        } else if (data.status === "ERROR") {
+          setStatusFlow("error");
+          if (pollRef.current) {
+            window.clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        } else {
+          setStatusFlow("processing");
+        }
+      } catch (e) {
+        console.error("polling error:", e);
+      }
+    };
+
+    poll();
+    pollRef.current = window.setInterval(poll, 5000);
+
+    return () => {
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [analysisId, done]);
 
   const handleFile = (f: File | null) => {
     if (!f) return;
@@ -73,13 +120,52 @@ const PublicDocumentUpload = () => {
         toast.error(data.error || "Error al enviar el documento");
       } else {
         setDone(true);
+        setAnalysisId(data.analysis_id || null);
+        setStatusFlow("processing");
       }
-    } catch (e) {
+    } catch {
       toast.error("No se pudo enviar el documento");
     } finally {
       setUploading(false);
     }
   };
+
+  const StepIndicator = ({
+    label,
+    state,
+  }: {
+    label: string;
+    state: "done" | "active" | "pending" | "error";
+  }) => (
+    <div className="flex items-center gap-3">
+      <div
+        className={`h-8 w-8 rounded-full flex items-center justify-center shrink-0 ${
+          state === "done"
+            ? "bg-primary text-primary-foreground"
+            : state === "active"
+              ? "bg-primary/20 text-primary"
+              : state === "error"
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-muted text-muted-foreground"
+        }`}
+      >
+        {state === "done" ? (
+          <CheckCircle2 className="h-4 w-4" />
+        ) : state === "active" ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : state === "error" ? (
+          <AlertCircle className="h-4 w-4" />
+        ) : (
+          <Clock className="h-4 w-4" />
+        )}
+      </div>
+      <span
+        className={`text-sm ${state === "pending" ? "text-muted-foreground" : "font-medium"}`}
+      >
+        {label}
+      </span>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -108,12 +194,59 @@ const PublicDocumentUpload = () => {
             )}
 
             {!loading && valid && done && (
-              <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <CheckCircle2 className="h-12 w-12 text-primary" />
-                <h2 className="text-2xl font-semibold">¡Documento recibido!</h2>
-                <p className="text-muted-foreground">
-                  Hemos recibido tu documentación. Tu agente la revisará y te contactará en breve.
-                </p>
+              <div className="space-y-6 py-4">
+                <div className="text-center space-y-2">
+                  <CheckCircle2 className="h-12 w-12 text-primary mx-auto" />
+                  <h2 className="text-2xl font-semibold">¡Documento recibido!</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Estamos procesando tu información de forma segura.
+                  </p>
+                </div>
+
+                <div className="space-y-4 border-t border-border pt-4">
+                  <StepIndicator label="Documento subido" state="done" />
+                  <StepIndicator
+                    label="Analizando con OCR"
+                    state={
+                      statusFlow === "finished"
+                        ? "done"
+                        : statusFlow === "error"
+                          ? "error"
+                          : "active"
+                    }
+                  />
+                  <StepIndicator
+                    label="Análisis listo"
+                    state={
+                      statusFlow === "finished"
+                        ? "done"
+                        : statusFlow === "error"
+                          ? "error"
+                          : "pending"
+                    }
+                  />
+                </div>
+
+                {statusFlow === "finished" && (
+                  <div className="bg-muted rounded-lg p-4 text-center space-y-1">
+                    <p className="text-sm font-medium">Tu agente revisará el resultado</p>
+                    <p className="text-xs text-muted-foreground">
+                      {aprobable === true
+                        ? "Hemos detectado capacidad para una hipoteca. Te contactaremos en breve."
+                        : aprobable === false
+                          ? "Tu agente analizará el resultado y te contactará para discutir las opciones."
+                          : "Te contactaremos con los próximos pasos."}
+                    </p>
+                  </div>
+                )}
+
+                {statusFlow === "error" && (
+                  <div className="bg-destructive/10 rounded-lg p-4 text-center">
+                    <p className="text-sm text-destructive">
+                      Hubo un problema al procesar el documento. Tu agente se pondrá en contacto.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,5 +1,6 @@
 // Recebe callback da Bewor (FINISHED). Valida secret. Busca resultado completo, salva,
 // calcula viabilidade hipotecária, notifica agente e admins.
+// Suporta análises standalone (sem lead_id) — apenas atualiza o registro, não notifica.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -50,7 +51,6 @@ function calcularViabilidad(ingresos_mensuales: number, deudas_mensuales: number
 }
 
 function extractIncomeAndDebts(result: any): { income: number; debts: number } {
-  // Tenta vários caminhos comuns no resultado da Bewor
   const r = result || {};
   const income =
     Number(
@@ -103,7 +103,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Localizar análise
     let analysis: any = null;
     if (analysisIdParam) {
       const { data } = await admin
@@ -130,7 +129,6 @@ Deno.serve(async (req) => {
     }
 
     if (status !== "FINISHED" && status !== "COMPLETED") {
-      // Apenas atualizar status
       await admin
         .from("lead_document_analysis")
         .update({ status: status || "PROCESSING" })
@@ -172,34 +170,45 @@ Deno.serve(async (req) => {
       })
       .eq("id", analysis.id);
 
-    // Notificar agente e admins
-    const { data: lead } = await admin
-      .from("leads")
-      .select("id, nombre_completo, agente_asignado_id")
-      .eq("id", analysis.lead_id)
-      .maybeSingle();
+    // Notificar agente e admins (apenas se houver lead vinculado)
+    if (analysis.lead_id) {
+      const { data: lead } = await admin
+        .from("leads")
+        .select("id, nombre_completo, agente_asignado_id")
+        .eq("id", analysis.lead_id)
+        .maybeSingle();
 
-    if (lead) {
-      const title = "Análisis de documentos completado";
-      const message = `El análisis de movimientos bancarios de "${lead.nombre_completo}" está listo. ${viabilidade.aprobable ? "Hipoteca viable según cálculo automático." : "Capacidad insuficiente según cálculo automático."}`;
-      const link = "/inventario/admin/crm";
+      if (lead) {
+        const title = "Análisis de documentos completado";
+        const message = `El análisis de movimientos bancarios de "${lead.nombre_completo}" está listo. ${viabilidade.aprobable ? "Hipoteca viable según cálculo automático." : "Capacidad insuficiente según cálculo automático."}`;
+        const link = "/inventario/admin/crm";
 
-      if (lead.agente_asignado_id) {
-        await admin.from("notifications").insert({
-          user_id: lead.agente_asignado_id,
-          type: "document_analysis_completed",
-          title,
-          message,
-          link,
-          metadata: { lead_id: lead.id, analysis_id: analysis.id },
+        if (lead.agente_asignado_id) {
+          await admin.from("notifications").insert({
+            user_id: lead.agente_asignado_id,
+            type: "document_analysis_completed",
+            title,
+            message,
+            link,
+            metadata: { lead_id: lead.id, analysis_id: analysis.id },
+          });
+        }
+        await admin.rpc("notify_admins", {
+          p_type: "document_analysis_completed",
+          p_title: title,
+          p_message: message,
+          p_link: link,
+          p_metadata: { lead_id: lead.id, analysis_id: analysis.id },
         });
       }
+    } else {
+      // Análise standalone — notificar apenas admins
       await admin.rpc("notify_admins", {
         p_type: "document_analysis_completed",
-        p_title: title,
-        p_message: message,
-        p_link: link,
-        p_metadata: { lead_id: lead.id, analysis_id: analysis.id },
+        p_title: "Análisis standalone completado",
+        p_message: "Un análisis de documentos sin lead asociado fue completado. Revisa la sección 'Análisis sin asignar'.",
+        p_link: "/inventario/admin/crm",
+        p_metadata: { analysis_id: analysis.id, standalone: true },
       });
     }
 

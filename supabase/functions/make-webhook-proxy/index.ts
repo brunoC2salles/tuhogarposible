@@ -526,6 +526,19 @@ Deno.serve(async (req) => {
         payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
       });
 
+      // Bewor: incluir link ativo de upload de documentos (gerado automaticamente quando lead_cualificado)
+      const { data: beworToken } = await supabase
+        .from('lead_document_tokens')
+        .select('token')
+        .eq('lead_id', lead.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      payload.bewor_link_documentos = beworToken?.token
+        ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken.token}`
+        : '';
+
       const result = await sendToMake(webhookUrl, payload);
 
       return new Response(
@@ -666,6 +679,19 @@ Deno.serve(async (req) => {
         payload[`recom_${num}_precio`] = rec.precio;
         payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
       });
+
+      // Bewor: incluir link ativo de upload de documentos
+      const { data: beworToken2 } = await supabase
+        .from('lead_document_tokens')
+        .select('token')
+        .eq('lead_id', lead.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      payload.bewor_link_documentos = beworToken2?.token
+        ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken2.token}`
+        : '';
 
       const result = await sendToMake(webhookUrl, payload);
 
