@@ -134,11 +134,14 @@ Deno.serve(async (req) => {
     const beworForm = new FormData();
     beworForm.append("file", file, file.name || "documento.pdf");
     beworForm.append("webhook_url", webhookUrl);
-    beworForm.append("type", "bank_statements");
+    beworForm.append("type", "movimientos_bancarios");
 
-    const beworRes = await fetch(`${baseUrl}/third-party/request`, {
+    const beworRes = await fetch(`${baseUrl}/api/v1/third-party/request`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${jwt}` },
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
       body: beworForm,
     });
 

@@ -26,16 +26,16 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized", details: userErr?.message }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Verificar role admin
-    const userId = claimsData.claims.sub;
+    const userId = userData.user.id;
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -57,9 +57,12 @@ Deno.serve(async (req) => {
     const password = Deno.env.get("BEWOR_PASSWORD")!;
 
     // 1. Login na Bewor
-    const loginRes = await fetch(`${baseUrl}/auth/login`, {
+    const loginRes = await fetch(`${baseUrl}/api/v1/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
       body: JSON.stringify({ email, password }),
     });
 
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
     }
 
     const loginData = await loginRes.json();
-    const accessToken = loginData?.access_token || loginData?.accessToken || loginData?.token;
+    const accessToken = loginData?.token || loginData?.access_token || loginData?.accessToken;
     if (!accessToken) {
       return new Response(
         JSON.stringify({ error: "No access_token in Bewor login response", response: loginData }),
@@ -81,10 +84,11 @@ Deno.serve(async (req) => {
     }
 
     // 2. Criar third-party token
-    const tpRes = await fetch(`${baseUrl}/third-party/token`, {
+    const tpRes = await fetch(`${baseUrl}/api/v1/company/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({ name: "Tu Hogar Posible CRM" }),
