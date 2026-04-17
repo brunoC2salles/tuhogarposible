@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
       });
     }
     if (file.size > MAX_SIZE) {
-      return new Response(JSON.stringify({ error: "Archivo supera 5 MB" }), {
+      return new Response(JSON.stringify({ error: "Archivo supera 10 MB" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
