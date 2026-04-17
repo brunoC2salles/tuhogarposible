@@ -147,8 +147,11 @@ Deno.serve(async (req) => {
     let fullResult: any = payload;
     if (requestId && jwt) {
       try {
-        const r = await fetch(`${baseUrl}/third-party/request/${requestId}`, {
-          headers: { Authorization: `Bearer ${jwt}` },
+        const r = await fetch(`${baseUrl}/api/v1/third-party/request/${requestId}`, {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${jwt}`,
+          },
         });
         if (r.ok) fullResult = await r.json();
       } catch (e) {
