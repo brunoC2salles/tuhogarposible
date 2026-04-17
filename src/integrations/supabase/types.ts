@@ -418,6 +418,59 @@ export type Database = {
           },
         ]
       }
+      lead_document_analysis: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          file_path: string | null
+          finished_at: string | null
+          id: string
+          lead_id: string
+          request_id: string | null
+          result: Json | null
+          status: string
+          tipo: string
+          updated_at: string
+          viabilidade_sugerida: Json | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          file_path?: string | null
+          finished_at?: string | null
+          id?: string
+          lead_id: string
+          request_id?: string | null
+          result?: Json | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          viabilidade_sugerida?: Json | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          file_path?: string | null
+          finished_at?: string | null
+          id?: string
+          lead_id?: string
+          request_id?: string | null
+          result?: Json | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          viabilidade_sugerida?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_document_analysis_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_document_checklist: {
         Row: {
           arras_vivienda_no_bancaria: boolean | null
@@ -523,6 +576,44 @@ export type Database = {
             foreignKeyName: "lead_document_checklist_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_document_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          lead_id: string
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          lead_id: string
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          lead_id?: string
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_document_tokens_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -1292,6 +1383,7 @@ export type Database = {
         | "contract_generated"
         | "candidate_stage_change"
         | "new_message"
+        | "document_analysis_completed"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -1458,6 +1550,7 @@ export const Constants = {
         "contract_generated",
         "candidate_stage_change",
         "new_message",
+        "document_analysis_completed",
       ],
       tipo_inmueble: [
         "apartamento",
