@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, Key, Copy } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
