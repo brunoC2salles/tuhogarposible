@@ -3,9 +3,19 @@ import { useLeadDocumentAnalysis } from "@/hooks/useLeadDocumentAnalysis";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, CheckCircle2, AlertCircle, Send } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Send,
+  Download,
+  Calculator,
+} from "lucide-react";
 import RequestDocumentsModal from "./RequestDocumentsModal";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Props {
   leadId: string;
@@ -28,9 +38,82 @@ const statusBadge = (status: string) => {
   }
 };
 
+/** Indicador semáforo de viabilidad */
+const ViabilityLight = ({ aprobable, hipoteca }: { aprobable: boolean; hipoteca: number }) => {
+  let color = "bg-red-500";
+  let label = "No viable";
+  if (aprobable && hipoteca >= 100000) {
+    color = "bg-green-500";
+    label = "Viable - Capacidad alta";
+  } else if (aprobable) {
+    color = "bg-yellow-500";
+    label = "Viable - Capacidad limitada";
+  }
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`h-3 w-3 rounded-full ${color}`} aria-label={label} />
+      <span className="text-sm font-medium">{label}</span>
+    </div>
+  );
+};
+
 const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => {
-  const { analyses, loading } = useLeadDocumentAnalysis(leadId);
+  const { analyses, loading, refetch } = useLeadDocumentAnalysis(leadId);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
+
+  const handleDownload = async (filePath: string | null, analysisId: string) => {
+    if (!filePath) {
+      toast.error("Archivo no disponible");
+      return;
+    }
+    setDownloadingId(analysisId);
+    const { data, error } = await supabase.storage
+      .from("lead-documents")
+      .createSignedUrl(filePath, 60 * 5);
+    setDownloadingId(null);
+    if (error || !data?.signedUrl) {
+      toast.error("No se pudo generar el enlace de descarga");
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const handleApplyToSimulator = async (a: any) => {
+    const v = a.viabilidade_sugerida as any;
+    if (!v?.ingresos_detectados) {
+      toast.error("No hay ingresos detectados para aplicar");
+      return;
+    }
+    setApplyingId(a.id);
+    // Buscar dados existentes do simulador para preservar outros campos
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("simulador_hipotecario_data")
+      .eq("id", leadId)
+      .single();
+
+    const existing = (lead?.simulador_hipotecario_data as any) || {};
+    const updated = {
+      ...existing,
+      ingresos: v.ingresos_detectados,
+      deudas: v.deudas_detectadas || 0,
+      _bewor_applied_at: new Date().toISOString(),
+    };
+
+    const { error } = await supabase
+      .from("leads")
+      .update({ simulador_hipotecario_data: updated })
+      .eq("id", leadId);
+
+    setApplyingId(null);
+    if (error) {
+      toast.error("No se pudo aplicar al simulador");
+      return;
+    }
+    toast.success("Datos aplicados al simulador del lead");
+  };
 
   return (
     <div className="space-y-4">
@@ -38,7 +121,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
         <div>
           <h3 className="font-semibold">Análisis de documentos</h3>
           <p className="text-sm text-muted-foreground">
-            Movimientos bancarios analizados automáticamente
+            Movimientos bancarios analizados automáticamente (Bewor OCR)
           </p>
         </div>
         <Button onClick={() => setRequestOpen(true)}>
@@ -77,12 +160,12 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   {statusBadge(a.status)}
                 </div>
 
-                {a.status === "PROCESSING" || a.status === "CREATED" ? (
+                {(a.status === "PROCESSING" || a.status === "CREATED") && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Análisis en curso. Te notificaremos cuando termine.
                   </div>
-                ) : null}
+                )}
 
                 {a.status === "ERROR" && (
                   <div className="flex items-start gap-2 text-sm text-destructive">
@@ -92,17 +175,11 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                 )}
 
                 {a.status === "FINISHED" && v && (
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <div className="flex items-center gap-2">
-                      {v.aprobable ? (
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                      )}
-                      <span className="text-sm font-medium">
-                        {v.aprobable ? "Hipoteca viable (estimación)" : "Capacidad insuficiente"}
-                      </span>
-                    </div>
+                  <div className="space-y-3 border-t border-border pt-3">
+                    <ViabilityLight
+                      aprobable={!!v.aprobable}
+                      hipoteca={Number(v.hipoteca_maxima || 0)}
+                    />
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="bg-muted rounded p-2">
                         <p className="text-xs text-muted-foreground">Ingresos detectados</p>
@@ -130,6 +207,53 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground">{v.razon}</p>
+
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleApplyToSimulator(a)}
+                        disabled={applyingId === a.id || !v.ingresos_detectados}
+                        className="flex-1"
+                      >
+                        {applyingId === a.id ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Calculator className="h-4 w-4 mr-2" />
+                        )}
+                        Aplicar al simulador
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownload(a.file_path, a.id)}
+                        disabled={!a.file_path || downloadingId === a.id}
+                      >
+                        {downloadingId === a.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {a.status !== "FINISHED" && a.file_path && (
+                  <div className="border-t border-border pt-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleDownload(a.file_path, a.id)}
+                      disabled={downloadingId === a.id}
+                    >
+                      {downloadingId === a.id ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
+                      Descargar PDF original
+                    </Button>
                   </div>
                 )}
               </CardContent>
