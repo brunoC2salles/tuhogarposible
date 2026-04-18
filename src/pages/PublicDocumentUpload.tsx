@@ -9,7 +9,9 @@ import { toast } from "sonner";
 const MAX_SIZE = 10 * 1024 * 1024;
 const SUPABASE_URL = "https://tnzgpzablwfptagfbnvb.supabase.co";
 
-type ProcessingStatus = "uploading" | "processing" | "finished" | "error";
+type ProcessingStatus = "uploading" | "processing" | "finished" | "error" | "timeout";
+
+const MAX_POLL_ATTEMPTS = 24; // 24 × 5s = 2 minutos
 
 const PublicDocumentUpload = () => {
   const { token } = useParams<{ token: string }>();
@@ -29,6 +31,7 @@ const PublicDocumentUpload = () => {
   const [inconclusiveReason, setInconclusiveReason] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<number | null>(null);
+  const attemptsRef = useRef<number>(0);
 
   useEffect(() => {
     const check = async () => {
@@ -56,8 +59,17 @@ const PublicDocumentUpload = () => {
   // Polling do status
   useEffect(() => {
     if (!analysisId || !done) return;
+    attemptsRef.current = 0;
+
+    const stopPolling = () => {
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
 
     const poll = async () => {
+      attemptsRef.current += 1;
       try {
         const res = await fetch(
           `${SUPABASE_URL}/functions/v1/bewor-public-status?analysis_id=${analysisId}`
@@ -70,21 +82,23 @@ const PublicDocumentUpload = () => {
           setCuotaMax(Number(data.cuota_max || 0));
           setInconclusive(!!data.inconclusive);
           setInconclusiveReason(data.inconclusive_reason || null);
-          if (pollRef.current) {
-            window.clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+          stopPolling();
         } else if (data.status === "ERROR") {
           setStatusFlow("error");
-          if (pollRef.current) {
-            window.clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+          stopPolling();
         } else {
           setStatusFlow("processing");
+          if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+            setStatusFlow("timeout");
+            stopPolling();
+          }
         }
       } catch (e) {
         console.error("polling error:", e);
+        if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+          setStatusFlow("timeout");
+          stopPolling();
+        }
       }
     };
 
@@ -92,10 +106,7 @@ const PublicDocumentUpload = () => {
     pollRef.current = window.setInterval(poll, 5000);
 
     return () => {
-      if (pollRef.current) {
-        window.clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      stopPolling();
     };
   }, [analysisId, done]);
 
@@ -209,6 +220,11 @@ const PublicDocumentUpload = () => {
                   <p className="text-muted-foreground text-sm">
                     Estamos procesando tu información de forma segura.
                   </p>
+                  {statusFlow === "processing" && (
+                    <p className="text-xs text-muted-foreground">
+                      Esto suele tardar entre 15 y 30 segundos.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-4 border-t border-border pt-4">
@@ -312,6 +328,40 @@ const PublicDocumentUpload = () => {
                     <p className="text-sm text-destructive">
                       Hubo un problema al procesar el documento. Tu agente se pondrá en contacto.
                     </p>
+                  </div>
+                )}
+
+                {statusFlow === "timeout" && (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-border bg-muted p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Clock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold">Tu análisis está tardando más de lo habitual</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Hemos recibido tu documento correctamente y tu agente lo revisará en breve.
+                            No es necesario que esperes en esta página.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setDone(false);
+                        setFile(null);
+                        setAnalysisId(null);
+                        setStatusFlow("uploading");
+                        setAprobable(null);
+                        setHipotecaMax(0);
+                        setCuotaMax(0);
+                        setInconclusive(false);
+                        setInconclusiveReason(null);
+                      }}
+                    >
+                      Subir otro documento
+                    </Button>
                   </div>
                 )}
               </div>
