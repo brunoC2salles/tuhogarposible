@@ -136,8 +136,9 @@ Deno.serve(async (req) => {
 
     const beworForm = new FormData();
     beworForm.append("file", file, file.name || "documento.pdf");
-    beworForm.append("webhook_url", webhookUrl);
     beworForm.append("type", "movimientos_bancarios");
+    // Bewor espera "callback_url" (não "webhook_url" — corrigido conforme coleção Postman oficial)
+    beworForm.append("callback_url", webhookUrl);
 
     const beworRes = await fetch(`${baseUrl}/api/v1/third-party/request`, {
       method: "POST",
