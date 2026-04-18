@@ -1,11 +1,20 @@
 // Endpoint público para o cliente fazer polling do status do análise após upload.
 // Não requer JWT — só precisa do analysis_id retornado pelo bewor-public-upload.
+// Inclui FALLBACK ATIVO: se PROCESSING > 30s e há request_id, busca direto na Bewor via GET.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  calcularViabilidad,
+  extractIncomeAndDebts,
+  buildViabilidadeWithMetadata,
+  fetchBeworResult,
+} from "../_shared/beworExtraction.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const FALLBACK_AFTER_MS = 30 * 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -26,9 +35,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data, error } = await admin
+    let { data, error } = await admin
       .from("lead_document_analysis")
-      .select("id, status, error_message, finished_at, viabilidade_sugerida")
+      .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at")
       .eq("id", analysisId)
       .maybeSingle();
 
@@ -37,6 +46,41 @@ Deno.serve(async (req) => {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // FALLBACK ATIVO: se PROCESSING há mais de 30s e tem request_id, buscar na Bewor
+    const isProcessing = data.status === "PROCESSING" || data.status === "PENDING" || data.status === "RECEIVED";
+    const ageMs = Date.now() - new Date(data.created_at).getTime();
+    if (isProcessing && data.request_id && ageMs > FALLBACK_AFTER_MS) {
+      console.log(`[fallback] analysis=${analysisId} age=${Math.round(ageMs / 1000)}s — fetching Bewor GET`);
+      const fullResult = await fetchBeworResult(data.request_id);
+      const beworStatus = (fullResult?.status || fullResult?.result?.status || "").toString().toUpperCase();
+      const isFinished = beworStatus === "FINISHED" || beworStatus === "COMPLETED" || !!fullResult?.result;
+
+      if (fullResult && isFinished) {
+        const { income, debts, source } = extractIncomeAndDebts(fullResult);
+        let viabilidade: any = calcularViabilidad(income, debts);
+        viabilidade = buildViabilidadeWithMetadata(fullResult, viabilidade);
+        console.log(`[fallback] extracted income=${income} debts=${debts} source=${source}`);
+
+        await admin
+          .from("lead_document_analysis")
+          .update({
+            status: "FINISHED",
+            result: fullResult,
+            viabilidade_sugerida: viabilidade,
+            finished_at: new Date().toISOString(),
+          })
+          .eq("id", analysisId);
+
+        // Re-ler para refletir o estado atualizado
+        const { data: refreshed } = await admin
+          .from("lead_document_analysis")
+          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at")
+          .eq("id", analysisId)
+          .maybeSingle();
+        if (refreshed) data = refreshed;
+      }
     }
 
     const v = (data.viabilidade_sugerida as any) || {};
