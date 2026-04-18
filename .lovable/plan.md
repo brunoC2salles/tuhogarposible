@@ -1,74 +1,56 @@
 
 
-## Diagnóstico
+## Diagnóstico final (a Bewor está OK)
 
-**1. Mensagem do simulador (página `/documentos/:token`)**
-Em `PublicDocumentUpload.tsx` (linhas 230-241), após o OCR finalizar mostro:
-- "Tu agente revisará el resultado"
-- "Te contactaremos en breve" / "Tu agente analizará el resultado"
+Inspecionei o JSON real retornado dos uploads de ontem:
 
-O cliente NÃO vê o veredito (aprobable / hipoteca máxima / cuota máx). Vou substituir por um card com o resultado direto.
+```
+result: "WARNING"  ← Bewor sinaliza problema
+pages: 1            ← PDF tinha só 1 página (capa, não extrato)
+records: []         ← sem transações para extrair
+warning_reasons: [{ code: "W_IBAN_INVALID", description: "IBAN validation failed" }]
+iban: "2325356125"  ← 10 dígitos (IBAN válido tem 24)
+```
 
-**2. Bewor "crédito 0"**
-PDFs subidos ontem (Antonio: 1 página, Chabely: 9 páginas Santander) retornaram `records: []` → `income=0, debts=0` → veredito "crédito máximo 0".
+**Conclusão:** Integração está 100% funcional (type, callback_url, JWT, GET resultado, polling, fallback de soma). O problema foi o **PDF enviado**: era um documento de 1 página sem movimentos, não um extrato bancário completo.
 
-A causa é o `type: "movimientos_bancarios"` que estamos enviando. A Bewor processou os PDFs (status FINISHED, confidence 94-96%, IBAN/holder/banco extraídos), mas **não extraiu transações** porque esse `type` provavelmente faz só validação documental, não OCR de movimentos.
+Hoje mostramos "crédito 0" sem explicar o porquê. Vamos consertar isso.
 
-**Preciso da sua coleção Postman** para confirmar:
-- O `type` correto para extração de movimentos (provavelmente `"extracto_bancario"` ou similar)
-- Se há flag adicional (`extract_records`, `deep_analysis`, etc.)
-- Endpoint correto (atual: `POST /api/v1/third-party/request`)
+## Mudanças (3 arquivos, sem migrações, sem mexer em nada que funciona)
 
-Enquanto isso o fallback será mostrar dados crus do OCR no agente.
+### 1. `bewor-webhook/index.ts` — capturar avisos da Bewor
+- Ler `result.result.result` (`"OK"` / `"WARNING"` / `"KO"`) e `warning_reasons[]` / `ko_reasons[]`
+- Adicionar ao `viabilidade_sugerida`:
+  - `bewor_status`: OK/WARNING/KO
+  - `bewor_warnings`: array de descrições legíveis
+  - `pages`, `confidence` para diagnóstico
+- Quando `result === "KO"` ou warnings críticos, marcar `razon` com mensagem clara: *"El documento no es un extracto bancario válido (X advertencias)"*
+- Continua salvando tudo cru no `result` (sem perda)
 
-**3. Fallback de viabilidade (resposta sua)**
-Quando `records=[]` ou `income=0`, mostrar bloco com dados crus extraídos (titular, IBAN, banco, páginas, confidence) no `BeworAnalysisTab`, em vez de calcular viabilidade fake.
+### 2. `bewor-public-status/index.ts` — informar o cliente
+- Retornar campos extras: `bewor_status`, `bewor_warnings`, `pages`
+- Quando `bewor_status === "KO"` ou `pages < 2`, marcar `inconclusive: true` **com motivo específico**
 
-## Plano de Implementação
+### 3. `PublicDocumentUpload.tsx` — UX clara
+- **Antes do upload**: aviso visível: *"Sube el extracto completo de los últimos 6 meses (mínimo 4-5 páginas). Documentos parciales no permiten análisis."*
+- **Após análise inconclusiva**: substituir mensagem genérica por motivo real, ex.: *"El documento procesado tiene solo 1 página. Para un análisis válido necesitamos el extracto completo."* + botón "Subir otro documento"
 
-### Fase 1 — Mostrar veredito ao cliente (simples, sem risco)
+### 4. `BeworAnalysisTab.tsx` — agente vê tudo
+- Acima do fallback OCR já existente, adicionar bloco "Avisos del análisis Bewor" com:
+  - Badge do status (OK verde / WARNING amarelo / KO vermelho)
+  - Lista de `warning_reasons` traduzida (W_IBAN_INVALID → "IBAN inválido", etc.)
+  - Sugestão de ação (ex: "Pedir al cliente el extracto completo de los últimos 6 meses")
 
-**`PublicDocumentUpload.tsx`** — substituir o bloco "Tu agente revisará":
-- Quando `statusFlow === "finished"` e há dados de viabilidade, mostrar:
-  - Badge: "✓ HIPOTECA APROBABLE" (verde) ou "Análisis recibido" (neutro se inconclusivo)
-  - Hipoteca máxima estimada (€)
-  - Cuota mensual máxima (€)
-  - Pequeno disclaimer: "Estimación basada en OCR. Tu agente confirmará los términos finales."
-- Quando OCR não conseguiu extrair (ingresos=0, records=[]), mostrar mensagem neutra: "Documento recibido y analizado. Tu agente revisará los datos contigo." (não mentir dizendo "0 €")
+## O que NÃO toco
+- Migrações (nenhuma necessária — campos já existem em `result` JSONB)
+- `bewor-public-upload` (envio está correto conforme Postman)
+- Trigger automático, webhook Make/Bitrix, simulador, RLS, hooks de leads
+- Lógica de cálculo de viabilidade (continua igual quando há records)
 
-**`bewor-public-status/index.ts`** — já retorna `aprobable`. Adicionar também: `hipoteca_maxima`, `cuota_max`, `inconclusive` (true se ingresos=0).
+## Resultado esperado
+- Cliente que subir PDF inválido vê **por quê** e pode reenviar
+- Agente vê semáforo + avisos Bewor + dados crus do OCR num único painel
+- Quando o cliente subir extrato real (com transações), o cálculo automático funcionará como sempre projetado
 
-### Fase 2 — Fallback agente (BeworAnalysisTab)
-
-**`BeworAnalysisTab.tsx`** — quando `viabilidade.ingresos_detectados === 0`:
-- Esconder semáforo de viabilidade
-- Mostrar card "OCR no detectó movimientos — datos extraídos del documento":
-  - Titular (do `result.document_fields.holders`)
-  - IBAN + banco (se válido)
-  - Período do extrato (`period_start_date`)
-  - Páginas processadas + confidence
-  - Botão "Descargar PDF original" (já existe)
-- Aviso ao agente: "Posiblemente el `type` enviado a Bewor es para validación documental, no extracción de transacciones. Revisar configuración."
-
-### Fase 3 — Bewor type correto (BLOQUEADO até receber Postman)
-
-Aguardo você reenviar a coleção Postman. Quando tiver:
-- Atualizo o `type` em `bewor-public-upload/index.ts`
-- Adiciono flags se necessário
-- Fallback de Fase 2 continua útil para erros futuros
-
-**Não vou tocar** em nenhum outro arquivo, hook, trigger, webhook Make/Bitrix, simulador interno, ou na lógica de geração automática de tokens — tudo isso já funciona.
-
-## O que NÃO mexo (proteção contra regressão)
-
-- Trigger `auto_generate_bewor_token_on_qualification`
-- Webhook `make-webhook-proxy` (Bitrix)
-- `ResultadosSimulacionHipotecaria` / `ResultadosCombinados` (já mostram veredito)
-- Simulador interno do agente
-- RLS, schema, hooks de leads
-- Edge function `bewor-admin-token` (JWT está OK)
-
-## Próximo passo
-
-Implemento Fase 1 + Fase 2 imediatamente após sua aprovação (são mudanças isoladas e seguras). A Fase 3 fica pendente até você me reenviar a coleção Postman da Bewor — sem ela, qualquer mudança no `type` é chute e pode quebrar o que já funciona parcialmente.
+Implementação leve: ~3 edges + 2 componentes UI, sem novas dependências, sem migrações.
 
