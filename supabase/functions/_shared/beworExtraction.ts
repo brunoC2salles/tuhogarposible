@@ -129,22 +129,61 @@ export function extractStructuredData(fullResult: any): {
   const docFields: any =
     innerResult?.document_fields || r?.document_fields || {};
 
-  const holderRaw = docFields.holder ?? docFields.holders;
-  const holder_name = Array.isArray(holderRaw)
-    ? holderRaw.filter(Boolean).join(", ").trim() || null
-    : (typeof holderRaw === "string" ? holderRaw.trim() : "") || null;
+  // Holders pode vir como array de objetos {name, idNumber} OU array de strings.
+  const holdersRaw = docFields.holders ?? docFields.holder;
+  let holder_name: string | null = null;
+  let holder_dni: string | null = null;
 
-  const dniRaw = docFields.idNumber ?? docFields.dni ?? docFields.nif;
-  const holder_dni =
-    typeof dniRaw === "string" && dniRaw.trim().length > 0 ? dniRaw.trim() : null;
+  if (Array.isArray(holdersRaw)) {
+    const names = holdersRaw
+      .map((h: any) => {
+        if (typeof h === "string") return h.trim();
+        if (h && typeof h === "object") return String(h.name ?? "").trim();
+        return "";
+      })
+      .filter((n: string) => n.length > 0);
+    if (names.length > 0) holder_name = names.join(", ");
+
+    // Primeiro idNumber não vazio
+    for (const h of holdersRaw) {
+      if (h && typeof h === "object") {
+        const id = String(h.idNumber ?? h.dni ?? h.nif ?? "").trim();
+        if (id.length > 0) {
+          holder_dni = id;
+          break;
+        }
+      }
+    }
+  } else if (typeof holdersRaw === "string" && holdersRaw.trim().length > 0) {
+    holder_name = holdersRaw.trim();
+  }
+
+  // Fallback DNI nos campos top-level do documento
+  if (!holder_dni) {
+    const dniRaw = docFields.idNumber ?? docFields.dni ?? docFields.nif;
+    if (typeof dniRaw === "string" && dniRaw.trim().length > 0) {
+      holder_dni = dniRaw.trim();
+    }
+  }
 
   const ibanRaw = docFields.iban ?? docFields.IBAN;
   const iban =
     typeof ibanRaw === "string" && ibanRaw.trim().length > 0 ? ibanRaw.trim() : null;
 
-  const bankRaw = docFields.bank ?? docFields.bank_name;
-  const bank_name =
-    typeof bankRaw === "string" && bankRaw.trim().length > 0 ? bankRaw.trim() : null;
+  // Bewor devolve o nome do banco em financial_entity_text / financial_entity_normalized
+  const bankCandidates = [
+    docFields.financial_entity_text,
+    docFields.financial_entity_normalized,
+    docFields.bank,
+    docFields.bank_name,
+  ];
+  let bank_name: string | null = null;
+  for (const b of bankCandidates) {
+    if (typeof b === "string" && b.trim().length > 0) {
+      bank_name = b.trim();
+      break;
+    }
+  }
 
   // period_start em formato dd/mm/yyyy → ISO yyyy-mm-dd
   let period_start: string | null = null;
@@ -209,15 +248,10 @@ export function buildViabilidadeWithMetadata(fullResult: any, viabilidade: any) 
     [];
   const recordsCount = Array.isArray(records) ? records.length : 0;
 
-  // Dados do titular/banco para mensagem amigável
-  const holderRaw = docFields.holder ?? docFields.holders;
-  const holder = Array.isArray(holderRaw)
-    ? holderRaw.filter(Boolean).join(", ")
-    : (typeof holderRaw === "string" ? holderRaw : "") || "";
-  const bank =
-    (typeof docFields.bank === "string" ? docFields.bank : "") ||
-    (typeof docFields.bank_name === "string" ? docFields.bank_name : "") ||
-    "";
+  // Dados limpos do titular/banco para mensagem amigável (reusa extractStructuredData)
+  const structured = extractStructuredData(fullResult);
+  const holder = structured.holder_name || "";
+  const bank = structured.bank_name || "";
 
   if (beworStatus === "KO" || koDescriptions.length > 0) {
     viabilidade.razon = `El documento no es un extracto bancario válido (${koDescriptions.length || warningDescriptions.length} errores)`;

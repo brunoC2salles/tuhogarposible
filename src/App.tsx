@@ -27,6 +27,7 @@ import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
+import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +126,14 @@ const App = () => (
             />
             <Route path="/produto/:id" element={<ProdutoPublico />} />
             <Route path="/documentos/:token" element={<PublicDocumentUpload />} />
+            <Route
+              path="/admin/verificaciones-extractos"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <VerificacionesExtractos />
+                </ProtectedRoute>
+              }
+            />
             <Route 
               path="/academia"
               element={

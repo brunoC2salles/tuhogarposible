@@ -124,7 +124,11 @@ const ExtractedDataCard = ({
       <div className="grid grid-cols-2 gap-2 text-sm">
         <div className="bg-background rounded p-2">
           <p className="text-xs text-muted-foreground">Titular</p>
-          <p className="font-medium truncate">{analysis.holder_name || "—"}</p>
+          <p className="font-medium truncate">
+            {analysis.holder_name && !analysis.holder_name.includes("[object Object]")
+              ? analysis.holder_name
+              : "—"}
+          </p>
         </div>
         <div className="bg-background rounded p-2">
           <p className="text-xs text-muted-foreground">Banco</p>
