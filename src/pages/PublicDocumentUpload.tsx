@@ -233,15 +233,49 @@ const PublicDocumentUpload = () => {
                   />
                 </div>
 
-                {statusFlow === "finished" && (
+                {statusFlow === "finished" && inconclusive && (
                   <div className="bg-muted rounded-lg p-4 text-center space-y-1">
-                    <p className="text-sm font-medium">Tu agente revisará el resultado</p>
+                    <p className="text-sm font-medium">Documento recibido y analizado</p>
                     <p className="text-xs text-muted-foreground">
-                      {aprobable === true
-                        ? "Hemos detectado capacidad para una hipoteca. Te contactaremos en breve."
-                        : aprobable === false
-                          ? "Tu agente analizará el resultado y te contactará para discutir las opciones."
-                          : "Te contactaremos con los próximos pasos."}
+                      Tu agente revisará los datos contigo en breve.
+                    </p>
+                  </div>
+                )}
+
+                {statusFlow === "finished" && !inconclusive && aprobable === true && (
+                  <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-5 space-y-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-semibold text-primary uppercase tracking-wide">
+                        Hipoteca aprobable
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-background rounded-md p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Hipoteca máxima estimada</p>
+                        <p className="text-lg font-bold text-foreground">
+                          {hipotecaMax.toLocaleString("es-ES")} €
+                        </p>
+                      </div>
+                      <div className="bg-background rounded-md p-3 text-center">
+                        <p className="text-xs text-muted-foreground">Cuota mensual máx.</p>
+                        <p className="text-lg font-bold text-foreground">
+                          {cuotaMax.toLocaleString("es-ES")} €
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Estimación basada en OCR. Tu agente confirmará los términos finales contigo.
+                    </p>
+                  </div>
+                )}
+
+                {statusFlow === "finished" && !inconclusive && aprobable === false && (
+                  <div className="rounded-lg border border-border bg-muted p-4 space-y-2 text-center">
+                    <p className="text-sm font-semibold">Análisis recibido</p>
+                    <p className="text-xs text-muted-foreground">
+                      Según los movimientos analizados, la capacidad actual es limitada. Tu agente
+                      te contactará para revisar opciones contigo.
                     </p>
                   </div>
                 )}
