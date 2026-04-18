@@ -23,6 +23,9 @@ const PublicDocumentUpload = () => {
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [statusFlow, setStatusFlow] = useState<ProcessingStatus>("uploading");
   const [aprobable, setAprobable] = useState<boolean | null>(null);
+  const [hipotecaMax, setHipotecaMax] = useState<number>(0);
+  const [cuotaMax, setCuotaMax] = useState<number>(0);
+  const [inconclusive, setInconclusive] = useState<boolean>(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<number | null>(null);
 
