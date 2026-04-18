@@ -1,50 +1,39 @@
 
 
-## Diagnóstico (3 problemas reais)
+## Diagnóstico
 
-**1. Nome do titular guardado como `[object Object]`**
-A Bewor devolve `holders: [{ name: "VALDES SANCHEZ CHABELY", idNumber: "" }]` — array de **objetos**. O nosso código faz `holderRaw.join(", ")` assumindo strings → vira literalmente `"[object Object]"`. Por isso também perdemos o DNI (que vem dentro do mesmo objeto) e o nome do banco (que está em `financial_entity_text`, não em `bank`).
+A regra é **simples e dura**: ahorros < 5.000 € → NO CUALIFICADO. Sem compensações, sem fórmulas extras. Aplicar nos dois sítios onde "qualificação" existe:
 
-**2. Cliente vê resultado vazio "0 €"**
-A última análise teve `documentValidated: false` no response do status (porque `holder_name` saiu como `[object Object]` e `bank_name` ficou nulo, então a UI caiu no branch `aprobable === false` que mostra "capacidad limitada"). Era para cair no branch verde "Documento validado".
+1. **`meta-lead-webhook`** — função `qualificarLead()` em `supabase/functions/meta-lead-webhook/index.ts`. Já lemos `monto_ahorros` (`montoAhorros`), mas hoje só usamos para o "gap" das recomendações; a qualificação ignora-o.
+2. **Simulador hipotecário** — `calcularSimulacionHipotecaria()` em `src/lib/simuladorUtils.ts` (linha 588). Hoje, `aprobable` ignora o capital próprio (a memória `mortgage-simulator-rules-2025` confirma). Vou adicionar o critério de 5k€ ao cálculo de `aprobable` e `razonNoAprobado`.
 
-**3. Não há área dedicada no admin para verificar extractos**
-Hoje as análises só são visíveis dentro do modal de cada lead. O utilizador quer uma página única que liste **todas** as verificações feitas com o nome do cliente associado.
+## Plano (2 ficheiros, sem migração, sem schema novo, sem peso extra)
 
-## Plano (3 ficheiros + 1 nova página)
+### 1. `supabase/functions/meta-lead-webhook/index.ts`
+- Em `qualificarLead()`, **acrescentar** "Critério 7: Ahorros ≥ 5.000€" como **último** check (depois de ingressos/deudas). Razão: `'Ahorros insuficientes (menos de 5.000€)'`.
+- Passar `montoAhorros` como argumento (já é calculado mais abaixo no fluxo — vou mover o `parseDeudas(data.monto_ahorros)` para **antes** da chamada `qualificarLead`, sem duplicar lógica).
+- Sem alterar mais nada (recomendações, plan de pagos, webhooks de descualificação continuam exatamente iguais).
 
-### 1. `_shared/beworExtraction.ts` — ler estrutura real da Bewor
-- `holders[]` pode ser array de **objetos** `{name, idNumber}` **ou** array de strings (defesa para ambos os formatos)
-- Extrair `holder_name` juntando os `name` (string) de cada holder
-- Extrair `holder_dni` do **primeiro** `idNumber` não vazio dos holders (bonus: agora capturamos o DNI automaticamente quando vem)
-- Extrair `bank_name` priorizando `financial_entity_text` → `financial_entity_normalized` → `bank` (campos reais que a Bewor devolve)
-- `buildViabilidadeWithMetadata`: usar a string limpa de holder/bank na mensagem amigável (sem `[object Object]`)
+### 2. `src/lib/simuladorUtils.ts`
+- Em `calcularSimulacionHipotecaria()`, adicionar critério: `ahorrosSuficientesMinimo = datos.ahorrosDisponibles >= 5000`.
+- Incluir no `aprobable`: `aprobable = ahorrosSuficientesMinimo && ...resto`.
+- Adicionar primeira `razonNoAprobado` (com prioridade alta): *"Ahorros insuficientes: tienes X€ disponibles pero el mínimo requerido es 5.000€."*
+- Sem mexer no schema do form (`ahorrosDisponibles` já é obrigatório `min(0)`), sem mexer em UI (a UI já mostra `razonNoAprobado` nos componentes `ResultadosSimulacionHipotecaria.tsx` e `ResultadosCombinados.tsx`).
 
-### 2. `bewor-public-status/index.ts` — devolver `documentValidated` corretamente
-Adicionar o `documentValidated` e `validatedMessage` ao response também quando `viabilidade.needs_manual_review === true` (hoje só dispara quando alguém define `document_validated` manualmente). Mensagem: *"Hemos recibido tu extracto correctamente (Banco Santander, 9 páginas validadas, titular Chabely). Tu agente lo revisará personalmente."*
+### O que NÃO toco
+- `bewor-*`, RLS, schema, ContraConfig, simulador personal, ResultadosCombinados, `mortgage-simulator-rules-2025` memory (vou **atualizar** esta memória para refletir a nova barreira de 5k€, sem reescrever as outras regras), webhooks Make/Bitrix, página `/admin/verificaciones-extractos`, etc.
+- Sem alterações a tipos do Supabase.
+- Sem novas dependências.
 
-### 3. Backfill da linha quebrada (1 query simples)
-Reprocessar apenas o registo `61a9158d…` para corrigir `holder_name = "VALDES SANCHEZ CHABELY"`, `holder_dni = ""` (mantém vazio), `bank_name = "Banco Santander"` a partir do JSON cru.
-
-### 4. Nova página `/admin/verificaciones-extractos`
-Página dedicada listando **todas** as `lead_document_analysis` (com `lead_id` ou standalone), tabela com:
-- Nome do cliente (do `lead.nombre_completo` se houver; senão `holder_name` do documento; senão "Standalone")
-- Banco + IBAN mascarado
-- Período do extracto, páginas, confidence
-- Status badge (OK/WARNING/KO + "Necessita revisão manual" quando `needs_manual_review`)
-- Ingressos (auto ou manual), data
-- Botão "Abrir lead" (quando vinculado) ou "Ver detalhes" (modal com JSON e campo manual de `monthly_income`)
-
-Adicionar entrada no `AdminSidebar` no grupo "Operacional": **"Verificación de Extractos"** com ícone `FileCheck`.
-
-### 5. Pequeno fix em `BeworAnalysisTab.tsx`
-Garantir que se `holder_name` vier como `[object Object]` (registos antigos), mostra fallback "Sem nome".
-
-## O que NÃO toco
-- `bewor-public-upload`, `bewor-webhook`, schema, RLS, simulador, lógica de cálculo, trigger automático de token
+### Memória a atualizar
+- `mem://features/mortgage-simulator-rules-2025`: adicionar uma linha "Ahorros mínimos obrigatórios: 5.000€. Se inferior, hipoteca NO APROBABLE com razón clara." (mantém o resto intacto).
+- `mem://features/meta-ads-qualification-rules-2025` (vou criar a memória — não existe ainda — sintetizando os 6 critérios atuais + o novo de ahorros).
 
 ## Resultado esperado
-- Cliente recebe sempre uma mensagem clara: ou "Hipoteca aprobable X €" ou "Documento validado, agente vai revisar"
-- Nome e DNI passam a ser guardados corretamente quando a Bewor os envia
-- Admin tem painel central `/admin/verificaciones-extractos` com todas as verificações listadas e nome do cliente visível
+- Lead Meta Ads com `monto_ahorros < 5000` → criado como `descualificados` com nota *"NO CUALIFICADO - Ahorros insuficientes (menos de 5.000€)"* e dispara o webhook de descualificados (sem código novo — reaproveita o fluxo existente).
+- Cliente que use o simulador público com ahorros < 5k vê a badge "HIPOTECA NO APROBABLE" + razón clara, em vez de números calculados.
+- Quem tiver ≥ 5k€ continua a ser avaliado pelos critérios atuais (rendimento, DTI, idade, etc.) — zero impacto.
+
+## Pergunta opcional
+A memória atual diz: *"A aprovação NÃO é bloqueada por insuficiência de capital próprio."* Esta nova regra contradiz parcialmente (passa a haver um piso mínimo de 5k€). Vou atualizar a memória para refletir a nova realidade — só te aviso aqui para que saibas que ficou registado.
 
