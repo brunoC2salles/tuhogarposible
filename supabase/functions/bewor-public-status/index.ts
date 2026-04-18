@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   calcularViabilidad,
   extractIncomeAndDebts,
+  extractStructuredData,
   buildViabilidadeWithMetadata,
   fetchBeworResult,
 } from "../_shared/beworExtraction.ts";
@@ -37,7 +38,7 @@ Deno.serve(async (req) => {
 
     let { data, error } = await admin
       .from("lead_document_analysis")
-      .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at")
+      .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name")
       .eq("id", analysisId)
       .maybeSingle();
 
@@ -61,7 +62,9 @@ Deno.serve(async (req) => {
         const { income, debts, source } = extractIncomeAndDebts(fullResult);
         let viabilidade: any = calcularViabilidad(income, debts);
         viabilidade = buildViabilidadeWithMetadata(fullResult, viabilidade);
+        const structured = extractStructuredData(fullResult);
         console.log(`[fallback] extracted income=${income} debts=${debts} source=${source}`);
+        console.log(`[fallback] structured:`, JSON.stringify(structured));
 
         await admin
           .from("lead_document_analysis")
@@ -70,13 +73,19 @@ Deno.serve(async (req) => {
             result: fullResult,
             viabilidade_sugerida: viabilidade,
             finished_at: new Date().toISOString(),
+            holder_name: structured.holder_name,
+            holder_dni: structured.holder_dni,
+            iban: structured.iban,
+            bank_name: structured.bank_name,
+            period_start: structured.period_start,
+            monthly_income: income > 0 ? Math.round(income) : null,
           })
           .eq("id", analysisId);
 
         // Re-ler para refletir o estado atualizado
         const { data: refreshed } = await admin
           .from("lead_document_analysis")
-          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at")
+          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name")
           .eq("id", analysisId)
           .maybeSingle();
         if (refreshed) data = refreshed;
