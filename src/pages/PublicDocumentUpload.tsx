@@ -237,9 +237,9 @@ const PublicDocumentUpload = () => {
 
                 {statusFlow === "finished" && inconclusive && (
                   <div className="space-y-3">
-                    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 space-y-2">
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
                       <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                        <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                         <div>
                           <p className="text-sm font-semibold">Documento incompleto</p>
                           <p className="text-xs text-muted-foreground mt-1">
