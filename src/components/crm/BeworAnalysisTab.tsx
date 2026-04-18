@@ -174,70 +174,144 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   </div>
                 )}
 
-                {a.status === "FINISHED" && v && (
-                  <div className="space-y-3 border-t border-border pt-3">
-                    <ViabilityLight
-                      aprobable={!!v.aprobable}
-                      hipoteca={Number(v.hipoteca_maxima || 0)}
-                    />
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="bg-muted rounded p-2">
-                        <p className="text-xs text-muted-foreground">Ingresos detectados</p>
-                        <p className="font-semibold">
-                          {Number(v.ingresos_detectados || 0).toLocaleString("es-ES")} €/mes
-                        </p>
-                      </div>
-                      <div className="bg-muted rounded p-2">
-                        <p className="text-xs text-muted-foreground">Deudas detectadas</p>
-                        <p className="font-semibold">
-                          {Number(v.deudas_detectadas || 0).toLocaleString("es-ES")} €/mes
-                        </p>
-                      </div>
-                      <div className="bg-muted rounded p-2">
-                        <p className="text-xs text-muted-foreground">Cuota máx.</p>
-                        <p className="font-semibold">
-                          {Number(v.cuota_max || 0).toLocaleString("es-ES")} €/mes
-                        </p>
-                      </div>
-                      <div className="bg-muted rounded p-2">
-                        <p className="text-xs text-muted-foreground">Hipoteca máx.</p>
-                        <p className="font-semibold">
-                          {Number(v.hipoteca_maxima || 0).toLocaleString("es-ES")} €
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{v.razon}</p>
+                {a.status === "FINISHED" && v && (() => {
+                  const ingresos = Number(v.ingresos_detectados || 0);
+                  const inconclusive = ingresos === 0;
+                  const docFields = (a.result as any)?.document_fields || {};
+                  const holders = Array.isArray(docFields.holders)
+                    ? docFields.holders.join(", ")
+                    : docFields.holders || "—";
+                  const iban = docFields.iban || docFields.IBAN || "—";
+                  const bank = docFields.bank || docFields.bank_name || "—";
+                  const period = docFields.period_start_date
+                    ? `${docFields.period_start_date} → ${docFields.period_end_date || "?"}`
+                    : "—";
+                  const pages = (a.result as any)?.pages_processed ?? (a.result as any)?.num_pages ?? "—";
+                  const confidence = (a.result as any)?.confidence ?? null;
 
-                    <div className="flex gap-2 pt-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleApplyToSimulator(a)}
-                        disabled={applyingId === a.id || !v.ingresos_detectados}
-                        className="flex-1"
-                      >
-                        {applyingId === a.id ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Calculator className="h-4 w-4 mr-2" />
-                        )}
-                        Aplicar al simulador
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownload(a.file_path, a.id)}
-                        disabled={!a.file_path || downloadingId === a.id}
-                      >
-                        {downloadingId === a.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Download className="h-4 w-4" />
-                        )}
-                      </Button>
+                  if (inconclusive) {
+                    return (
+                      <div className="space-y-3 border-t border-border pt-3">
+                        <div className="rounded-md border border-border bg-muted p-3 space-y-2">
+                          <div className="flex items-start gap-2">
+                            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold">
+                                OCR no detectó movimientos
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Se extrajeron datos del documento pero no las transacciones. Posiblemente el tipo enviado a Bewor sea de validación documental, no de extracción de transacciones. Revisar configuración.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="bg-muted rounded p-2">
+                            <p className="text-xs text-muted-foreground">Titular</p>
+                            <p className="font-medium truncate">{holders}</p>
+                          </div>
+                          <div className="bg-muted rounded p-2">
+                            <p className="text-xs text-muted-foreground">Banco</p>
+                            <p className="font-medium truncate">{bank}</p>
+                          </div>
+                          <div className="bg-muted rounded p-2 col-span-2">
+                            <p className="text-xs text-muted-foreground">IBAN</p>
+                            <p className="font-mono text-xs">{iban}</p>
+                          </div>
+                          <div className="bg-muted rounded p-2">
+                            <p className="text-xs text-muted-foreground">Período</p>
+                            <p className="text-xs">{period}</p>
+                          </div>
+                          <div className="bg-muted rounded p-2">
+                            <p className="text-xs text-muted-foreground">Páginas / Confianza</p>
+                            <p className="text-xs">
+                              {pages} {confidence !== null ? `• ${Math.round(Number(confidence) * 100)}%` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownload(a.file_path, a.id)}
+                          disabled={!a.file_path || downloadingId === a.id}
+                          className="w-full"
+                        >
+                          {downloadingId === a.id ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4 mr-2" />
+                          )}
+                          Descargar PDF original
+                        </Button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <ViabilityLight
+                        aprobable={!!v.aprobable}
+                        hipoteca={Number(v.hipoteca_maxima || 0)}
+                      />
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="bg-muted rounded p-2">
+                          <p className="text-xs text-muted-foreground">Ingresos detectados</p>
+                          <p className="font-semibold">
+                            {ingresos.toLocaleString("es-ES")} €/mes
+                          </p>
+                        </div>
+                        <div className="bg-muted rounded p-2">
+                          <p className="text-xs text-muted-foreground">Deudas detectadas</p>
+                          <p className="font-semibold">
+                            {Number(v.deudas_detectadas || 0).toLocaleString("es-ES")} €/mes
+                          </p>
+                        </div>
+                        <div className="bg-muted rounded p-2">
+                          <p className="text-xs text-muted-foreground">Cuota máx.</p>
+                          <p className="font-semibold">
+                            {Number(v.cuota_max || 0).toLocaleString("es-ES")} €/mes
+                          </p>
+                        </div>
+                        <div className="bg-muted rounded p-2">
+                          <p className="text-xs text-muted-foreground">Hipoteca máx.</p>
+                          <p className="font-semibold">
+                            {Number(v.hipoteca_maxima || 0).toLocaleString("es-ES")} €
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{v.razon}</p>
+
+                      <div className="flex gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApplyToSimulator(a)}
+                          disabled={applyingId === a.id || !v.ingresos_detectados}
+                          className="flex-1"
+                        >
+                          {applyingId === a.id ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Calculator className="h-4 w-4 mr-2" />
+                          )}
+                          Aplicar al simulador
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownload(a.file_path, a.id)}
+                          disabled={!a.file_path || downloadingId === a.id}
+                        >
+                          {downloadingId === a.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Download className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {a.status !== "FINISHED" && a.file_path && (
                   <div className="border-t border-border pt-3">
