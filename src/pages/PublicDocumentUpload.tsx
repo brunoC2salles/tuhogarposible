@@ -9,7 +9,9 @@ import { toast } from "sonner";
 const MAX_SIZE = 10 * 1024 * 1024;
 const SUPABASE_URL = "https://tnzgpzablwfptagfbnvb.supabase.co";
 
-type ProcessingStatus = "uploading" | "processing" | "finished" | "error";
+type ProcessingStatus = "uploading" | "processing" | "finished" | "error" | "timeout";
+
+const MAX_POLL_ATTEMPTS = 24; // 24 × 5s = 2 minutos
 
 const PublicDocumentUpload = () => {
   const { token } = useParams<{ token: string }>();
