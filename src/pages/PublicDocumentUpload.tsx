@@ -236,11 +236,36 @@ const PublicDocumentUpload = () => {
                 </div>
 
                 {statusFlow === "finished" && inconclusive && (
-                  <div className="bg-muted rounded-lg p-4 text-center space-y-1">
-                    <p className="text-sm font-medium">Documento recibido y analizado</p>
-                    <p className="text-xs text-muted-foreground">
-                      Tu agente revisará los datos contigo en breve.
-                    </p>
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold">Documento incompleto</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {inconclusiveReason ||
+                              "No pudimos extraer los movimientos del documento. Por favor, sube el extracto bancario completo."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setDone(false);
+                        setFile(null);
+                        setAnalysisId(null);
+                        setStatusFlow("uploading");
+                        setAprobable(null);
+                        setHipotecaMax(0);
+                        setCuotaMax(0);
+                        setInconclusive(false);
+                        setInconclusiveReason(null);
+                      }}
+                    >
+                      Subir otro documento
+                    </Button>
                   </div>
                 )}
 
@@ -302,6 +327,20 @@ const PublicDocumentUpload = () => {
                     Sube tus <strong>movimientos bancarios de los últimos 6 meses</strong> en formato PDF.
                   </p>
                   <p className="text-sm text-muted-foreground">Tamaño máximo: 10 MB</p>
+                </div>
+
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="text-xs text-foreground space-y-1">
+                      <p className="font-semibold">Importante para un análisis válido:</p>
+                      <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
+                        <li>Extracto <strong>completo</strong> de los últimos 6 meses</li>
+                        <li>Mínimo 4-5 páginas (no solo la portada o el resumen)</li>
+                        <li>Debe incluir los movimientos detallados con fechas e importes</li>
+                      </ul>
+                    </div>
+                  </div>
                 </div>
 
                 <div
