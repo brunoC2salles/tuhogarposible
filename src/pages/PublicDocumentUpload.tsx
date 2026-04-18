@@ -65,6 +65,9 @@ const PublicDocumentUpload = () => {
         if (data.status === "FINISHED") {
           setStatusFlow("finished");
           setAprobable(data.aprobable);
+          setHipotecaMax(Number(data.hipoteca_maxima || 0));
+          setCuotaMax(Number(data.cuota_max || 0));
+          setInconclusive(!!data.inconclusive);
           if (pollRef.current) {
             window.clearInterval(pollRef.current);
             pollRef.current = null;
