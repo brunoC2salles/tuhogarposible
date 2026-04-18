@@ -220,6 +220,11 @@ const PublicDocumentUpload = () => {
                   <p className="text-muted-foreground text-sm">
                     Estamos procesando tu información de forma segura.
                   </p>
+                  {statusFlow === "processing" && (
+                    <p className="text-xs text-muted-foreground">
+                      Esto suele tardar entre 15 y 30 segundos.
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-4 border-t border-border pt-4">
