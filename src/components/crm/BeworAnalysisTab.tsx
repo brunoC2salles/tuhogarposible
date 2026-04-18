@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLeadDocumentAnalysis } from "@/hooks/useLeadDocumentAnalysis";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   FileText,
   Loader2,
@@ -11,6 +13,8 @@ import {
   Send,
   Download,
   Calculator,
+  User,
+  Save,
 } from "lucide-react";
 import RequestDocumentsModal from "./RequestDocumentsModal";
 import { format } from "date-fns";
@@ -57,6 +61,132 @@ const ViabilityLight = ({ aprobable, hipoteca }: { aprobable: boolean; hipoteca:
   );
 };
 
+/** Cartão destacado com todos os dados extraídos pela Bewor + edição manual */
+const ExtractedDataCard = ({
+  analysis,
+  onSaved,
+}: {
+  analysis: any;
+  onSaved: () => void;
+}) => {
+  const [dni, setDni] = useState(analysis.holder_dni || "");
+  const [income, setIncome] = useState<string>(
+    analysis.monthly_income != null ? String(analysis.monthly_income) : ""
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Sincroniza quando o registro é atualizado (realtime)
+  useEffect(() => {
+    setDni(analysis.holder_dni || "");
+    setIncome(analysis.monthly_income != null ? String(analysis.monthly_income) : "");
+  }, [analysis.holder_dni, analysis.monthly_income]);
+
+  const v = (analysis.viabilidade_sugerida as any) || {};
+  const docFields =
+    (analysis.result as any)?.document_fields ||
+    (analysis.result as any)?.result?.document_fields ||
+    {};
+  const pages = v.pages || (analysis.result as any)?.result?.pages || "—";
+  const confidence = v.confidence ?? (analysis.result as any)?.result?.confidence ?? null;
+  const period = analysis.period_start
+    ? `Desde ${format(new Date(analysis.period_start), "dd/MM/yyyy")}`
+    : docFields.period_start_date
+      ? `${docFields.period_start_date} → ${docFields.period_end_date || "?"}`
+      : "—";
+
+  const handleSave = async () => {
+    setSaving(true);
+    const monthlyIncomeNum = income.trim() ? Number(income.replace(",", ".")) : null;
+    const { error } = await supabase
+      .from("lead_document_analysis")
+      .update({
+        holder_dni: dni.trim() || null,
+        monthly_income: monthlyIncomeNum,
+      })
+      .eq("id", analysis.id);
+
+    if (error) {
+      toast.error("No se pudieron guardar los datos");
+    } else {
+      toast.success("Datos guardados");
+      onSaved();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="rounded-md border-2 border-primary/30 bg-primary/5 p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <User className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold text-primary">Datos extraídos del documento</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div className="bg-background rounded p-2">
+          <p className="text-xs text-muted-foreground">Titular</p>
+          <p className="font-medium truncate">{analysis.holder_name || "—"}</p>
+        </div>
+        <div className="bg-background rounded p-2">
+          <p className="text-xs text-muted-foreground">Banco</p>
+          <p className="font-medium truncate">{analysis.bank_name || "—"}</p>
+        </div>
+        <div className="bg-background rounded p-2 col-span-2">
+          <p className="text-xs text-muted-foreground">IBAN</p>
+          <p className="font-mono text-xs break-all">{analysis.iban || "—"}</p>
+        </div>
+        <div className="bg-background rounded p-2">
+          <p className="text-xs text-muted-foreground">Período</p>
+          <p className="text-xs">{period}</p>
+        </div>
+        <div className="bg-background rounded p-2">
+          <p className="text-xs text-muted-foreground">Páginas / Confianza</p>
+          <p className="text-xs">
+            {pages} {confidence !== null ? `• ${Math.round(Number(confidence) * 100)}%` : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="space-y-1">
+          <Label htmlFor={`dni-${analysis.id}`} className="text-xs">
+            DNI / NIE
+          </Label>
+          <Input
+            id={`dni-${analysis.id}`}
+            value={dni}
+            onChange={(e) => setDni(e.target.value)}
+            placeholder="Ej: 12345678A"
+            className="h-9 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`income-${analysis.id}`} className="text-xs">
+            Ingresos mensuales (€)
+          </Label>
+          <Input
+            id={`income-${analysis.id}`}
+            type="number"
+            inputMode="decimal"
+            value={income}
+            onChange={(e) => setIncome(e.target.value)}
+            placeholder="Ej: 1850"
+            className="h-9 text-sm"
+          />
+        </div>
+      </div>
+
+      <Button size="sm" onClick={handleSave} disabled={saving} className="w-full">
+        {saving ? (
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+        ) : (
+          <Save className="h-4 w-4 mr-2" />
+        )}
+        Guardar datos del documento
+      </Button>
+    </div>
+  );
+};
+
 const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => {
   const { analyses, loading, refetch } = useLeadDocumentAnalysis(leadId);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -81,13 +211,14 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
   };
 
   const handleApplyToSimulator = async (a: any) => {
+    // Prioriza monthly_income manual; cai para ingresos_detectados automáticos
     const v = a.viabilidade_sugerida as any;
-    if (!v?.ingresos_detectados) {
-      toast.error("No hay ingresos detectados para aplicar");
+    const ingresosToApply = a.monthly_income ?? v?.ingresos_detectados ?? 0;
+    if (!ingresosToApply || ingresosToApply <= 0) {
+      toast.error("No hay ingresos para aplicar. Introduce los ingresos manualmente y guarda.");
       return;
     }
     setApplyingId(a.id);
-    // Buscar dados existentes do simulador para preservar outros campos
     const { data: lead } = await supabase
       .from("leads")
       .select("simulador_hipotecario_data")
@@ -97,8 +228,8 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
     const existing = (lead?.simulador_hipotecario_data as any) || {};
     const updated = {
       ...existing,
-      ingresos: v.ingresos_detectados,
-      deudas: v.deudas_detectadas || 0,
+      ingresos: Number(ingresosToApply),
+      deudas: Number(v?.deudas_detectadas || 0),
       _bewor_applied_at: new Date().toISOString(),
     };
 
@@ -175,23 +306,14 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                 )}
 
                 {a.status === "FINISHED" && v && (() => {
-                  const ingresos = Number(v.ingresos_detectados || 0);
-                  const inconclusive = ingresos === 0;
-                  const docFields = (a.result as any)?.document_fields || (a.result as any)?.result?.document_fields || {};
-                  const holders = Array.isArray(docFields.holders)
-                    ? docFields.holders.join(", ")
-                    : docFields.holders || "—";
-                  const iban = docFields.iban || docFields.IBAN || "—";
-                  const bank = docFields.bank || docFields.bank_name || "—";
-                  const period = docFields.period_start_date
-                    ? `${docFields.period_start_date} → ${docFields.period_end_date || "?"}`
-                    : "—";
-                  const pages = v.pages || (a.result as any)?.pages_processed || (a.result as any)?.num_pages || "—";
-                  const confidence = v.confidence ?? (a.result as any)?.confidence ?? null;
+                  const ingresosAuto = Number(v.ingresos_detectados || 0);
+                  const ingresosManual = Number(a.monthly_income || 0);
+                  const ingresosFinal = ingresosManual > 0 ? ingresosManual : ingresosAuto;
                   const beworStatus = (v.bewor_status || "").toString().toUpperCase();
                   const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
                   const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
-                  const hasBeworFlags = beworStatus === "WARNING" || beworStatus === "KO" || warnings.length > 0 || kos.length > 0;
+                  const needsManualReview = !!v.needs_manual_review;
+                  const hasBeworFlags = warnings.length > 0 || kos.length > 0;
 
                   const translateReason = (txt: string) => {
                     const t = (txt || "").toUpperCase();
@@ -225,53 +347,21 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                           {warnings.map((w, i) => <li key={`w-${i}`}>{translateReason(w)}</li>)}
                         </ul>
                       )}
-                      <p className="text-xs text-muted-foreground italic">
-                        Sugerencia: pedir al cliente el extracto completo de los últimos 6 meses (mínimo 4-5 páginas).
-                      </p>
                     </div>
                   ) : null;
 
-                  if (inconclusive) {
+                  // Cenário 1: Bewor KO — documento inválido
+                  if (beworStatus === "KO") {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
                         {beworFlagsBlock}
-                        <div className="rounded-md border border-border bg-muted p-3 space-y-2">
-                          <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
-                            <div className="flex-1">
-                              <p className="text-sm font-semibold">
-                                OCR no detectó movimientos
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {v.razon || "El documento fue procesado pero no se extrajeron transacciones. Pide al cliente el extracto bancario completo de los últimos 6 meses."}
-                              </p>
-                            </div>
-                          </div>
+                        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                          <p className="text-sm font-semibold">Documento no válido</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {v.razon || "El documento no es un extracto bancario válido."}
+                          </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div className="bg-muted rounded p-2">
-                            <p className="text-xs text-muted-foreground">Titular</p>
-                            <p className="font-medium truncate">{holders}</p>
-                          </div>
-                          <div className="bg-muted rounded p-2">
-                            <p className="text-xs text-muted-foreground">Banco</p>
-                            <p className="font-medium truncate">{bank}</p>
-                          </div>
-                          <div className="bg-muted rounded p-2 col-span-2">
-                            <p className="text-xs text-muted-foreground">IBAN</p>
-                            <p className="font-mono text-xs">{iban}</p>
-                          </div>
-                          <div className="bg-muted rounded p-2">
-                            <p className="text-xs text-muted-foreground">Período</p>
-                            <p className="text-xs">{period}</p>
-                          </div>
-                          <div className="bg-muted rounded p-2">
-                            <p className="text-xs text-muted-foreground">Páginas / Confianza</p>
-                            <p className="text-xs">
-                              {pages} {confidence !== null ? `• ${Math.round(Number(confidence) * 100)}%` : ""}
-                            </p>
-                          </div>
-                        </div>
+                        <ExtractedDataCard analysis={a} onSaved={refetch} />
                         <Button
                           size="sm"
                           variant="outline"
@@ -290,18 +380,61 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                     );
                   }
 
+                  // Cenário 2: Documento validado mas Bewor não extraiu records (revisão manual necessária)
+                  if (needsManualReview && ingresosFinal === 0) {
+                    return (
+                      <div className="space-y-3 border-t border-border pt-3">
+                        {beworFlagsBlock}
+                        <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                          <div className="flex items-start gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
+                            <div>
+                              <p className="text-sm font-semibold text-primary">
+                                Documento validado — revisión manual de ingresos
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {v.razon}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <ExtractedDataCard analysis={a} onSaved={refetch} />
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownload(a.file_path, a.id)}
+                            disabled={!a.file_path || downloadingId === a.id}
+                            className="flex-1"
+                          >
+                            {downloadingId === a.id ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4 mr-2" />
+                            )}
+                            Descargar PDF original
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Cenário 3: Análise completa com cálculo automático ou ingresos manuais já preenchidos
                   return (
                     <div className="space-y-3 border-t border-border pt-3">
                       {beworFlagsBlock}
+                      <ExtractedDataCard analysis={a} onSaved={refetch} />
                       <ViabilityLight
-                        aprobable={!!v.aprobable}
+                        aprobable={!!v.aprobable || ingresosFinal > 0}
                         hipoteca={Number(v.hipoteca_maxima || 0)}
                       />
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="bg-muted rounded p-2">
-                          <p className="text-xs text-muted-foreground">Ingresos detectados</p>
+                          <p className="text-xs text-muted-foreground">
+                            Ingresos {ingresosManual > 0 ? "(manual)" : "(auto)"}
+                          </p>
                           <p className="font-semibold">
-                            {ingresos.toLocaleString("es-ES")} €/mes
+                            {ingresosFinal.toLocaleString("es-ES")} €/mes
                           </p>
                         </div>
                         <div className="bg-muted rounded p-2">
@@ -323,14 +456,14 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                           </p>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">{v.razon}</p>
+                      {v.razon && <p className="text-xs text-muted-foreground">{v.razon}</p>}
 
                       <div className="flex gap-2 pt-1">
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => handleApplyToSimulator(a)}
-                          disabled={applyingId === a.id || !v.ingresos_detectados}
+                          disabled={applyingId === a.id || ingresosFinal === 0}
                           className="flex-1"
                         >
                           {applyingId === a.id ? (
