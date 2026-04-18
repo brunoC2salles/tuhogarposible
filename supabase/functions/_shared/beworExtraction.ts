@@ -113,6 +113,50 @@ export function extractIncomeAndDebts(
   return { income: 0, debts: 0, source: "no_data" };
 }
 
+/**
+ * Extrai dados estruturados do resultado Bewor (titular, IBAN, banco, período, DNI).
+ * Usado para popular as colunas estruturadas em lead_document_analysis.
+ */
+export function extractStructuredData(fullResult: any): {
+  holder_name: string | null;
+  holder_dni: string | null;
+  iban: string | null;
+  bank_name: string | null;
+  period_start: string | null;
+} {
+  const r: any = fullResult || {};
+  const innerResult: any = r.result || r;
+  const docFields: any =
+    innerResult?.document_fields || r?.document_fields || {};
+
+  const holderRaw = docFields.holder ?? docFields.holders;
+  const holder_name = Array.isArray(holderRaw)
+    ? holderRaw.filter(Boolean).join(", ").trim() || null
+    : (typeof holderRaw === "string" ? holderRaw.trim() : "") || null;
+
+  const dniRaw = docFields.idNumber ?? docFields.dni ?? docFields.nif;
+  const holder_dni =
+    typeof dniRaw === "string" && dniRaw.trim().length > 0 ? dniRaw.trim() : null;
+
+  const ibanRaw = docFields.iban ?? docFields.IBAN;
+  const iban =
+    typeof ibanRaw === "string" && ibanRaw.trim().length > 0 ? ibanRaw.trim() : null;
+
+  const bankRaw = docFields.bank ?? docFields.bank_name;
+  const bank_name =
+    typeof bankRaw === "string" && bankRaw.trim().length > 0 ? bankRaw.trim() : null;
+
+  // period_start em formato dd/mm/yyyy → ISO yyyy-mm-dd
+  let period_start: string | null = null;
+  const psRaw = docFields.period_start_date;
+  if (typeof psRaw === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(psRaw)) {
+    const [d, m, y] = psRaw.split("/");
+    period_start = `${y}-${m}-${d}`;
+  }
+
+  return { holder_name, holder_dni, iban, bank_name, period_start };
+}
+
 export function buildViabilidadeWithMetadata(fullResult: any, viabilidade: any) {
   const r: any = fullResult || {};
   const innerResult: any = r.result || r;
@@ -130,13 +174,16 @@ export function buildViabilidadeWithMetadata(fullResult: any, viabilidade: any) 
     innerResult?.ko_reasons || innerResult?.kos || r?.ko_reasons || [];
 
   const docFields = innerResult?.document_fields || r?.document_fields || {};
+
+  // FIX: ler `pages` do innerResult (correto), não de docFields.pages (sempre 0)
   const pages =
     Number(
-      innerResult?.pages_processed ??
+      innerResult?.pages ??
+        innerResult?.pages_processed ??
         innerResult?.num_pages ??
+        r?.pages ??
         r?.pages_processed ??
         r?.num_pages ??
-        docFields?.pages ??
         0
     ) || 0;
   const confidence =
@@ -156,9 +203,34 @@ export function buildViabilidadeWithMetadata(fullResult: any, viabilidade: any) 
   viabilidade.confidence = confidence;
 
   const income = Number(viabilidade.ingresos_detectados || 0);
+  const records: any[] =
+    innerResult?.document_fields?.records ||
+    r?.document_fields?.records ||
+    [];
+  const recordsCount = Array.isArray(records) ? records.length : 0;
+
+  // Dados do titular/banco para mensagem amigável
+  const holderRaw = docFields.holder ?? docFields.holders;
+  const holder = Array.isArray(holderRaw)
+    ? holderRaw.filter(Boolean).join(", ")
+    : (typeof holderRaw === "string" ? holderRaw : "") || "";
+  const bank =
+    (typeof docFields.bank === "string" ? docFields.bank : "") ||
+    (typeof docFields.bank_name === "string" ? docFields.bank_name : "") ||
+    "";
+
   if (beworStatus === "KO" || koDescriptions.length > 0) {
     viabilidade.razon = `El documento no es un extracto bancario válido (${koDescriptions.length || warningDescriptions.length} errores)`;
     viabilidade.aprobable = false;
+  } else if (income === 0 && recordsCount === 0 && (beworStatus === "OK" || beworStatus === "WARNING") && pages >= 1) {
+    // Documento validado mas SEM registros — Bewor só fez validação documental.
+    // Mensagem honesta: confirmar dados extraídos e pedir revisão manual.
+    const partes: string[] = [];
+    if (bank) partes.push(`Banco ${bank}`);
+    if (holder) partes.push(`titular ${holder}`);
+    partes.push(`${pages} página${pages === 1 ? "" : "s"}`);
+    viabilidade.razon = `Documento validado correctamente (${partes.join(", ")}). El sistema no extrajo movimientos individuales — el agente revisará el PDF para calcular ingresos manualmente.`;
+    viabilidade.needs_manual_review = true;
   } else if (income === 0 && (warningDescriptions.length > 0 || pages < 2)) {
     viabilidade.razon =
       pages < 2

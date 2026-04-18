@@ -14,6 +14,12 @@ export interface LeadDocumentAnalysis {
   created_at: string;
   finished_at: string | null;
   updated_at: string;
+  holder_name: string | null;
+  holder_dni: string | null;
+  iban: string | null;
+  bank_name: string | null;
+  period_start: string | null;
+  monthly_income: number | null;
 }
 
 export const useLeadDocumentAnalysis = (leadId: string | undefined) => {

@@ -420,12 +420,18 @@ export type Database = {
       }
       lead_document_analysis: {
         Row: {
+          bank_name: string | null
           created_at: string
           error_message: string | null
           file_path: string | null
           finished_at: string | null
+          holder_dni: string | null
+          holder_name: string | null
+          iban: string | null
           id: string
           lead_id: string | null
+          monthly_income: number | null
+          period_start: string | null
           request_id: string | null
           result: Json | null
           status: string
@@ -434,12 +440,18 @@ export type Database = {
           viabilidade_sugerida: Json | null
         }
         Insert: {
+          bank_name?: string | null
           created_at?: string
           error_message?: string | null
           file_path?: string | null
           finished_at?: string | null
+          holder_dni?: string | null
+          holder_name?: string | null
+          iban?: string | null
           id?: string
           lead_id?: string | null
+          monthly_income?: number | null
+          period_start?: string | null
           request_id?: string | null
           result?: Json | null
           status?: string
@@ -448,12 +460,18 @@ export type Database = {
           viabilidade_sugerida?: Json | null
         }
         Update: {
+          bank_name?: string | null
           created_at?: string
           error_message?: string | null
           file_path?: string | null
           finished_at?: string | null
+          holder_dni?: string | null
+          holder_name?: string | null
+          iban?: string | null
           id?: string
           lead_id?: string | null
+          monthly_income?: number | null
+          period_start?: string | null
           request_id?: string | null
           result?: Json | null
           status?: string

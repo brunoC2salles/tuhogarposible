@@ -29,6 +29,8 @@ const PublicDocumentUpload = () => {
   const [cuotaMax, setCuotaMax] = useState<number>(0);
   const [inconclusive, setInconclusive] = useState<boolean>(false);
   const [inconclusiveReason, setInconclusiveReason] = useState<string | null>(null);
+  const [documentValidated, setDocumentValidated] = useState<boolean>(false);
+  const [validatedMessage, setValidatedMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<number | null>(null);
   const attemptsRef = useRef<number>(0);
@@ -82,6 +84,8 @@ const PublicDocumentUpload = () => {
           setCuotaMax(Number(data.cuota_max || 0));
           setInconclusive(!!data.inconclusive);
           setInconclusiveReason(data.inconclusive_reason || null);
+          setDocumentValidated(!!data.document_validated);
+          setValidatedMessage(data.validated_message || null);
           stopPolling();
         } else if (data.status === "ERROR") {
           setStatusFlow("error");
@@ -278,6 +282,8 @@ const PublicDocumentUpload = () => {
                         setCuotaMax(0);
                         setInconclusive(false);
                         setInconclusiveReason(null);
+                        setDocumentValidated(false);
+                        setValidatedMessage(null);
                       }}
                     >
                       Subir otro documento
@@ -313,7 +319,22 @@ const PublicDocumentUpload = () => {
                   </div>
                 )}
 
-                {statusFlow === "finished" && !inconclusive && aprobable === false && (
+                {statusFlow === "finished" && !inconclusive && documentValidated && (
+                  <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-5 space-y-3">
+                    <div className="flex items-center justify-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-primary" />
+                      <span className="text-sm font-semibold text-primary uppercase tracking-wide">
+                        Documento validado
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground text-center">
+                      {validatedMessage ||
+                        "Hemos recibido tu extracto correctamente. Tu agente lo revisará personalmente y te confirmará los términos en breve."}
+                    </p>
+                  </div>
+                )}
+
+                {statusFlow === "finished" && !inconclusive && !documentValidated && aprobable === false && (
                   <div className="rounded-lg border border-border bg-muted p-4 space-y-2 text-center">
                     <p className="text-sm font-semibold">Análisis recibido</p>
                     <p className="text-xs text-muted-foreground">
@@ -358,6 +379,8 @@ const PublicDocumentUpload = () => {
                         setCuotaMax(0);
                         setInconclusive(false);
                         setInconclusiveReason(null);
+                        setDocumentValidated(false);
+                        setValidatedMessage(null);
                       }}
                     >
                       Subir otro documento
