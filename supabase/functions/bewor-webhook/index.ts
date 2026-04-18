@@ -50,29 +50,74 @@ function calcularViabilidad(ingresos_mensuales: number, deudas_mensuales: number
   };
 }
 
-function extractIncomeAndDebts(result: any): { income: number; debts: number } {
+function extractIncomeAndDebts(result: any): { income: number; debts: number; source: string } {
   const r = result || {};
-  const income =
-    Number(
-      r.average_monthly_income ??
-        r.ingresos_mensuales_promedio ??
-        r.monthly_income ??
-        r.income?.monthly_average ??
-        r.summary?.average_monthly_income ??
-        r.data?.average_monthly_income ??
-        0
-    ) || 0;
-  const debts =
-    Number(
-      r.average_monthly_debts ??
-        r.deudas_mensuales ??
-        r.monthly_debts ??
-        r.debts?.monthly_average ??
-        r.summary?.average_monthly_debts ??
-        r.data?.average_monthly_debts ??
-        0
-    ) || 0;
-  return { income, debts };
+  // 1. Tentar chaves agregadas conhecidas
+  const directIncome = Number(
+    r.average_monthly_income ??
+      r.ingresos_mensuales_promedio ??
+      r.monthly_income ??
+      r.income?.monthly_average ??
+      r.summary?.average_monthly_income ??
+      r.data?.average_monthly_income ??
+      r.result?.average_monthly_income ??
+      r.result?.summary?.average_monthly_income ??
+      0
+  ) || 0;
+  const directDebts = Number(
+    r.average_monthly_debts ??
+      r.deudas_mensuales ??
+      r.monthly_debts ??
+      r.debts?.monthly_average ??
+      r.summary?.average_monthly_debts ??
+      r.data?.average_monthly_debts ??
+      r.result?.average_monthly_debts ??
+      r.result?.summary?.average_monthly_debts ??
+      0
+  ) || 0;
+
+  if (directIncome > 0 || directDebts > 0) {
+    return { income: directIncome, debts: directDebts, source: "aggregated_fields" };
+  }
+
+  // 2. Fallback: somar transações de document_fields.records[] (estrutura real Bewor)
+  const records: any[] =
+    r.result?.document_fields?.records ||
+    r.document_fields?.records ||
+    r.records ||
+    [];
+
+  if (Array.isArray(records) && records.length > 0) {
+    let totalIncome = 0;
+    let totalDebts = 0;
+    // Detectar período em meses (a partir de period_start_date até hoje, mín 1)
+    const startStr =
+      r.result?.document_fields?.period_start_date ||
+      r.document_fields?.period_start_date;
+    let months = 6; // default
+    if (startStr) {
+      // formato dd/mm/yyyy
+      const parts = String(startStr).split("/");
+      if (parts.length === 3) {
+        const start = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        const diffMs = Date.now() - start.getTime();
+        const m = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
+        months = m;
+      }
+    }
+    for (const rec of records) {
+      const amount = Number(rec.amount ?? rec.value ?? rec.importe ?? 0);
+      if (amount > 0) totalIncome += amount;
+      else if (amount < 0) totalDebts += Math.abs(amount);
+    }
+    return {
+      income: totalIncome / months,
+      debts: totalDebts / months,
+      source: `records_sum_${records.length}_over_${months}m`,
+    };
+  }
+
+  return { income: 0, debts: 0, source: "no_data" };
 }
 
 Deno.serve(async (req) => {
@@ -157,7 +202,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { income, debts } = extractIncomeAndDebts(fullResult);
+    const { income, debts, source } = extractIncomeAndDebts(fullResult);
+    console.log(`bewor-webhook extraction: income=${income} debts=${debts} source=${source} analysis=${analysis.id}`);
     const viabilidade = calcularViabilidad(income, debts);
 
     await admin
