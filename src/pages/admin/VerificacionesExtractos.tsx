@@ -211,7 +211,9 @@ const VerificacionesExtractos = () => {
                     <TableHead>IBAN</TableHead>
                     <TableHead>Período</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Ingresos</TableHead>
+                    <TableHead className="text-center">Records</TableHead>
+                    <TableHead className="text-right">Ingresos Bewor</TableHead>
+                    <TableHead className="text-right">Hipoteca máx.</TableHead>
                     <TableHead>Fecha</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -221,6 +223,15 @@ const VerificacionesExtractos = () => {
                     const v = r.viabilidade_sugerida || {};
                     const ingresos =
                       r.monthly_income ?? v.ingresos_detectados ?? 0;
+                    const hipotecaMax = Number(v.hipoteca_maxima || 0);
+                    // Tenta extrair nº de records do JSON cru da Bewor
+                    const rawResult = (r.result as any) || {};
+                    const recordsArr =
+                      rawResult?.records ||
+                      rawResult?.result?.records ||
+                      rawResult?.data?.records ||
+                      [];
+                    const recordsCount = Array.isArray(recordsArr) ? recordsArr.length : 0;
                     return (
                       <TableRow key={r.id}>
                         <TableCell>
@@ -258,9 +269,21 @@ const VerificacionesExtractos = () => {
                         <TableCell>
                           <StatusBadge row={r} />
                         </TableCell>
+                        <TableCell className="text-center">
+                          {recordsCount > 0 ? (
+                            <Badge variant="secondary">{recordsCount}</Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">0</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           {Number(ingresos) > 0
                             ? `${Math.round(Number(ingresos)).toLocaleString("es-ES")} €`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {hipotecaMax > 0
+                            ? `${Math.round(hipotecaMax).toLocaleString("es-ES")} €`
                             : "—"}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
