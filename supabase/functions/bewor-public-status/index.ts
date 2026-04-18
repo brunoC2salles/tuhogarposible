@@ -98,10 +98,20 @@ Deno.serve(async (req) => {
     const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
     const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
     const pages = Number(v.pages || 0);
+    const needsManualReview = !!v.needs_manual_review;
+    const holderName = (data as any).holder_name || null;
+    const bankName = (data as any).bank_name || null;
+
+    // Documento OK mas sem records → validado, agente revisa. NÃO é inconclusive.
+    const documentValidated =
+      data.status === "FINISHED" &&
+      (beworStatus === "OK" || beworStatus === "WARNING") &&
+      needsManualReview;
 
     const inconclusive =
       data.status === "FINISHED" &&
-      (ingresos === 0 || beworStatus === "KO" || pages > 0 && pages < 2);
+      !documentValidated &&
+      (beworStatus === "KO" || (pages > 0 && pages < 2) || (ingresos === 0 && warnings.length > 0));
 
     let inconclusive_reason: string | null = null;
     if (inconclusive) {
@@ -119,6 +129,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Mensagem amigável para documento validado mas sem cálculo automático
+    let validated_message: string | null = null;
+    if (documentValidated) {
+      const partes: string[] = [];
+      if (bankName) partes.push(`Banco ${bankName}`);
+      if (pages > 0) partes.push(`${pages} página${pages === 1 ? "" : "s"} validada${pages === 1 ? "" : "s"}`);
+      const detalhes = partes.length > 0 ? ` (${partes.join(", ")})` : "";
+      validated_message = `Hemos recibido tu extracto correctamente${detalhes}. Tu agente lo revisará personalmente y te confirmará los términos en breve.`;
+    }
+
     return new Response(
       JSON.stringify({
         status: data.status,
@@ -129,6 +149,10 @@ Deno.serve(async (req) => {
         cuota_max: Number(v?.cuota_max || 0),
         inconclusive,
         inconclusive_reason,
+        document_validated: documentValidated,
+        validated_message,
+        holder_name: holderName,
+        bank_name: bankName,
         bewor_status: beworStatus || null,
         bewor_warnings: warnings,
         pages,
