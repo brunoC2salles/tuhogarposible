@@ -39,14 +39,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Apenas devolve viabilidade se aprobable, sem detalhes financeiros sensíveis
-    const v = data.viabilidade_sugerida as any;
+    const v = (data.viabilidade_sugerida as any) || {};
+    const ingresos = Number(v.ingresos_detectados || 0);
+    const inconclusive = data.status === "FINISHED" && ingresos === 0;
+
     return new Response(
       JSON.stringify({
         status: data.status,
         finished: !!data.finished_at,
         error: data.error_message,
         aprobable: v?.aprobable ?? null,
+        hipoteca_maxima: Number(v?.hipoteca_maxima || 0),
+        cuota_max: Number(v?.cuota_max || 0),
+        inconclusive,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
