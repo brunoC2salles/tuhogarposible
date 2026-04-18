@@ -192,9 +192,9 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   if (inconclusive) {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
-                        <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
+                        <div className="rounded-md border border-border bg-muted p-3 space-y-2">
                           <div className="flex items-start gap-2">
-                            <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                            <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
                             <div className="flex-1">
                               <p className="text-sm font-semibold">
                                 OCR no detectó movimientos
