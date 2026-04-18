@@ -234,6 +234,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   if (inconclusive) {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
+                        {beworFlagsBlock}
                         <div className="rounded-md border border-border bg-muted p-3 space-y-2">
                           <div className="flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -242,7 +243,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                                 OCR no detectó movimientos
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Se extrajeron datos del documento pero no las transacciones. Posiblemente el tipo enviado a Bewor sea de validación documental, no de extracción de transacciones. Revisar configuración.
+                                {v.razon || "El documento fue procesado pero no se extrajeron transacciones. Pide al cliente el extracto bancario completo de los últimos 6 meses."}
                               </p>
                             </div>
                           </div>
@@ -291,6 +292,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
 
                   return (
                     <div className="space-y-3 border-t border-border pt-3">
+                      {beworFlagsBlock}
                       <ViabilityLight
                         aprobable={!!v.aprobable}
                         hipoteca={Number(v.hipoteca_maxima || 0)}
