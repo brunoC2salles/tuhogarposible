@@ -584,12 +584,17 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   // Criterio 4: monto a financiar no supera máximo financiable
   const montoNoSuperaMaximo = montoFinanciable <= montoMaximoFinanciable;
   
-  // Aprobable requiere todos los criterios
-  const aprobable = aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable && montoNoSuperaMaximo;
+  // Criterio 5: Ahorros mínimos de 5.000€ (regla obligatoria, sin compensaciones)
+  const ahorrosMinimosSuficientes = datos.ahorrosDisponibles >= 5000;
   
-  // Razón de no aprobación
+  // Aprobable requiere todos los criterios
+  const aprobable = ahorrosMinimosSuficientes && aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable && montoNoSuperaMaximo;
+  
+  // Razón de no aprobación (prioridad: ahorros mínimos primero)
   let razonNoAprobado: string | undefined;
-  if (!cumpleMinimoFinanciable) {
+  if (!ahorrosMinimosSuficientes) {
+    razonNoAprobado = `Ahorros insuficientes: tienes ${formatEuro(datos.ahorrosDisponibles)} disponibles pero el mínimo requerido es 5.000€.`;
+  } else if (!cumpleMinimoFinanciable) {
     razonNoAprobado = `El importe a financiar (${formatEuro(montoFinanciable)}) es inferior al mínimo de 70.000€`;
   } else if (!capacidadMinimaSuficiente) {
     razonNoAprobado = `Capacidad de pago insuficiente: ${formatEuro(hipotecaMaximaMensual)}/mes (mínimo requerido: 350€/mes)`;

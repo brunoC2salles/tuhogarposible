@@ -716,9 +716,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Calcular simulações (edadParsed já calculado acima)
-    // Parse ahorros do Meta Ads para calcular o gap
-    const montoAhorros = parseDeudas(data.monto_ahorros); // reusa parseDeudas para limpar o valor
+    // 7. Calcular simulações (edadParsed e montoAhorros já calculados acima)
     
     const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
     
