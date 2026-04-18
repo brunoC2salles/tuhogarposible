@@ -1,64 +1,50 @@
 
 
-## Diagnóstico
+## Diagnóstico (3 problemas reais)
 
-A Bewor está a devolver o documento como **OK** (confidence 96.77%, 9 páginas, banco Santander, IBAN válido, titular extraído), mas com `records: []` — ou seja, está a fazer apenas **validação documental**, não está a extrair as transações individuais.
+**1. Nome do titular guardado como `[object Object]`**
+A Bewor devolve `holders: [{ name: "VALDES SANCHEZ CHABELY", idNumber: "" }]` — array de **objetos**. O nosso código faz `holderRaw.join(", ")` assumindo strings → vira literalmente `"[object Object]"`. Por isso também perdemos o DNI (que vem dentro do mesmo objeto) e o nome do banco (que está em `financial_entity_text`, não em `bank`).
 
-Há também um **bug** no nosso código: lemos `pages` do sítio errado e por isso a mensagem diz "1 página" quando na realidade são 9. Isso é mentira para o cliente.
+**2. Cliente vê resultado vazio "0 €"**
+A última análise teve `documentValidated: false` no response do status (porque `holder_name` saiu como `[object Object]` e `bank_name` ficou nulo, então a UI caiu no branch `aprobable === false` que mostra "capacidad limitada"). Era para cair no branch verde "Documento validado".
 
-**O que conseguimos extrair sempre que `result: OK`:**
-- Nome completo do titular
-- IBAN + banco + validação SEPA
-- Período do extracto
-- Páginas + confidence
-- DNI/NIE: Bewor devolve `idNumber: ""` neste tipo de pedido (não vem no PDF). Fica vazio e o agente preenche manualmente.
+**3. Não há área dedicada no admin para verificar extractos**
+Hoje as análises só são visíveis dentro do modal de cada lead. O utilizador quer uma página única que liste **todas** as verificações feitas com o nome do cliente associado.
 
-**Ingressos mensuales:** sem `records` não há cálculo possível. Precisamos investigar com a Bewor se há um `type` diferente que extraia transações (ex.: `extracto_completo`), mas isso fica para depois — agora vamos parar de mentir e mostrar tudo o que já temos.
+## Plano (3 ficheiros + 1 nova página)
 
-## Plano (3 ficheiros + 1 migração leve)
+### 1. `_shared/beworExtraction.ts` — ler estrutura real da Bewor
+- `holders[]` pode ser array de **objetos** `{name, idNumber}` **ou** array de strings (defesa para ambos os formatos)
+- Extrair `holder_name` juntando os `name` (string) de cada holder
+- Extrair `holder_dni` do **primeiro** `idNumber` não vazio dos holders (bonus: agora capturamos o DNI automaticamente quando vem)
+- Extrair `bank_name` priorizando `financial_entity_text` → `financial_entity_normalized` → `bank` (campos reais que a Bewor devolve)
+- `buildViabilidadeWithMetadata`: usar a string limpa de holder/bank na mensagem amigável (sem `[object Object]`)
 
-### 1. Migração — guardar dados estruturados
-Adicionar a `lead_document_analysis`:
-- `holder_name TEXT`
-- `holder_dni TEXT`
-- `iban TEXT`
-- `bank_name TEXT`
-- `period_start DATE`
-- `monthly_income NUMERIC` (nullable, preenche quando há records)
+### 2. `bewor-public-status/index.ts` — devolver `documentValidated` corretamente
+Adicionar o `documentValidated` e `validatedMessage` ao response também quando `viabilidade.needs_manual_review === true` (hoje só dispara quando alguém define `document_validated` manualmente). Mensagem: *"Hemos recibido tu extracto correctamente (Banco Santander, 9 páginas validadas, titular Chabely). Tu agente lo revisará personalmente."*
 
-Sem alterar nada existente. Backfill dos 3 registos atuais a partir do `result` JSONB.
+### 3. Backfill da linha quebrada (1 query simples)
+Reprocessar apenas o registo `61a9158d…` para corrigir `holder_name = "VALDES SANCHEZ CHABELY"`, `holder_dni = ""` (mantém vazio), `bank_name = "Banco Santander"` a partir do JSON cru.
 
-### 2. `_shared/beworExtraction.ts` — corrigir bug das páginas + extrair dados estruturados
-- **Corrigir** leitura de `pages`: usar `innerResult.pages` (correto) em vez de cair em `docFields.pages` (sempre 0).
-- Adicionar `extractStructuredData(fullResult)` que devolve `{ holder_name, holder_dni, iban, bank_name, period_start }`.
-- `buildViabilidadeWithMetadata`: quando `result: OK`, `records: []` e `income: 0`, mudar `razon` para mensagem honesta: *"Documento validado correctamente (Banco X, titular Y, 9 páginas). El sistema no extrajo movimientos individuales — el agente revisará el PDF para calcular ingresos."*
+### 4. Nova página `/admin/verificaciones-extractos`
+Página dedicada listando **todas** as `lead_document_analysis` (com `lead_id` ou standalone), tabela com:
+- Nome do cliente (do `lead.nombre_completo` se houver; senão `holder_name` do documento; senão "Standalone")
+- Banco + IBAN mascarado
+- Período do extracto, páginas, confidence
+- Status badge (OK/WARNING/KO + "Necessita revisão manual" quando `needs_manual_review`)
+- Ingressos (auto ou manual), data
+- Botão "Abrir lead" (quando vinculado) ou "Ver detalhes" (modal com JSON e campo manual de `monthly_income`)
 
-### 3. `bewor-webhook/index.ts` + `bewor-public-status/index.ts` — gravar campos novos
-Em ambos os pontos onde fazemos `update` em `lead_document_analysis`, gravar também as novas colunas estruturadas.
+Adicionar entrada no `AdminSidebar` no grupo "Operacional": **"Verificación de Extractos"** com ícone `FileCheck`.
 
-### 4. `BeworAnalysisTab.tsx` — mostrar dados ao agente
-Já temos o fallback OCR. Refinar:
-- Card "Datos extraídos del documento" mais destacado (titular, DNI manual, IBAN, banco, período, páginas, confidence)
-- Campo editável para DNI/NIE (o agente preenche e guardamos em `holder_dni`)
-- Campo editável para `monthly_income` (o agente analisa o PDF e introduz manualmente)
-- Botão "Guardar dados extraídos no lead" (atualiza o `leads.nombre_completo` se vazio, guarda DNI no checklist se quiseres)
-
-### 5. `PublicDocumentUpload.tsx` — mensagem honesta ao cliente
-Quando `result: OK` mas `records: []`:
-- Substituir *"Documento incompleto"* por: *"Hemos recibido tu extracto correctamente (Banco X, 9 páginas validadas). Tu agente lo revisará personalmente y te confirmará los términos en breve."*
-- Não pedir para reenviar — o documento está válido.
+### 5. Pequeno fix em `BeworAnalysisTab.tsx`
+Garantir que se `holder_name` vier como `[object Object]` (registos antigos), mostra fallback "Sem nome".
 
 ## O que NÃO toco
-- `bewor-public-upload` (envio Bewor está correto)
-- Trigger automático, webhook Make/Bitrix, simulador, RLS, schema dos leads
-- Lógica de cálculo de viabilidade quando há `records` (continua a funcionar)
+- `bewor-public-upload`, `bewor-webhook`, schema, RLS, simulador, lógica de cálculo, trigger automático de token
 
 ## Resultado esperado
-- Bug das "1 página" eliminado
-- Cliente vê mensagem real e tranquilizadora quando o PDF está válido
-- Agente vê todos os dados que a Bewor extraiu, edita DNI e ingressos manualmente
-- Tudo fica guardado em colunas pesquisáveis para futuros relatórios
-
-## Pergunta para ti antes de avançar
-Queres que o **botão "Guardar no lead"** atualize automaticamente o `leads.nombre_completo` (caso esteja diferente) ou prefires que apenas guarde os dados em `lead_document_analysis` para o agente decidir?
+- Cliente recebe sempre uma mensagem clara: ou "Hipoteca aprobable X €" ou "Documento validado, agente vai revisar"
+- Nome e DNI passam a ser guardados corretamente quando a Bewor os envia
+- Admin tem painel central `/admin/verificaciones-extractos` com todas as verificações listadas e nome do cliente visível
 
