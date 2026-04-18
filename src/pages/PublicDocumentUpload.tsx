@@ -59,8 +59,17 @@ const PublicDocumentUpload = () => {
   // Polling do status
   useEffect(() => {
     if (!analysisId || !done) return;
+    attemptsRef.current = 0;
+
+    const stopPolling = () => {
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
 
     const poll = async () => {
+      attemptsRef.current += 1;
       try {
         const res = await fetch(
           `${SUPABASE_URL}/functions/v1/bewor-public-status?analysis_id=${analysisId}`
@@ -73,21 +82,23 @@ const PublicDocumentUpload = () => {
           setCuotaMax(Number(data.cuota_max || 0));
           setInconclusive(!!data.inconclusive);
           setInconclusiveReason(data.inconclusive_reason || null);
-          if (pollRef.current) {
-            window.clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+          stopPolling();
         } else if (data.status === "ERROR") {
           setStatusFlow("error");
-          if (pollRef.current) {
-            window.clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
+          stopPolling();
         } else {
           setStatusFlow("processing");
+          if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+            setStatusFlow("timeout");
+            stopPolling();
+          }
         }
       } catch (e) {
         console.error("polling error:", e);
+        if (attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+          setStatusFlow("timeout");
+          stopPolling();
+        }
       }
     };
 
@@ -95,10 +106,7 @@ const PublicDocumentUpload = () => {
     pollRef.current = window.setInterval(poll, 5000);
 
     return () => {
-      if (pollRef.current) {
-        window.clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      stopPolling();
     };
   }, [analysisId, done]);
 
