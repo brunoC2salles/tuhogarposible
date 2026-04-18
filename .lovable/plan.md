@@ -1,56 +1,50 @@
 
 
-## Diagnóstico final (a Bewor está OK)
+## Diagnóstico do "carregando sem fim"
 
-Inspecionei o JSON real retornado dos uploads de ontem:
+Verifiquei a base e os logs:
+- 2 uploads recentes (17:34 e 17:35) ficaram em `PROCESSING`, com `request_id` válido da Bewor
+- A função `bewor-webhook` **não recebeu nenhuma chamada** (zero logs em horas) — o callback da Bewor não chegou
+- Outros uploads de hoje cedo (07:47, 10:08) finalizaram em ~15s normalmente
+- O frontend faz polling a cada 5s e nunca desiste → spinner infinito
 
-```
-result: "WARNING"  ← Bewor sinaliza problema
-pages: 1            ← PDF tinha só 1 página (capa, não extrato)
-records: []         ← sem transações para extrair
-warning_reasons: [{ code: "W_IBAN_INVALID", description: "IBAN validation failed" }]
-iban: "2325356125"  ← 10 dígitos (IBAN válido tem 24)
-```
+A integração com a Bewor **funciona** quando o callback chega. O problema é que dependemos 100% do callback e, quando ele falha (rede, fila lenta, etc.), tudo trava. Solução: adicionar um fallback que busca o resultado diretamente da Bewor via GET, e dar uma saída ao usuário quando demora demais.
 
-**Conclusão:** Integração está 100% funcional (type, callback_url, JWT, GET resultado, polling, fallback de soma). O problema foi o **PDF enviado**: era um documento de 1 página sem movimentos, não um extrato bancário completo.
+## Plano (3 arquivos, sem migração, isolado e leve)
 
-Hoje mostramos "crédito 0" sem explicar o porquê. Vamos consertar isso.
+### 1. `bewor-public-status/index.ts` — fallback ativo
+Quando o registro está `PROCESSING` há mais de **30 segundos** e tem `request_id`:
+- Fazer `GET /api/v1/third-party/request/:request_id` na Bewor
+- Se retornar `FINISHED`/`COMPLETED`: rodar a mesma lógica de extração + viabilidade já existente no webhook (mover para `_shared/beworExtraction.ts` para reusar nos dois lugares sem duplicar código)
+- Atualizar o registro como se o webhook tivesse chegado
+- Devolver o status atualizado no mesmo response do polling
 
-## Mudanças (3 arquivos, sem migrações, sem mexer em nada que funciona)
+Isso resolve **todos** os casos onde o callback da Bewor falha — o próprio polling do cliente recupera o resultado.
 
-### 1. `bewor-webhook/index.ts` — capturar avisos da Bewor
-- Ler `result.result.result` (`"OK"` / `"WARNING"` / `"KO"`) e `warning_reasons[]` / `ko_reasons[]`
-- Adicionar ao `viabilidade_sugerida`:
-  - `bewor_status`: OK/WARNING/KO
-  - `bewor_warnings`: array de descrições legíveis
-  - `pages`, `confidence` para diagnóstico
-- Quando `result === "KO"` ou warnings críticos, marcar `razon` com mensagem clara: *"El documento no es un extracto bancario válido (X advertencias)"*
-- Continua salvando tudo cru no `result` (sem perda)
+### 2. `_shared/beworExtraction.ts` (novo) — código compartilhado
+Extrair de `bewor-webhook` as funções:
+- `extractIncomeAndDebts(result)`
+- `calcularViabilidad(income, debts)`
+- `buildViabilidadeWithMetadata(fullResult, viabilidade)` (a parte que adiciona bewor_status, warnings, kos, pages)
 
-### 2. `bewor-public-status/index.ts` — informar o cliente
-- Retornar campos extras: `bewor_status`, `bewor_warnings`, `pages`
-- Quando `bewor_status === "KO"` ou `pages < 2`, marcar `inconclusive: true` **com motivo específico**
+Sem alterar comportamento — apenas mover. O webhook continua igual; o status passa a usar as mesmas funções.
 
-### 3. `PublicDocumentUpload.tsx` — UX clara
-- **Antes do upload**: aviso visível: *"Sube el extracto completo de los últimos 6 meses (mínimo 4-5 páginas). Documentos parciales no permiten análisis."*
-- **Após análise inconclusiva**: substituir mensagem genérica por motivo real, ex.: *"El documento procesado tiene solo 1 página. Para un análisis válido necesitamos el extracto completo."* + botón "Subir otro documento"
-
-### 4. `BeworAnalysisTab.tsx` — agente vê tudo
-- Acima do fallback OCR já existente, adicionar bloco "Avisos del análisis Bewor" com:
-  - Badge do status (OK verde / WARNING amarelo / KO vermelho)
-  - Lista de `warning_reasons` traduzida (W_IBAN_INVALID → "IBAN inválido", etc.)
-  - Sugestão de ação (ex: "Pedir al cliente el extracto completo de los últimos 6 meses")
+### 3. `PublicDocumentUpload.tsx` — UX clara, sem spinner infinito
+- Polling para após **2 minutos** (24 tentativas a 5s)
+- Quando expira, mostrar card neutro: *"Tu análisis está tardando más de lo habitual. Hemos recibido tu documento correctamente y tu agente lo revisará en breve."* + botão "Subir otro documento"
+- Quando `bewor-public-status` retorna `inconclusive` ou `finished`, parar o polling imediatamente (já faz isso, mantém)
+- Mensagem durante processamento: indicar tempo estimado ("Esto suele tardar 15-30 segundos")
 
 ## O que NÃO toco
-- Migrações (nenhuma necessária — campos já existem em `result` JSONB)
-- `bewor-public-upload` (envio está correto conforme Postman)
-- Trigger automático, webhook Make/Bitrix, simulador, RLS, hooks de leads
-- Lógica de cálculo de viabilidade (continua igual quando há records)
+- `bewor-public-upload` (envio para Bewor está correto)
+- `bewor-webhook` (continua sendo o caminho rápido quando funciona)
+- Trigger `auto_generate_bewor_token_on_qualification`, BeworAnalysisTab, simulador, RLS, schema
+- Qualquer outra função, hook ou componente
 
 ## Resultado esperado
-- Cliente que subir PDF inválido vê **por quê** e pode reenviar
-- Agente vê semáforo + avisos Bewor + dados crus do OCR num único painel
-- Quando o cliente subir extrato real (com transações), o cálculo automático funcionará como sempre projetado
+- Os 2 uploads travados (17:34 e 17:35) serão recuperados automaticamente no próximo poll após o deploy
+- Uploads futuros sempre terminam: ou pelo callback (rápido) ou pelo fallback GET (em até 30s)
+- Cliente nunca mais vê spinner eterno — no pior caso, vê uma mensagem clara após 2 minutos
 
-Implementação leve: ~3 edges + 2 componentes UI, sem novas dependências, sem migrações.
+Mudanças mínimas, sem peso adicional na plataforma (1 GET extra à Bewor só quando passa de 30s sem callback).
 
