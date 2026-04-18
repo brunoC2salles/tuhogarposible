@@ -330,6 +330,40 @@ const PublicDocumentUpload = () => {
                     </p>
                   </div>
                 )}
+
+                {statusFlow === "timeout" && (
+                  <div className="space-y-3">
+                    <div className="rounded-lg border border-border bg-muted p-4 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Clock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold">Tu análisis está tardando más de lo habitual</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Hemos recibido tu documento correctamente y tu agente lo revisará en breve.
+                            No es necesario que esperes en esta página.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setDone(false);
+                        setFile(null);
+                        setAnalysisId(null);
+                        setStatusFlow("uploading");
+                        setAprobable(null);
+                        setHipotecaMax(0);
+                        setCuotaMax(0);
+                        setInconclusive(false);
+                        setInconclusiveReason(null);
+                      }}
+                    >
+                      Subir otro documento
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 
