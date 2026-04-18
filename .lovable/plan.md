@@ -2,61 +2,73 @@
 
 ## Diagnóstico
 
-Ao clicar em "Generar JWT Bewor" a edge function falha com:
-```
-TypeError: supabase.auth.getClaims is not a function
-```
+**1. Mensagem do simulador (página `/documentos/:token`)**
+Em `PublicDocumentUpload.tsx` (linhas 230-241), após o OCR finalizar mostro:
+- "Tu agente revisará el resultado"
+- "Te contactaremos en breve" / "Tu agente analizará el resultado"
 
-Investigando os logs **e** comparando o código com a documentação oficial Bewor (PDF + Postman), encontrei **3 bugs críticos** em todas as 3 edge functions:
+O cliente NÃO vê o veredito (aprobable / hipoteca máxima / cuota máx). Vou substituir por um card com o resultado direto.
 
-### Bug 1 — Validação admin quebrada (`bewor-admin-token`)
-Uso `supabase.auth.getClaims(token)` que não existe no SDK v2.45. O método correto é `supabase.auth.getUser(token)`.
+**2. Bewor "crédito 0"**
+PDFs subidos ontem (Antonio: 1 página, Chabely: 9 páginas Santander) retornaram `records: []` → `income=0, debts=0` → veredito "crédito máximo 0".
 
-### Bug 2 — URLs erradas (todas as 3 functions)
-A documentação Bewor é clara: **todos os endpoints começam com `/api/v1/`**.
+A causa é o `type: "movimientos_bancarios"` que estamos enviando. A Bewor processou os PDFs (status FINISHED, confidence 94-96%, IBAN/holder/banco extraídos), mas **não extraiu transações** porque esse `type` provavelmente faz só validação documental, não OCR de movimentos.
 
-| Endpoint | Código atual (errado) | Correto (docs) |
-|---|---|---|
-| Login | `POST /auth/login` | `POST /api/v1/login` |
-| Criar token | `POST /third-party/token` | `POST /api/v1/company/token` |
-| Criar request | `POST /third-party/request` | `POST /api/v1/third-party/request` |
-| Obter request | `GET /third-party/request/{id}` | `GET /api/v1/third-party/request/{id}` |
+**Preciso da sua coleção Postman** para confirmar:
+- O `type` correto para extração de movimentos (provavelmente `"extracto_bancario"` ou similar)
+- Se há flag adicional (`extract_records`, `deep_analysis`, etc.)
+- Endpoint correto (atual: `POST /api/v1/third-party/request`)
 
-### Bug 3 — Campos do payload errados
-- Login retorna `{ token: "..." }` — código procura `access_token`
-- Upload manda `type: "bank_statements"` — Bewor exige `"movimientos_bancarios"` (espanhol, conforme docs e Postman)
-- Upload manda `webhook_url` — está OK ✓ (mas faltava header `Accept: application/json`)
-- Faltam headers `Accept: application/json` em todas chamadas (docs exigem)
+Enquanto isso o fallback será mostrar dados crus do OCR no agente.
 
-## Plano de Correção
+**3. Fallback de viabilidade (resposta sua)**
+Quando `records=[]` ou `income=0`, mostrar bloco com dados crus extraídos (titular, IBAN, banco, páginas, confidence) no `BeworAnalysisTab`, em vez de calcular viabilidade fake.
 
-### 1. Corrigir `bewor-admin-token/index.ts`
-- Trocar `supabase.auth.getClaims(token)` → `supabase.auth.getUser(token)`
-- `POST /auth/login` → `POST /api/v1/login`
-- `POST /third-party/token` → `POST /api/v1/company/token`
-- Ler `loginData.token` (não `access_token`)
-- Adicionar header `Accept: application/json` em ambas chamadas
-- Body do token continua `{ name: "Tu Hogar Posible CRM" }` ✓
+## Plano de Implementação
 
-### 2. Corrigir `bewor-public-upload/index.ts`
-- `POST /third-party/request` → `POST /api/v1/third-party/request`
-- `type: "bank_statements"` → `type: "movimientos_bancarios"`
-- Adicionar header `Accept: application/json`
-- Manter resto da lógica intacta (storage, token, webhook URL com secret)
+### Fase 1 — Mostrar veredito ao cliente (simples, sem risco)
 
-### 3. Corrigir `bewor-webhook/index.ts`
-- `GET /third-party/request/{id}` → `GET /api/v1/third-party/request/{id}`
-- Adicionar header `Accept: application/json`
-- Resto da lógica (extração income/debts, cálculo viabilidade, notificações) está OK ✓
+**`PublicDocumentUpload.tsx`** — substituir o bloco "Tu agente revisará":
+- Quando `statusFlow === "finished"` e há dados de viabilidade, mostrar:
+  - Badge: "✓ HIPOTECA APROBABLE" (verde) ou "Análisis recibido" (neutro se inconclusivo)
+  - Hipoteca máxima estimada (€)
+  - Cuota mensual máxima (€)
+  - Pequeno disclaimer: "Estimación basada en OCR. Tu agente confirmará los términos finales."
+- Quando OCR não conseguiu extrair (ingresos=0, records=[]), mostrar mensagem neutra: "Documento recibido y analizado. Tu agente revisará los datos contigo." (não mentir dizendo "0 €")
 
-## O que NÃO vou tocar
-- Schema do DB (tabelas `lead_document_analysis`, `lead_document_tokens`) — está correto
-- Componentes React (`RequestDocumentsModal`, `BeworAnalysisTab`, `PublicDocumentUpload`) — não são afetados
-- Hooks (`useLeadDocumentAnalysis`, `useLeadDocumentTokens`) — não são afetados
-- Botão "Generar JWT" no `AdminSettings` — está correto, só a function falhava
-- Outros secrets — todos já configurados
+**`bewor-public-status/index.ts`** — já retorna `aprobable`. Adicionar também: `hipoteca_maxima`, `cuota_max`, `inconclusive` (true se ingresos=0).
 
-## Após a correção
+### Fase 2 — Fallback agente (BeworAnalysisTab)
 
-Você clica novamente em "Generar JWT Bewor" no Admin Settings → o token será exibido → você adiciona como secret `BEWOR_THIRD_PARTY_JWT` → fluxo end-to-end funcionará.
+**`BeworAnalysisTab.tsx`** — quando `viabilidade.ingresos_detectados === 0`:
+- Esconder semáforo de viabilidade
+- Mostrar card "OCR no detectó movimientos — datos extraídos del documento":
+  - Titular (do `result.document_fields.holders`)
+  - IBAN + banco (se válido)
+  - Período do extrato (`period_start_date`)
+  - Páginas processadas + confidence
+  - Botão "Descargar PDF original" (já existe)
+- Aviso ao agente: "Posiblemente el `type` enviado a Bewor es para validación documental, no extracción de transacciones. Revisar configuración."
+
+### Fase 3 — Bewor type correto (BLOQUEADO até receber Postman)
+
+Aguardo você reenviar a coleção Postman. Quando tiver:
+- Atualizo o `type` em `bewor-public-upload/index.ts`
+- Adiciono flags se necessário
+- Fallback de Fase 2 continua útil para erros futuros
+
+**Não vou tocar** em nenhum outro arquivo, hook, trigger, webhook Make/Bitrix, simulador interno, ou na lógica de geração automática de tokens — tudo isso já funciona.
+
+## O que NÃO mexo (proteção contra regressão)
+
+- Trigger `auto_generate_bewor_token_on_qualification`
+- Webhook `make-webhook-proxy` (Bitrix)
+- `ResultadosSimulacionHipotecaria` / `ResultadosCombinados` (já mostram veredito)
+- Simulador interno do agente
+- RLS, schema, hooks de leads
+- Edge function `bewor-admin-token` (JWT está OK)
+
+## Próximo passo
+
+Implemento Fase 1 + Fase 2 imediatamente após sua aprovação (são mudanças isoladas e seguras). A Fase 3 fica pendente até você me reenviar a coleção Postman da Bewor — sem ela, qualquer mudança no `type` é chute e pode quebrar o que já funciona parcialmente.
 
