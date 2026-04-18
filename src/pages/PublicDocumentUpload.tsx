@@ -282,6 +282,8 @@ const PublicDocumentUpload = () => {
                         setCuotaMax(0);
                         setInconclusive(false);
                         setInconclusiveReason(null);
+                        setDocumentValidated(false);
+                        setValidatedMessage(null);
                       }}
                     >
                       Subir otro documento
@@ -377,6 +379,8 @@ const PublicDocumentUpload = () => {
                         setCuotaMax(0);
                         setInconclusive(false);
                         setInconclusiveReason(null);
+                        setDocumentValidated(false);
+                        setValidatedMessage(null);
                       }}
                     >
                       Subir otro documento
