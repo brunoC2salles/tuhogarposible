@@ -202,7 +202,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { income, debts } = extractIncomeAndDebts(fullResult);
+    const { income, debts, source } = extractIncomeAndDebts(fullResult);
+    console.log(`bewor-webhook extraction: income=${income} debts=${debts} source=${source} analysis=${analysis.id}`);
     const viabilidade = calcularViabilidad(income, debts);
 
     await admin
