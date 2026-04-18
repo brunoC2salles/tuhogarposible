@@ -65,9 +65,7 @@ const StatusBadge = ({ row }: { row: AnalysisRow }) => {
   if (beworStatus === "KO") return <Badge variant="destructive">KO</Badge>;
   if (needsManual)
     return (
-      <Badge className="bg-yellow-500 text-white hover:bg-yellow-600">
-        Revisión manual
-      </Badge>
+      <Badge variant="secondary">Revisión manual</Badge>
     );
   if (beworStatus === "WARNING")
     return <Badge variant="outline">Warning</Badge>;
