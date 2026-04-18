@@ -1,5 +1,6 @@
 // Recebe PDF do cliente via token público, valida, faz upload para Storage e envia para Bewor.
 // Suporta tokens standalone (sem lead_id) para testes ou novos clientes não cadastrados.
+// FASE 1: instrumentação para descobrir o type correto da Bewor que dispara extração financeira.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
@@ -84,7 +85,6 @@ Deno.serve(async (req) => {
     }
 
     // 3. Upload para Storage (bucket lead-documents)
-    // Para tokens standalone, usa pasta "standalone/"
     const folder = leadId || "standalone";
     const filePath = `bewor/${folder}/${analysis.id}.pdf`;
     const arrayBuf = await file.arrayBuffer();
@@ -116,6 +116,9 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const webhookUrl = `${supabaseUrl}/functions/v1/bewor-webhook?secret=${webhookSecret}&analysis_id=${analysis.id}`;
 
+    // FASE 1 — type configurável via env var para testar variantes da Bewor
+    const requestType = Deno.env.get("BEWOR_REQUEST_TYPE") || "movimientos_bancarios";
+
     if (!jwt) {
       await admin
         .from("lead_document_analysis")
@@ -134,11 +137,39 @@ Deno.serve(async (req) => {
       );
     }
 
+    // FASE 1 — instrumentação: tentar listar types disponíveis na conta Bewor
+    console.log(`[bewor-instrumentation] Probing Bewor capabilities. Configured type: "${requestType}"`);
+    try {
+      const probePaths = [
+        "/api/v1/third-party/types",
+        "/api/v1/third-party/request-types",
+        "/api/v1/third-party/capabilities",
+        "/api/v1/third-party/account",
+      ];
+      for (const path of probePaths) {
+        try {
+          const probeRes = await fetch(`${baseUrl}${path}`, {
+            method: "GET",
+            headers: { Accept: "application/json", Authorization: `Bearer ${jwt}` },
+          });
+          const probeText = await probeRes.text();
+          console.log(
+            `[bewor-instrumentation] GET ${path} → ${probeRes.status}: ${probeText.slice(0, 1000)}`
+          );
+        } catch (probeErr) {
+          console.log(`[bewor-instrumentation] GET ${path} failed:`, String(probeErr));
+        }
+      }
+    } catch (e) {
+      console.log("[bewor-instrumentation] probe loop error:", String(e));
+    }
+
     const beworForm = new FormData();
     beworForm.append("file", file, file.name || "documento.pdf");
-    beworForm.append("type", "movimientos_bancarios");
-    // Bewor espera "callback_url" (não "webhook_url" — corrigido conforme coleção Postman oficial)
+    beworForm.append("type", requestType);
     beworForm.append("callback_url", webhookUrl);
+
+    console.log(`[bewor-instrumentation] Sending request with type="${requestType}"`);
 
     const beworRes = await fetch(`${baseUrl}/api/v1/third-party/request`, {
       method: "POST",
@@ -156,6 +187,16 @@ Deno.serve(async (req) => {
     } catch {
       beworJson = { raw: beworText };
     }
+
+    // FASE 1 — log completo da resposta da Bewor (estrutura inteira)
+    console.log(
+      `[bewor-instrumentation] Bewor response status=${beworRes.status} body=${beworText.slice(0, 4000)}`
+    );
+    console.log(
+      `[bewor-instrumentation] Bewor response keys: ${
+        beworJson && typeof beworJson === "object" ? Object.keys(beworJson).join(", ") : "N/A"
+      }`
+    );
 
     if (!beworRes.ok) {
       console.error("Bewor request failed:", beworRes.status, beworText);
@@ -178,7 +219,6 @@ Deno.serve(async (req) => {
         })
         .eq("id", analysis.id);
 
-      // Marcar token como usado (mas continua válido até expires_at para re-uploads)
       await admin
         .from("lead_document_tokens")
         .update({ used_at: new Date().toISOString() })

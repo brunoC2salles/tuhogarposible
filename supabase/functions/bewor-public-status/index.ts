@@ -102,43 +102,34 @@ Deno.serve(async (req) => {
     const holderName = (data as any).holder_name || null;
     const bankName = (data as any).bank_name || null;
 
-    // Documento OK mas sem records → validado, agente revisa. NÃO é inconclusive.
-    // Detecta tanto pelo flag needs_manual_review (vindo do shared) quanto pelo status Bewor OK/WARNING sem ingressos.
-    const documentValidated =
+    // Per user request: se não há ingressos calculados nem cálculo de crédito, é um problema do documento
+    // (mesmo que a Bewor diga "OK" só de validação). Cliente deve contactar o agente.
+    const hasCalculation =
       data.status === "FINISHED" &&
-      (beworStatus === "OK" || beworStatus === "WARNING") &&
-      (needsManualReview || (ingresos === 0 && pages >= 2));
+      ingresos > 0 &&
+      (Number(v.hipoteca_maxima || 0) > 0 || v.aprobable !== undefined);
 
     const inconclusive =
       data.status === "FINISHED" &&
-      !documentValidated &&
-      (beworStatus === "KO" || (pages > 0 && pages < 2) || (ingresos === 0 && warnings.length > 0));
+      !hasCalculation;
 
     let inconclusive_reason: string | null = null;
     if (inconclusive) {
       if (beworStatus === "KO" || kos.length > 0) {
         inconclusive_reason =
-          "El documento no es un extracto bancario válido. Por favor, sube el extracto completo de los últimos 6 meses.";
+          "Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";
       } else if (pages > 0 && pages < 2) {
-        inconclusive_reason = `El documento procesado tiene solo ${pages} página. Necesitamos el extracto bancario completo (mínimo 4-5 páginas).`;
-      } else if (warnings.length > 0) {
         inconclusive_reason =
-          "El análisis detectó problemas con el documento. Asegúrate de subir el extracto completo de los últimos 6 meses.";
+          "Hubo un problema procesando tu extracto (documento incompleto). Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";
       } else {
         inconclusive_reason =
-          "No se detectaron movimientos en el documento. Por favor, sube el extracto bancario completo.";
+          "Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";
       }
     }
 
-    // Mensagem amigável para documento validado mas sem cálculo automático
-    let validated_message: string | null = null;
-    if (documentValidated) {
-      const partes: string[] = [];
-      if (bankName) partes.push(`Banco ${bankName}`);
-      if (pages > 0) partes.push(`${pages} página${pages === 1 ? "" : "s"} validada${pages === 1 ? "" : "s"}`);
-      const detalhes = partes.length > 0 ? ` (${partes.join(", ")})` : "";
-      validated_message = `Hemos recibido tu extracto correctamente${detalhes}. Tu agente lo revisará personalmente y te confirmará los términos en breve.`;
-    }
+    // Documento "validado sem cálculo" deixa de ser apresentado como sucesso ao cliente.
+    const documentValidated = false;
+    const validated_message: string | null = null;
 
     return new Response(
       JSON.stringify({

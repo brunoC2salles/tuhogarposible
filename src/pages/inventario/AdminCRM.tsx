@@ -17,8 +17,6 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
-import StandaloneDocsButton from '@/components/crm/StandaloneDocsButton';
-import StandaloneAnalysisPanel from '@/components/crm/StandaloneAnalysisPanel';
 
 const AdminCRM = () => {
   const { leads, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
@@ -147,7 +145,6 @@ const AdminCRM = () => {
             <p className="text-muted-foreground mt-1">Métricas y estadísticas de leads</p>
           </div>
           <div className="flex items-center gap-2">
-            <StandaloneDocsButton />
             <Button variant="outline" onClick={handleExportStats}>
               <Download className="h-4 w-4 mr-2" />
               Exportar Estadísticas
@@ -274,9 +271,6 @@ const AdminCRM = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Standalone Analysis Panel */}
-        <StandaloneAnalysisPanel />
 
         {/* Global Kanban View */}
         <Card>
