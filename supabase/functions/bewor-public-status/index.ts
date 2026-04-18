@@ -103,10 +103,11 @@ Deno.serve(async (req) => {
     const bankName = (data as any).bank_name || null;
 
     // Documento OK mas sem records → validado, agente revisa. NÃO é inconclusive.
+    // Detecta tanto pelo flag needs_manual_review (vindo do shared) quanto pelo status Bewor OK/WARNING sem ingressos.
     const documentValidated =
       data.status === "FINISHED" &&
       (beworStatus === "OK" || beworStatus === "WARNING") &&
-      needsManualReview;
+      (needsManualReview || (ingresos === 0 && pages >= 2));
 
     const inconclusive =
       data.status === "FINISHED" &&
