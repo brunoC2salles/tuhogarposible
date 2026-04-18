@@ -31,6 +31,7 @@ const PublicDocumentUpload = () => {
   const [inconclusiveReason, setInconclusiveReason] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<number | null>(null);
+  const attemptsRef = useRef<number>(0);
 
   useEffect(() => {
     const check = async () => {
