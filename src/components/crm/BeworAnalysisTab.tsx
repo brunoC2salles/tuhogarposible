@@ -177,7 +177,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                 {a.status === "FINISHED" && v && (() => {
                   const ingresos = Number(v.ingresos_detectados || 0);
                   const inconclusive = ingresos === 0;
-                  const docFields = (a.result as any)?.document_fields || {};
+                  const docFields = (a.result as any)?.document_fields || (a.result as any)?.result?.document_fields || {};
                   const holders = Array.isArray(docFields.holders)
                     ? docFields.holders.join(", ")
                     : docFields.holders || "—";
@@ -186,12 +186,55 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   const period = docFields.period_start_date
                     ? `${docFields.period_start_date} → ${docFields.period_end_date || "?"}`
                     : "—";
-                  const pages = (a.result as any)?.pages_processed ?? (a.result as any)?.num_pages ?? "—";
-                  const confidence = (a.result as any)?.confidence ?? null;
+                  const pages = v.pages || (a.result as any)?.pages_processed || (a.result as any)?.num_pages || "—";
+                  const confidence = v.confidence ?? (a.result as any)?.confidence ?? null;
+                  const beworStatus = (v.bewor_status || "").toString().toUpperCase();
+                  const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
+                  const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
+                  const hasBeworFlags = beworStatus === "WARNING" || beworStatus === "KO" || warnings.length > 0 || kos.length > 0;
+
+                  const translateReason = (txt: string) => {
+                    const t = (txt || "").toUpperCase();
+                    if (t.includes("IBAN") && t.includes("INVALID")) return "IBAN inválido";
+                    if (t.includes("PAGES") || t.includes("PAGE_COUNT")) return "Pocas páginas analizadas";
+                    if (t.includes("HOLDER")) return "Titular no detectado";
+                    if (t.includes("AMOUNT")) return "Importes no detectados";
+                    if (t.includes("PERIOD")) return "Período no detectado";
+                    return txt;
+                  };
+
+                  const beworFlagsBlock = hasBeworFlags ? (
+                    <div className={`rounded-md border p-3 space-y-2 ${
+                      beworStatus === "KO"
+                        ? "border-destructive/40 bg-destructive/5"
+                        : "border-border bg-muted"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">Avisos del análisis Bewor</p>
+                        <Badge variant={beworStatus === "KO" ? "destructive" : beworStatus === "OK" ? "default" : "secondary"}>
+                          {beworStatus || "—"}
+                        </Badge>
+                      </div>
+                      {kos.length > 0 && (
+                        <ul className="text-xs text-destructive space-y-0.5 list-disc list-inside">
+                          {kos.map((k, i) => <li key={`ko-${i}`}>{translateReason(k)}</li>)}
+                        </ul>
+                      )}
+                      {warnings.length > 0 && (
+                        <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+                          {warnings.map((w, i) => <li key={`w-${i}`}>{translateReason(w)}</li>)}
+                        </ul>
+                      )}
+                      <p className="text-xs text-muted-foreground italic">
+                        Sugerencia: pedir al cliente el extracto completo de los últimos 6 meses (mínimo 4-5 páginas).
+                      </p>
+                    </div>
+                  ) : null;
 
                   if (inconclusive) {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
+                        {beworFlagsBlock}
                         <div className="rounded-md border border-border bg-muted p-3 space-y-2">
                           <div className="flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -200,7 +243,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                                 OCR no detectó movimientos
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Se extrajeron datos del documento pero no las transacciones. Posiblemente el tipo enviado a Bewor sea de validación documental, no de extracción de transacciones. Revisar configuración.
+                                {v.razon || "El documento fue procesado pero no se extrajeron transacciones. Pide al cliente el extracto bancario completo de los últimos 6 meses."}
                               </p>
                             </div>
                           </div>
@@ -249,6 +292,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
 
                   return (
                     <div className="space-y-3 border-t border-border pt-3">
+                      {beworFlagsBlock}
                       <ViabilityLight
                         aprobable={!!v.aprobable}
                         hipoteca={Number(v.hipoteca_maxima || 0)}

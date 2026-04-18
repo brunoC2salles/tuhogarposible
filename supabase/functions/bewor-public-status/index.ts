@@ -41,7 +41,30 @@ Deno.serve(async (req) => {
 
     const v = (data.viabilidade_sugerida as any) || {};
     const ingresos = Number(v.ingresos_detectados || 0);
-    const inconclusive = data.status === "FINISHED" && ingresos === 0;
+    const beworStatus = (v.bewor_status || "").toString().toUpperCase();
+    const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
+    const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
+    const pages = Number(v.pages || 0);
+
+    const inconclusive =
+      data.status === "FINISHED" &&
+      (ingresos === 0 || beworStatus === "KO" || pages > 0 && pages < 2);
+
+    let inconclusive_reason: string | null = null;
+    if (inconclusive) {
+      if (beworStatus === "KO" || kos.length > 0) {
+        inconclusive_reason =
+          "El documento no es un extracto bancario válido. Por favor, sube el extracto completo de los últimos 6 meses.";
+      } else if (pages > 0 && pages < 2) {
+        inconclusive_reason = `El documento procesado tiene solo ${pages} página. Necesitamos el extracto bancario completo (mínimo 4-5 páginas).`;
+      } else if (warnings.length > 0) {
+        inconclusive_reason =
+          "El análisis detectó problemas con el documento. Asegúrate de subir el extracto completo de los últimos 6 meses.";
+      } else {
+        inconclusive_reason =
+          "No se detectaron movimientos en el documento. Por favor, sube el extracto bancario completo.";
+      }
+    }
 
     return new Response(
       JSON.stringify({
@@ -52,6 +75,10 @@ Deno.serve(async (req) => {
         hipoteca_maxima: Number(v?.hipoteca_maxima || 0),
         cuota_max: Number(v?.cuota_max || 0),
         inconclusive,
+        inconclusive_reason,
+        bewor_status: beworStatus || null,
+        bewor_warnings: warnings,
+        pages,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

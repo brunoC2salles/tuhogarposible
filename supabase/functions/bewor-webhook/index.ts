@@ -204,7 +204,59 @@ Deno.serve(async (req) => {
 
     const { income, debts, source } = extractIncomeAndDebts(fullResult);
     console.log(`bewor-webhook extraction: income=${income} debts=${debts} source=${source} analysis=${analysis.id}`);
-    const viabilidade = calcularViabilidad(income, debts);
+    const viabilidade: any = calcularViabilidad(income, debts);
+
+    // Capturar metadados Bewor (status OK/WARNING/KO + warnings/ko)
+    const r: any = fullResult || {};
+    const innerResult: any = r.result || r;
+    const beworStatus: string =
+      (innerResult?.result || innerResult?.status || r?.result || "")
+        .toString()
+        .toUpperCase() || "UNKNOWN";
+
+    const warnings: any[] =
+      innerResult?.warning_reasons ||
+      innerResult?.warnings ||
+      r?.warning_reasons ||
+      [];
+    const kos: any[] =
+      innerResult?.ko_reasons || innerResult?.kos || r?.ko_reasons || [];
+
+    const docFields = innerResult?.document_fields || r?.document_fields || {};
+    const pages =
+      Number(
+        innerResult?.pages_processed ??
+          innerResult?.num_pages ??
+          r?.pages_processed ??
+          r?.num_pages ??
+          docFields?.pages ??
+          0
+      ) || 0;
+    const confidence =
+      innerResult?.confidence ?? r?.confidence ?? docFields?.confidence ?? null;
+
+    const warningDescriptions = (warnings || [])
+      .map((w: any) => w?.description || w?.code || String(w))
+      .filter(Boolean);
+    const koDescriptions = (kos || [])
+      .map((k: any) => k?.description || k?.code || String(k))
+      .filter(Boolean);
+
+    viabilidade.bewor_status = beworStatus;
+    viabilidade.bewor_warnings = warningDescriptions;
+    viabilidade.bewor_kos = koDescriptions;
+    viabilidade.pages = pages;
+    viabilidade.confidence = confidence;
+
+    if (beworStatus === "KO" || koDescriptions.length > 0) {
+      viabilidade.razon = `El documento no es un extracto bancario válido (${koDescriptions.length || warningDescriptions.length} errores)`;
+      viabilidade.aprobable = false;
+    } else if (income === 0 && (warningDescriptions.length > 0 || pages < 2)) {
+      viabilidade.razon =
+        pages < 2
+          ? `El documento procesado tiene solo ${pages || 1} página. Se necesita el extracto completo (mínimo 4-5 páginas).`
+          : `El análisis no pudo extraer movimientos: ${warningDescriptions.join("; ")}`;
+    }
 
     await admin
       .from("lead_document_analysis")
