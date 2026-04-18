@@ -29,6 +29,8 @@ const PublicDocumentUpload = () => {
   const [cuotaMax, setCuotaMax] = useState<number>(0);
   const [inconclusive, setInconclusive] = useState<boolean>(false);
   const [inconclusiveReason, setInconclusiveReason] = useState<string | null>(null);
+  const [documentValidated, setDocumentValidated] = useState<boolean>(false);
+  const [validatedMessage, setValidatedMessage] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<number | null>(null);
   const attemptsRef = useRef<number>(0);
@@ -82,6 +84,8 @@ const PublicDocumentUpload = () => {
           setCuotaMax(Number(data.cuota_max || 0));
           setInconclusive(!!data.inconclusive);
           setInconclusiveReason(data.inconclusive_reason || null);
+          setDocumentValidated(!!data.document_validated);
+          setValidatedMessage(data.validated_message || null);
           stopPolling();
         } else if (data.status === "ERROR") {
           setStatusFlow("error");
