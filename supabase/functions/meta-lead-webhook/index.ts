@@ -423,7 +423,7 @@ function parseEdad(data: Record<string, any>): number | null {
   return null;
 }
 
-function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: number | null): QualificationResult {
+function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: number | null, montoAhorros?: number): QualificationResult {
   // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
   
   // Critério 1: Antigüedad en trabajo >= 1 año
@@ -475,6 +475,11 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   const porcentajeDeuda = (deudas / ingresos) * 100;
   if (porcentajeDeuda >= 30) {
     return { cualificado: false, razon_no_cualificado: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
+  }
+  
+  // Critério 7: Ahorros >= 5.000€ (sem compensações)
+  if ((montoAhorros ?? 0) < 5000) {
+    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€)' };
   }
   
   return { cualificado: true };
@@ -641,8 +646,12 @@ Deno.serve(async (req) => {
     const edadParsed = parseEdad(data);
     console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
 
-    // 3. Qualificar lead (passa edad parseada)
-    const qualificacao = qualificarLead(data, ingresos, edadParsed);
+    // 2.1 Parsear monto de ahorros (usado tanto na qualificação quanto nas recomendações)
+    const montoAhorros = parseDeudas(data.monto_ahorros);
+    console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros);
+
+    // 3. Qualificar lead (passa edad parseada e ahorros)
+    const qualificacao = qualificarLead(data, ingresos, edadParsed, montoAhorros);
     console.log('[meta-lead-webhook] Qualificação:', qualificacao);
 
     // 3. Determinar região e turno
@@ -707,9 +716,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 7. Calcular simulações (edadParsed já calculado acima)
-    // Parse ahorros do Meta Ads para calcular o gap
-    const montoAhorros = parseDeudas(data.monto_ahorros); // reusa parseDeudas para limpar o valor
+    // 7. Calcular simulações (edadParsed e montoAhorros já calculados acima)
     
     const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
     
