@@ -620,6 +620,7 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     porcentajeFinanciamiento,
     ingresosTotales,
     gastosPension,
-    tasaAnualFija
+    tasaAnualFija,
+    razonNoAprobado
   };
 }
