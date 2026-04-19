@@ -1,58 +1,113 @@
 
 
-## Diagnóstico provado
+## Cambio solicitado
 
-Confirmei diretamente no JSON real devolvido pela Bewor (request `019da1dc-f56c…`):
-- ✅ Conexão Bewor: **100% correcta** (HTTP 200, request_id válido, status `OK`, confidence 95.65%)
-- ✅ Validação documental: funciona (banco, IBAN, titular, período extraídos)
-- ❌ Financial extraction: `records: []`, `financial_alerts: []`, `idNumber: ""` — **completamente vazios**
+Sustituir la regla actual **"ahorros mínimos = 5.000 €"** por una regla dinámica:
 
-A Bewor está a devolver "OK" mas só o módulo de **validação documental**. O type `movimientos_bancarios` que enviamos não está a accionar o motor financeiro de extracção de records (que é o que calcularia ingressos/deudas/capacidade automaticamente).
+> **Ahorros mínimos = Valor del inmueble × % impuestos de la Comunidad Autónoma**
 
-A documentação pública da Bewor (`/docs`, `/swagger`) não existe. Sem testar variantes, não sei se basta mudar o `type` ou se falta um parâmetro extra (ex.: `extract_records`, `analysis_level=full`) ou se a tua conta precisa de ter o módulo financeiro activado pela Bewor.
+Esto significa que los ahorros del cliente deben cubrir, como mínimo, los impuestos de compraventa (ITP/IVA) de la CCAA donde se ubica el inmueble.
 
-## Plano (3 fases — ordem importa)
+## Investigación previa necesaria
 
-### Fase 1 — Descobrir o type correcto (1 ficheiro, instrumentação)
+Antes de implementar necesito confirmar 3 cosas contigo:
 
-**`bewor-public-upload/index.ts`**: adicionar variável de ambiente `BEWOR_REQUEST_TYPE` (default `"movimientos_bancarios"`) que controla o type enviado. Ao receber a resposta da Bewor, logar **toda** a estrutura devolvida + tentar fazer uma 2ª chamada `GET /third-party/types` (se existir) para listar os types suportados pela conta. Logs ficam visíveis no Edge Function dashboard.
+### 1. Porcentajes de impuestos por CCAA
 
-**Acção tua:** depois do deploy, fazer 1 upload de teste — vou ler os logs e ver:
-- Que types a Bewor diz que tens disponíveis
-- Que campos a Bewor sabe extrair
+Los % de **ITP (vivienda usada)** varían por CCAA en España. Los oficiales 2025 son aproximadamente:
 
-Se aparecer um type diferente que devolve records (ex.: `cashflow`, `financial_analysis`, `extract_full`), mudo o env var e está resolvido. Se não houver, **a Bewor não está a calcular** — precisas de pedir ao suporte deles para activar o módulo. Aviso-te no momento.
+| CCAA | ITP general |
+|---|---|
+| Andalucía | 7% |
+| Aragón | 8% (tramos hasta 10%) |
+| Asturias | 8% (tramos hasta 10%) |
+| Baleares | 8% (tramos hasta 13%) |
+| Canarias | 6,5% |
+| Cantabria | 9% |
+| Castilla-La Mancha | 9% |
+| Castilla y León | 8% (tramos hasta 10%) |
+| Cataluña | 10% (tramos hasta 11%) |
+| Ceuta | 6% |
+| C. Madrid | 6% |
+| C. Valenciana | 10% |
+| Extremadura | 8% (tramos hasta 11%) |
+| Galicia | 9% |
+| La Rioja | 7% |
+| Melilla | 6% |
+| Murcia | 8% |
+| Navarra* | 6% |
+| País Vasco* | 4% |
 
-### Fase 2 — Mostrar o que a Bewor REALMENTE devolve (sem inventar)
+*Navarra y País Vasco no están en `COMUNIDADES_AUTONOMAS` actualmente.
 
-Independentemente da Fase 1, ajusto **`/admin/verificaciones-extractos`** para mostrar todos os campos que a Bewor devolve hoje + os novos quando vierem (records, ingressos, deudas, capacidade calculada por eles). Adiciono colunas: ingressos detectados, capacidade Bewor, nº de records.
+**Pregunta**: ¿Uso estos % oficiales o me pasas tu propia tabla? ¿Aplicamos solo el tramo general (más simple) o tramos por valor (más complejo)?
 
-### Fase 3 — Mensagem ao cliente honesta + limpeza CRM
+### 2. ¿Vivienda nueva (IVA 10%) vs usada (ITP)?
 
-**`PublicDocumentUpload.tsx`**: 
-- Quando Bewor devolve cálculo completo (records > 0 ou `aprobable === true`): mostro o resultado real (hipoteca máxima, cuota máxima)
-- Quando Bewor só valida sem extrair (records = 0): substituo a mensagem actual ("agente vai revisar") por: **"Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto."** com ícone de alerta + botão "Subir otro documento"
-- Removo a mensagem "Documento validado" verde quando não há cálculo
+Si es **vivienda nueva**, en lugar de ITP se aplica **IVA 10% + AJD ~1,5%** (≈ 11,5% total). Hoy el simulador no pregunta esto.
 
-**`AdminCRM.tsx`**: removo `<StandaloneAnalysisPanel />` e `<StandaloneDocsButton />` do header. A funcionalidade standalone já está acessível via `/admin/verificaciones-extractos`.
+**Pregunta**: ¿Asumimos siempre vivienda usada (ITP) o añadimos un toggle "Nueva/Usada" en el simulador?
 
-## Ficheiros tocados (4 no total)
-1. `supabase/functions/bewor-public-upload/index.ts` — instrumentação + suporte a types via env
-2. `src/pages/admin/VerificacionesExtractos.tsx` — colunas extra (records, capacidade Bewor)
-3. `src/pages/PublicDocumentUpload.tsx` — mensagem de erro honesta quando não há cálculo
-4. `src/pages/inventario/AdminCRM.tsx` — remover painel + botão standalone
+### 3. ¿De dónde sacamos la CCAA en cada flujo?
 
-## O que NÃO toco
-- Schema da BD (já tem todas as colunas necessárias)
-- `bewor-webhook` ou `bewor-public-status` (extracção já funciona, só precisa do type correcto)
-- Simulador, RLS, qualquer outra função
-- `useStandaloneAnalysis`/`useStandaloneTokens` ficam — só removo o uso no AdminCRM (mantém a página `/admin/verificaciones-extractos`)
+- **Simulador hipotecario** (`SimuladorCreditoHipotecario.tsx`): ya tiene campo `comunidadAutonoma` ✅
+- **Webhook Meta Ads** (`meta-lead-webhook`): el lead trae `comunidad_autonoma` o `provincia` (a confirmar en payload real)
 
-## Resultado esperado
-- **Após Fase 1 + teste tu**: vou-te dizer com certeza se a conta Bewor faz cálculo automático ou se é preciso pedir-lhes activação do módulo financeiro
-- Se sim: cliente vê cálculo real, painel admin mostra ingressos/capacidade calculados pela Bewor, zero código novo de cálculo do nosso lado
-- Se não: cliente vê mensagem honesta ("contacta o teu agente"), tu sabes a verdade e podes decidir contactar a Bewor — sem mais ilusões de "documento validado" quando a verdade é que falta extracção
+**Pregunta**: Si en Meta Ads no viene la CCAA, ¿qué hacemos? Opciones: (a) usar un % medio de seguridad (8%), (b) saltar la regla y volver a 5.000 € fijos, (c) descalificar por falta de dato.
 
-## Pergunta única antes de implementar
-**Concordas com esta ordem?** Primeiro instrumentar para descobrir a verdade da Bewor (ainda hoje, com 1 upload teu), depois ajustar UI conforme o que descobrirmos. Em alternativa posso ir já directo à mensagem honesta de erro + remoção do CRM standalone (Fase 2 e 3) sem investigar a Bewor — mas aí ficamos sem cálculo automático para sempre, a menos que tu próprio fales com o suporte deles.
+## Plan de implementación (post-aprobación)
+
+Crear `src/lib/impuestosCCAA.ts` con tabla `ITP_POR_CCAA` + función `calcularAhorrosMinimos(valorInmueble, ccaa, tipoVivienda)`.
+
+**Ficheros a tocar (3)**:
+1. `src/lib/simuladorUtils.ts` — sustituir validación `ahorros < 5000` por `ahorros < calcularAhorrosMinimos(...)`. Mensaje de rechazo dinámico: "Ahorros insuficientes. Necesitas mín. X € (Y% de Z € en [CCAA])".
+2. `supabase/functions/meta-lead-webhook/index.ts` — misma lógica en `qualificarLead()`. Si falta CCAA, aplicar fallback decidido en pregunta 3.
+3. `src/lib/impuestosCCAA.ts` — NUEVO, fuente única de verdad.
+
+**Memoria**: actualizar `mortgage-simulator-rules-2025` y `meta-ads-qualification-rules-2025`.
+
+**No toco**: schema BD, UI del simulador (salvo si añades toggle nueva/usada), otras funciones.
+
+## Reglas hipotecarias en vigor (en español, para tu referencia)
+
+Una vez aprobado el cambio, las reglas quedarían así:
+
+### Reglas generales del cálculo (sistema francés)
+- **Tipo de interés**: TIN 1,6% primeros 10 años / TAE 1,72% / después Euribor + 0,35%
+- **Tasa interna de cálculo**: 2,5% anual fija
+- **Sistema de amortización**: francés (cuota mensual constante)
+- **Plazo máximo**: 30 años
+- **Edad máxima al final del préstamo**: 75 años (plazo se ajusta automáticamente)
+
+### Mínimos obligatorios (rechazo automático si no se cumplen)
+1. **Ahorros mínimos**: ~~5.000 €~~ → **Valor inmueble × % ITP de la CCAA** *(NUEVO)*
+2. **Importe mínimo financiable**: 70.000 €
+3. **Capacidad de pago disponible**: mín. 350 €/mes tras gastos y deudas
+
+### Límites de financiación (LTV - Loan To Value)
+- **Funcionarios públicos**: hasta 100% del valor
+- **Vivienda habitual con DNI/NIE residente**: hasta 90%
+- **No residentes / 2ª vivienda**: hasta 70%
+- **Inversión / alquiler**: hasta 50%
+
+### Hipoteca máxima absoluta
+- **1 titular**: 180.000 €
+- **2+ titulares**: 210.000 €
+
+### Capacidad de endeudamiento (DTI)
+- La cuota mensual no puede superar el **35%** de los ingresos netos mensuales después de descontar las deudas existentes
+- Fórmula: `cuota_máx = (ingresos_netos − deudas_mensuales) × 0,35`
+
+### Orden de prioridad de los motivos de rechazo
+1. Ahorros insuficientes (nueva regla dinámica)
+2. Importe solicitado < 70.000 €
+3. Capacidad < 350 €/mes
+4. Hipoteca solicitada > tope absoluto (180k/210k)
+5. Cuota calculada > 35% disponible
+
+### Descuentos aplicables (no afectan al cálculo de aprobación, sí al coste)
+- Familia numerosa
+- Menores de 35 años
+
+## Preguntas que necesito responder antes de codificar
 
