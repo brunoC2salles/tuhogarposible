@@ -70,21 +70,24 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
           break;
       }
 
-      // OPTIMIZED: Single query for all leads - filter period client-side
-      const [leadsResult, agentsResult] = await Promise.all([
-        supabase
-          .from('leads')
-          .select('*, profiles!agente_asignado_id(nombre)'),
+      // OPTIMIZED: Fetch ALL leads via pagination (overcomes 1000-row PostgREST cap)
+      const [leadsData, agentsResult] = await Promise.all([
+        fetchAllPaginated<any>((from, to) =>
+          supabase
+            .from('leads')
+            .select('*, profiles!agente_asignado_id(nombre)')
+            .order('created_at', { ascending: false })
+            .range(from, to)
+        ),
         supabase
           .from('profiles')
           .select('id, nombre')
           .eq('activo', true)
       ]);
 
-      if (leadsResult.error) throw leadsResult.error;
       if (agentsResult.error) throw agentsResult.error;
 
-      const allLeads = leadsResult.data || [];
+      const allLeads = leadsData || [];
       const agents = agentsResult.data || [];
 
       // Filter leads by period client-side (eliminates duplicate query)

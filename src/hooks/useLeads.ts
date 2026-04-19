@@ -16,24 +16,24 @@ export const useLeads = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      let query = supabase
-        .from('leads')
-        .select(`
-          *,
-          profiles!agente_asignado_id(nombre)
-        `)
-        .order('created_at', { ascending: false });
 
-      // Admin e supervisores veem todos os leads, agentes veem apenas seus próprios
       const isSupervisor = profile?.role === 'supervisor';
-      if (!isAdmin && !isSupervisor) {
-        query = query.eq('agente_asignado_id', user.id);
-      }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
+      // Paginated fetch to overcome the 1000-row PostgREST default cap
+      const data = await fetchAllPaginated<any>((from, to) => {
+        let q = supabase
+          .from('leads')
+          .select(`
+            *,
+            profiles!agente_asignado_id(nombre)
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        if (!isAdmin && !isSupervisor) {
+          q = q.eq('agente_asignado_id', user.id);
+        }
+        return q;
+      });
 
       // Converter dados do banco para o tipo Lead
       const converted = (data || []).map((item: any) => ({
