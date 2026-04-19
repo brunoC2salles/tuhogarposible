@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
+import { correctEmail } from '../_shared/emailCorrection.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -611,6 +612,15 @@ Deno.serve(async (req) => {
     data.nombre = sanitizeField(data.nombre) as string;
     data.telefono = sanitizeField(data.telefono) as string;
     data.email = sanitizeField(data.email) as string;
+
+    // Auto-corregir typos comunes en el dominio del email (ej.: gmial.com → gmail.com)
+    if (data.email) {
+      const emailCorr = correctEmail(data.email);
+      if (emailCorr.corrected) {
+        console.log('[meta-lead-webhook] Email auto-corregido:', emailCorr.original, '→', emailCorr.email, '(' + emailCorr.reason + ')');
+        data.email = emailCorr.email;
+      }
+    }
     data.zona_interes = sanitizeField(data.zona_interes) as string | undefined;
     data.antiguedad_trabajo = sanitizeField(data.antiguedad_trabajo) as string | undefined;
     data.tiene_nie_dni = sanitizeField(data.tiene_nie_dni) as string | undefined;

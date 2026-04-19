@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lead, LeadFormData, LeadStage } from '@/types/crm';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchAllPaginated } from '@/lib/fetchAllPaginated';
+import { correctEmail } from '@/lib/emailCorrection';
 
 export const useLeads = () => {
   const { user, isAdmin, profile } = useAuth();
@@ -16,24 +18,24 @@ export const useLeads = () => {
     try {
       setLoading(true);
       setError(null);
-      
-      let query = supabase
-        .from('leads')
-        .select(`
-          *,
-          profiles!agente_asignado_id(nombre)
-        `)
-        .order('created_at', { ascending: false });
 
-      // Admin e supervisores veem todos os leads, agentes veem apenas seus próprios
       const isSupervisor = profile?.role === 'supervisor';
-      if (!isAdmin && !isSupervisor) {
-        query = query.eq('agente_asignado_id', user.id);
-      }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
+      // Paginated fetch to overcome the 1000-row PostgREST default cap
+      const data = await fetchAllPaginated<any>((from, to) => {
+        let q = supabase
+          .from('leads')
+          .select(`
+            *,
+            profiles!agente_asignado_id(nombre)
+          `)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        if (!isAdmin && !isSupervisor) {
+          q = q.eq('agente_asignado_id', user.id);
+        }
+        return q;
+      });
 
       // Converter dados do banco para o tipo Lead
       const converted = (data || []).map((item: any) => ({
@@ -58,10 +60,21 @@ export const useLeads = () => {
     if (!user) return null;
 
     try {
+      // Auto-corregir typos comunes en el dominio del email
+      let finalLeadData = leadData;
+      if (leadData.email) {
+        const corr = correctEmail(leadData.email);
+        if (corr.corrected) {
+          finalLeadData = { ...leadData, email: corr.email };
+          toast.info(`Email corregido: ${corr.original} → ${corr.email}`);
+          console.log('[Leads] Email auto-corregido:', corr.reason);
+        }
+      }
+
       const { data, error } = await supabase
         .from('leads')
         .insert({
-          ...leadData,
+          ...finalLeadData,
           agente_asignado_id: user.id,
           source: 'manual' as const
         })
@@ -82,9 +95,20 @@ export const useLeads = () => {
 
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     try {
+      // Auto-corregir typos comunes en el dominio del email también en updates
+      let finalUpdates = updates;
+      if (updates.email) {
+        const corr = correctEmail(updates.email);
+        if (corr.corrected) {
+          finalUpdates = { ...updates, email: corr.email };
+          toast.info(`Email corregido: ${corr.original} → ${corr.email}`);
+          console.log('[Leads] Email auto-corregido en update:', corr.reason);
+        }
+      }
+
       const { error } = await supabase
         .from('leads')
-        .update(updates as any)
+        .update(finalUpdates as any)
         .eq('id', leadId);
 
       if (error) throw error;
