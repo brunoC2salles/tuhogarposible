@@ -584,16 +584,19 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   // Criterio 4: monto a financiar no supera máximo financiable
   const montoNoSuperaMaximo = montoFinanciable <= montoMaximoFinanciable;
   
-  // Criterio 5: Ahorros mínimos de 5.000€ (regla obligatoria, sin compensaciones)
-  const ahorrosMinimosSuficientes = datos.ahorrosDisponibles >= 5000;
-  
+  // Criterio 5: Ahorros mínimos = valor inmueble × % ITP de la CCAA (cubre impuestos de compraventa)
+  const ahorrosMinimosRequeridos = calcularAhorrosMinimos(datos.precioVivienda, datos.comunidadAutonoma);
+  const tasaITPAplicada = getITPPorCCAA(datos.comunidadAutonoma);
+  const ahorrosMinimosSuficientes = datos.ahorrosDisponibles >= ahorrosMinimosRequeridos;
+
   // Aprobable requiere todos los criterios
   const aprobable = ahorrosMinimosSuficientes && aprobablePorIngresos && capacidadMinimaSuficiente && cumpleMinimoFinanciable && montoNoSuperaMaximo;
-  
+
   // Razón de no aprobación (prioridad: ahorros mínimos primero)
   let razonNoAprobado: string | undefined;
   if (!ahorrosMinimosSuficientes) {
-    razonNoAprobado = `Ahorros insuficientes: tienes ${formatEuro(datos.ahorrosDisponibles)} disponibles pero el mínimo requerido es 5.000€.`;
+    const pctTexto = (tasaITPAplicada * 100).toFixed(1).replace('.', ',');
+    razonNoAprobado = `Ahorros insuficientes: tienes ${formatEuro(datos.ahorrosDisponibles)} disponibles pero el mínimo requerido es ${formatEuro(ahorrosMinimosRequeridos)} (${pctTexto}% de ${formatEuro(datos.precioVivienda)} en ${datos.comunidadAutonoma}) para cubrir los impuestos de compraventa.`;
   } else if (!cumpleMinimoFinanciable) {
     razonNoAprobado = `El importe a financiar (${formatEuro(montoFinanciable)}) es inferior al mínimo de 70.000€`;
   } else if (!capacidadMinimaSuficiente) {

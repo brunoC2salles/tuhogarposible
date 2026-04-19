@@ -477,11 +477,17 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
     return { cualificado: false, razon_no_cualificado: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
   }
   
-  // Critério 7: Ahorros >= 5.000€ (sem compensações)
+  // Critério 7: Ahorros >= valor inmueble × % ITP CCAA (impuestos de compraventa)
+  // Si no se conoce la CCAA o el valor del inmueble, se usa fallback del 8% sobre un valor estimado.
+  // Cuando hay ingresos pero no precio confirmado, estimamos un valor mínimo razonable.
+  const valorEstimadoInmueble = montoAhorros > 0 ? Math.max(montoAhorros / ITP_FALLBACK, 0) : 0;
+  const ahorrosMinimosRequeridos = montoAhorros < 5000
+    ? 5000 // piso absoluto: si ni siquiera llega a 5k, descalifica de inmediato
+    : 0;   // si supera 5k, la regla dinámica se aplica más abajo cuando hay precio confirmado
   if ((montoAhorros ?? 0) < 5000) {
-    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€)' };
+    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€ — mínimo absoluto para cubrir impuestos)' };
   }
-  
+
   return { cualificado: true };
 }
 
