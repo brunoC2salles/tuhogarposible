@@ -1,3 +1,5 @@
+import { calcularAhorrosMinimos, getITPPorCCAA } from './impuestosCCAA';
+
 export interface DatosSimulacion {
   valorInmueble: number;
   entrada: number;

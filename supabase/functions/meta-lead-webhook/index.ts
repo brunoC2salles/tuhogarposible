@@ -477,15 +477,13 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
     return { cualificado: false, razon_no_cualificado: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
   }
   
-  // Critério 7: Ahorros >= valor inmueble × % ITP CCAA (impuestos de compraventa)
-  // Si no se conoce la CCAA o el valor del inmueble, se usa fallback del 8% sobre un valor estimado.
-  // Cuando hay ingresos pero no precio confirmado, estimamos un valor mínimo razonable.
-  const valorEstimadoInmueble = montoAhorros > 0 ? Math.max(montoAhorros / ITP_FALLBACK, 0) : 0;
-  const ahorrosMinimosRequeridos = montoAhorros < 5000
-    ? 5000 // piso absoluto: si ni siquiera llega a 5k, descalifica de inmediato
-    : 0;   // si supera 5k, la regla dinámica se aplica más abajo cuando hay precio confirmado
+  // Critério 7: Ahorros mínimos.
+  // En el webhook Meta Ads no tenemos un precio de inmueble confirmado para aplicar
+  // la regla dinámica (valor inmueble × % ITP CCAA). Aplicamos un piso absoluto
+  // de 5.000€ como sanity-check. La regla dinámica completa se aplica en el simulador
+  // hipotecario (src/lib/simuladorUtils.ts) cuando el cliente introduce el precio real.
   if ((montoAhorros ?? 0) < 5000) {
-    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€ — mínimo absoluto para cubrir impuestos)' };
+    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€ — mínimo absoluto para cubrir impuestos de compraventa)' };
   }
 
   return { cualificado: true };
