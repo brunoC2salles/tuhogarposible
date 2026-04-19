@@ -60,10 +60,21 @@ export const useLeads = () => {
     if (!user) return null;
 
     try {
+      // Auto-corregir typos comunes en el dominio del email
+      let finalLeadData = leadData;
+      if (leadData.email) {
+        const corr = correctEmail(leadData.email);
+        if (corr.corrected) {
+          finalLeadData = { ...leadData, email: corr.email };
+          toast.info(`Email corregido: ${corr.original} → ${corr.email}`);
+          console.log('[Leads] Email auto-corregido:', corr.reason);
+        }
+      }
+
       const { data, error } = await supabase
         .from('leads')
         .insert({
-          ...leadData,
+          ...finalLeadData,
           agente_asignado_id: user.id,
           source: 'manual' as const
         })
@@ -84,9 +95,20 @@ export const useLeads = () => {
 
   const updateLead = async (leadId: string, updates: Partial<Lead>) => {
     try {
+      // Auto-corregir typos comunes en el dominio del email también en updates
+      let finalUpdates = updates;
+      if (updates.email) {
+        const corr = correctEmail(updates.email);
+        if (corr.corrected) {
+          finalUpdates = { ...updates, email: corr.email };
+          toast.info(`Email corregido: ${corr.original} → ${corr.email}`);
+          console.log('[Leads] Email auto-corregido en update:', corr.reason);
+        }
+      }
+
       const { error } = await supabase
         .from('leads')
-        .update(updates as any)
+        .update(finalUpdates as any)
         .eq('id', leadId);
 
       if (error) throw error;
