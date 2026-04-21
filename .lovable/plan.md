@@ -1,113 +1,56 @@
 
 
-## Cambio solicitado
+## Resposta directa
 
-Sustituir la regla actual **"ahorros mínimos = 5.000 €"** por una regla dinámica:
+**Sim, posso fazer isso.** É uma operação segura e de uma só passagem (one-shot), sem alterações de código. Antes de avançar quero mostrar-te exactamente o que encontrei na BD para que aprovês com dados reais à frente.
 
-> **Ahorros mínimos = Valor del inmueble × % impuestos de la Comunidad Autónoma**
+## O que encontrei nos últimos 4 dias
 
-Esto significa que los ahorros del cliente deben cubrir, como mínimo, los impuestos de compraventa (ITP/IVA) de la CCAA donde se ubica el inmueble.
+- **198** leads descualificados no total
+- **5** descualificados *especificamente* pela regra antiga de ahorros (`"Sin ahorros declarados para cubrir impuestos de compraventa"`)
+  - **3** declararam um valor numérico de ahorros > 0 (ex.: `4000€`, `3000€`)
+  - **2** responderam literalmente "no" / "no tengo" → estes **continuam corretamente descualificados**
+- **0** disseram apenas "sí" sem número (esse caso teórico não ocorreu na janela)
 
-## Investigación previa necesaria
+Os outros 193 foram descualificados por outras razões legítimas (antigüedad < 1 año, fichero de morosidad, contrato temporal, edad, etc.) e **não** devem ser tocados.
 
-Antes de implementar necesito confirmar 3 cosas contigo:
+## Candidatos a recuperar (3 leads)
 
-### 1. Porcentajes de impuestos por CCAA
+Vou listar-te os 3 candidatos exactos no chat antes de executar, para confirmares um a um. Pré-visualização:
 
-Los % de **ITP (vivienda usada)** varían por CCAA en España. Los oficiales 2025 son aproximadamente:
+| Nome | Email | Cidade | Ahorros declarados |
+|---|---|---|---|
+| Karim | samirlotfi2907@gmail.com | Sevilla | 4.000€ |
+| _(2 mais — mostro a lista completa antes de executar)_ | | | |
 
-| CCAA | ITP general |
-|---|---|
-| Andalucía | 7% |
-| Aragón | 8% (tramos hasta 10%) |
-| Asturias | 8% (tramos hasta 10%) |
-| Baleares | 8% (tramos hasta 13%) |
-| Canarias | 6,5% |
-| Cantabria | 9% |
-| Castilla-La Mancha | 9% |
-| Castilla y León | 8% (tramos hasta 10%) |
-| Cataluña | 10% (tramos hasta 11%) |
-| Ceuta | 6% |
-| C. Madrid | 6% |
-| C. Valenciana | 10% |
-| Extremadura | 8% (tramos hasta 11%) |
-| Galicia | 9% |
-| La Rioja | 7% |
-| Melilla | 6% |
-| Murcia | 8% |
-| Navarra* | 6% |
-| País Vasco* | 4% |
+## Plano de execução (uma só vez, sem alterar código)
 
-*Navarra y País Vasco no están en `COMUNIDADES_AUTONOMAS` actualmente.
+1. **Listar e confirmar contigo os 3 leads exatos** (com nome, email, telefone, cidade e valor declarado) antes de tocar em nada.
+2. **Atribuir agente** via `get-next-agent` para cada lead (round-robin pela CCAA detectada da `ciudad_interes`/`zona_interes`). Se a CCAA não for inferível, uso fallback por cobertura — mesma lógica do webhook Meta.
+3. **Mover stage** `descualificados` → `nuevo_lead` e gravar `agente_asignado_id`. Vou anotar em `notas` uma linha de auditoria: `[RECUPERADO 2026-04-21] Re-cualificado por nueva regla de ahorros (declaró Xxxx€)`.
+4. **Disparar webhooks Bitrix/Make**:
+   - `make-webhook-proxy` com `action: 'send_lead_assignment'` para cada um (mesmo webhook que dispara em reasignación manual — já vai ao Bitrix24 via Make).
+5. **Notificar agentes** automaticamente — já é feito pelo trigger `notify_lead_reassignment` na BD assim que `agente_asignado_id` muda. Sem trabalho extra.
+6. **Relatório final no chat** com: leads movidos, agentes atribuídos, status de cada webhook (success/error) consultando `webhook_logs`.
 
-**Pregunta**: ¿Uso estos % oficiales o me pasas tu propia tabla? ¿Aplicamos solo el tramo general (más simple) o tramos por valor (más complejo)?
+## O que NÃO vou fazer
 
-### 2. ¿Vivienda nueva (IVA 10%) vs usada (ITP)?
+- ❌ Não toco nos 195 leads descualificados por outras razões.
+- ❌ Não altero código nem regras (a regra do webhook já foi corrigida na entrega anterior — isto é só limpar o histórico recente).
+- ❌ Não envio email/SMS aos leads — só atribuo, movo de stage e disparo webhook interno do Bitrix.
 
-Si es **vivienda nueva**, en lugar de ITP se aplica **IVA 10% + AJD ~1,5%** (≈ 11,5% total). Hoy el simulador no pregunta esto.
+## Detalhes técnicos (para referência)
 
-**Pregunta**: ¿Asumimos siempre vivienda usada (ITP) o añadimos un toggle "Nueva/Usada" en el simulador?
+- Query de seleção: `stage = 'descualificados' AND updated_at > now() - interval '4 days' AND notas ILIKE '%Sin ahorros declarados%' AND notas ~* 'Ahorros para impuestos:\s*[^-\n]*\d+'`
+- Atribuição: `supabase.functions.invoke('get-next-agent', { body: { region: <CCAA detectada>, considerarTurno: false } })`
+- Update: `update leads set stage='nuevo_lead', agente_asignado_id=<id>, notas=notas || E'\n[RECUPERADO ...]' where id=...` (single statement, idempotente)
+- Webhook: `supabase.functions.invoke('make-webhook-proxy', { body: { action: 'send_lead_assignment', lead_id, agente_id } })` — exatamente como em `reassignLead` (`useLeads.ts`)
+- Auditoria: `lead_historico` é populado automaticamente pelo trigger `log_lead_stage_change` quando o stage mudar.
+- Reversibilidade: cada movimento fica registado em `lead_historico`; rollback por id é trivial se algo correr mal.
 
-### 3. ¿De dónde sacamos la CCAA en cada flujo?
+## Próximo passo se aprovares
 
-- **Simulador hipotecario** (`SimuladorCreditoHipotecario.tsx`): ya tiene campo `comunidadAutonoma` ✅
-- **Webhook Meta Ads** (`meta-lead-webhook`): el lead trae `comunidad_autonoma` o `provincia` (a confirmar en payload real)
-
-**Pregunta**: Si en Meta Ads no viene la CCAA, ¿qué hacemos? Opciones: (a) usar un % medio de seguridad (8%), (b) saltar la regla y volver a 5.000 € fijos, (c) descalificar por falta de dato.
-
-## Plan de implementación (post-aprobación)
-
-Crear `src/lib/impuestosCCAA.ts` con tabla `ITP_POR_CCAA` + función `calcularAhorrosMinimos(valorInmueble, ccaa, tipoVivienda)`.
-
-**Ficheros a tocar (3)**:
-1. `src/lib/simuladorUtils.ts` — sustituir validación `ahorros < 5000` por `ahorros < calcularAhorrosMinimos(...)`. Mensaje de rechazo dinámico: "Ahorros insuficientes. Necesitas mín. X € (Y% de Z € en [CCAA])".
-2. `supabase/functions/meta-lead-webhook/index.ts` — misma lógica en `qualificarLead()`. Si falta CCAA, aplicar fallback decidido en pregunta 3.
-3. `src/lib/impuestosCCAA.ts` — NUEVO, fuente única de verdad.
-
-**Memoria**: actualizar `mortgage-simulator-rules-2025` y `meta-ads-qualification-rules-2025`.
-
-**No toco**: schema BD, UI del simulador (salvo si añades toggle nueva/usada), otras funciones.
-
-## Reglas hipotecarias en vigor (en español, para tu referencia)
-
-Una vez aprobado el cambio, las reglas quedarían así:
-
-### Reglas generales del cálculo (sistema francés)
-- **Tipo de interés**: TIN 1,6% primeros 10 años / TAE 1,72% / después Euribor + 0,35%
-- **Tasa interna de cálculo**: 2,5% anual fija
-- **Sistema de amortización**: francés (cuota mensual constante)
-- **Plazo máximo**: 30 años
-- **Edad máxima al final del préstamo**: 75 años (plazo se ajusta automáticamente)
-
-### Mínimos obligatorios (rechazo automático si no se cumplen)
-1. **Ahorros mínimos**: ~~5.000 €~~ → **Valor inmueble × % ITP de la CCAA** *(NUEVO)*
-2. **Importe mínimo financiable**: 70.000 €
-3. **Capacidad de pago disponible**: mín. 350 €/mes tras gastos y deudas
-
-### Límites de financiación (LTV - Loan To Value)
-- **Funcionarios públicos**: hasta 100% del valor
-- **Vivienda habitual con DNI/NIE residente**: hasta 90%
-- **No residentes / 2ª vivienda**: hasta 70%
-- **Inversión / alquiler**: hasta 50%
-
-### Hipoteca máxima absoluta
-- **1 titular**: 180.000 €
-- **2+ titulares**: 210.000 €
-
-### Capacidad de endeudamiento (DTI)
-- La cuota mensual no puede superar el **35%** de los ingresos netos mensuales después de descontar las deudas existentes
-- Fórmula: `cuota_máx = (ingresos_netos − deudas_mensuales) × 0,35`
-
-### Orden de prioridad de los motivos de rechazo
-1. Ahorros insuficientes (nueva regla dinámica)
-2. Importe solicitado < 70.000 €
-3. Capacidad < 350 €/mes
-4. Hipoteca solicitada > tope absoluto (180k/210k)
-5. Cuota calculada > 35% disponible
-
-### Descuentos aplicables (no afectan al cálculo de aprobación, sí al coste)
-- Familia numerosa
-- Menores de 35 años
-
-## Preguntas que necesito responder antes de codificar
+Execução em duas fases:
+1. Mostro-te a tabela completa dos 3 leads → tu confirmas.
+2. Executo tudo e devolvo o relatório.
 
