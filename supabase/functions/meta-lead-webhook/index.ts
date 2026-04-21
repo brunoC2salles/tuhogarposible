@@ -478,13 +478,19 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
     return { cualificado: false, razon_no_cualificado: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
   }
   
-  // Critério 7: Ahorros mínimos.
-  // En el webhook Meta Ads no tenemos un precio de inmueble confirmado para aplicar
-  // la regla dinámica (valor inmueble × % ITP CCAA). Aplicamos un piso absoluto
-  // de 5.000€ como sanity-check. La regla dinámica completa se aplica en el simulador
+  // Critério 7: Ahorros para impuestos.
+  // El candidato se considera cualificado si:
+  //   (a) responde afirmativamente ("sí", "si", "yes", "true", "1") en `tiene_ahorros_impuestos`, O
+  //   (b) declara un monto numérico > 0 en `monto_ahorros`.
+  // La regla dinámica completa (valor inmueble × % ITP CCAA) se aplica en el simulador
   // hipotecario (src/lib/simuladorUtils.ts) cuando el cliente introduce el precio real.
-  if ((montoAhorros ?? 0) < 5000) {
-    return { cualificado: false, razon_no_cualificado: 'Ahorros insuficientes (menos de 5.000€ — mínimo absoluto para cubrir impuestos de compraventa)' };
+  const respuestaAhorros = (data.tiene_ahorros_impuestos || '').toString().trim().toLowerCase();
+  const respuestasAfirmativas = ['si', 'sí', 'yes', 'true', '1', 'y', 's'];
+  const tieneRespuestaAfirmativa = respuestasAfirmativas.includes(respuestaAhorros);
+  const tieneMontoValido = (montoAhorros ?? 0) > 0;
+
+  if (!tieneRespuestaAfirmativa && !tieneMontoValido) {
+    return { cualificado: false, razon_no_cualificado: 'Sin ahorros declarados para cubrir impuestos de compraventa' };
   }
 
   return { cualificado: true };
