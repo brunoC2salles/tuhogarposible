@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, Home, ExternalLink, XCircle } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, Home, ExternalLink, XCircle, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -85,6 +85,9 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
   const ingresosMensuales = (lead.simulador_hipotecario_data as any)?.ingresosMensuales
     || (lead.simulador_personal_data as any)?.ingresosMensuales
     || null;
+
+  // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+  const precioMaximoInmueble = (lead.simulador_hipotecario_data as any)?.precio_maximo_inmueble || null;
 
   return (
     <Card 
@@ -195,6 +198,13 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
           <div className="flex items-center gap-2 text-muted-foreground">
             <DollarSign className="h-3 w-3 flex-shrink-0" />
             <span className="truncate text-xs">Ingresos: {formatCurrency(ingresosMensuales)}/mes</span>
+          </div>
+        )}
+
+        {precioMaximoInmueble && (
+          <div className="flex items-center gap-2 text-primary">
+            <Target className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate text-xs font-medium">Hasta {formatCurrency(precioMaximoInmueble)}</span>
           </div>
         )}
 

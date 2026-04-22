@@ -188,6 +188,55 @@ export interface ResultadosSimulacionHipoteca {
   gastosPension: number;
   tasaAnualFija: number;
   razonNoAprobado?: string;
+  // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+  precioMaximoInmueble?: number;     // MIN(P1, P2)
+  precioMaxPorAhorros?: number;       // P1: tope por ahorros (CPmax / %ITP)
+  precioMaxPorIngresos?: number;      // P2: tope por ingresos (montoMaxFinanciable / %financiación)
+  creditoPersonalMaximo?: number;     // CPmax = (15.000 + Ahorros) / 2
+  tasaITPAplicada?: number;           // % ITP usado en P1 (con descuentos)
+}
+
+/**
+ * Calcula el Precio Máximo de Inmueble Recomendado combinando dos topes:
+ * - Punto 1 (ahorros): CPmax = (15.000 + Ahorros) / 2 ; PrecioMax_P1 = CPmax / %ITP
+ * - Punto 2 (ingresos): PrecioMax_P2 = montoMaximoFinanciable / (%financiación / 100)
+ * Resultado: MIN(P1, P2)
+ */
+export function calcularPrecioMaximoInmueble(params: {
+  ahorros: number;
+  comunidad: string;
+  familiaNumerosa: boolean;
+  menorDe35: boolean;
+  montoMaximoFinanciable: number;
+  porcentajeFinanciamiento: number;
+}): {
+  precioMaxP1: number;
+  precioMaxP2: number;
+  precioMaximoInmueble: number;
+  cpMax: number;
+  tasaAplicada: number;
+} {
+  const { ahorros, comunidad, familiaNumerosa, menorDe35, montoMaximoFinanciable, porcentajeFinanciamiento } = params;
+
+  // Punto 1 — Tope por ahorros
+  const cpMax = Math.max(0, (15000 + Math.max(0, ahorros)) / 2);
+  const tasaAplicada = getTasaITP(comunidad, familiaNumerosa, menorDe35);
+  const precioMaxP1 = tasaAplicada > 0 ? Math.round(cpMax / tasaAplicada) : 0;
+
+  // Punto 2 — Tope por ingresos (hipoteca máxima reconvertida a precio del inmueble)
+  const pctDec = porcentajeFinanciamiento / 100;
+  const precioMaxP2 = pctDec > 0 ? Math.round(montoMaximoFinanciable / pctDec) : 0;
+
+  // Resultado final: el más restrictivo
+  const precioMaximoInmueble = Math.max(0, Math.min(precioMaxP1, precioMaxP2));
+
+  return {
+    precioMaxP1,
+    precioMaxP2,
+    precioMaximoInmueble,
+    cpMax: Math.round(cpMax),
+    tasaAplicada,
+  };
 }
 
 /**
@@ -609,6 +658,16 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     razonNoAprobado = `La cuota mensual (${formatEuro(cuotaMensual)}) supera la capacidad de pago (${formatEuro(hipotecaMaximaMensual)})`;
   }
   
+  // 15. PRECIO MÁXIMO DE INMUEBLE RECOMENDADO (Punto 1 + Punto 2)
+  const precioMaximo = calcularPrecioMaximoInmueble({
+    ahorros: datos.ahorrosDisponibles || 0,
+    comunidad: datos.comunidadAutonoma,
+    familiaNumerosa: datos.familiaNumerosa,
+    menorDe35: datos.menorDe35,
+    montoMaximoFinanciable,
+    porcentajeFinanciamiento,
+  });
+
   return {
     montoFinanciable,
     capitalPropioNecesario,
@@ -626,6 +685,11 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     ingresosTotales,
     gastosPension,
     tasaAnualFija,
-    razonNoAprobado
+    razonNoAprobado,
+    precioMaximoInmueble: precioMaximo.precioMaximoInmueble,
+    precioMaxPorAhorros: precioMaximo.precioMaxP1,
+    precioMaxPorIngresos: precioMaximo.precioMaxP2,
+    creditoPersonalMaximo: precioMaximo.cpMax,
+    tasaITPAplicada: precioMaximo.tasaAplicada,
   };
 }
