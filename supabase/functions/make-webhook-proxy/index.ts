@@ -502,6 +502,12 @@ Deno.serve(async (req) => {
         sim_hipoteca_capital_necesario: simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0,
         sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
         sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
+
+        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
+        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
+        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
+        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
         
         // Campo de dívidas mensais (extraído das notas se disponível)
         meta_deudas_mensuales: 0,
