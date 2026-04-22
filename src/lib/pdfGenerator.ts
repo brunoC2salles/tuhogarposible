@@ -421,11 +421,13 @@ export function generateSimulacionCombinadaPDF(
   doc.text(`Plazo máximo: ${resultadosHipoteca.plazoMaximoMeses} meses (${plazoHTexto})`, margin, currentY);
   currentY += 8;
 
-  // Max price based on mortgage only
+  // Precio máximo: usar el nuevo cálculo (Punto 1 + Punto 2) cuando exista, fallback al previo
   const pct = resultadosHipoteca.porcentajeFinanciamiento || 80;
   const pctDec = pct / 100;
   const precioMaxHipoteca = pctDec > 0 ? resultadosHipoteca.montoMaximoFinanciable / pctDec : 0;
-  const precioMax = Math.max(0, precioMaxHipoteca);
+  const precioMax = (typeof resultadosHipoteca.precioMaximoInmueble === 'number' && resultadosHipoteca.precioMaximoInmueble > 0)
+    ? resultadosHipoteca.precioMaximoInmueble
+    : Math.max(0, precioMaxHipoteca);
 
   autoTable(doc, {
     startY: currentY,
