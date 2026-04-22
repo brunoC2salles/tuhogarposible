@@ -658,6 +658,16 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     razonNoAprobado = `La cuota mensual (${formatEuro(cuotaMensual)}) supera la capacidad de pago (${formatEuro(hipotecaMaximaMensual)})`;
   }
   
+  // 15. PRECIO MÁXIMO DE INMUEBLE RECOMENDADO (Punto 1 + Punto 2)
+  const precioMaximo = calcularPrecioMaximoInmueble({
+    ahorros: datos.ahorrosDisponibles || 0,
+    comunidad: datos.comunidadAutonoma,
+    familiaNumerosa: datos.familiaNumerosa,
+    menorDe35: datos.menorDe35,
+    montoMaximoFinanciable,
+    porcentajeFinanciamiento,
+  });
+
   return {
     montoFinanciable,
     capitalPropioNecesario,
@@ -675,6 +685,11 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
     ingresosTotales,
     gastosPension,
     tasaAnualFija,
-    razonNoAprobado
+    razonNoAprobado,
+    precioMaximoInmueble: precioMaximo.precioMaximoInmueble,
+    precioMaxPorAhorros: precioMaximo.precioMaxP1,
+    precioMaxPorIngresos: precioMaximo.precioMaxP2,
+    creditoPersonalMaximo: precioMaximo.cpMax,
+    tasaITPAplicada: precioMaximo.tasaAplicada,
   };
 }
