@@ -132,7 +132,14 @@ export function SimuladorCreditoHipotecario() {
         ingresoMensual: resultados.ingresosTotales,
         cuotaMensual: resultados.cuotaMensual,
         relacionCuotaIngreso: (resultados.cuotaMensual / resultados.ingresosTotales) * 100,
-        capacidadEndeudamiento: resultados.ingresosTotales * 0.35
+        capacidadEndeudamiento: resultados.ingresosTotales * 0.35,
+        // Punto 1 + Punto 2 — Precio Máximo de Inmueble Recomendado
+        precio_maximo_inmueble: resultados.precioMaximoInmueble ?? null,
+        precio_max_por_ahorros: resultados.precioMaxPorAhorros ?? null,
+        precio_max_por_ingresos: resultados.precioMaxPorIngresos ?? null,
+        credito_personal_maximo: resultados.creditoPersonalMaximo ?? null,
+        tasa_itp_aplicada: resultados.tasaITPAplicada ?? null,
+        montoMaximoFinanciable: resultados.montoMaximoFinanciable,
       };
 
       const { error } = await supabase
