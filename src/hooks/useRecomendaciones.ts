@@ -63,10 +63,22 @@ export const useRecomendaciones = ({ lead, enabled = true }: UseRecomendacionesP
         });
       }
 
-      // Filtrar por valor: sem limite inferior, limite superior 135% do valor desejado
-      if (lead.valor_inmueble_deseado) {
+      // Filtrar por valor: prioriza el nuevo precio_maximo_inmueble (Punto 1+2),
+      // con margen del 10%. Fallback al cálculo previo (valor deseado × 1,35).
+      const simHip = (lead as any).simulador_hipotecario_data || {};
+      const precioMaximoRecomendado = simHip.precio_maximo_inmueble || null;
+
+      if (precioMaximoRecomendado && precioMaximoRecomendado > 0) {
+        const maxValue = precioMaximoRecomendado * 1.10; // margen 10% para no esconder ofertas justo encima
+        filteredData = filteredData.filter(inmueble => Number(inmueble.precio) <= maxValue);
+        filteredData.sort((a, b) => {
+          const diffA = Math.abs(Number(a.precio) - precioMaximoRecomendado);
+          const diffB = Math.abs(Number(b.precio) - precioMaximoRecomendado);
+          return diffA - diffB;
+        });
+      } else if (lead.valor_inmueble_deseado) {
         const desiredValue = lead.valor_inmueble_deseado;
-        const maxValue = desiredValue * 1.35; // 135% do valor desejado
+        const maxValue = desiredValue * 1.35; // 135% do valor desejado (fallback)
 
         filteredData = filteredData.filter(inmueble => {
           const price = Number(inmueble.precio);
