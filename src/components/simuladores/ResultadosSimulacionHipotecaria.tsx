@@ -116,6 +116,40 @@ export function ResultadosSimulacionHipotecaria({
             </div>
           </div>
 
+          {/* Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2) */}
+          {resultados.aprobable && resultados.precioMaximoInmueble !== undefined && resultados.precioMaximoInmueble > 0 && (
+            <div className="p-5 rounded-lg border-2 border-primary bg-primary/5">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground mb-1">PRECIO MÁXIMO DE INMUEBLE RECOMENDADO</p>
+                  <p className="text-3xl font-bold text-primary">{formatEuro(resultados.precioMaximoInmueble)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Guía para buscar ofertas dentro de la capacidad real del cliente
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs border-t pt-3">
+                <div>
+                  <p className="text-muted-foreground">Tope por ahorros (Punto 1)</p>
+                  <p className="font-semibold">{formatEuro(resultados.precioMaxPorAhorros || 0)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    CPmax {formatEuro(resultados.creditoPersonalMaximo || 0)} / {((resultados.tasaITPAplicada || 0) * 100).toFixed(1).replace('.', ',')}% ITP
+                  </p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Tope por ingresos (Punto 2)</p>
+                  <p className="font-semibold">{formatEuro(resultados.precioMaxPorIngresos || 0)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Hipoteca máx. {formatEuro(resultados.montoMaximoFinanciable)} / {resultados.porcentajeFinanciamiento.toFixed(0)}% financiación
+                  </p>
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-3 italic">
+                Se aplica el menor de los dos topes (regla del más restrictivo).
+              </p>
+            </div>
+          )}
+
           {/* Resumen Total */}
           <div>
             <h3 className="font-semibold mb-3">RESUMEN TOTAL</h3>
