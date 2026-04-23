@@ -278,7 +278,7 @@ const AdminSettings = () => {
               </Button>
               <Button variant="outline" onClick={handleTestWebhook} disabled={!localWebhookUrl.trim()}>
                 <TestTube className="h-4 w-4 mr-2" />
-                Probar Conexión
+                Probar Conexión (webhook general)
               </Button>
             </div>
 
@@ -345,14 +345,14 @@ const AdminSettings = () => {
                 variant="outline" 
                 onClick={() => testMetaBitrixWebhook(localMetaBitrixWebhookUrl)} 
                 disabled={!localMetaBitrixWebhookUrl.trim()}
-                title="Envía los datos del último lead del CRM al webhook"
+                title="Envía el payload Bitrix real del último lead del CRM al webhook"
               >
                 <TestTube className="h-4 w-4 mr-2" />
-                Probar con Último Lead
+                Probar Meta → Bitrix (payload real)
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              La prueba enviará los datos reales del último lead creado en el CRM
+              La prueba enviará el payload Bitrix real (con los mismos campos que recibe Make en producción) usando el último lead creado en el CRM
             </p>
 
             {/* Status */}
