@@ -620,6 +620,14 @@ Deno.serve(async (req) => {
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
         lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
         lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+        lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
+        lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada'),
+        meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE'),
+        meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
+        meta_deudas_mensuales:
+          simHipoteca.deudas_consideradas ??
+          extractFromNotes(lead.notas, 'Deudas mensuales') ??
+          0,
         
         agente_id: agente.id,
         agente_nombre: agente.nombre,
