@@ -69,33 +69,166 @@ function extractFromNotes(notas: string | null, key: string): string {
   return match ? match[1].trim() : '';
 }
 
-// Calculate combined payment plan from stored simulation data
-function calcularPlanPagos(simPersonal: any, simHipoteca: any, notas: string | null): Record<string, any> {
-  const cuotaHipoteca = simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0;
-  const cuotaPersonal = simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0;
-  const fase1Meses = simPersonal.plazo_meses || simPersonal.plazoMeses || 84;
-  const plazoHipotecaAnos = simHipoteca.plazo_anos || simHipoteca.plazoAnios || 25;
-  const plazoHipotecaMeses = plazoHipotecaAnos * 12;
-  const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
-  
-  // Extract ahorros from notes
-  const ahorrosMatch = extractFromNotes(notas, 'Ahorros para impuestos')?.match(/(\d+)/);
-  const montoAhorros = ahorrosMatch ? parseInt(ahorrosMatch[1], 10) : 0;
-  const capitalNecesario = simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0;
-  const gap = Math.max(capitalNecesario - montoAhorros, 0);
-  const montoFinanciado = simPersonal.monto_financiado || gap;
-  
-  return {
-    plan_fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
-    plan_fase1_duracion_meses: fase1Meses,
-    plan_fase2_cuota_total: cuotaHipoteca,
-    plan_fase2_duracion_meses: fase2Meses,
-    plan_ahorro_mensual_tras_personal: cuotaPersonal,
-    plan_total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
-    plan_gap_calculado: gap,
-    plan_ahorros_cliente: montoAhorros,
-    sim_personal_monto_financiado: montoFinanciado,
+// ============================================================================
+// CRÉDITO PERSONAL — Tope duro 15.000€ (cinturón + tirantes em todo reenvio)
+// ============================================================================
+const CP_TOPE = 15000;
+const CP_TAE = 0.08;
+const CP_PLAZO_MESES = 84;
+
+/**
+ * Normaliza o crédito personal de QUALQUER lead (mesmo antigos com 36k salvos).
+ * Garante: monto ≤ 15.000€ e cuota recalculada (84m, 8% TAE).
+ */
+function normalizarCreditoPersonal(simPersonal: any): { monto: number; cuota: number } {
+  const r = CP_TAE / 12;
+  const n = CP_PLAZO_MESES;
+
+  const montoBruto = Number(
+    simPersonal?.monto_maximo ?? simPersonal?.montoSolicitado ?? simPersonal?.montoMaximoCredito ?? 0
+  );
+  const monto = Math.min(Math.max(Math.round(montoBruto), 0), CP_TOPE);
+
+  // Recalcula a cuota para coerência (não confiar no valor antigo se monto foi rebaixado)
+  const cuota = monto > 0
+    ? Math.round((monto * r) / (1 - Math.pow(1 + r, -n)))
+    : 0;
+
+  return { monto, cuota };
+}
+
+/**
+ * Builder único do payload Bitrix — usado por test_meta_bitrix_last_lead e send_lead_assignment.
+ * Mantém EXATAMENTE os mesmos nomes de variáveis que o template Make.com já usa.
+ */
+function buildMetaBitrixPayload(
+  lead: any,
+  agente: any,
+  recomendaciones: any[],
+  beworLink: string,
+  source: string,
+): Record<string, any> {
+  const simPersonal = (lead.simulador_personal_data as any) || {};
+  const simHipoteca = (lead.simulador_hipotecario_data as any) || {};
+
+  // Crédito personal: SEMPRE normalizado (15k duro + cuota recalculada)
+  const cp = normalizarCreditoPersonal(simPersonal);
+
+  // Ingresos / deudas: priorizar JSON enriquecido; fallback notas
+  const ingresos = Number(simHipoteca.ingresos ?? simPersonal.ingresos ?? 0);
+  const deudas = Number(simHipoteca.deudas ?? simPersonal.deudas ?? 0);
+
+  // Hipoteca: priorizar cuota REAL; valor max = precio recomendado MIN(P1,P2)
+  const hipotecaMontoFinanciable =
+    simHipoteca.monto_maximo_financiable ?? simHipoteca.montoFinanciable ?? 0;
+  const hipotecaCuotaReal =
+    simHipoteca.cuota_mensual_real ?? simHipoteca.cuota_maxima_mensual ?? simHipoteca.cuotaMensual ?? 0;
+  const hipotecaValorMaxInmueble =
+    simHipoteca.precio_maximo_inmueble ??
+    simHipoteca.valor_maximo_inmueble ??
+    simHipoteca.valorMaximoInmueble ??
+    0;
+
+  // Campos Meta — priorizar JSON enriquecido; fallback notas (leads antigos)
+  const metaMontoAhorros =
+    simHipoteca.meta_monto_ahorros ??
+    extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] ??
+    0;
+  const metaTieneAhorros =
+    simHipoteca.meta_tiene_ahorros ??
+    extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] ??
+    '';
+  const metaViviendaSel =
+    simHipoteca.meta_vivienda_seleccionada ??
+    extractFromNotes(lead.notas, 'Vivienda seleccionada') ??
+    '';
+  const metaAntiguedad =
+    simHipoteca.meta_antiguedad_trabajo ??
+    extractFromNotes(lead.notas, 'Antigüedad') ??
+    '';
+  const metaDniNie =
+    simHipoteca.meta_dni_nie ??
+    extractFromNotes(lead.notas, 'DNI/NIE') ??
+    '';
+  const metaPreferencia =
+    simHipoteca.meta_preferencia_llamada ??
+    extractFromNotes(lead.notas, 'Preferência de chamada') ??
+    extractFromNotes(lead.notas, 'Preferencia de llamada') ??
+    '';
+  const metaHabitaciones =
+    simHipoteca.meta_habitaciones ??
+    extractFromNotes(lead.notas, 'Habitaciones') ??
+    '';
+
+  const recom = recomendaciones.slice(0, 3);
+
+  const payload: Record<string, any> = {
+    source,
+    timestamp: new Date().toISOString(),
+    lead_id: lead.id,
+    cualificado: lead.stage !== 'descualificados' && lead.stage !== 'no_cualificado' ? 'true' : 'false',
+
+    // ===== Lead (formato exato do template Bitrix) =====
+    lead_nombre: lead.nombre_completo,
+    lead_telefono: lead.telefono,
+    lead_email: lead.email,
+    lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
+    lead_zona_interes: lead.zona_interes || '',
+    lead_ciudad_interes: lead.ciudad_interes || '',
+    lead_valor_deseado: lead.valor_inmueble_deseado || 0,
+    lead_ingresos_mensuales: ingresos,
+    lead_habitaciones: metaHabitaciones,
+    lead_preferencia_llamada: metaPreferencia,
+
+    // ===== Meta (mantém nomes do template) =====
+    meta_dni_nie: metaDniNie,
+    meta_antiguedad_trabajo: metaAntiguedad,
+    meta_deudas_mensuales: deudas,
+    meta_monto_ahorros: metaMontoAhorros,
+    meta_tiene_ahorros: metaTieneAhorros,
+    meta_vivienda_seleccionada: metaViviendaSel,
+
+    // ===== Agente =====
+    agente_id: agente?.id || '',
+    agente_nombre: agente?.nombre || 'Sin asignar',
+    agente_email: agente?.email || '',
+    agente_telefono: agente?.telefono || '',
+
+    // ===== Crédito Personal (SEMPRE 15k máx, cuota recalculada) =====
+    sim_personal_monto_maximo: cp.monto,
+    sim_personal_cuota_mensual: cp.cuota,
+    sim_personal_plazo_meses: CP_PLAZO_MESES,
+    sim_personal_tae: 8,
+    sim_personal_aprobado: simPersonal.aprobado ?? (cp.monto > 0),
+
+    // ===== Hipoteca (cuota REAL + precio recomendado) =====
+    sim_hipoteca_monto_financiable: hipotecaMontoFinanciable,
+    sim_hipoteca_valor_max_inmueble: hipotecaValorMaxInmueble,
+    sim_hipoteca_cuota_maxima: hipotecaCuotaReal,
+    sim_hipoteca_cuota_real: hipotecaCuotaReal,
+    sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
+    sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
+
+    // ===== Extras (mantidos para uso futuro no Make) =====
+    sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || hipotecaValorMaxInmueble || 0,
+    sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
+    sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
+    sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
+
+    // ===== CRM e Bewor =====
+    crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
+    bewor_link_documentos: beworLink || '',
   };
+
+  // Recomendações (até 3, links Vercel)
+  recom.forEach((rec, index) => {
+    const num = index + 1;
+    payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad || ''} - ${rec.direccion || ''}`;
+    payload[`recom_${num}_precio`] = rec.precio;
+    payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
+  });
+
+  return payload;
 }
 
 // Send webhook with x-www-form-urlencoded
