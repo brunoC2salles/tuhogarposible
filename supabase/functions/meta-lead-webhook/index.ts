@@ -496,76 +496,153 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   return { cualificado: true };
 }
 
-function calcularSimulacionPersonal(ingresos: number, deudas: number, montoNecesario?: number) {
+// ============================================================================
+// SIMULACIONES — Alineadas con src/lib/simuladorUtils.ts (2025)
+// ============================================================================
+
+// Tope duro de crédito personal para todos los leads
+const CP_TOPE = 15000;
+const CP_TAE = 0.08;
+const CP_PLAZO_MESES = 84;
+
+// Tabla ITP por CCAA (espejo de src/lib/impuestosCCAA.ts)
+const ITP_POR_CCAA: Record<string, number> = {
+  'Andalucía': 0.07,
+  'Aragón': 0.08,
+  'Principado de Asturias': 0.08,
+  'Asturias': 0.08,
+  'Islas Baleares': 0.08,
+  'Baleares': 0.08,
+  'Canarias': 0.065,
+  'Cantabria': 0.09,
+  'Castilla-La Mancha': 0.09,
+  'Castilla y León': 0.08,
+  'Cataluña': 0.10,
+  'Ceuta': 0.06,
+  'Comunidad de Madrid': 0.06,
+  'Madrid': 0.06,
+  'Comunidad Valenciana': 0.10,
+  'Valencia': 0.10,
+  'Extremadura': 0.08,
+  'Galicia': 0.09,
+  'La Rioja': 0.07,
+  'Melilla': 0.06,
+  'Región de Murcia': 0.08,
+  'Murcia': 0.08,
+  'Navarra': 0.06,
+  'País Vasco': 0.04,
+};
+const ITP_FALLBACK = 0.08;
+
+function getITPPorCCAA(comunidad?: string | null): number {
+  if (!comunidad) return ITP_FALLBACK;
+  return ITP_POR_CCAA[comunidad] ?? ITP_FALLBACK;
+}
+
+/**
+ * Crédito personal con tope duro de 15.000€ para todos.
+ */
+function calcularSimulacionPersonal(ingresos: number, deudas: number) {
   const capacidadPago = ingresos * 0.35;
   const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
-  
-  // Crédito personal: hasta 7 años (84 meses), TAE ~8%
-  const tasaMensual = 0.08 / 12;
-  const plazoMeses = 84;
-  
-  // Monto máximo = cuota * ((1 - (1+r)^-n) / r)
-  const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
-  const montoMaximo = Math.round(capacidadDisponible * factorAnualidad);
-  const montoMaximoFinal = Math.min(montoMaximo, 50000); // Límite de crédito personal
-  
-  // Si se solicita un monto específico (gap de hipoteca), calcular cuota para ese monto
-  if (montoNecesario && montoNecesario > 0) {
-    const montoFinanciado = Math.min(montoNecesario, montoMaximoFinal);
-    const cuotaEspecifica = montoFinanciado > 0 
-      ? Math.round(montoFinanciado * tasaMensual / (1 - Math.pow(1 + tasaMensual, -plazoMeses)))
-      : 0;
-    
-    return {
-      monto_maximo: montoMaximoFinal,
-      monto_financiado: montoFinanciado, // monto real financiado (el gap)
-      cuota_mensual: cuotaEspecifica,
-      plazo_meses: plazoMeses,
-      tae_estimada: 8,
-      aprobado: montoFinanciado <= montoMaximoFinal && capacidadDisponible >= 100
-    };
-  }
-  
+
+  const r = CP_TAE / 12;
+  const n = CP_PLAZO_MESES;
+  const factorAnualidad = (1 - Math.pow(1 + r, -n)) / r;
+
+  const montoTeorico = Math.round(capacidadDisponible * factorAnualidad);
+  const montoMaximo = Math.min(montoTeorico, CP_TOPE);
+
+  const cuotaMensual = montoMaximo > 0
+    ? Math.round((montoMaximo * r) / (1 - Math.pow(1 + r, -n)))
+    : 0;
+
+  const cuotaTope = Math.round((CP_TOPE * r) / (1 - Math.pow(1 + r, -n))); // ≈ 234€
+
   return {
-    monto_maximo: montoMaximoFinal,
-    monto_financiado: 0,
-    cuota_mensual: Math.round(capacidadDisponible),
-    plazo_meses: plazoMeses,
+    monto_maximo: montoMaximo,
+    cuota_mensual: cuotaMensual,
+    cuota_tope_15k: cuotaTope,
+    plazo_meses: n,
     tae_estimada: 8,
-    aprobado: capacidadDisponible >= 100
+    capacidad_disponible_mensual: Math.round(capacidadDisponible),
+    aprobado: capacidadDisponible >= cuotaTope && montoMaximo > 0,
   };
 }
 
+/**
+ * Hipoteca máxima alineada con el simulador del front.
+ */
 function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: number) {
-  const capacidadPago = ingresos * 0.35;
-  const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
-  
-  // Plazo máximo según edad (máx 75 años al finalizar)
+  const PCT_FINANCIACION = 0.90;
+  const CAP_MONTO_1_TITULAR = 180000;
+  const MIN_MONTO = 70000;
+  const MIN_CAPACIDAD_MES = 350;
+
+  const capacidadPago = (ingresos - deudas) * 0.35;
+  const cuotaMaxima = Math.max(capacidadPago, 0);
+
   const edadActual = edad || 35;
-  const plazoMaximoAnos = Math.min(30, 75 - edadActual);
+  const plazoMaximoAnos = Math.max(Math.min(30, 75 - edadActual), 1);
   const plazoMeses = plazoMaximoAnos * 12;
-  
-  // Hipoteca: TAE ~3.5%
-  const tasaMensual = 0.035 / 12;
-  
-  // Monto máximo financiable
-  const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
-  const montoMaximoFinanciable = Math.round(capacidadDisponible * factorAnualidad);
-  
-  // Valor máximo inmueble (asumiendo 80% financiación)
-  const valorMaximoInmueble = Math.round(montoMaximoFinanciable / 0.8);
-  
-  // Capital necesario (20% entrada + ~10% gastos)
-  const capitalNecesario = Math.round(valorMaximoInmueble * 0.30);
-  
+
+  const r = 0.025 / 12;
+  const n = plazoMeses;
+
+  const factor = (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
+  const montoTeorico = Math.round(cuotaMaxima * factor);
+  const montoMaximoFinanciable = Math.min(montoTeorico, CAP_MONTO_1_TITULAR);
+
+  const cuotaMensualReal = montoMaximoFinanciable > 0
+    ? Math.round((montoMaximoFinanciable * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1))
+    : 0;
+
+  const valorMaximoInmueble = Math.round(montoMaximoFinanciable / PCT_FINANCIACION);
+  const capitalNecesario = Math.round(valorMaximoInmueble * (1 - PCT_FINANCIACION) + valorMaximoInmueble * 0.10);
+
+  const aprobable =
+    montoMaximoFinanciable >= MIN_MONTO &&
+    cuotaMaxima >= MIN_CAPACIDAD_MES;
+
   return {
     monto_maximo_financiable: montoMaximoFinanciable,
     valor_maximo_inmueble: valorMaximoInmueble,
-    cuota_maxima_mensual: Math.round(capacidadDisponible),
+    cuota_maxima_mensual: Math.round(cuotaMaxima),
+    cuota_mensual_real: cuotaMensualReal,
     capital_necesario: capitalNecesario,
     plazo_anos: plazoMaximoAnos,
-    tae_estimada: 3.5,
-    aprobado: capacidadDisponible >= 200 && montoMaximoFinanciable >= 50000
+    tae_estimada: 2.5,
+    porcentaje_financiacion: PCT_FINANCIACION * 100,
+    aprobado: aprobable,
+  };
+}
+
+/**
+ * Precio Máximo de Inmueble Recomendado = MIN(P1, P2).
+ */
+function calcularPrecioMaximoInmuebleMeta(params: {
+  ahorros: number;
+  comunidad?: string | null;
+  monto_max_financiable: number;
+  pct_financiacion: number;
+}) {
+  const ahorros = Math.max(params.ahorros || 0, 0);
+  const tasaITP = getITPPorCCAA(params.comunidad);
+  const cpMax = (CP_TOPE + ahorros) / 2;
+  const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
+
+  const pct = (params.pct_financiacion || 90) / 100;
+  const precioMaxP2 = pct > 0 ? Math.round((params.monto_max_financiable || 0) / pct) : 0;
+
+  const candidatos = [precioMaxP1, precioMaxP2].filter(v => v > 0);
+  const precioMaxRecomendado = candidatos.length > 0 ? Math.min(...candidatos) : 0;
+
+  return {
+    precio_max_p1: precioMaxP1,
+    precio_max_p2: precioMaxP2,
+    precio_max_recomendado: precioMaxRecomendado,
+    cp_max: Math.round(cpMax),
+    tasa_itp_aplicada: tasaITP,
   };
 }
 
