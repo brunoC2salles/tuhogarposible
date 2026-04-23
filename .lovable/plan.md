@@ -1,96 +1,266 @@
 
+# Plano de correção imediata do webhook Meta → Bitrix
 
-# Plan: corregir definitivamente los 4 valores que llegan a Bitrix desde Meta Ads
+## O erro real: por que isso aconteceu
 
-## Diagnóstico del problema actual
+Houve 3 problemas diferentes ao mesmo tempo:
 
-Inspeccionando `meta-lead-webhook/index.ts`, los 4 campos que recibes en Make están así hoy:
+1. **Existem 2 fluxos de webhook diferentes no projeto**
+   - `meta-lead-webhook` = fluxo real do lead chegando do Meta Ads.
+   - `make-webhook-proxy` = fluxo de teste/manual/reenvio.
+   O payload que você colou com `fin_ingresos_mensuales`, `sim_personal_monto`, `sim_hipoteca_monto`, `plan_fase1_*` é do **fluxo antigo de teste/manual**, não do payload Bitrix correto que você quer manter.
 
-| Variable Make | Mapeo actual | Problema |
-|---|---|---|
-| `sim_hipoteca_monto_financiable` | `simulacionHipotecaria.monto_maximo_financiable` | ✅ correcto (con cap 180k) |
-| `sim_hipoteca_valor_max_inmueble` | `simulacionHipotecaria.valor_maximo_inmueble` (= monto / 0,90) | ⚠️ **es el techo bruto por ingresos, no el precio recomendado** (no aplica el tope por ahorros del Punto 1) |
-| `sim_hipoteca_cuota_maxima` | `simulacionHipotecaria.cuota_maxima_mensual` (= `(ingresos - deudas) × 0,35`) | ⚠️ **es la capacidad teórica, no la cuota real** de la hipoteca aprobada |
-| `sim_personal_monto_maximo` | `simulacionPersonal.monto_maximo` (con cap 15k) | ⚠️ **el código tiene `Math.min(montoTeorico, 15000)`, así que en código está bien**. Si recibiste 36k es porque el lead se procesó con código antiguo o el payload se cacheó en Make. Hay que verificar tras el deploy. |
+2. **O teste do Bitrix ainda reconstrói dados a partir do lead salvo no CRM**
+   - Em `meta-lead-webhook`, o lead é salvo com `simulador_personal_data` e `simulador_hipotecario_data`.
+   - Mas hoje esse JSON salvo **não guarda tudo o que o teste precisa** com a lógica nova: faltam inputs como `ingresos`, `deudas` e alguns campos calculados novos.
+   - Resultado: no teste aparecem `0` em `lead_ingresos_mensuales` e valores antigos/incorretos em alguns campos.
 
-Y la cuota del personal (`sim_personal_cuota_mensual`) sí existe pero **no la tienes mapeada en tu plantilla de Make**. Por eso te falta el dato.
+3. **Leads antigos ainda carregam simulações antigas**
+   - O valor de **36k** em crédito pessoal aparece porque o teste/manual lê `simulador_personal_data.monto_maximo` de leads antigos e hoje **não normaliza isso antes de enviar**.
+   - Ou seja: mesmo com a lógica nova já corrigida no `meta-lead-webhook`, o fluxo de teste/manual ainda pode ressuscitar dados antigos.
 
-## Las 4 correcciones a aplicar (1 solo archivo)
+## Objetivo final
 
-### Archivo: `supabase/functions/meta-lead-webhook/index.ts`
+Fazer com que **o webhook de teste, o webhook manual e o webhook real do Meta Ads** enviem o mesmo pacote correto para o Bitrix, mantendo **exatamente os nomes de variáveis que você já usa no Make**:
 
-**Corrección 1 — `sim_hipoteca_valor_max_inmueble` ahora apunta al precio recomendado real**
+- `lead_nombre`
+- `lead_telefono`
+- `lead_email`
+- `lead_edad`
+- `meta_dni_nie`
+- `lead_preferencia_llamada`
+- `lead_zona_interes`
+- `lead_ciudad_interes`
+- `lead_ingresos_mensuales`
+- `lead_valor_deseado`
+- `meta_deudas_mensuales`
+- `lead_habitaciones`
+- `meta_monto_ahorros`
+- `meta_vivienda_seleccionada`
+- `meta_antiguedad_trabajo`
+- `sim_hipoteca_monto_financiable`
+- `sim_hipoteca_valor_max_inmueble`
+- `sim_hipoteca_cuota_maxima`
+- `sim_personal_monto_maximo`
+- `sim_personal_cuota_mensual`
 
-Cambiar el mapeo del payload Bitrix (línea 1164) para que use el `MIN(P1, P2)` que ya calculamos, en lugar del techo crudo por ingresos:
+Sem quebrar seus cenários do Make.
 
+## O que será implementado
+
+### 1) Corrigir a persistência do lead no `meta-lead-webhook`
+Arquivo: `supabase/functions/meta-lead-webhook/index.ts`
+
+Ao salvar o lead no CRM, passar a gravar no JSON da simulação os dados necessários para reenvio fiel:
+
+- `simulador_personal_data`:
+  - `ingresos`
+  - `deudas`
+  - `monto_maximo` já capado em 15k
+  - `cuota_mensual`
+  - `plazo_meses`
+  - `tae_estimada`
+  - `aprobado`
+
+- `simulador_hipotecario_data`:
+  - `ingresos`
+  - `deudas`
+  - `monto_maximo_financiable`
+  - `cuota_maxima_mensual`
+  - `cuota_mensual_real`
+  - `valor_maximo_inmueble`
+  - `precio_maximo_inmueble`
+  - `precio_max_por_ahorros`
+  - `precio_max_por_ingresos`
+  - `credito_personal_maximo`
+  - `plazo_anos`
+  - `porcentaje_financiacion`
+  - `aprobado`
+
+Isso resolve o problema de o teste posterior não conseguir reconstruir corretamente os campos.
+
+### 2) Unificar o payload Bitrix em um único mapper
+Arquivo: `supabase/functions/make-webhook-proxy/index.ts`
+
+Criar um helper interno único, algo como `buildMetaBitrixPayload(lead, agente)`, para ser usado por:
+- `test_meta_bitrix_last_lead`
+- `send_lead_assignment`
+
+Esse helper vai montar **exatamente** o payload Bitrix esperado, com os nomes corretos das variáveis que você já usa no Make.
+
+Isso elimina divergência entre:
+- webhook real do Meta
+- teste do Admin
+- reenvio manual
+
+## 3) Parar de enviar o formato antigo no teste Bitrix
+Arquivo: `supabase/functions/make-webhook-proxy/index.ts`
+
+No fluxo `test_meta_bitrix_last_lead`, remover a dependência do formato antigo:
+
+Campos antigos que hoje aparecem no seu teste e causam confusão:
+- `fin_ingresos_mensuales`
+- `sim_personal_monto`
+- `sim_personal_cuota`
+- `sim_hipoteca_monto`
+- `sim_hipoteca_cuota`
+- `plan_fase1_*`
+- `plan_fase2_*`
+- `plan_ahorro_mensual_tras_personal`
+- `plan_total_coste`
+- `plan_gap_calculado`
+- `plan_ahorros_cliente`
+- `sim_personal_monto_financiado`
+
+O teste Meta Bitrix passará a priorizar os campos corretos que você quer manter no Make:
+- `lead_ingresos_mensuales`
+- `meta_deudas_mensuales`
+- `sim_personal_monto_maximo`
+- `sim_personal_cuota_mensual`
+- `sim_hipoteca_monto_financiable`
+- `sim_hipoteca_valor_max_inmueble`
+- `sim_hipoteca_cuota_maxima`
+
+Os extras novos podem continuar existindo, mas o payload principal ficará consistente com sua estrutura atual.
+
+### 4) Blindagem definitiva do crédito pessoal em 15.000€
+Arquivos:
+- `supabase/functions/meta-lead-webhook/index.ts`
+- `supabase/functions/make-webhook-proxy/index.ts`
+
+Aplicar dupla proteção:
+
+- No cálculo real de entrada do lead:
+  - `sim_personal_monto_maximo = MIN(teórico, 15000)`
+
+- No reenvio/teste/manual:
+  - se o lead salvo tiver valor antigo acima de 15.000, o proxy **normaliza antes de enviar**
+
+Além disso, a `sim_personal_cuota_mensual` será recalculada ou normalizada com a regra atual:
+- prazo: **84 meses**
+- TAE: **8%**
+- teto: **15.000€**
+
+Assim evita o erro incoerente de mandar:
+- valor pessoal = 15k
+- mas cuota ainda de um crédito antigo maior
+
+## 5) Garantir a hipoteca com a lógica nova no payload final
+Arquivos:
+- `supabase/functions/meta-lead-webhook/index.ts`
+- `supabase/functions/make-webhook-proxy/index.ts`
+
+Manter e reforçar:
+
+- `sim_hipoteca_monto_financiable`
+  - hipoteca máxima aprovável com a regra atual
+
+- `sim_hipoteca_valor_max_inmueble`
+  - preço recomendado real = `MIN(P1, P2)`
+
+- `sim_hipoteca_cuota_maxima`
+  - **cuota real** da hipoteca aprovada
+  - não a capacidade teórica de 35%
+
+No proxy de teste/manual, priorizar:
+1. `cuota_mensual_real`
+2. fallback seguro se o lead for antigo
+
+## 6) Corrigir os campos que hoje estão chegando vazios ou errados no teste
+Arquivo: `supabase/functions/make-webhook-proxy/index.ts`
+
+Ajustar a origem dos dados para estes campos:
+
+- `lead_ingresos_mensuales`
+  - hoje pode vir `0`
+  - passará a vir do JSON salvo já enriquecido
+
+- `meta_deudas_mensuales`
+  - hoje está hardcoded como `0` no teste Bitrix
+  - passará a vir do dado salvo do lead ou fallback seguro
+
+- `meta_dni_nie`
+- `lead_preferencia_llamada`
+- `lead_habitaciones`
+- `meta_antiguedad_trabajo`
+- `meta_monto_ahorros`
+- `meta_vivienda_seleccionada`
+
+Esses campos serão consolidados para que o teste Bitrix reflita o que realmente chegou do Meta.
+
+## 7) Evitar novo erro humano no Admin Settings
+Arquivos:
+- `src/hooks/useAdminSettings.ts`
+- `src/pages/AdminSettings.tsx`
+
+Ajuste pequeno de UX para evitar confusão entre os dois testes:
+
+- botão genérico:
+  - “Probar Conexión (webhook general)”
+
+- botão Bitrix:
+  - “Probar Meta → Bitrix (payload real)”
+
+- texto de apoio:
+  - deixar explícito qual botão usa o formato antigo/genérico e qual usa o payload Bitrix real
+
+Isso não muda a lógica de negócio, mas reduz drasticamente o risco de voltar a testar o webhook errado.
+
+## O que não será alterado
+
+- Não mudar os nomes das variáveis que você já usa no Make
+- Não mexer no CRM, simulador front, PDF ou recomendações agora
+- Não criar migração de banco
+- Não tocar no fluxo de descualificados
+- Não remover os campos extras novos, apenas garantir que os campos principais estejam corretos
+
+## Resultado esperado depois da correção
+
+Quando você testar o webhook Meta → Bitrix, deverá voltar a receber algo nesse formato:
+
+```text
+lead_ingresos_mensuales
+meta_deudas_mensuales
+lead_habitaciones
+meta_monto_ahorros
+meta_vivienda_seleccionada
+meta_antiguedad_trabajo
+sim_hipoteca_monto_financiable
+sim_hipoteca_valor_max_inmueble
+sim_hipoteca_cuota_maxima
+sim_personal_monto_maximo
+sim_personal_cuota_mensual
 ```
-sim_hipoteca_valor_max_inmueble: precioMaxInmueble.precio_max_recomendado
+
+E não mais o formato legado com:
+```text
+fin_ingresos_mensuales
+sim_personal_monto
+sim_hipoteca_monto
+sim_hipoteca_cuota
+plan_fase1_*
+plan_fase2_*
 ```
 
-Así el "Maximo Financiable" en Bitrix coincide con lo que el simulador del agente muestra en pantalla y respeta el tope por ahorros (Punto 1).
+## Validação final
 
-**Corrección 2 — `sim_hipoteca_cuota_maxima` ahora envía la cuota real mensual**
+1. Criar um novo lead de teste Meta Ads.
+2. Rodar **Probar Meta → Bitrix (payload real)**.
+3. Confirmar no Make que:
+   - `lead_ingresos_mensuales` não vem 0
+   - `meta_deudas_mensuales` não vem 0 indevidamente
+   - `sim_personal_monto_maximo` nunca passa de 15000
+   - `sim_personal_cuota_mensual` bate com 15k/84m/8%
+   - `sim_hipoteca_valor_max_inmueble` = preço recomendado correto
+   - `sim_hipoteca_cuota_maxima` = cuota real da hipoteca
+4. Validar um lead antigo para garantir que os fallbacks não vazem 36k outra vez.
 
-Cambiar el mapeo (línea 1165) para enviar la cuota mensual real de la hipoteca aprobada, no la capacidad teórica:
+## Escopo técnico
 
-```
-sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_mensual_real
-```
-
-(Esto es lo que confirmaste: "Cuota real" en la pregunta.)
-
-**Corrección 3 — Garantizar tope duro 15.000€ en `sim_personal_monto_maximo` (refuerzo defensivo)**
-
-En `calcularSimulacionPersonal` (líneas 545-571), añadir un `Math.min` explícito y un log para garantizar que **nunca** salga un valor > 15.000€, pase lo que pase:
-
-```
-const montoMaximo = Math.min(Math.max(montoTeorico, 0), CP_TOPE);
-console.log('[CP] teorico:', montoTeorico, '→ aplicado tope 15k:', montoMaximo);
-```
-
-Y reforzar el tope justo antes del payload (línea 1153) con un `Math.min(simulacionPersonal.monto_maximo, 15000)` como cinturón + tirantes. Si te llegó 36k es porque algo se ejecutó antes del deploy anterior — esto blinda el campo de raíz.
-
-**Corrección 4 — Asegurar que `sim_personal_cuota_mensual` lleva la cuota correcta**
-
-El campo ya existe en el payload (línea 1155) y ya calcula bien (~234€/mes cuando bate en el tope). Solo necesitas **añadir el mapeo en tu plantilla de Make** así:
-
-```
-Crédito personal cuota mensual: €{{3.sim_personal_cuota_mensual}}
-```
-
-## Resumen de los 4 valores que recibirás (verificación mental con un lead real)
-
-Lead: ingresos 2.500€ · deudas 200€ · ahorros 10.000€ · 35 años · Madrid
-
-| Variable Bitrix | Valor que llegará | Fórmula |
-|---|---|---|
-| `sim_hipoteca_monto_financiable` | **180.000€** | min(teórico, cap 180k) |
-| `sim_hipoteca_valor_max_inmueble` | **200.000€** | MIN(P1=208.333; P2=200.000) |
-| `sim_hipoteca_cuota_maxima` | **~711€** | cuota real francesa de 180k a 30 años, 2,5% |
-| `sim_personal_monto_maximo` | **15.000€** | tope duro |
-| `sim_personal_cuota_mensual` | **~234€** | cuota real de 15k a 84 meses, 8% |
-
-## Lo que NO se toca (importantísimo para no romper Make)
-
-- ❌ Los nombres de las variables planas: **idénticos**. Tu plantilla de Make sigue funcionando sin cambios.
-- ❌ Todos los demás campos que ya usas (`lead_nombre`, `lead_telefono`, `lead_edad`, `meta_monto_ahorros`, `meta_antiguedad_trabajo`, etc.): **intactos**.
-- ❌ Campos extra nuevos (`sim_hipoteca_precio_max_por_ahorros`, `pago_combinado_mensual_aprox`, `poder_compra_total`, etc.): **se mantienen** como confirmaste, por si quieres mapearlos más adelante. No molestan.
-- ❌ Webhook de descualificados, asignación de agente, recomendaciones de inmuebles, fórmulas de cualificación: **intactos**.
-- ❌ Simulador del front, CRM, PDF, `make-webhook-proxy`: **intactos**.
-- ❌ Base de datos: **cero migraciones**.
-
-## Detalles técnicos
-
-- 1 solo archivo modificado, ~6 líneas reales cambiadas + 2 logs defensivos.
-- Deploy automático al guardar.
-- **Reversibilidad total**: si algo sale mal, revertimos en 30 segundos.
-- **Sin impacto de performance**: cero llamadas extra, cero queries nuevas.
-- **Retro-compatibilidad 100%** con tu plantilla de Make actual.
-
-## Validación post-deploy
-
-1. Disparas el botón **"Probar con Último Lead"** desde Admin Settings.
-2. Revisas el log de `webhook_logs` o el run de Make para ver el payload recibido.
-3. Confirmas que los 4 valores cuadran con lo que el simulador del agente muestra en el CRM para ese mismo lead.
-4. Si todo bien, añades la línea `Crédito personal cuota mensual: €{{3.sim_personal_cuota_mensual}}` en tu plantilla de Bitrix.
-
+- 3 arquivos
+  - `supabase/functions/meta-lead-webhook/index.ts`
+  - `supabase/functions/make-webhook-proxy/index.ts`
+  - `src/pages/AdminSettings.tsx` / `src/hooks/useAdminSettings.ts`
+- Sem migração
+- Sem impacto relevante de performance
+- Mudança focada apenas em payload, persistência e teste correto
