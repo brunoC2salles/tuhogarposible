@@ -938,11 +938,11 @@ Deno.serve(async (req) => {
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
       (cuotaHipoteca > 0 || cuotaPersonal > 0)
-        ? (gap > 0
-          ? `Plan de pagos: Fase 1 (${fase1Meses} meses): ${Math.round(planPagos.fase1_cuota_total)}€/mes | Fase 2 (${fase2Meses} meses): ${Math.round(planPagos.fase2_cuota_total)}€/mes`
-          : `Plan de pagos: Sin necesidad de crédito personal adicional. Cuota hipotecaria: ${Math.round(cuotaHipoteca)}€/mes`)
+        ? `Plan combinado: ${Math.round(planPagos.pago_combinado_mensual_aprox)}€/mes (hip: ${Math.round(cuotaHipoteca)}€ + cp 15k: ${Math.round(cuotaPersonal)}€)`
         : null,
-      gap > 0 ? `Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
+      precioMaxInmueble.precio_max_recomendado > 0
+        ? `Precio máx. inmueble recomendado: ${precioMaxInmueble.precio_max_recomendado.toLocaleString('es-ES')}€ (P1 ahorros: ${precioMaxInmueble.precio_max_p1.toLocaleString('es-ES')}€ · P2 ingresos: ${precioMaxInmueble.precio_max_p2.toLocaleString('es-ES')}€)`
+        : null,
       marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
