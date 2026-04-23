@@ -1,137 +1,104 @@
 
 
-# Plano: cálculo correcto de Crédito Personal + Hipoteca Máxima no webhook do Meta Ads
+# Plano: limpar e simplificar o payload enviado ao Make/Bitrix
 
-## Diagnóstico actual
+## Objectivo
 
-O webhook `meta-lead-webhook` está **desactualizado** em relação ao simulador unificado. Hoje faz dois cálculos próprios e antigos:
+Reduzir o payload do `make-webhook-proxy` aos 4 campos de simulação que pediste + dados essenciais do lead/agente. Remover toda a lógica antiga de "plan de pagos por fases" e campos auxiliares de hipoteca que já não fazem sentido.
 
-- **`calcularSimulacionPersonal`** (linha 499): usa 35% de capacidade, prazo 84 meses, TAE 8%, **tope antigo de 50.000€**. Não respeita o teto de **15.000€** que pediste.
-- **`calcularSimulacionHipotecaria`** (linha 539): usa 35%, TAE 3,5%, financia 80% fixo. **Não aplica** os caps de 180k/210k, nem o mínimo de 70k, nem o ITP por CCAA, nem o novo **Precio Máximo de Inmueble** (Punto 1 + Punto 2). A lógica boa só vive no front (`simuladorUtils.ts`).
+## Os 4 campos de simulação que ficam
 
-Resultado: o que chega ao Bitrix do Meta Ads não bate com o que o simulador mostra ao agente. Precisamos alinhar.
+Todos lidos do `simulador_hipotecario_data` (jsonb) que já guardamos no lead — sem recalcular nada na edge function:
 
-## Regras confirmadas (resumo, para validar antes de mexer)
+| Campo no payload Make | Origem (jsonb do lead) | Notas |
+|---|---|---|
+| `sim_hipoteca_monto_financiable` | `simulador_hipotecario_data.monto_maximo_financiable` | Hipoteca máxima a financiar (hoje já respeita a lógica nova: cuota 35% × factor francês, sem cap antigo de 180k/210k porque o simulador unificado e o `meta-lead-webhook` ontem já passaram a usar a nova fórmula) |
+| `sim_hipoteca_cuota_maxima` | `simulador_hipotecario_data.cuota_maxima_mensual` | Cuota máxima da hipoteca (35% × ingresos disponibles, calculada com fórmula francesa real) |
+| `sim_hipoteca_precio_max_inmueble` | `simulador_hipotecario_data.precio_maximo_inmueble` | **Bonus**: o `MIN(P1, P2)` que fizemos ontem — preço final do imóvel que o cliente pode comprar (já existia, mantém-se) |
+| `sim_personal_credito_max` | `simulador_hipotecario_data.credito_personal_maximo` | Crédito pessoal máximo (sempre com teto 15.000€, fórmula `(15k + ahorros)/2`) |
+| `sim_personal_cuota_mensual` | `simulador_personal_data.cuota_mensual` (fallback `cuotaMensual`) | Cuota mensal do crédito pessoal (84 meses, TAE 8%, ~234€ quando bate no teto 15k) |
 
-**Crédito personal (NOVO teto 15.000€ para todos):**
-- Capacidad disponible mensual = `ingresos × 0,35 − deudas`
-- Prazo: **84 meses** (7 anos), TAE **8%**
-- Monto máximo teórico = capacidad × factor anualidad
-- **Aplicar teto duro de 15.000€** → `CP_max = MIN(monto_teorico, 15.000)`
-- Cuota mensual do CP_max = `15.000 × r / (1 − (1+r)^-84)` ≈ **234€/mes** quando bate no teto
-- Aprobado se `capacidad ≥ cuota_15k` (≈234€)
+São 5 campos no total (os 4 que pediste + o `precio_max_inmueble` que já tinha sido aprovado ontem e é útil para o agente em Bitrix).
 
-**Hipoteca máxima (alinhada ao simulador):**
-- Cuota máx = `(ingresos − deudas) × 0,35`
-- Plazo: `MIN(30, 75 − edad)`, default 30 se sem idade
-- TAE **2,5%** (não 3,5% — alinhar com o simulador)
-- `monto_max_financiable = cuota_max × [(1+r)^n − 1] / [r × (1+r)^n]`
-- **Cap por titulares: 180.000€** (Meta Ads é sempre 1 titular, não há campo de co-titular no form)
-- **Mínimo 70.000€** para considerar aprovável
-- **Capacidad mínima 350€/mes**
-- % financiación assumido: **90%** (indefinido residente — assumimos o caso melhor por defeito, já que o Meta Ads não pergunta tipo de contrato em detalhe; quem é temporal já foi descualificado pela regra de antigüedad)
+## O que se remove do payload
 
-**Precio Máximo de Inmueble (Punto 1 + Punto 2):**
-- P1 = `((15.000 + ahorros) / 2) / %ITP_CCAA` (ITP da CCAA detectada via `determinarRegion`, fallback 8%)
-- P2 = `monto_max_financiable / 0,90`
-- **Precio recomendado = MIN(P1, P2)**
+**Todos os campos da função `calcularPlanPagos` (lógica antiga de 2 fases — já não faz sentido com teto de 15k):**
+- `plan_fase1_cuota_total`
+- `plan_fase1_duracion_meses`
+- `plan_fase2_cuota_total`
+- `plan_fase2_duracion_meses`
+- `plan_ahorro_mensual_tras_personal`
+- `plan_total_coste`
+- `plan_gap_calculado`
+- `plan_ahorros_cliente`
+- `sim_personal_monto_financiado`
 
-## O que se constrói (1 só edge function tocada)
+**Campos auxiliares antigos de hipoteca/personal que já não interessam ao Make:**
+- `sim_hipoteca_valor_max_inmueble` (substituído pelo `precio_max_inmueble`)
+- `sim_hipoteca_capital_necesario`
+- `sim_hipoteca_plazo_anos`
+- `sim_hipoteca_aprobable`
+- `sim_hipoteca_precio_max_por_ahorros` (P1 isolado — só interno)
+- `sim_hipoteca_precio_max_por_ingresos` (P2 isolado — só interno)
+- `sim_personal_monto_maximo` (renomeado para `sim_personal_credito_max`)
+- `sim_personal_plazo_meses`
+- `sim_personal_aprobado`
+- `sim_personal_monto`, `sim_personal_cuota`, `sim_personal_plazo`, `sim_personal_tae` (variantes antigas em `send_qualified_submission`)
+- `sim_hipoteca_monto`, `sim_hipoteca_cuota`, `sim_hipoteca_plazo`, `sim_hipoteca_capital` (variantes antigas em `send_qualified_submission`)
 
-### `supabase/functions/meta-lead-webhook/index.ts`
+## O que NÃO se toca
 
-**1. Reescrever `calcularSimulacionPersonal`** (linhas 499-537):
-- Aplicar teto duro `MIN(monto_calculado, 15.000)`
-- Recalcular cuota com base nos 15k quando bate no teto
-- Devolver: `monto_maximo`, `cuota_mensual`, `plazo_meses`, `tae_estimada`, `aprobado`, `capacidad_disponible_mensual`
-- Remover a lógica de "monto necesario / gap" (não faz sentido com teto fixo de 15k — o gap maior será sempre coberto pela hipoteca + ahorros)
+- ✅ Dados do lead: `lead_nombre`, `lead_email`, `lead_telefono`, `lead_edad`, `lead_ingresos_mensuales`, `lead_ciudad_interes`, `lead_zona_interes`, `lead_valor_deseado`, `lead_habitaciones`
+- ✅ Dados do agente: `agente_id`, `agente_nombre`, `agente_email`, `agente_telefono`, `agente_tidycal`
+- ✅ Campos Meta Ads: `meta_*` (antiguedad, dni_nie, tiene_ahorros, monto_ahorros, vivienda_seleccionada, preferencia_llamada)
+- ✅ Recomendações: `recom_1_*`, `recom_2_*`, `recom_3_*`
+- ✅ `crm_url`, `bewor_link_documentos`, `timestamp`, `source`, `lead_id`, `cualificado`
+- ❌ `meta-lead-webhook` (não tocar — é outro webhook, fica como está)
+- ❌ Lógica do simulador (`simuladorUtils.ts`) e dados guardados na BD — tudo intacto
+- ❌ Schema da BD — zero migrações
 
-**2. Reescrever `calcularSimulacionHipotecaria`** (linhas 539-570):
-- Mudar TAE de 3,5% → **2,5%**
-- Aplicar **cap 180k**
-- Aplicar **mínimo 70k** e **350€/mes** → reflectir em `aprobado`
-- Calcular `valor_maximo_inmueble` como `monto_max / 0,90` (não 0,80)
-- Devolver também `cuota_mensual_maxima` calculada com a fórmula francesa real (não só a capacidad)
+## Ficheiro tocado
 
-**3. Nova função `calcularPrecioMaximoInmuebleMeta`** (helper local, ~15 linhas):
-- Replicar a lógica de `calcularPrecioMaximoInmueble` do front, mas adaptada (sem dependências externas — função pura inline)
-- Importar `getITPPorCCAA` de `_shared/marketPrices.ts` se já existir, senão inline mini-tabela ITP (5 linhas, mesmo conteúdo de `src/lib/impuestosCCAA.ts`)
-- Devolve `{ precio_max_p1, precio_max_p2, precio_max_recomendado, cp_max, tasa_itp_aplicada }`
+**`supabase/functions/make-webhook-proxy/index.ts`** (1 só ficheiro)
 
-**4. Chamar as 3 funções no handler** (perto da linha 741):
-- `simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas)`
-- `simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed)`
-- `precioMaxInmueble = calcularPrecioMaximoInmuebleMeta({ ahorros: montoAhorros, comunidad: region, monto_max_financiable, pct: 90 })`
+### Alterações pontuais:
 
-**5. Remover plan de pagos de 2 fases** (linhas 752-769):
-- Já não faz sentido com teto fixo de 15k. Substituir por bloco mais simples:
-  - `pago_total_mensual_aprox = cuota_hipoteca + cuota_personal_15k`
-  - `cobertura_ahorros = ahorros + 15.000` (poder de entrada total)
-- Atualizar as `notasLead` (linhas 856-877) para refletir a nova realidade (sem fases).
+1. **Apagar `calcularPlanPagos`** (linhas 73-99) e a importação `extractFromNotes` que ela usa para `Ahorros para impuestos` continua a ser usada noutros sítios (mantém-se).
 
-**6. Adicionar campos novos ao payload Bitrix** (linhas 1045-1127):
+2. **`send_qualified_submission`** (action 1, linhas ~196-244):
+   - Substituir os 8 campos `sim_personal_*` e `sim_hipoteca_*` antigos pelos 5 novos.
+   - Remover spread `...calcularPlanPagos(...)` (não existe aqui ainda mas verificar).
 
-Manter os existentes (não quebrar Make.com) e **acrescentar**:
+3. **`test_qualified_last_lead`** (action 2, linhas ~319-350):
+   - Substituir os 4 campos `sim_*` antigos pelos 5 novos.
+   - Remover `...calcularPlanPagos(simPersonal, simHipoteca, lead.notas)`.
 
-```
-sim_personal_monto_maximo            // já existe, mas agora capado a 15.000
-sim_personal_cuota_mensual           // já existe, agora reflecte os 15k
-sim_personal_aprobado                // já existe
-sim_personal_tae                     // já existe (8)
-sim_personal_plazo_meses             // já existe (84)
+4. **`test_meta_bitrix_last_lead`** (action 3, linhas ~461-524):
+   - Manter os campos do lead, agente, meta_*, recom_*.
+   - Substituir bloco `sim_personal_*` + `sim_hipoteca_*` (linhas 492-510) pelos 5 novos.
+   - Remover `...calcularPlanPagos(simPersonal, simHipoteca, lead.notas)`.
 
-sim_hipoteca_monto_financiable       // já existe, agora com cap 180k + min 70k
-sim_hipoteca_valor_max_inmueble      // já existe, agora /0.90 e não /0.80
-sim_hipoteca_cuota_maxima            // já existe
-sim_hipoteca_aprobable               // já existe, agora respeita 70k/350€/cap
-
-// NOVOS — Precio Máximo de Inmueble (alinhados com o simulador)
-sim_hipoteca_precio_max_inmueble     // MIN(P1, P2)
-sim_hipoteca_precio_max_por_ahorros  // P1
-sim_hipoteca_precio_max_por_ingresos // P2
-sim_hipoteca_credito_personal_max    // CPmax = (15000 + ahorros) / 2
-sim_hipoteca_tasa_itp_aplicada       // ej. 0.06 (Madrid)
-
-// NOVO — pago combinado simplificado
-pago_combinado_mensual_aprox         // cuota_hip + cuota_personal_15k
-poder_compra_total                   // ahorros + 15.000
-```
-
-## Lo que NO se toca
-
-- ❌ Regras de qualificação (`qualificarLead`): intactas. Só calcula simulação se `cualificado === true` (já é assim hoje).
-- ❌ Fluxo de atribuição de agente: intacto.
-- ❌ Webhook de descualificados: intacto.
-- ❌ Recomendações de imóveis: continuam a usar `valor_maximo_inmueble × 1,35` para não cortar inventário (o agente filtra depois no CRM). Sem alterações nesse bloco.
-- ❌ `meta_*` campos (resposta original do form): intactos.
-- ❌ Simulador do front, CRM, PDF, webhook proxy do Bitrix: já atualizados na entrega anterior. Não tocar.
-- ❌ BD: zero migrações. Tudo cabe no `simulador_personal_data` / `simulador_hipotecario_data` (jsonb) que já guardamos.
+5. **`send_lead_assignment`** (action 4, linhas ~642-685):
+   - Mesma substituição: 5 campos novos, sem `calcularPlanPagos`.
 
 ## Detalhes técnicos
 
-- **Performance**: 1 edge function, mesma latência (cálculos puros, sem chamadas extras).
-- **Retro-compatibilidade**: todos os campos antigos do payload Bitrix mantidos. Só **acrescentamos** campos novos. Make.com não quebra.
-- **CCAA não detectada** (sem zona_interes ou cidade desconhecida): usa fallback ITP **8%** → P1 conservador, sem crashar.
-- **Edge cases**:
-  - `ingresos = 0`: cuota = 0, aprobado = false
-  - `ahorros = 0`: CPmax = 7.500€ → P1 baixo mas válido
-  - `edad` ausente: assume 35 → plazo 30 anos
-- **Reversibilidade**: 1 ficheiro, fácil rollback.
+- **Performance**: paylload mais pequeno → menos latência de rede e parsing no Make.
+- **Retro-compatibilidade**: O Make.com vai ter de ser ajustado para usar os novos nomes (`sim_personal_credito_max` em vez de `sim_personal_monto_maximo`). Como o user pediu explicitamente para limpar, assumo que vai actualizar o cenário Make.
+- **Nomes finais propostos**:
+  - `sim_hipoteca_monto_financiable`
+  - `sim_hipoteca_cuota_maxima`
+  - `sim_hipoteca_precio_max_inmueble`
+  - `sim_personal_credito_max`
+  - `sim_personal_cuota_mensual`
+- **Ordem de fallback** (para leads antigos sem os campos novos): tenta `monto_maximo_financiable` → `montoFinanciable` → 0. Idem para os outros.
+- **Edge case**: se `simulador_hipotecario_data` for null (lead manual sem simulação), todos os 5 campos vão a 0 — Make decide se ignora.
 
-## Exemplo de cálculo (validação mental)
+## Validação
 
-Lead Meta Ads: ingresos 2.500€, deudas 200€, ahorros 10.000€, idade 35, zona "Madrid"
-
-- **Crédito personal**: capacidad = 2500×0,35 − 200 = **675€/mes**. Monto teórico ≈ 43k → capado em **15.000€**. Cuota (8%, 84m) ≈ **234€**. Aprobado ✅
-- **Hipoteca**: cuota_máx = (2500−200)×0,35 = **805€/mes**. Plazo = 30 anos. TAE 2,5%. Monto_máx ≈ **204k** → capado em **180k**. Cumpre 70k mínimo e 350€ mínimo. Aprobable ✅
-- **Precio Máximo de Inmueble**:
-  - P1 = ((15.000 + 10.000)/2) / 0,06 = 12.500 / 0,06 = **208.333€**
-  - P2 = 180.000 / 0,90 = **200.000€**
-  - **Recomendado = 200.000€** ✅
-
-Tudo isto vai limpo ao Bitrix em campos planos.
+Após o deploy, dispara o "Probar con Último Lead" no Admin Settings e confere no log do Make que só chegam os 5 campos novos + dados do lead/agente. Comparas com o screenshot que enviaste para validar que `plan_fase1_*` e companhia desapareceram.
 
 ## Entrega
 
-1 só edge function tocada (`meta-lead-webhook`). Deploy automático. Depois disparamos o teste "Probar con Último Lead" do Admin Settings para validar o payload antes de chegar a leads reais.
+1 ficheiro tocado (`make-webhook-proxy/index.ts`), deploy automático, sem migrações. Reversível em segundos.
 
