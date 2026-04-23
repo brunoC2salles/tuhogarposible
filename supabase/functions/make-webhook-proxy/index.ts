@@ -69,26 +69,32 @@ function extractFromNotes(notas: string | null, key: string): string {
   return match ? match[1].trim() : '';
 }
 
-// Build simulation fields sent to Make/Bitrix from stored simulation data
-// Inclui nomes legacy (Bitrix) + nomes novos (alias) para compatibilidade total
-function buildSimFields(simPersonal: any, simHipoteca: any): Record<string, number> {
-  const creditoPersonalMax =
-    simHipoteca.credito_personal_maximo ||
-    simPersonal.monto_maximo ||
-    simPersonal.montoMaximoCredito ||
-    0;
-
+// Calculate combined payment plan from stored simulation data
+function calcularPlanPagos(simPersonal: any, simHipoteca: any, notas: string | null): Record<string, any> {
+  const cuotaHipoteca = simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0;
+  const cuotaPersonal = simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0;
+  const fase1Meses = simPersonal.plazo_meses || simPersonal.plazoMeses || 84;
+  const plazoHipotecaAnos = simHipoteca.plazo_anos || simHipoteca.plazoAnios || 25;
+  const plazoHipotecaMeses = plazoHipotecaAnos * 12;
+  const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
+  
+  // Extract ahorros from notes
+  const ahorrosMatch = extractFromNotes(notas, 'Ahorros para impuestos')?.match(/(\d+)/);
+  const montoAhorros = ahorrosMatch ? parseInt(ahorrosMatch[1], 10) : 0;
+  const capitalNecesario = simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0;
+  const gap = Math.max(capitalNecesario - montoAhorros, 0);
+  const montoFinanciado = simPersonal.monto_financiado || gap;
+  
   return {
-    // Hipoteca
-    sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-    sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorInmueble || 0,
-    sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-    sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-
-    // Personal — manter ambos os nomes (legacy Bitrix + alias novo)
-    sim_personal_monto_maximo: creditoPersonalMax,
-    sim_personal_credito_max: creditoPersonalMax,
-    sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+    plan_fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
+    plan_fase1_duracion_meses: fase1Meses,
+    plan_fase2_cuota_total: cuotaHipoteca,
+    plan_fase2_duracion_meses: fase2Meses,
+    plan_ahorro_mensual_tras_personal: cuotaPersonal,
+    plan_total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
+    plan_gap_calculado: gap,
+    plan_ahorros_cliente: montoAhorros,
+    sim_personal_monto_financiado: montoFinanciado,
   };
 }
 
@@ -221,11 +227,17 @@ Deno.serve(async (req) => {
         agente_telefono: agente?.telefono || '',
         agente_tidycal: agente?.tidycal_url || '',
         
-        // Simulation data (5 campos unificados)
-        ...buildSimFields(
-          submission.simulador_personal_data as any || {},
-          submission.simulador_hipotecario_data as any || {}
-        ),
+        // Simulation data (personal)
+        sim_personal_monto: (submission.simulador_personal_data as any)?.montoSolicitado || 0,
+        sim_personal_cuota: (submission.simulador_personal_data as any)?.cuotaMensual || 0,
+        sim_personal_plazo: (submission.simulador_personal_data as any)?.plazoMeses || 0,
+        sim_personal_tae: (submission.simulador_personal_data as any)?.tasaInteres || 0,
+        
+        // Simulation data (mortgage)
+        sim_hipoteca_monto: (submission.simulador_hipotecario_data as any)?.montoFinanciable || 0,
+        sim_hipoteca_cuota: (submission.simulador_hipotecario_data as any)?.cuotaMensual || 0,
+        sim_hipoteca_plazo: (submission.simulador_hipotecario_data as any)?.plazoAnios || 0,
+        sim_hipoteca_capital: (submission.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
         
         // CRM URL
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${submission.lead_id || submission.id}`,
@@ -326,8 +338,13 @@ Deno.serve(async (req) => {
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
         
-        // Simulation data (5 campos unificados)
-        ...buildSimFields(simPersonal, simHipoteca),
+        sim_personal_monto: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
+        sim_personal_cuota: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+        
+        // Plan de pagos combinado
+        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
@@ -472,19 +489,36 @@ Deno.serve(async (req) => {
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
         
-        // Simulation data (5 campos unificados)
-        ...buildSimFields(simPersonal, simHipoteca),
+        // Simulação pessoal - múltiplos fallbacks para diferentes formatos
+        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || simPersonal.montoMaximoCredito || 0,
+        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_personal_plazo_meses: simPersonal.plazo_meses || simPersonal.plazoMeses || 0,
+        sim_personal_aprobado: simPersonal.aprobado ?? true,
+        
+        // Simulação hipotecária - múltiplos fallbacks para diferentes formatos
+        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
+        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+        sim_hipoteca_capital_necesario: simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0,
+        sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
+        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
 
-        // Campo de dívidas mensais (jsonb → notas → 0)
-        meta_deudas_mensuales:
-          simHipoteca.deudas_consideradas ??
-          extractFromNotes(lead.notas, 'Deudas mensuales') ??
-          0,
-
+        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
+        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
+        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
+        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
+        
+        // Campo de dívidas mensais (extraído das notas se disponível)
+        meta_deudas_mensuales: 0,
+        
         // Novos campos Meta Ads (ahorros e vivienda seleccionada)
         meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
         meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
         meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
+        
+        // Plan de pagos combinado
+        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
@@ -620,27 +654,32 @@ Deno.serve(async (req) => {
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
         lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
         lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-        lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
-        lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada'),
-        meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE'),
-        meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
-        meta_deudas_mensuales:
-          simHipoteca.deudas_consideradas ??
-          extractFromNotes(lead.notas, 'Deudas mensuales') ??
-          0,
         
         agente_id: agente.id,
         agente_nombre: agente.nombre,
         agente_email: agente.email,
         agente_telefono: agente.telefono || '',
         
-        // Simulation data (5 campos unificados)
-        ...buildSimFields(simPersonal, simHipoteca),
+        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
+        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
+        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
+
+        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
+        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
+        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
+        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
 
         // Novos campos Meta Ads (ahorros e vivienda seleccionada)
         meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
         meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
         meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
+        
+        // Plan de pagos combinado
+        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
