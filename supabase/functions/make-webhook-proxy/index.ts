@@ -235,9 +235,10 @@ Deno.serve(async (req) => {
 
     // ============================================
     // ACTION: test_qualified_last_submission
+    // PING TÉCNICO de conexão. NÃO envia dados de lead nem campos financeiros.
+    // Para testar o payload Bitrix real, usar 'test_meta_bitrix_last_lead'.
     // ============================================
     if (action === 'test_qualified_last_submission') {
-      // Get webhook URL
       const { data: config } = await supabase
         .from('admin_settings')
         .select('value')
@@ -245,7 +246,7 @@ Deno.serve(async (req) => {
         .single();
 
       const webhookUrl = config?.value;
-      
+
       if (!webhookUrl || !isValidWebhookUrl(webhookUrl)) {
         return new Response(
           JSON.stringify({ success: false, error: 'Webhook URL not configured or invalid' }),
@@ -253,77 +254,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last qualified lead from leads table (excludes 'descualificados')
-      const { data: lead, error: leadError } = await supabase
-        .from('leads')
-        .select('*')
-        .neq('stage', 'descualificados')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (leadError || !lead) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'No qualified leads found in CRM' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Get agent
-      let agente: any = null;
-      if (lead.agente_asignado_id) {
-        const { data: ag } = await supabase
-          .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
-          .eq('id', lead.agente_asignado_id)
-          .single();
-        agente = ag;
-      }
-
-      // Extract data from lead notes (for Meta Ads fields)
-      const simPersonal = lead.simulador_personal_data as any || {};
-      const simHipoteca = lead.simulador_hipotecario_data as any || {};
-
+      // Payload mínimo de PING. Sem dados de lead. Sem campos sim_*. Sem fin_*.
+      // Isto garante que ninguém confunda este teste com o payload Meta → Bitrix real.
       const payload = {
-        test: 'true',
-        lead_id: lead.id,
+        ping: 'true',
+        source: 'connection_ping',
         timestamp: new Date().toISOString(),
-        source: 'test_qualified',
-        
-        lead_nombre: lead.nombre_completo,
-        lead_email: lead.email,
-        lead_telefono: lead.telefono,
-        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-        lead_ciudad_interes: lead.ciudad_interes || '',
-        lead_zona_interes: lead.zona_interes || '',
-        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-        
-        // Financial data from simulators
-        fin_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-        
-        agente_id: agente?.id || '',
-        agente_nombre: agente?.nombre || 'Sin asignar',
-        agente_email: agente?.email || '',
-        agente_telefono: agente?.telefono || '',
-        
-        sim_personal_monto: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
-        sim_personal_cuota: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        
-        // (Legacy action — plan de pagos antigo removido; use test_meta_bitrix_last_lead)
-
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
+        message: 'Conexion técnica con Make. Para probar el payload Bitrix real usa "Probar Meta → Bitrix (payload real)".',
       };
 
       const result = await sendToMake(webhookUrl, payload);
 
       return new Response(
-        JSON.stringify({ 
-          success: result.success, 
+        JSON.stringify({
+          success: result.success,
           http_status: result.status,
-          lead_name: lead.nombre_completo,
-          message: result.success ? 'Test webhook sent successfully' : `Failed: HTTP ${result.status}`,
+          lead_name: 'PING (sin lead)',
+          message: result.success ? 'Ping enviado correctamente' : `Failed: HTTP ${result.status}`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
