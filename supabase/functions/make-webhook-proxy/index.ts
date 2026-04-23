@@ -314,13 +314,8 @@ Deno.serve(async (req) => {
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
         
-        sim_personal_monto: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
-        sim_personal_cuota: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        
-        // Plan de pagos combinado
-        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
+        // Simulation data (5 campos unificados)
+        ...buildSimFields(simPersonal, simHipoteca),
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
