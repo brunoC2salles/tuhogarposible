@@ -382,14 +382,14 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildMetaBitrixPayload(
+      const payload = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
         beworLink,
-        'test_meta_bitrix',
-      );
-      payload.test = 'true';
+        source: 'test_meta_bitrix',
+        extra: { test: 'true' },
+      });
 
       const result = await sendToMake(webhookUrl, payload);
 
@@ -494,14 +494,14 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildMetaBitrixPayload(
+      const payload = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
-        beworLink2,
-        'manual_assignment',
-      );
-      payload.assignment_type = 'manual';
+        beworLink: beworLink2,
+        source: 'manual_assignment',
+        extra: { assignment_type: 'manual' },
+      });
 
       const result = await sendToMake(webhookUrl, payload);
 
