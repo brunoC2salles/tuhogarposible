@@ -551,7 +551,9 @@ function calcularSimulacionPersonal(ingresos: number, deudas: number) {
   const factorAnualidad = (1 - Math.pow(1 + r, -n)) / r;
 
   const montoTeorico = Math.round(capacidadDisponible * factorAnualidad);
-  const montoMaximo = Math.min(montoTeorico, CP_TOPE);
+  // Tope duro 15.000€ — defensivo, nunca puede salir un valor superior
+  const montoMaximo = Math.min(Math.max(montoTeorico, 0), CP_TOPE);
+  console.log('[CP] capacidad:', Math.round(capacidadDisponible), '€/mes · teórico:', montoTeorico, '€ → aplicado tope', CP_TOPE, '€ → final:', montoMaximo, '€');
 
   const cuotaMensual = montoMaximo > 0
     ? Math.round((montoMaximo * r) / (1 - Math.pow(1 + r, -n)))
@@ -1149,9 +1151,9 @@ Deno.serve(async (req) => {
             agente_email: agenteAsignado?.email || null,
             agente_telefono: agenteAsignado?.telefono || null,
             
-            // Simulación personal (achatados) — agora con tope duro 15.000€
-            sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
-            sim_personal_monto_financiado: simulacionPersonal.monto_maximo, // mantido para retrocompat Make
+            // Simulación personal (achatados) — agora con tope duro 15.000€ (cinturón + tirantes)
+            sim_personal_monto_maximo: Math.min(simulacionPersonal.monto_maximo, 15000),
+            sim_personal_monto_financiado: Math.min(simulacionPersonal.monto_maximo, 15000), // mantido para retrocompat Make
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
             sim_personal_cuota_tope_15k: simulacionPersonal.cuota_tope_15k,
             sim_personal_capacidad_disponible: simulacionPersonal.capacidad_disponible_mensual,
@@ -1161,8 +1163,10 @@ Deno.serve(async (req) => {
 
             // Simulación hipotecaria (achatados) — TAE 2.5%, cap 180k, /0.90
             sim_hipoteca_monto_financiable: simulacionHipotecaria.monto_maximo_financiable,
-            sim_hipoteca_valor_max_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
-            sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_maxima_mensual,
+            // Maximo Financiable en Bitrix = precio recomendado MIN(P1, P2), alineado con el simulador del agente
+            sim_hipoteca_valor_max_inmueble: precioMaxInmueble.precio_max_recomendado,
+            // Cuota maxima mensual en Bitrix = cuota REAL francesa de la hipoteca aprobada (no la capacidad teórica)
+            sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_mensual_real,
             sim_hipoteca_cuota_real: simulacionHipotecaria.cuota_mensual_real,
             sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
