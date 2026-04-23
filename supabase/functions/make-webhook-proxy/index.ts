@@ -69,32 +69,14 @@ function extractFromNotes(notas: string | null, key: string): string {
   return match ? match[1].trim() : '';
 }
 
-// Calculate combined payment plan from stored simulation data
-function calcularPlanPagos(simPersonal: any, simHipoteca: any, notas: string | null): Record<string, any> {
-  const cuotaHipoteca = simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0;
-  const cuotaPersonal = simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0;
-  const fase1Meses = simPersonal.plazo_meses || simPersonal.plazoMeses || 84;
-  const plazoHipotecaAnos = simHipoteca.plazo_anos || simHipoteca.plazoAnios || 25;
-  const plazoHipotecaMeses = plazoHipotecaAnos * 12;
-  const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
-  
-  // Extract ahorros from notes
-  const ahorrosMatch = extractFromNotes(notas, 'Ahorros para impuestos')?.match(/(\d+)/);
-  const montoAhorros = ahorrosMatch ? parseInt(ahorrosMatch[1], 10) : 0;
-  const capitalNecesario = simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0;
-  const gap = Math.max(capitalNecesario - montoAhorros, 0);
-  const montoFinanciado = simPersonal.monto_financiado || gap;
-  
+// Build the 5 simulation fields sent to Make/Bitrix from stored simulation data
+function buildSimFields(simPersonal: any, simHipoteca: any): Record<string, number> {
   return {
-    plan_fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
-    plan_fase1_duracion_meses: fase1Meses,
-    plan_fase2_cuota_total: cuotaHipoteca,
-    plan_fase2_duracion_meses: fase2Meses,
-    plan_ahorro_mensual_tras_personal: cuotaPersonal,
-    plan_total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
-    plan_gap_calculado: gap,
-    plan_ahorros_cliente: montoAhorros,
-    sim_personal_monto_financiado: montoFinanciado,
+    sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+    sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+    sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
+    sim_personal_credito_max: simHipoteca.credito_personal_maximo || simPersonal.monto_maximo || simPersonal.montoMaximoCredito || 0,
+    sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
   };
 }
 
