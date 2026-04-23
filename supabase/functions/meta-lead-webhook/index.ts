@@ -614,6 +614,8 @@ function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: 
     tae_estimada: 2.5,
     porcentaje_financiacion: PCT_FINANCIACION * 100,
     aprobado: aprobable,
+    deudas_consideradas: deudas,
+    ingresos: ingresos,
   };
 }
 

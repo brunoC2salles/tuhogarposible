@@ -69,13 +69,25 @@ function extractFromNotes(notas: string | null, key: string): string {
   return match ? match[1].trim() : '';
 }
 
-// Build the 5 simulation fields sent to Make/Bitrix from stored simulation data
+// Build simulation fields sent to Make/Bitrix from stored simulation data
+// Inclui nomes legacy (Bitrix) + nomes novos (alias) para compatibilidade total
 function buildSimFields(simPersonal: any, simHipoteca: any): Record<string, number> {
+  const creditoPersonalMax =
+    simHipoteca.credito_personal_maximo ||
+    simPersonal.monto_maximo ||
+    simPersonal.montoMaximoCredito ||
+    0;
+
   return {
+    // Hipoteca
     sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+    sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorInmueble || 0,
     sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
     sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-    sim_personal_credito_max: simHipoteca.credito_personal_maximo || simPersonal.monto_maximo || simPersonal.montoMaximoCredito || 0,
+
+    // Personal — manter ambos os nomes (legacy Bitrix + alias novo)
+    sim_personal_monto_maximo: creditoPersonalMax,
+    sim_personal_credito_max: creditoPersonalMax,
     sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
   };
 }
@@ -463,8 +475,11 @@ Deno.serve(async (req) => {
         // Simulation data (5 campos unificados)
         ...buildSimFields(simPersonal, simHipoteca),
 
-        // Campo de dívidas mensais (extraído das notas se disponível)
-        meta_deudas_mensuales: 0,
+        // Campo de dívidas mensais (jsonb → notas → 0)
+        meta_deudas_mensuales:
+          simHipoteca.deudas_consideradas ??
+          extractFromNotes(lead.notas, 'Deudas mensuales') ??
+          0,
 
         // Novos campos Meta Ads (ahorros e vivienda seleccionada)
         meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
@@ -605,6 +620,14 @@ Deno.serve(async (req) => {
         lead_valor_deseado: lead.valor_inmueble_deseado || 0,
         lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
         lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
+        lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
+        lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada'),
+        meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE'),
+        meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
+        meta_deudas_mensuales:
+          simHipoteca.deudas_consideradas ??
+          extractFromNotes(lead.notas, 'Deudas mensuales') ??
+          0,
         
         agente_id: agente.id,
         agente_nombre: agente.nombre,
