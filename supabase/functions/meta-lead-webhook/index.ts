@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
 import { correctEmail } from '../_shared/emailCorrection.ts';
+import { buildBitrixPayloadFromLead } from '../_shared/bitrixPayload.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1141,105 +1142,42 @@ Deno.serve(async (req) => {
         if (webhookUrl && webhookUrl.trim() !== '') {
           console.log('[meta-lead-webhook] Disparando webhook para Bitrix24:', webhookUrl);
 
-          // Payload ACHATADO para Make.com reconhecer todos os campos individualmente
-          const recom = recomendaciones.slice(0, 3);
-          
-          const bitrixPayload = {
-            // Identificação
-            source: 'meta_ads',
-            timestamp: new Date().toISOString(),
-            lead_id: leadId,
-            cualificado: true,
-            
-            // Dados do lead (achatados)
-            lead_nombre: data.nombre,
-            lead_telefono: data.telefono,
-            lead_email: data.email,
-            lead_edad: edadParsed || null,
-            lead_zona_interes: data.zona_interes || null,
-            lead_habitaciones: data.habitaciones || null,
-            lead_ingresos_estimados: ingresos,
-            lead_ingresos_mensuales: ingresos, // Campo explícito para Make/Bitrix
-            lead_deudas_mensuales: deudas,
-            lead_preferencia_llamada: data.preferencia_llamada || null,
-            
-            // DADOS DO FORMULÁRIO META (novos campos)
-            meta_dni_nie: data.tiene_nie_dni || null,
-            meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
-            meta_en_fichero_morosidad: data.en_fichero_morosidad || null,
-            meta_rango_ingresos: data.rango_ingresos || null,
-            meta_deudas_mensuales: data.deudas_mensuales || 0,
-            // Novos campos Meta Ads (não afetam qualificação)
-            meta_tiene_ahorros: data.tiene_ahorros_impuestos || null,
-            meta_monto_ahorros: data.monto_ahorros || 0,
-            meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
-            
-            // Dados do agente (achatados)
-            agente_id: agenteAsignado?.id || null,
-            agente_nombre: agenteAsignado?.nombre || null,
-            agente_email: agenteAsignado?.email || null,
-            agente_telefono: agenteAsignado?.telefono || null,
-            
-            // Simulación personal (achatados) — agora con tope duro 15.000€ (cinturón + tirantes)
-            sim_personal_monto_maximo: Math.min(simulacionPersonal.monto_maximo, 15000),
-            sim_personal_monto_financiado: Math.min(simulacionPersonal.monto_maximo, 15000), // mantido para retrocompat Make
-            sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
-            sim_personal_cuota_tope_15k: simulacionPersonal.cuota_tope_15k,
-            sim_personal_capacidad_disponible: simulacionPersonal.capacidad_disponible_mensual,
-            sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
-            sim_personal_tae: simulacionPersonal.tae_estimada,
-            sim_personal_aprobado: simulacionPersonal.aprobado,
-
-            // Simulación hipotecaria (achatados) — TAE 2.5%, cap 180k, /0.90
-            sim_hipoteca_monto_financiable: simulacionHipotecaria.monto_maximo_financiable,
-            // Maximo Financiable en Bitrix = precio recomendado MIN(P1, P2), alineado con el simulador del agente
-            sim_hipoteca_valor_max_inmueble: precioMaxInmueble.precio_max_recomendado,
-            // Cuota maxima mensual en Bitrix = cuota REAL francesa de la hipoteca aprobada (no la capacidad teórica)
-            sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_mensual_real,
-            sim_hipoteca_cuota_real: simulacionHipotecaria.cuota_mensual_real,
-            sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
-            sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
-            sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
-            sim_hipoteca_porcentaje_financiacion: simulacionHipotecaria.porcentaje_financiacion,
-            sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
-
-            // NOVOS — Precio Máximo de Inmueble (alinhado com simulador front)
-            sim_hipoteca_precio_max_inmueble: precioMaxInmueble.precio_max_recomendado,
-            sim_hipoteca_precio_max_por_ahorros: precioMaxInmueble.precio_max_p1,
-            sim_hipoteca_precio_max_por_ingresos: precioMaxInmueble.precio_max_p2,
-            sim_hipoteca_credito_personal_max: precioMaxInmueble.cp_max,
-            sim_hipoteca_tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
-
-            // NOVO — pago combinado simplificado (sem fases)
-            pago_combinado_mensual_aprox: planPagos.pago_combinado_mensual_aprox,
-            poder_compra_total: planPagos.poder_compra_total,
-            plan_cuota_hipoteca_mensual: planPagos.cuota_hipoteca_mensual,
-            plan_cuota_personal_mensual: planPagos.cuota_personal_mensual,
-            plan_credito_personal_aprobado: planPagos.credito_personal_aprobado,
-            plan_ahorros_cliente: planPagos.ahorros_cliente,
-            
-            // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
-            recom_1_titulo: recom[0]?.titulo || recom[0] ? `${recom[0]?.quartos || '?'} hab en ${recom[0]?.ciudad}` : null,
-            recom_1_precio: recom[0]?.precio || null,
-            recom_1_url: recom[0]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[0].id}` : null,
-            recom_2_titulo: recom[1]?.titulo || recom[1] ? `${recom[1]?.quartos || '?'} hab en ${recom[1]?.ciudad}` : null,
-            recom_2_precio: recom[1]?.precio || null,
-            recom_2_url: recom[1]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[1].id}` : null,
-            recom_3_titulo: recom[2]?.titulo || recom[2] ? `${recom[2]?.quartos || '?'} hab en ${recom[2]?.ciudad}` : null,
-            recom_3_precio: recom[2]?.precio || null,
-            recom_3_url: recom[2]?.id ? `https://inventariotuhogarposible.vercel.app/produto/${recom[2].id}` : null,
-            
-            // URL do CRM
-            crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`,
-            
-            // Dados de mercado
-            mercado_precio_medio: marketInfo?.precioMedio || null,
-            mercado_precio_m2: marketInfo?.precioM2 || null,
-            mercado_presupuesto_realista: marketValidation?.realista ?? null,
-            mercado_mensaje: marketValidation?.mensaje || null
+          // Construir lead-shape para o builder compartilhado (usa o lead recém-salvo + JSONs enriquecidos)
+          const leadShape = {
+            id: leadId,
+            nombre_completo: data.nombre,
+            telefono: data.telefono,
+            email: data.email,
+            ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
+            zona_interes: data.zona_interes || null,
+            valor_inmueble_deseado: null,
+            stage: 'nuevo_lead',
+            notas: notasLead,
+            simulador_personal_data: simulacionPersonalEnriched,
+            simulador_hipotecario_data: simulacionHipotecariaEnriched,
           };
 
-          // Disparar webhook
+          // Build payload Bitrix usando a fonte ÚNICA compartilhada
+          const bitrixPayload: Record<string, any> = buildBitrixPayloadFromLead({
+            lead: leadShape,
+            agente: agenteAsignado,
+            recomendaciones,
+            source: 'meta_ads',
+            extra: {
+              // Mercado (extras opcionais para o Make)
+              mercado_precio_medio: marketInfo?.precioMedio || null,
+              mercado_precio_m2: marketInfo?.precioM2 || null,
+              mercado_presupuesto_realista: marketValidation?.realista ?? null,
+              mercado_mensaje: marketValidation?.mensaje || null,
+              // Plan combinado (informativo)
+              pago_combinado_mensual_aprox: planPagos.pago_combinado_mensual_aprox,
+              poder_compra_total: planPagos.poder_compra_total,
+            },
+          });
+          // Override edad com valor parseado (mais confiável que regex em notas)
+          bitrixPayload.lead_edad = edadParsed || bitrixPayload.lead_edad || '';
+
+          // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
           const webhookResponse = await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

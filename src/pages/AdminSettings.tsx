@@ -271,6 +271,20 @@ const AdminSettings = () => {
               </p>
             </div>
 
+            {localWebhookUrl.trim() &&
+              localMetaBitrixWebhookUrl.trim() &&
+              localWebhookUrl.trim() === localMetaBitrixWebhookUrl.trim() && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Atención:</strong> esta URL es <em>idéntica</em> a la del webhook
+                    "Meta Ads → Bitrix24". Si ambos apuntan al mismo escenario en Make, vas a recibir
+                    payloads mezclados (el ping técnico + el payload Bitrix real). Usa URLs distintas
+                    para evitar confusión.
+                  </AlertDescription>
+                </Alert>
+              )}
+
             <div className="flex gap-2">
               <Button onClick={handleSaveWebhook} disabled={saving}>
                 <Save className="h-4 w-4 mr-2" />
@@ -278,9 +292,14 @@ const AdminSettings = () => {
               </Button>
               <Button variant="outline" onClick={handleTestWebhook} disabled={!localWebhookUrl.trim()}>
                 <TestTube className="h-4 w-4 mr-2" />
-                Probar Conexión (webhook general)
+                Probar Conexión (ping técnico)
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              ⚠️ Este botón envía solo un <strong>ping técnico</strong> (sin datos de lead, sin campos
+              financieros). Para probar el payload Bitrix real con el último lead, usa el botón
+              "Probar Meta → Bitrix (payload real)" en la sección de abajo.
+            </p>
 
             {/* Status */}
             <div className="flex gap-4 pt-4 border-t">

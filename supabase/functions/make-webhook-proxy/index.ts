@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { buildBitrixPayloadFromLead, extractFromNotes } from '../_shared/bitrixPayload.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -61,175 +62,9 @@ function flattenPayload(obj: Record<string, any>, prefix = ''): Record<string, s
   return result;
 }
 
-// Helper function to extract data from lead notes (used by multiple actions)
-function extractFromNotes(notas: string | null, key: string): string {
-  if (!notas) return '';
-  const regex = new RegExp(`${key}:\\s*(.+?)(?:\\n|$)`, 'i');
-  const match = notas.match(regex);
-  return match ? match[1].trim() : '';
-}
-
 // ============================================================================
-// CRÉDITO PERSONAL — Tope duro 15.000€ (cinturón + tirantes em todo reenvio)
+// Builder do payload Bitrix vive em ../_shared/bitrixPayload.ts (fonte única)
 // ============================================================================
-const CP_TOPE = 15000;
-const CP_TAE = 0.08;
-const CP_PLAZO_MESES = 84;
-
-/**
- * Normaliza o crédito personal de QUALQUER lead (mesmo antigos com 36k salvos).
- * Garante: monto ≤ 15.000€ e cuota recalculada (84m, 8% TAE).
- */
-function normalizarCreditoPersonal(simPersonal: any): { monto: number; cuota: number } {
-  const r = CP_TAE / 12;
-  const n = CP_PLAZO_MESES;
-
-  const montoBruto = Number(
-    simPersonal?.monto_maximo ?? simPersonal?.montoSolicitado ?? simPersonal?.montoMaximoCredito ?? 0
-  );
-  const monto = Math.min(Math.max(Math.round(montoBruto), 0), CP_TOPE);
-
-  // Recalcula a cuota para coerência (não confiar no valor antigo se monto foi rebaixado)
-  const cuota = monto > 0
-    ? Math.round((monto * r) / (1 - Math.pow(1 + r, -n)))
-    : 0;
-
-  return { monto, cuota };
-}
-
-/**
- * Builder único do payload Bitrix — usado por test_meta_bitrix_last_lead e send_lead_assignment.
- * Mantém EXATAMENTE os mesmos nomes de variáveis que o template Make.com já usa.
- */
-function buildMetaBitrixPayload(
-  lead: any,
-  agente: any,
-  recomendaciones: any[],
-  beworLink: string,
-  source: string,
-): Record<string, any> {
-  const simPersonal = (lead.simulador_personal_data as any) || {};
-  const simHipoteca = (lead.simulador_hipotecario_data as any) || {};
-
-  // Crédito personal: SEMPRE normalizado (15k duro + cuota recalculada)
-  const cp = normalizarCreditoPersonal(simPersonal);
-
-  // Ingresos / deudas: priorizar JSON enriquecido; fallback notas
-  const ingresos = Number(simHipoteca.ingresos ?? simPersonal.ingresos ?? 0);
-  const deudas = Number(simHipoteca.deudas ?? simPersonal.deudas ?? 0);
-
-  // Hipoteca: priorizar cuota REAL; valor max = precio recomendado MIN(P1,P2)
-  const hipotecaMontoFinanciable =
-    simHipoteca.monto_maximo_financiable ?? simHipoteca.montoFinanciable ?? 0;
-  const hipotecaCuotaReal =
-    simHipoteca.cuota_mensual_real ?? simHipoteca.cuota_maxima_mensual ?? simHipoteca.cuotaMensual ?? 0;
-  const hipotecaValorMaxInmueble =
-    simHipoteca.precio_maximo_inmueble ??
-    simHipoteca.valor_maximo_inmueble ??
-    simHipoteca.valorMaximoInmueble ??
-    0;
-
-  // Campos Meta — priorizar JSON enriquecido; fallback notas (leads antigos)
-  const metaMontoAhorros =
-    simHipoteca.meta_monto_ahorros ??
-    extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] ??
-    0;
-  const metaTieneAhorros =
-    simHipoteca.meta_tiene_ahorros ??
-    extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] ??
-    '';
-  const metaViviendaSel =
-    simHipoteca.meta_vivienda_seleccionada ??
-    extractFromNotes(lead.notas, 'Vivienda seleccionada') ??
-    '';
-  const metaAntiguedad =
-    simHipoteca.meta_antiguedad_trabajo ??
-    extractFromNotes(lead.notas, 'Antigüedad') ??
-    '';
-  const metaDniNie =
-    simHipoteca.meta_dni_nie ??
-    extractFromNotes(lead.notas, 'DNI/NIE') ??
-    '';
-  const metaPreferencia =
-    simHipoteca.meta_preferencia_llamada ??
-    extractFromNotes(lead.notas, 'Preferência de chamada') ??
-    extractFromNotes(lead.notas, 'Preferencia de llamada') ??
-    '';
-  const metaHabitaciones =
-    simHipoteca.meta_habitaciones ??
-    extractFromNotes(lead.notas, 'Habitaciones') ??
-    '';
-
-  const recom = recomendaciones.slice(0, 3);
-
-  const payload: Record<string, any> = {
-    source,
-    timestamp: new Date().toISOString(),
-    lead_id: lead.id,
-    cualificado: lead.stage !== 'descualificados' && lead.stage !== 'no_cualificado' ? 'true' : 'false',
-
-    // ===== Lead (formato exato do template Bitrix) =====
-    lead_nombre: lead.nombre_completo,
-    lead_telefono: lead.telefono,
-    lead_email: lead.email,
-    lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-    lead_zona_interes: lead.zona_interes || '',
-    lead_ciudad_interes: lead.ciudad_interes || '',
-    lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-    lead_ingresos_mensuales: ingresos,
-    lead_habitaciones: metaHabitaciones,
-    lead_preferencia_llamada: metaPreferencia,
-
-    // ===== Meta (mantém nomes do template) =====
-    meta_dni_nie: metaDniNie,
-    meta_antiguedad_trabajo: metaAntiguedad,
-    meta_deudas_mensuales: deudas,
-    meta_monto_ahorros: metaMontoAhorros,
-    meta_tiene_ahorros: metaTieneAhorros,
-    meta_vivienda_seleccionada: metaViviendaSel,
-
-    // ===== Agente =====
-    agente_id: agente?.id || '',
-    agente_nombre: agente?.nombre || 'Sin asignar',
-    agente_email: agente?.email || '',
-    agente_telefono: agente?.telefono || '',
-
-    // ===== Crédito Personal (SEMPRE 15k máx, cuota recalculada) =====
-    sim_personal_monto_maximo: cp.monto,
-    sim_personal_cuota_mensual: cp.cuota,
-    sim_personal_plazo_meses: CP_PLAZO_MESES,
-    sim_personal_tae: 8,
-    sim_personal_aprobado: simPersonal.aprobado ?? (cp.monto > 0),
-
-    // ===== Hipoteca (cuota REAL + precio recomendado) =====
-    sim_hipoteca_monto_financiable: hipotecaMontoFinanciable,
-    sim_hipoteca_valor_max_inmueble: hipotecaValorMaxInmueble,
-    sim_hipoteca_cuota_maxima: hipotecaCuotaReal,
-    sim_hipoteca_cuota_real: hipotecaCuotaReal,
-    sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
-    sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
-
-    // ===== Extras (mantidos para uso futuro no Make) =====
-    sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || hipotecaValorMaxInmueble || 0,
-    sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
-    sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
-    sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
-
-    // ===== CRM e Bewor =====
-    crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
-    bewor_link_documentos: beworLink || '',
-  };
-
-  // Recomendações (até 3, links Vercel)
-  recom.forEach((rec, index) => {
-    const num = index + 1;
-    payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad || ''} - ${rec.direccion || ''}`;
-    payload[`recom_${num}_precio`] = rec.precio;
-    payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
-  });
-
-  return payload;
-}
 
 // Send webhook with x-www-form-urlencoded
 async function sendToMake(webhookUrl: string, payload: Record<string, any>): Promise<{ success: boolean; status: number; body: string }> {
@@ -400,9 +235,10 @@ Deno.serve(async (req) => {
 
     // ============================================
     // ACTION: test_qualified_last_submission
+    // PING TÉCNICO de conexão. NÃO envia dados de lead nem campos financeiros.
+    // Para testar o payload Bitrix real, usar 'test_meta_bitrix_last_lead'.
     // ============================================
     if (action === 'test_qualified_last_submission') {
-      // Get webhook URL
       const { data: config } = await supabase
         .from('admin_settings')
         .select('value')
@@ -410,7 +246,7 @@ Deno.serve(async (req) => {
         .single();
 
       const webhookUrl = config?.value;
-      
+
       if (!webhookUrl || !isValidWebhookUrl(webhookUrl)) {
         return new Response(
           JSON.stringify({ success: false, error: 'Webhook URL not configured or invalid' }),
@@ -418,77 +254,23 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last qualified lead from leads table (excludes 'descualificados')
-      const { data: lead, error: leadError } = await supabase
-        .from('leads')
-        .select('*')
-        .neq('stage', 'descualificados')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (leadError || !lead) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'No qualified leads found in CRM' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Get agent
-      let agente: any = null;
-      if (lead.agente_asignado_id) {
-        const { data: ag } = await supabase
-          .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
-          .eq('id', lead.agente_asignado_id)
-          .single();
-        agente = ag;
-      }
-
-      // Extract data from lead notes (for Meta Ads fields)
-      const simPersonal = lead.simulador_personal_data as any || {};
-      const simHipoteca = lead.simulador_hipotecario_data as any || {};
-
+      // Payload mínimo de PING. Sem dados de lead. Sem campos sim_*. Sem fin_*.
+      // Isto garante que ninguém confunda este teste com o payload Meta → Bitrix real.
       const payload = {
-        test: 'true',
-        lead_id: lead.id,
+        ping: 'true',
+        source: 'connection_ping',
         timestamp: new Date().toISOString(),
-        source: 'test_qualified',
-        
-        lead_nombre: lead.nombre_completo,
-        lead_email: lead.email,
-        lead_telefono: lead.telefono,
-        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-        lead_ciudad_interes: lead.ciudad_interes || '',
-        lead_zona_interes: lead.zona_interes || '',
-        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-        
-        // Financial data from simulators
-        fin_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-        
-        agente_id: agente?.id || '',
-        agente_nombre: agente?.nombre || 'Sin asignar',
-        agente_email: agente?.email || '',
-        agente_telefono: agente?.telefono || '',
-        
-        sim_personal_monto: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
-        sim_personal_cuota: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        
-        // (Legacy action — plan de pagos antigo removido; use test_meta_bitrix_last_lead)
-
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
+        message: 'Conexion técnica con Make. Para probar el payload Bitrix real usa "Probar Meta → Bitrix (payload real)".',
       };
 
       const result = await sendToMake(webhookUrl, payload);
 
       return new Response(
-        JSON.stringify({ 
-          success: result.success, 
+        JSON.stringify({
+          success: result.success,
           http_status: result.status,
-          lead_name: lead.nombre_completo,
-          message: result.success ? 'Test webhook sent successfully' : `Failed: HTTP ${result.status}`,
+          lead_name: 'PING (sin lead)',
+          message: result.success ? 'Ping enviado correctamente' : `Failed: HTTP ${result.status}`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -600,14 +382,14 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildMetaBitrixPayload(
+      const payload = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
         beworLink,
-        'test_meta_bitrix',
-      );
-      payload.test = 'true';
+        source: 'test_meta_bitrix',
+        extra: { test: 'true' },
+      });
 
       const result = await sendToMake(webhookUrl, payload);
 
@@ -712,14 +494,14 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildMetaBitrixPayload(
+      const payload = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
-        beworLink2,
-        'manual_assignment',
-      );
-      payload.assignment_type = 'manual';
+        beworLink: beworLink2,
+        source: 'manual_assignment',
+        extra: { assignment_type: 'manual' },
+      });
 
       const result = await sendToMake(webhookUrl, payload);
 
