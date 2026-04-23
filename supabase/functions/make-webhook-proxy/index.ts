@@ -698,65 +698,7 @@ Deno.serve(async (req) => {
         recomendaciones = inmuebles || [];
       }
 
-      // Get simulation data
-      const simPersonal = lead.simulador_personal_data as any || {};
-      const simHipoteca = lead.simulador_hipotecario_data as any || {};
-
-      // Build payload (same format as meta-lead-webhook)
-      const payload: Record<string, any> = {
-        source: 'manual_assignment',
-        assignment_type: 'manual',
-        timestamp: new Date().toISOString(),
-        lead_id: lead.id,
-        cualificado: lead.stage !== 'no_cualificado' ? 'true' : 'false',
-        
-        lead_nombre: lead.nombre_completo,
-        lead_telefono: lead.telefono,
-        lead_email: lead.email,
-        lead_zona_interes: lead.zona_interes || '',
-        lead_ciudad_interes: lead.ciudad_interes || '',
-        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-        lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-        
-        agente_id: agente.id,
-        agente_nombre: agente.nombre,
-        agente_email: agente.email,
-        agente_telefono: agente.telefono || '',
-        
-        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
-        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
-        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
-
-        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
-        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
-        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
-        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
-
-        // Novos campos Meta Ads (ahorros e vivienda seleccionada)
-        meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
-        meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
-        meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
-        
-        // Plan de pagos combinado
-        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
-        
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
-      };
-
-      // Add recommendations
-      recomendaciones.forEach((rec, index) => {
-        const num = index + 1;
-        payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
-        payload[`recom_${num}_precio`] = rec.precio;
-        payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
-      });
-
-      // Bewor: incluir link ativo de upload de documentos
+      // Bewor: link ativo de upload de documentos
       const { data: beworToken2 } = await supabase
         .from('lead_document_tokens')
         .select('token')
@@ -765,9 +707,19 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      payload.bewor_link_documentos = beworToken2?.token
+      const beworLink2 = beworToken2?.token
         ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken2.token}`
         : '';
+
+      // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
+      const payload = buildMetaBitrixPayload(
+        lead,
+        agente,
+        recomendaciones,
+        beworLink2,
+        'manual_assignment',
+      );
+      payload.assignment_type = 'manual';
 
       const result = await sendToMake(webhookUrl, payload);
 
