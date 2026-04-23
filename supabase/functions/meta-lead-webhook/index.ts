@@ -1149,31 +1149,40 @@ Deno.serve(async (req) => {
             agente_email: agenteAsignado?.email || null,
             agente_telefono: agenteAsignado?.telefono || null,
             
-            // Simulação pessoal (achatados) - campos claros
+            // Simulación personal (achatados) — agora con tope duro 15.000€
             sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
-            sim_personal_monto_financiado: simulacionPersonal.monto_financiado || 0,
+            sim_personal_monto_financiado: simulacionPersonal.monto_maximo, // mantido para retrocompat Make
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
+            sim_personal_cuota_tope_15k: simulacionPersonal.cuota_tope_15k,
+            sim_personal_capacidad_disponible: simulacionPersonal.capacidad_disponible_mensual,
             sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
             sim_personal_tae: simulacionPersonal.tae_estimada,
             sim_personal_aprobado: simulacionPersonal.aprobado,
-            
-            // Simulação hipotecária (achatados) - campos claros
+
+            // Simulación hipotecaria (achatados) — TAE 2.5%, cap 180k, /0.90
             sim_hipoteca_monto_financiable: simulacionHipotecaria.monto_maximo_financiable,
             sim_hipoteca_valor_max_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
             sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_maxima_mensual,
+            sim_hipoteca_cuota_real: simulacionHipotecaria.cuota_mensual_real,
             sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
+            sim_hipoteca_porcentaje_financiacion: simulacionHipotecaria.porcentaje_financiacion,
             sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
-            
-            // Plan de pagos combinado (dos fases)
-            plan_fase1_cuota_total: planPagos.fase1_cuota_total,
-            plan_fase1_duracion_meses: planPagos.fase1_duracion_meses,
-            plan_fase2_cuota_total: planPagos.fase2_cuota_total,
-            plan_fase2_duracion_meses: planPagos.fase2_duracion_meses,
-            plan_ahorro_mensual_tras_personal: planPagos.ahorro_mensual_tras_personal,
-            plan_total_coste: planPagos.total_coste,
-            plan_gap_calculado: planPagos.gap_calculado,
+
+            // NOVOS — Precio Máximo de Inmueble (alinhado com simulador front)
+            sim_hipoteca_precio_max_inmueble: precioMaxInmueble.precio_max_recomendado,
+            sim_hipoteca_precio_max_por_ahorros: precioMaxInmueble.precio_max_p1,
+            sim_hipoteca_precio_max_por_ingresos: precioMaxInmueble.precio_max_p2,
+            sim_hipoteca_credito_personal_max: precioMaxInmueble.cp_max,
+            sim_hipoteca_tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
+
+            // NOVO — pago combinado simplificado (sem fases)
+            pago_combinado_mensual_aprox: planPagos.pago_combinado_mensual_aprox,
+            poder_compra_total: planPagos.poder_compra_total,
+            plan_cuota_hipoteca_mensual: planPagos.cuota_hipoteca_mensual,
+            plan_cuota_personal_mensual: planPagos.cuota_personal_mensual,
+            plan_credito_personal_aprobado: planPagos.credito_personal_aprobado,
             plan_ahorros_cliente: planPagos.ahorros_cliente,
             
             // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
