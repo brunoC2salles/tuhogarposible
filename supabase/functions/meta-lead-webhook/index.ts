@@ -496,76 +496,153 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   return { cualificado: true };
 }
 
-function calcularSimulacionPersonal(ingresos: number, deudas: number, montoNecesario?: number) {
+// ============================================================================
+// SIMULACIONES — Alineadas con src/lib/simuladorUtils.ts (2025)
+// ============================================================================
+
+// Tope duro de crédito personal para todos los leads
+const CP_TOPE = 15000;
+const CP_TAE = 0.08;
+const CP_PLAZO_MESES = 84;
+
+// Tabla ITP por CCAA (espejo de src/lib/impuestosCCAA.ts)
+const ITP_POR_CCAA: Record<string, number> = {
+  'Andalucía': 0.07,
+  'Aragón': 0.08,
+  'Principado de Asturias': 0.08,
+  'Asturias': 0.08,
+  'Islas Baleares': 0.08,
+  'Baleares': 0.08,
+  'Canarias': 0.065,
+  'Cantabria': 0.09,
+  'Castilla-La Mancha': 0.09,
+  'Castilla y León': 0.08,
+  'Cataluña': 0.10,
+  'Ceuta': 0.06,
+  'Comunidad de Madrid': 0.06,
+  'Madrid': 0.06,
+  'Comunidad Valenciana': 0.10,
+  'Valencia': 0.10,
+  'Extremadura': 0.08,
+  'Galicia': 0.09,
+  'La Rioja': 0.07,
+  'Melilla': 0.06,
+  'Región de Murcia': 0.08,
+  'Murcia': 0.08,
+  'Navarra': 0.06,
+  'País Vasco': 0.04,
+};
+const ITP_FALLBACK = 0.08;
+
+function getITPPorCCAA(comunidad?: string | null): number {
+  if (!comunidad) return ITP_FALLBACK;
+  return ITP_POR_CCAA[comunidad] ?? ITP_FALLBACK;
+}
+
+/**
+ * Crédito personal con tope duro de 15.000€ para todos.
+ */
+function calcularSimulacionPersonal(ingresos: number, deudas: number) {
   const capacidadPago = ingresos * 0.35;
   const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
-  
-  // Crédito personal: hasta 7 años (84 meses), TAE ~8%
-  const tasaMensual = 0.08 / 12;
-  const plazoMeses = 84;
-  
-  // Monto máximo = cuota * ((1 - (1+r)^-n) / r)
-  const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
-  const montoMaximo = Math.round(capacidadDisponible * factorAnualidad);
-  const montoMaximoFinal = Math.min(montoMaximo, 50000); // Límite de crédito personal
-  
-  // Si se solicita un monto específico (gap de hipoteca), calcular cuota para ese monto
-  if (montoNecesario && montoNecesario > 0) {
-    const montoFinanciado = Math.min(montoNecesario, montoMaximoFinal);
-    const cuotaEspecifica = montoFinanciado > 0 
-      ? Math.round(montoFinanciado * tasaMensual / (1 - Math.pow(1 + tasaMensual, -plazoMeses)))
-      : 0;
-    
-    return {
-      monto_maximo: montoMaximoFinal,
-      monto_financiado: montoFinanciado, // monto real financiado (el gap)
-      cuota_mensual: cuotaEspecifica,
-      plazo_meses: plazoMeses,
-      tae_estimada: 8,
-      aprobado: montoFinanciado <= montoMaximoFinal && capacidadDisponible >= 100
-    };
-  }
-  
+
+  const r = CP_TAE / 12;
+  const n = CP_PLAZO_MESES;
+  const factorAnualidad = (1 - Math.pow(1 + r, -n)) / r;
+
+  const montoTeorico = Math.round(capacidadDisponible * factorAnualidad);
+  const montoMaximo = Math.min(montoTeorico, CP_TOPE);
+
+  const cuotaMensual = montoMaximo > 0
+    ? Math.round((montoMaximo * r) / (1 - Math.pow(1 + r, -n)))
+    : 0;
+
+  const cuotaTope = Math.round((CP_TOPE * r) / (1 - Math.pow(1 + r, -n))); // ≈ 234€
+
   return {
-    monto_maximo: montoMaximoFinal,
-    monto_financiado: 0,
-    cuota_mensual: Math.round(capacidadDisponible),
-    plazo_meses: plazoMeses,
+    monto_maximo: montoMaximo,
+    cuota_mensual: cuotaMensual,
+    cuota_tope_15k: cuotaTope,
+    plazo_meses: n,
     tae_estimada: 8,
-    aprobado: capacidadDisponible >= 100
+    capacidad_disponible_mensual: Math.round(capacidadDisponible),
+    aprobado: capacidadDisponible >= cuotaTope && montoMaximo > 0,
   };
 }
 
+/**
+ * Hipoteca máxima alineada con el simulador del front.
+ */
 function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: number) {
-  const capacidadPago = ingresos * 0.35;
-  const capacidadDisponible = Math.max(capacidadPago - deudas, 0);
-  
-  // Plazo máximo según edad (máx 75 años al finalizar)
+  const PCT_FINANCIACION = 0.90;
+  const CAP_MONTO_1_TITULAR = 180000;
+  const MIN_MONTO = 70000;
+  const MIN_CAPACIDAD_MES = 350;
+
+  const capacidadPago = (ingresos - deudas) * 0.35;
+  const cuotaMaxima = Math.max(capacidadPago, 0);
+
   const edadActual = edad || 35;
-  const plazoMaximoAnos = Math.min(30, 75 - edadActual);
+  const plazoMaximoAnos = Math.max(Math.min(30, 75 - edadActual), 1);
   const plazoMeses = plazoMaximoAnos * 12;
-  
-  // Hipoteca: TAE ~3.5%
-  const tasaMensual = 0.035 / 12;
-  
-  // Monto máximo financiable
-  const factorAnualidad = (1 - Math.pow(1 + tasaMensual, -plazoMeses)) / tasaMensual;
-  const montoMaximoFinanciable = Math.round(capacidadDisponible * factorAnualidad);
-  
-  // Valor máximo inmueble (asumiendo 80% financiación)
-  const valorMaximoInmueble = Math.round(montoMaximoFinanciable / 0.8);
-  
-  // Capital necesario (20% entrada + ~10% gastos)
-  const capitalNecesario = Math.round(valorMaximoInmueble * 0.30);
-  
+
+  const r = 0.025 / 12;
+  const n = plazoMeses;
+
+  const factor = (Math.pow(1 + r, n) - 1) / (r * Math.pow(1 + r, n));
+  const montoTeorico = Math.round(cuotaMaxima * factor);
+  const montoMaximoFinanciable = Math.min(montoTeorico, CAP_MONTO_1_TITULAR);
+
+  const cuotaMensualReal = montoMaximoFinanciable > 0
+    ? Math.round((montoMaximoFinanciable * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1))
+    : 0;
+
+  const valorMaximoInmueble = Math.round(montoMaximoFinanciable / PCT_FINANCIACION);
+  const capitalNecesario = Math.round(valorMaximoInmueble * (1 - PCT_FINANCIACION) + valorMaximoInmueble * 0.10);
+
+  const aprobable =
+    montoMaximoFinanciable >= MIN_MONTO &&
+    cuotaMaxima >= MIN_CAPACIDAD_MES;
+
   return {
     monto_maximo_financiable: montoMaximoFinanciable,
     valor_maximo_inmueble: valorMaximoInmueble,
-    cuota_maxima_mensual: Math.round(capacidadDisponible),
+    cuota_maxima_mensual: Math.round(cuotaMaxima),
+    cuota_mensual_real: cuotaMensualReal,
     capital_necesario: capitalNecesario,
     plazo_anos: plazoMaximoAnos,
-    tae_estimada: 3.5,
-    aprobado: capacidadDisponible >= 200 && montoMaximoFinanciable >= 50000
+    tae_estimada: 2.5,
+    porcentaje_financiacion: PCT_FINANCIACION * 100,
+    aprobado: aprobable,
+  };
+}
+
+/**
+ * Precio Máximo de Inmueble Recomendado = MIN(P1, P2).
+ */
+function calcularPrecioMaximoInmuebleMeta(params: {
+  ahorros: number;
+  comunidad?: string | null;
+  monto_max_financiable: number;
+  pct_financiacion: number;
+}) {
+  const ahorros = Math.max(params.ahorros || 0, 0);
+  const tasaITP = getITPPorCCAA(params.comunidad);
+  const cpMax = (CP_TOPE + ahorros) / 2;
+  const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
+
+  const pct = (params.pct_financiacion || 90) / 100;
+  const precioMaxP2 = pct > 0 ? Math.round((params.monto_max_financiable || 0) / pct) : 0;
+
+  const candidatos = [precioMaxP1, precioMaxP2].filter(v => v > 0);
+  const precioMaxRecomendado = candidatos.length > 0 ? Math.min(...candidatos) : 0;
+
+  return {
+    precio_max_p1: precioMaxP1,
+    precio_max_p2: precioMaxP2,
+    precio_max_recomendado: precioMaxRecomendado,
+    cp_max: Math.round(cpMax),
+    tasa_itp_aplicada: tasaITP,
   };
 }
 
@@ -737,46 +814,40 @@ Deno.serve(async (req) => {
     }
 
     // 7. Calcular simulações (edadParsed e montoAhorros já calculados acima)
-    
-    const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
-    
-    // Calcular gap: capital necesario - ahorros del cliente
-    const capitalNecesario = simulacionHipotecaria.capital_necesario || 0;
-    const gap = Math.max(capitalNecesario - montoAhorros, 0);
-    
-    // Calcular crédito personal para financiar el gap específico
-    const simulacionPersonal = gap > 0 
-      ? calcularSimulacionPersonal(ingresos, deudas, gap)
-      : calcularSimulacionPersonal(ingresos, deudas);
-    
-    // Calcular plan de pagos combinado (dos fases)
-    const cuotaHipoteca = simulacionHipotecaria.cuota_maxima_mensual || 0;
-    const cuotaPersonal = simulacionPersonal.cuota_mensual || 0;
-    const fase1Meses = simulacionPersonal.plazo_meses || 84;
-    const plazoHipotecaMeses = (simulacionHipotecaria.plazo_anos || 25) * 12;
-    const fase2Meses = Math.max(plazoHipotecaMeses - fase1Meses, 0);
-    
-    const planPagos = {
-      fase1_cuota_total: cuotaHipoteca + cuotaPersonal,
-      fase1_duracion_meses: fase1Meses,
-      fase2_cuota_total: cuotaHipoteca,
-      fase2_duracion_meses: fase2Meses,
-      ahorro_mensual_tras_personal: cuotaPersonal,
-      total_coste: (fase1Meses * (cuotaHipoteca + cuotaPersonal)) + (fase2Meses * cuotaHipoteca),
-      monto_financiado_personal: simulacionPersonal.monto_financiado || 0,
-      gap_calculado: gap,
-      ahorros_cliente: montoAhorros,
-    };
-    
-    console.log('[meta-lead-webhook] Simulación personal:', simulacionPersonal);
-    console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
-    console.log('[meta-lead-webhook] Plan de pagos combinado:', planPagos);
 
-    // 6. Buscar recomendações de imóveis
-    // CORREÇÃO: Parsear zona ANTES de usar na query para extrair cidade limpa
+    // Parsear zona aqui para usar a CCAA detectada também no Precio Máximo (P1)
     const zonaParseada = parseZonaInteres(data.zona_interes);
     console.log('[meta-lead-webhook] Zona parseada:', zonaParseada);
-    
+
+    const simulacionHipotecaria = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
+    const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
+
+    // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+    const precioMaxInmueble = calcularPrecioMaximoInmuebleMeta({
+      ahorros: montoAhorros,
+      comunidad: region, // CCAA detectada via determinarRegion
+      monto_max_financiable: simulacionHipotecaria.monto_maximo_financiable || 0,
+      pct_financiacion: simulacionHipotecaria.porcentaje_financiacion || 90,
+    });
+
+    // Plan combinado simplificado (sin fases — el CP es siempre 15k)
+    const cuotaHipoteca = simulacionHipotecaria.cuota_mensual_real || 0;
+    const cuotaPersonal = simulacionPersonal.cuota_mensual || 0;
+    const planPagos = {
+      pago_combinado_mensual_aprox: cuotaHipoteca + cuotaPersonal,
+      cuota_hipoteca_mensual: cuotaHipoteca,
+      cuota_personal_mensual: cuotaPersonal,
+      poder_compra_total: montoAhorros + (simulacionPersonal.monto_maximo || 0),
+      ahorros_cliente: montoAhorros,
+      credito_personal_aprobado: simulacionPersonal.monto_maximo || 0,
+    };
+
+    console.log('[meta-lead-webhook] Simulación personal:', simulacionPersonal);
+    console.log('[meta-lead-webhook] Simulación hipotecaria:', simulacionHipotecaria);
+    console.log('[meta-lead-webhook] Precio máximo inmueble:', precioMaxInmueble);
+    console.log('[meta-lead-webhook] Plan combinado:', planPagos);
+
+    // 6. Buscar recomendações de imóveis (zonaParseada já calculado arriba)
     let recomendaciones: any[] = [];
     
     if (qualificacao.cualificado) {
@@ -867,11 +938,11 @@ Deno.serve(async (req) => {
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
       (cuotaHipoteca > 0 || cuotaPersonal > 0)
-        ? (gap > 0
-          ? `Plan de pagos: Fase 1 (${fase1Meses} meses): ${Math.round(planPagos.fase1_cuota_total)}€/mes | Fase 2 (${fase2Meses} meses): ${Math.round(planPagos.fase2_cuota_total)}€/mes`
-          : `Plan de pagos: Sin necesidad de crédito personal adicional. Cuota hipotecaria: ${Math.round(cuotaHipoteca)}€/mes`)
+        ? `Plan combinado: ${Math.round(planPagos.pago_combinado_mensual_aprox)}€/mes (hip: ${Math.round(cuotaHipoteca)}€ + cp 15k: ${Math.round(cuotaPersonal)}€)`
         : null,
-      gap > 0 ? `Gap financiado por crédito personal: ${gap}€ (ahorros: ${montoAhorros}€, capital necesario: ${capitalNecesario}€)` : null,
+      precioMaxInmueble.precio_max_recomendado > 0
+        ? `Precio máx. inmueble recomendado: ${precioMaxInmueble.precio_max_recomendado.toLocaleString('es-ES')}€ (P1 ahorros: ${precioMaxInmueble.precio_max_p1.toLocaleString('es-ES')}€ · P2 ingresos: ${precioMaxInmueble.precio_max_p2.toLocaleString('es-ES')}€)`
+        : null,
       marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
@@ -1078,31 +1149,40 @@ Deno.serve(async (req) => {
             agente_email: agenteAsignado?.email || null,
             agente_telefono: agenteAsignado?.telefono || null,
             
-            // Simulação pessoal (achatados) - campos claros
+            // Simulación personal (achatados) — agora con tope duro 15.000€
             sim_personal_monto_maximo: simulacionPersonal.monto_maximo,
-            sim_personal_monto_financiado: simulacionPersonal.monto_financiado || 0,
+            sim_personal_monto_financiado: simulacionPersonal.monto_maximo, // mantido para retrocompat Make
             sim_personal_cuota_mensual: simulacionPersonal.cuota_mensual,
+            sim_personal_cuota_tope_15k: simulacionPersonal.cuota_tope_15k,
+            sim_personal_capacidad_disponible: simulacionPersonal.capacidad_disponible_mensual,
             sim_personal_plazo_meses: simulacionPersonal.plazo_meses,
             sim_personal_tae: simulacionPersonal.tae_estimada,
             sim_personal_aprobado: simulacionPersonal.aprobado,
-            
-            // Simulação hipotecária (achatados) - campos claros
+
+            // Simulación hipotecaria (achatados) — TAE 2.5%, cap 180k, /0.90
             sim_hipoteca_monto_financiable: simulacionHipotecaria.monto_maximo_financiable,
             sim_hipoteca_valor_max_inmueble: simulacionHipotecaria.valor_maximo_inmueble,
             sim_hipoteca_cuota_maxima: simulacionHipotecaria.cuota_maxima_mensual,
+            sim_hipoteca_cuota_real: simulacionHipotecaria.cuota_mensual_real,
             sim_hipoteca_capital_necesario: simulacionHipotecaria.capital_necesario,
             sim_hipoteca_plazo_anos: simulacionHipotecaria.plazo_anos,
             sim_hipoteca_tae: simulacionHipotecaria.tae_estimada,
+            sim_hipoteca_porcentaje_financiacion: simulacionHipotecaria.porcentaje_financiacion,
             sim_hipoteca_aprobable: simulacionHipotecaria.aprobado,
-            
-            // Plan de pagos combinado (dos fases)
-            plan_fase1_cuota_total: planPagos.fase1_cuota_total,
-            plan_fase1_duracion_meses: planPagos.fase1_duracion_meses,
-            plan_fase2_cuota_total: planPagos.fase2_cuota_total,
-            plan_fase2_duracion_meses: planPagos.fase2_duracion_meses,
-            plan_ahorro_mensual_tras_personal: planPagos.ahorro_mensual_tras_personal,
-            plan_total_coste: planPagos.total_coste,
-            plan_gap_calculado: planPagos.gap_calculado,
+
+            // NOVOS — Precio Máximo de Inmueble (alinhado com simulador front)
+            sim_hipoteca_precio_max_inmueble: precioMaxInmueble.precio_max_recomendado,
+            sim_hipoteca_precio_max_por_ahorros: precioMaxInmueble.precio_max_p1,
+            sim_hipoteca_precio_max_por_ingresos: precioMaxInmueble.precio_max_p2,
+            sim_hipoteca_credito_personal_max: precioMaxInmueble.cp_max,
+            sim_hipoteca_tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
+
+            // NOVO — pago combinado simplificado (sem fases)
+            pago_combinado_mensual_aprox: planPagos.pago_combinado_mensual_aprox,
+            poder_compra_total: planPagos.poder_compra_total,
+            plan_cuota_hipoteca_mensual: planPagos.cuota_hipoteca_mensual,
+            plan_cuota_personal_mensual: planPagos.cuota_personal_mensual,
+            plan_credito_personal_aprobado: planPagos.credito_personal_aprobado,
             plan_ahorros_cliente: planPagos.ahorros_cliente,
             
             // Recomendações (achatadas - até 3) - LINKS DO INVENTÁRIO VERCEL
