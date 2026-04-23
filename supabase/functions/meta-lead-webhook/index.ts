@@ -949,6 +949,35 @@ Deno.serve(async (req) => {
       marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
     ].filter(Boolean).join('\n');
     
+    // Enriquecer JSONs de simulação com inputs raw + extras (para reenvio fiel pelo proxy)
+    const simulacionPersonalEnriched = {
+      ...simulacionPersonal,
+      // Reforço defensivo do tope 15k antes de salvar
+      monto_maximo: Math.min(simulacionPersonal.monto_maximo || 0, CP_TOPE),
+      ingresos,
+      deudas,
+    };
+
+    const simulacionHipotecariaEnriched = {
+      ...simulacionHipotecaria,
+      ingresos,
+      deudas,
+      // Campos novos calculados (Punto 1 + Punto 2) — necessários para o teste/manual
+      precio_maximo_inmueble: precioMaxInmueble.precio_max_recomendado,
+      precio_max_por_ahorros: precioMaxInmueble.precio_max_p1,
+      precio_max_por_ingresos: precioMaxInmueble.precio_max_p2,
+      credito_personal_maximo: precioMaxInmueble.cp_max,
+      tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
+      // Snapshot dos inputs Meta usados para reconstrução
+      meta_monto_ahorros: montoAhorros,
+      meta_tiene_ahorros: data.tiene_ahorros_impuestos || null,
+      meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
+      meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
+      meta_dni_nie: data.tiene_nie_dni || null,
+      meta_preferencia_llamada: data.preferencia_llamada || null,
+      meta_habitaciones: data.habitaciones || null,
+    };
+
     try {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
@@ -964,8 +993,8 @@ Deno.serve(async (req) => {
         stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados',
         source: 'meta_ads',
           notas: notasLead,
-          simulador_personal_data: simulacionPersonal,
-          simulador_hipotecario_data: simulacionHipotecaria
+          simulador_personal_data: simulacionPersonalEnriched,
+          simulador_hipotecario_data: simulacionHipotecariaEnriched
         })
         .select('id')
         .single();
