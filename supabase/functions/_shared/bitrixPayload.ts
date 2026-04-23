@@ -131,7 +131,10 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_valor_deseado: lead.valor_inmueble_deseado || 0,
     lead_ingresos_mensuales: ingresos,
     lead_habitaciones: metaHabitaciones,
+    lead_numero_de_viviendas: metaHabitaciones,
     lead_preferencia_llamada: metaPreferencia,
+    lead_disponibilidad: metaPreferencia,
+    lead_documento: metaDniNie,
 
     // ===== Meta (mantém nomes do template) =====
     meta_dni_nie: metaDniNie,
