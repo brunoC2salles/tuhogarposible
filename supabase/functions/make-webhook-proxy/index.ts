@@ -69,13 +69,25 @@ function extractFromNotes(notas: string | null, key: string): string {
   return match ? match[1].trim() : '';
 }
 
-// Build the 5 simulation fields sent to Make/Bitrix from stored simulation data
+// Build simulation fields sent to Make/Bitrix from stored simulation data
+// Inclui nomes legacy (Bitrix) + nomes novos (alias) para compatibilidade total
 function buildSimFields(simPersonal: any, simHipoteca: any): Record<string, number> {
+  const creditoPersonalMax =
+    simHipoteca.credito_personal_maximo ||
+    simPersonal.monto_maximo ||
+    simPersonal.montoMaximoCredito ||
+    0;
+
   return {
+    // Hipoteca
     sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+    sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorInmueble || 0,
     sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
     sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-    sim_personal_credito_max: simHipoteca.credito_personal_maximo || simPersonal.monto_maximo || simPersonal.montoMaximoCredito || 0,
+
+    // Personal — manter ambos os nomes (legacy Bitrix + alias novo)
+    sim_personal_monto_maximo: creditoPersonalMax,
+    sim_personal_credito_max: creditoPersonalMax,
     sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
   };
 }
