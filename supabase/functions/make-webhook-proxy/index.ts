@@ -611,26 +611,13 @@ Deno.serve(async (req) => {
         agente_email: agente.email,
         agente_telefono: agente.telefono || '',
         
-        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || 0,
-        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
-        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
-
-        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
-        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
-        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
-        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
+        // Simulation data (5 campos unificados)
+        ...buildSimFields(simPersonal, simHipoteca),
 
         // Novos campos Meta Ads (ahorros e vivienda seleccionada)
         meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
         meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
         meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
-        
-        // Plan de pagos combinado
-        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
         
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
