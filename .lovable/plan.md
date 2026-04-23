@@ -1,104 +1,124 @@
 
 
-# Plano: limpar e simplificar o payload enviado ao Make/Bitrix
+# Plano: restaurar todos os campos perdidos no payload Bitrix
 
-## Objectivo
+## Diagnóstico
 
-Reduzir o payload do `make-webhook-proxy` aos 4 campos de simulação que pediste + dados essenciais do lead/agente. Remover toda a lógica antiga de "plan de pagos por fases" e campos auxiliares de hipoteca que já não fazem sentido.
+O `make-webhook-proxy` foi simplificado de mais. Faltam campos que o Bitrix consome obrigatoriamente. Em concreto:
 
-## Os 4 campos de simulação que ficam
+**Campos completamente em falta (chegam vazios ao Bitrix):**
+- `sim_hipoteca_valor_max_inmueble` — foi removido em vez de mantido
+- `sim_personal_monto_maximo` — foi renomeado para `sim_personal_credito_max` (Bitrix continua a esperar o nome antigo)
+- `meta_deudas_mensuales` — está hardcoded a `0`, nunca é populado
+- `meta_dni_nie` — falta na action `send_lead_assignment`
+- `lead_preferencia_llamada` — falta em `send_lead_assignment`
+- `lead_habitaciones` — falta em `send_lead_assignment`
+- `meta_antiguedad_trabajo` — falta em `send_lead_assignment`
 
-Todos lidos do `simulador_hipotecario_data` (jsonb) que já guardamos no lead — sem recalcular nada na edge function:
+**Campos OK (já chegam):** nombre, telefono, email, edad, zona, ciudad, valor_deseado, ingresos_mensuales, monto_ahorros, vivienda_seleccionada + os 3 sim_hipoteca novos.
 
-| Campo no payload Make | Origem (jsonb do lead) | Notas |
+## O que se faz
+
+### 1. `supabase/functions/make-webhook-proxy/index.ts`
+
+**Actualizar `buildSimFields`** para devolver os 7 campos (manter todos os nomes que o Bitrix precisa + os novos que já tinha):
+
+```ts
+function buildSimFields(simPersonal, simHipoteca) {
+  return {
+    // Hipoteca
+    sim_hipoteca_monto_financiable:
+      simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
+    sim_hipoteca_valor_max_inmueble:        // ← RESTAURADO (Bitrix)
+      simHipoteca.valor_maximo_inmueble || simHipoteca.valorInmueble || 0,
+    sim_hipoteca_cuota_maxima:
+      simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
+    sim_hipoteca_precio_max_inmueble:        // mantém-se (MIN P1+P2)
+      simHipoteca.precio_maximo_inmueble || 0,
+
+    // Personal
+    sim_personal_monto_maximo:               // ← RESTAURADO (nome do Bitrix)
+      simHipoteca.credito_personal_maximo || simPersonal.monto_maximo || simPersonal.montoMaximoCredito || 0,
+    sim_personal_credito_max:                // mantém-se (alias novo)
+      simHipoteca.credito_personal_maximo || simPersonal.monto_maximo || simPersonal.montoMaximoCredito || 0,
+    sim_personal_cuota_mensual:
+      simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
+  };
+}
+```
+
+**Action `test_meta_bitrix_last_lead`** (linha ~432-475):
+- Substituir `meta_deudas_mensuales: 0` (linha 467) por: ler de `simHipoteca.deudas_consideradas` com fallback a `extractFromNotes(lead.notas, 'Deudas mensuales')` e fallback final `0`.
+- Os outros campos (dni, preferencia, habitaciones, antigüedad) já estão lá ✅.
+
+**Action `send_lead_assignment`** (linha ~593-623):
+- **Adicionar** os 4 campos que faltam, lidos de `extractFromNotes(lead.notas, ...)`:
+  - `meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE')`
+  - `lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada')`
+  - `lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones')`
+  - `meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad')`
+  - `meta_deudas_mensuales: simHipoteca.deudas_consideradas ?? extractFromNotes(...) ?? 0`
+
+**Action `send_qualified_submission`** (linha ~178-220):
+- Esta usa `form_submissions` (formulário web manual), não Meta Ads. Os campos `meta_*` não fazem sentido aqui. **Não tocar** nos meta_*. Só herda automaticamente os 2 nomes restaurados via `buildSimFields`.
+
+### 2. `supabase/functions/meta-lead-webhook/index.ts`
+
+Adicionar uma chave dentro do objecto retornado por `calcularSimulacionHipotecaria` (linha 607-617) para persistir as deudas usadas no cálculo:
+
+```ts
+return {
+  monto_maximo_financiable: ...,
+  valor_maximo_inmueble: ...,
+  cuota_maxima_mensual: ...,
+  ...
+  deudas_consideradas: deudas,   // ← NOVO (para popular meta_deudas_mensuales no Bitrix)
+  ingresos: ingresos,            // ← garantir que existe (alguns paths já leem)
+};
+```
+
+Isto fica em `simulador_hipotecario_data` (jsonb existente) — sem migrações.
+
+## Mapa final de campos (verificação cruzada com o template Bitrix)
+
+| Template Bitrix | Origem | OK |
 |---|---|---|
-| `sim_hipoteca_monto_financiable` | `simulador_hipotecario_data.monto_maximo_financiable` | Hipoteca máxima a financiar (hoje já respeita a lógica nova: cuota 35% × factor francês, sem cap antigo de 180k/210k porque o simulador unificado e o `meta-lead-webhook` ontem já passaram a usar a nova fórmula) |
-| `sim_hipoteca_cuota_maxima` | `simulador_hipotecario_data.cuota_maxima_mensual` | Cuota máxima da hipoteca (35% × ingresos disponibles, calculada com fórmula francesa real) |
-| `sim_hipoteca_precio_max_inmueble` | `simulador_hipotecario_data.precio_maximo_inmueble` | **Bonus**: o `MIN(P1, P2)` que fizemos ontem — preço final do imóvel que o cliente pode comprar (já existia, mantém-se) |
-| `sim_personal_credito_max` | `simulador_hipotecario_data.credito_personal_maximo` | Crédito pessoal máximo (sempre com teto 15.000€, fórmula `(15k + ahorros)/2`) |
-| `sim_personal_cuota_mensual` | `simulador_personal_data.cuota_mensual` (fallback `cuotaMensual`) | Cuota mensal do crédito pessoal (84 meses, TAE 8%, ~234€ quando bate no teto 15k) |
-
-São 5 campos no total (os 4 que pediste + o `precio_max_inmueble` que já tinha sido aprovado ontem e é útil para o agente em Bitrix).
-
-## O que se remove do payload
-
-**Todos os campos da função `calcularPlanPagos` (lógica antiga de 2 fases — já não faz sentido com teto de 15k):**
-- `plan_fase1_cuota_total`
-- `plan_fase1_duracion_meses`
-- `plan_fase2_cuota_total`
-- `plan_fase2_duracion_meses`
-- `plan_ahorro_mensual_tras_personal`
-- `plan_total_coste`
-- `plan_gap_calculado`
-- `plan_ahorros_cliente`
-- `sim_personal_monto_financiado`
-
-**Campos auxiliares antigos de hipoteca/personal que já não interessam ao Make:**
-- `sim_hipoteca_valor_max_inmueble` (substituído pelo `precio_max_inmueble`)
-- `sim_hipoteca_capital_necesario`
-- `sim_hipoteca_plazo_anos`
-- `sim_hipoteca_aprobable`
-- `sim_hipoteca_precio_max_por_ahorros` (P1 isolado — só interno)
-- `sim_hipoteca_precio_max_por_ingresos` (P2 isolado — só interno)
-- `sim_personal_monto_maximo` (renomeado para `sim_personal_credito_max`)
-- `sim_personal_plazo_meses`
-- `sim_personal_aprobado`
-- `sim_personal_monto`, `sim_personal_cuota`, `sim_personal_plazo`, `sim_personal_tae` (variantes antigas em `send_qualified_submission`)
-- `sim_hipoteca_monto`, `sim_hipoteca_cuota`, `sim_hipoteca_plazo`, `sim_hipoteca_capital` (variantes antigas em `send_qualified_submission`)
+| `lead_nombre` | lead.nombre_completo | ✅ |
+| `lead_telefono` | lead.telefono | ✅ |
+| `lead_email` | lead.email | ✅ |
+| `lead_edad` | extractFromNotes('Edad') | ✅ |
+| `meta_dni_nie` | extractFromNotes('DNI/NIE') | ✅ (add em assignment) |
+| `lead_preferencia_llamada` | extractFromNotes('Preferência de chamada') | ✅ (add em assignment) |
+| `lead_zona_interes` | lead.zona_interes | ✅ |
+| `lead_ciudad_interes` | lead.ciudad_interes | ✅ |
+| `lead_ingresos_mensuales` | simHipoteca.ingresos | ✅ |
+| `lead_valor_deseado` | lead.valor_inmueble_deseado | ✅ |
+| `meta_deudas_mensuales` | simHipoteca.deudas_consideradas | ✅ (add chave + ler) |
+| `lead_habitaciones` | extractFromNotes('Habitaciones') | ✅ (add em assignment) |
+| `meta_monto_ahorros` | extractFromNotes('Ahorros para impuestos') | ✅ |
+| `meta_vivienda_seleccionada` | extractFromNotes('Vivienda seleccionada') | ✅ |
+| `meta_antiguedad_trabajo` | extractFromNotes('Antigüedad') | ✅ (add em assignment) |
+| `sim_hipoteca_monto_financiable` | jsonb | ✅ |
+| `sim_hipoteca_valor_max_inmueble` | jsonb | ✅ (restaurar em buildSimFields) |
+| `sim_hipoteca_cuota_maxima` | jsonb | ✅ |
+| `sim_personal_monto_maximo` | jsonb | ✅ (restaurar em buildSimFields) |
 
 ## O que NÃO se toca
 
-- ✅ Dados do lead: `lead_nombre`, `lead_email`, `lead_telefono`, `lead_edad`, `lead_ingresos_mensuales`, `lead_ciudad_interes`, `lead_zona_interes`, `lead_valor_deseado`, `lead_habitaciones`
-- ✅ Dados do agente: `agente_id`, `agente_nombre`, `agente_email`, `agente_telefono`, `agente_tidycal`
-- ✅ Campos Meta Ads: `meta_*` (antiguedad, dni_nie, tiene_ahorros, monto_ahorros, vivienda_seleccionada, preferencia_llamada)
-- ✅ Recomendações: `recom_1_*`, `recom_2_*`, `recom_3_*`
-- ✅ `crm_url`, `bewor_link_documentos`, `timestamp`, `source`, `lead_id`, `cualificado`
-- ❌ `meta-lead-webhook` (não tocar — é outro webhook, fica como está)
-- ❌ Lógica do simulador (`simuladorUtils.ts`) e dados guardados na BD — tudo intacto
+- ❌ Lógica do simulador (`simuladorUtils.ts`), CRM, PDF — intactos
+- ❌ Cálculos do `meta-lead-webhook` (regras 35%, cap 180k, ITP) — intactos. Só **adiciono** 1 campo (`deudas_consideradas`) ao objecto guardado
 - ❌ Schema da BD — zero migrações
-
-## Ficheiro tocado
-
-**`supabase/functions/make-webhook-proxy/index.ts`** (1 só ficheiro)
-
-### Alterações pontuais:
-
-1. **Apagar `calcularPlanPagos`** (linhas 73-99) e a importação `extractFromNotes` que ela usa para `Ahorros para impuestos` continua a ser usada noutros sítios (mantém-se).
-
-2. **`send_qualified_submission`** (action 1, linhas ~196-244):
-   - Substituir os 8 campos `sim_personal_*` e `sim_hipoteca_*` antigos pelos 5 novos.
-   - Remover spread `...calcularPlanPagos(...)` (não existe aqui ainda mas verificar).
-
-3. **`test_qualified_last_lead`** (action 2, linhas ~319-350):
-   - Substituir os 4 campos `sim_*` antigos pelos 5 novos.
-   - Remover `...calcularPlanPagos(simPersonal, simHipoteca, lead.notas)`.
-
-4. **`test_meta_bitrix_last_lead`** (action 3, linhas ~461-524):
-   - Manter os campos do lead, agente, meta_*, recom_*.
-   - Substituir bloco `sim_personal_*` + `sim_hipoteca_*` (linhas 492-510) pelos 5 novos.
-   - Remover `...calcularPlanPagos(simPersonal, simHipoteca, lead.notas)`.
-
-5. **`send_lead_assignment`** (action 4, linhas ~642-685):
-   - Mesma substituição: 5 campos novos, sem `calcularPlanPagos`.
+- ❌ Action `send_qualified_submission` (formulário web manual) — não tem dados Meta Ads, mantém-se enxuta
+- ❌ Os 3 campos novos `sim_hipoteca_precio_max_inmueble` + `sim_personal_credito_max` + `sim_personal_cuota_mensual` continuam a ir (o Bitrix pode usá-los quando quiser)
 
 ## Detalhes técnicos
 
-- **Performance**: paylload mais pequeno → menos latência de rede e parsing no Make.
-- **Retro-compatibilidade**: O Make.com vai ter de ser ajustado para usar os novos nomes (`sim_personal_credito_max` em vez de `sim_personal_monto_maximo`). Como o user pediu explicitamente para limpar, assumo que vai actualizar o cenário Make.
-- **Nomes finais propostos**:
-  - `sim_hipoteca_monto_financiable`
-  - `sim_hipoteca_cuota_maxima`
-  - `sim_hipoteca_precio_max_inmueble`
-  - `sim_personal_credito_max`
-  - `sim_personal_cuota_mensual`
-- **Ordem de fallback** (para leads antigos sem os campos novos): tenta `monto_maximo_financiable` → `montoFinanciable` → 0. Idem para os outros.
-- **Edge case**: se `simulador_hipotecario_data` for null (lead manual sem simulação), todos os 5 campos vão a 0 — Make decide se ignora.
-
-## Validação
-
-Após o deploy, dispara o "Probar con Último Lead" no Admin Settings e confere no log do Make que só chegam os 5 campos novos + dados do lead/agente. Comparas com o screenshot que enviaste para validar que `plan_fase1_*` e companhia desapareceram.
+- **Retro-compatibilidade**: leads antigos (sem `deudas_consideradas` no jsonb) → fallback para notas → fallback `0`. Não quebra nada.
+- **Performance**: zero impacto. Tudo são reads do jsonb que já se carregava.
+- **Reversibilidade**: 2 ficheiros editados, deploy automático, rollback em segundos.
+- **Validação**: depois do deploy, "Probar con Último Lead" no Admin Settings e confirmar nos logs do Make que os 19 campos aparecem todos preenchidos.
 
 ## Entrega
 
-1 ficheiro tocado (`make-webhook-proxy/index.ts`), deploy automático, sem migrações. Reversível em segundos.
+2 ficheiros tocados (`make-webhook-proxy/index.ts` e `meta-lead-webhook/index.ts`). Sem migrações.
 
