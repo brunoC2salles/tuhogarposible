@@ -476,9 +476,8 @@ Deno.serve(async (req) => {
         sim_hipoteca_monto: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
         sim_hipoteca_cuota: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
         
-        // Plan de pagos combinado
-        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
-        
+        // (Legacy action — plan de pagos antigo removido; use test_meta_bitrix_last_lead)
+
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
       };
 
@@ -587,85 +586,7 @@ Deno.serve(async (req) => {
       // Limitar a 3 recomendações para o webhook
       recomendaciones = filteredRecs.slice(0, 3);
 
-      // Get simulation data with fallbacks for different field names
-      const simPersonal = lead.simulador_personal_data as any || {};
-      const simHipoteca = lead.simulador_hipotecario_data as any || {};
-
-      const payload: Record<string, any> = {
-        test: 'true',
-        source: lead.source || 'manual',
-        timestamp: new Date().toISOString(),
-        lead_id: lead.id,
-        cualificado: 'true',
-        
-        lead_nombre: lead.nombre_completo,
-        lead_telefono: lead.telefono,
-        lead_email: lead.email,
-        lead_zona_interes: lead.zona_interes || '',
-        lead_ciudad_interes: lead.ciudad_interes || '',
-        lead_valor_deseado: lead.valor_inmueble_deseado || 0,
-        
-        // Edad - extraído das notas do lead
-        lead_edad: extractFromNotes(lead.notas, 'Edad') || '',
-        
-        // Ingresos mensuales - campo fundamental para simuladores
-        lead_ingresos_mensuales: simHipoteca.ingresos || simPersonal.ingresos || 0,
-        
-        // Campos extraídos das notas (Meta Ads)
-        lead_habitaciones: extractFromNotes(lead.notas, 'Habitaciones'),
-        meta_antiguedad_trabajo: extractFromNotes(lead.notas, 'Antigüedad'),
-        lead_preferencia_llamada: extractFromNotes(lead.notas, 'Preferência de chamada'),
-        meta_dni_nie: extractFromNotes(lead.notas, 'DNI/NIE'),
-        
-        agente_id: agente?.id || '',
-        agente_nombre: agente?.nombre || 'Sin asignar',
-        agente_email: agente?.email || '',
-        agente_telefono: agente?.telefono || '',
-        
-        // Simulação pessoal - múltiplos fallbacks para diferentes formatos
-        sim_personal_monto_maximo: simPersonal.monto_maximo || simPersonal.montoSolicitado || simPersonal.montoMaximoCredito || 0,
-        sim_personal_cuota_mensual: simPersonal.cuota_mensual || simPersonal.cuotaMensual || 0,
-        sim_personal_plazo_meses: simPersonal.plazo_meses || simPersonal.plazoMeses || 0,
-        sim_personal_aprobado: simPersonal.aprobado ?? true,
-        
-        // Simulação hipotecária - múltiplos fallbacks para diferentes formatos
-        sim_hipoteca_monto_financiable: simHipoteca.monto_maximo_financiable || simHipoteca.montoFinanciable || 0,
-        sim_hipoteca_valor_max_inmueble: simHipoteca.valor_maximo_inmueble || simHipoteca.valorMaximoInmueble || 0,
-        sim_hipoteca_cuota_maxima: simHipoteca.cuota_maxima_mensual || simHipoteca.cuotaMensual || 0,
-        sim_hipoteca_capital_necesario: simHipoteca.capital_necesario || simHipoteca.capitalPropioNecesario || 0,
-        sim_hipoteca_plazo_anos: simHipoteca.plazo_anos || simHipoteca.plazoAnios || 0,
-        sim_hipoteca_aprobable: simHipoteca.aprobado ?? true,
-
-        // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
-        sim_hipoteca_precio_max_inmueble: simHipoteca.precio_maximo_inmueble || 0,
-        sim_hipoteca_precio_max_por_ahorros: simHipoteca.precio_max_por_ahorros || 0,
-        sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
-        sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
-        
-        // Campo de dívidas mensais (extraído das notas se disponível)
-        meta_deudas_mensuales: 0,
-        
-        // Novos campos Meta Ads (ahorros e vivienda seleccionada)
-        meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
-        meta_monto_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.match(/(\d+)/)?.[1] || '',
-        meta_vivienda_seleccionada: extractFromNotes(lead.notas, 'Vivienda seleccionada') || '',
-        
-        // Plan de pagos combinado
-        ...calcularPlanPagos(simPersonal, simHipoteca, lead.notas),
-        
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
-      };
-
-      // Add recommendations with INVENTORY VERCEL LINKS
-      recomendaciones.forEach((rec, index) => {
-        const num = index + 1;
-        payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad} - ${rec.direccion}`;
-        payload[`recom_${num}_precio`] = rec.precio;
-        // Use Vercel inventory link
-        payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
-      });
-
-      // Bewor: incluir link ativo de upload de documentos (gerado automaticamente quando lead_cualificado)
+      // Bewor: link ativo de upload de documentos
       const { data: beworToken } = await supabase
         .from('lead_document_tokens')
         .select('token')
@@ -674,9 +595,19 @@ Deno.serve(async (req) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      payload.bewor_link_documentos = beworToken?.token
+      const beworLink = beworToken?.token
         ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken.token}`
         : '';
+
+      // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
+      const payload = buildMetaBitrixPayload(
+        lead,
+        agente,
+        recomendaciones,
+        beworLink,
+        'test_meta_bitrix',
+      );
+      payload.test = 'true';
 
       const result = await sendToMake(webhookUrl, payload);
 
