@@ -475,8 +475,11 @@ Deno.serve(async (req) => {
         // Simulation data (5 campos unificados)
         ...buildSimFields(simPersonal, simHipoteca),
 
-        // Campo de dívidas mensais (extraído das notas se disponível)
-        meta_deudas_mensuales: 0,
+        // Campo de dívidas mensais (jsonb → notas → 0)
+        meta_deudas_mensuales:
+          simHipoteca.deudas_consideradas ??
+          extractFromNotes(lead.notas, 'Deudas mensuales') ??
+          0,
 
         // Novos campos Meta Ads (ahorros e vivienda seleccionada)
         meta_tiene_ahorros: extractFromNotes(lead.notas, 'Ahorros para impuestos')?.split(' - ')[0] || '',
