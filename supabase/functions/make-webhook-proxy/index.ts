@@ -209,17 +209,11 @@ Deno.serve(async (req) => {
         agente_telefono: agente?.telefono || '',
         agente_tidycal: agente?.tidycal_url || '',
         
-        // Simulation data (personal)
-        sim_personal_monto: (submission.simulador_personal_data as any)?.montoSolicitado || 0,
-        sim_personal_cuota: (submission.simulador_personal_data as any)?.cuotaMensual || 0,
-        sim_personal_plazo: (submission.simulador_personal_data as any)?.plazoMeses || 0,
-        sim_personal_tae: (submission.simulador_personal_data as any)?.tasaInteres || 0,
-        
-        // Simulation data (mortgage)
-        sim_hipoteca_monto: (submission.simulador_hipotecario_data as any)?.montoFinanciable || 0,
-        sim_hipoteca_cuota: (submission.simulador_hipotecario_data as any)?.cuotaMensual || 0,
-        sim_hipoteca_plazo: (submission.simulador_hipotecario_data as any)?.plazoAnios || 0,
-        sim_hipoteca_capital: (submission.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
+        // Simulation data (5 campos unificados)
+        ...buildSimFields(
+          submission.simulador_personal_data as any || {},
+          submission.simulador_hipotecario_data as any || {}
+        ),
         
         // CRM URL
         crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${submission.lead_id || submission.id}`,
