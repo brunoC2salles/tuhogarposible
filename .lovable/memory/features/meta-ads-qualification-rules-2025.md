@@ -17,3 +17,13 @@ Reglas de cualificación automática aplicadas en `supabase/functions/meta-lead-
    - Se rechaza si NO cumple ninguna de las dos. Razón: "Ahorros insuficientes (mínimo 5000€ o respuesta afirmativa "sí")".
    - El valor `montoAhorros` validado aquí es el MISMO que entra en `calcularPrecioMaximoInmuebleMeta` (P1) para el cálculo del Precio Máximo de Inmueble. Logs explícitos en el edge function permiten rastrear la coherencia.
    - La regla dinámica completa (valor inmueble × % ITP CCAA) sigue aplicándose en el simulador hipotecario (`src/lib/simuladorUtils.ts`) cuando el cliente introduce el precio real del inmueble.
+
+**Parser robusto `parseAhorros` (2025-04)**: el campo `monto_ahorros` se parsea con un parser dedicado que entiende formatos abiertos del Meta Ads:
+   - Numérico puro: `5000`, `5000.50`
+   - Con símbolo monetario o espacios: `5000€`, `5 000`, `7 K€`
+   - Sufijos `k`/`K`: `5k`, `7K`, `10.5k`, `5,5k`
+   - Sufijos `mil`/`MIL`: `10mil`, `10 mil`, `4 mil`, `7,5 mil`
+   - Separador de miles con punto/coma: `5.000`, `10,000`, `1.500.000`
+   - Decimal con coma: `5,5` → 5.5 (cuando NO hay patrón de miles)
+   - Heurística: si el patrón es `^\d{1,3}([.,]\d{3})+$` se trata como separador de miles; si no, la coma se interpreta como decimal.
+   - Resultado siempre en euros (número), `Math.max(0, ...)`. Nunca negativo.
