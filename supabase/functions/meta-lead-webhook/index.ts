@@ -805,8 +805,9 @@ Deno.serve(async (req) => {
     console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
 
     // 2.1 Parsear monto de ahorros (usado tanto na qualificação quanto nas recomendações)
-    const montoAhorros = parseDeudas(data.monto_ahorros);
-    console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros);
+    // Usa parseAhorros (robusto): aceita "5k", "10mil", "5.000", "10 mil", etc.
+    const montoAhorros = parseAhorros(data.monto_ahorros);
+    console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros, '(raw:', data.monto_ahorros, ')');
 
     // 3. Qualificar lead (passa edad parseada e ahorros)
     const qualificacao = qualificarLead(data, ingresos, edadParsed, montoAhorros);
