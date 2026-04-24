@@ -380,6 +380,50 @@ function parseDeudas(deudasInput?: string | number): number {
 }
 
 /**
+ * Parser robusto de ahorros — aceita formatos como:
+ *   "5000", "5.000", "5,000", "5000€", "5 k", "5k", "5K",
+ *   "10mil", "10 mil", "10.5k", "7K€"
+ * Retorna o valor em euros (número).
+ */
+function parseAhorros(input?: string | number): number {
+  if (input === undefined || input === null || input === '') return 0;
+
+  // Número direto
+  if (typeof input === 'number') {
+    return isFinite(input) ? Math.max(0, input) : 0;
+  }
+
+  // Normalizar string: minúsculas, sem símbolos monetários, sem espaços
+  const raw = String(input)
+    .toLowerCase()
+    .replace(/[€$\s]/g, '')
+    .trim();
+  if (!raw) return 0;
+
+  // Tentar capturar "<número><sufixo>" onde sufixo ∈ {k, mil}
+  // Aceita ponto/vírgula como decimal: "10.5k", "10,5mil"
+  const m = raw.match(/^([0-9]+(?:[.,][0-9]+)?)(k|mil)$/);
+  if (m) {
+    const num = parseFloat(m[1].replace(',', '.'));
+    return isNaN(num) ? 0 : Math.max(0, num * 1000);
+  }
+
+  // Caso não tenha sufixo: pode ter separador de milhar "5.000" ou "5,000"
+  // Heurística: se houver ponto/vírgula seguido de exatamente 3 dígitos
+  // E não houver decimais subsequentes → é separador de milhar
+  let cleaned = raw;
+  if (/^\d{1,3}([.,]\d{3})+$/.test(cleaned)) {
+    cleaned = cleaned.replace(/[.,]/g, '');
+  } else {
+    // Caso normal: vírgula decimal → ponto
+    cleaned = cleaned.replace(',', '.');
+  }
+
+  const parsed = parseFloat(cleaned);
+  return isNaN(parsed) ? 0 : Math.max(0, parsed);
+}
+
+/**
  * Parseia idade de múltiplos formatos possíveis do Meta Ads
  * Aceita: edad, age, birth_year, ano_nacimiento, fecha_nacimiento
  */
@@ -761,8 +805,9 @@ Deno.serve(async (req) => {
     console.log('[meta-lead-webhook] Edad parseada:', edadParsed);
 
     // 2.1 Parsear monto de ahorros (usado tanto na qualificação quanto nas recomendações)
-    const montoAhorros = parseDeudas(data.monto_ahorros);
-    console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros);
+    // Usa parseAhorros (robusto): aceita "5k", "10mil", "5.000", "10 mil", etc.
+    const montoAhorros = parseAhorros(data.monto_ahorros);
+    console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros, '(raw:', data.monto_ahorros, ')');
 
     // 3. Qualificar lead (passa edad parseada e ahorros)
     const qualificacao = qualificarLead(data, ingresos, edadParsed, montoAhorros);
