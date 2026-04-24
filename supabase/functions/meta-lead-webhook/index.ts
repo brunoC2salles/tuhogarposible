@@ -485,13 +485,27 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   //   (b) declara un monto numérico > 0 en `monto_ahorros`.
   // La regla dinámica completa (valor inmueble × % ITP CCAA) se aplica en el simulador
   // hipotecario (src/lib/simuladorUtils.ts) cuando el cliente introduce el precio real.
+  // Regla endurecida (2025-04): cualifica si responde afirmativamente con "si/sí/yes"
+  // O si declara monto_ahorros >= 5.000€. Caso contrario, descualificado.
+  const AHORROS_MINIMO = 5000;
   const respuestaAhorros = (data.tiene_ahorros_impuestos || '').toString().trim().toLowerCase();
-  const respuestasAfirmativas = ['si', 'sí', 'yes', 'true', '1', 'y', 's'];
+  const respuestasAfirmativas = ['si', 'sí', 'yes'];
   const tieneRespuestaAfirmativa = respuestasAfirmativas.includes(respuestaAhorros);
-  const tieneMontoValido = (montoAhorros ?? 0) > 0;
+  const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
 
-  if (!tieneRespuestaAfirmativa && !tieneMontoValido) {
-    return { cualificado: false, razon_no_cualificado: 'Sin ahorros declarados para cubrir impuestos de compraventa' };
+  console.log('[meta-lead-webhook] Validação ahorros:', {
+    respuestaAhorros,
+    tieneRespuestaAfirmativa,
+    montoAhorros,
+    tieneMontoSuficiente,
+    AHORROS_MINIMO,
+  });
+
+  if (!tieneRespuestaAfirmativa && !tieneMontoSuficiente) {
+    return {
+      cualificado: false,
+      razon_no_cualificado: `Ahorros insuficientes (mínimo ${AHORROS_MINIMO}€ o respuesta afirmativa "sí")`,
+    };
   }
 
   return { cualificado: true };
