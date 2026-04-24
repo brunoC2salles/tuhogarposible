@@ -840,6 +840,13 @@ Deno.serve(async (req) => {
     const simulacionPersonal = calcularSimulacionPersonal(ingresos, deudas);
 
     // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
+    // Importante: usa el MISMO montoAhorros validado en qualificarLead (rastreabilidad).
+    console.log('[meta-lead-webhook] Precio Máximo - input ahorros (mismo de qualificación):', {
+      montoAhorros,
+      region,
+      monto_max_financiable: simulacionHipotecaria.monto_maximo_financiable,
+      pct_financiacion: simulacionHipotecaria.porcentaje_financiacion,
+    });
     const precioMaxInmueble = calcularPrecioMaximoInmuebleMeta({
       ahorros: montoAhorros,
       comunidad: region, // CCAA detectada via determinarRegion
