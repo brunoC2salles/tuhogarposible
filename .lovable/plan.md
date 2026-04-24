@@ -1,77 +1,83 @@
-# Plano: restaurar o payload Bitrix completo + manter os 4 cálculos corrigidos
-
-## Diagnóstico do que aconteceu
-
-Nas últimas iterações, ao "unificar" o builder, eu **enxuguei** o payload e perdi vários campos que você sempre usou no Make. O builder atual em `_shared/bitrixPayload.ts` envia só ~22 campos, quando o seu template do Bitrix espera muitos mais.
-
-Você **não precisa trocar a URL do webhook** — continua a mesma. O problema é só o conteúdo do payload.
-
-## O que vou restaurar (campos que voltam ao payload)
-
-Vou **adicionar de volta** todos os campos do template original que sumiram, mantendo nomes idênticos aos que você já usa no Bitrix:
 
 
-| Campo Bitrix                                  | Origem                                                                |
-| --------------------------------------------- | --------------------------------------------------------------------- |
-| `lead_nombre`                                 | já existe                                                             |
-| `lead_telefono`                               | já existe                                                             |
-| `lead_email`                                  | já existe                                                             |
-| `lead_edad`                                   | já existe (extraído de notas)                                         |
-| `lead_documento`                              | **restaurar** — alias de `meta_dni_nie`                               |
-| `meta_dni_nie`                                | já existe                                                             |
-| `lead_preferencia_llamada`                    | já existe                                                             |
-| `lead_zona_interes`                           | já existe                                                             |
-| `lead_ciudad_interes`                         | já existe                                                             |
-| `lead_ingresos_mensuales`                     | já existe                                                             |
-| `lead_valor_deseado`                          | já existe                                                             |
-| `meta_deudas_mensuales`                       | já existe                                                             |
-| `lead_habitaciones`                           | já existe                                                             |
-| `lead_numero_de_viviendas`                    | **restaurar** — extrair de notas (`Habitaciones` ou campo dedicado)   |
-| `lead_disponibilidad`                         | **restaurar** — extrair de notas (`Preferência de chamada` / horário) |
-| `meta_monto_ahorros`                          | já existe                                                             |
-| `meta_tiene_ahorros`                          | já existe                                                             |
-| `meta_vivienda_seleccionada`                  | já existe                                                             |
-| `meta_antiguedad_trabajo`                     | já existe                                                             |
-| `sim_hipoteca_monto_financiable`              | já existe — **com cálculo novo**                                      |
-| `sim_hipoteca_valor_max_inmueble`             | já existe — **MIN(P1, P2) novo**                                      |
-| `sim_hipoteca_cuota_maxima`                   | já existe — **cuota real nova**                                       |
-| `sim_personal_monto_maximo`                   | já existe — **sempre 15.000€**                                        |
-| `sim_personal_cuota_mensual`                  | já existe — **84m, 8% TAE**                                           |
-| `agente_*`                                    | já existe                                                             |
-| `crm_url`, `bewor_link_documentos`, `recom_*` | já existem                                                            |
+# Plano: endurecer regra de ahorros (mínimo 5.000€ ou "si/sí/yes") + garantir uso no Precio Máximo
 
+## O que muda
 
-## O que NÃO muda (intocado)
+Hoje o webhook qualifica o lead se:
+- responder afirmativamente (`si`, `sí`, `yes`, `true`, `1`, `y`, `s`) **OU**
+- declarar `monto_ahorros > 0`
 
-- A URL do webhook continua a mesma — você não precisa mexer no Make.
-- Os 4 valores corrigidos (hipoteca máxima, cuota hipoteca real, crédito pessoal 15k, cuota crédito pessoal 84m/8%) **permanecem corrigidos**.
-- Nomes das variáveis que você já usa no template Bitrix: idênticos.
+Você quer endurecer para:
+- responder afirmativamente **apenas com `si`, `sí`, `yes`** **OU**
+- declarar `monto_ahorros >= 5.000€`
+
+Se nenhum dos dois → lead **descualificado**.
+
+## Arquivo único alterado
+
+`supabase/functions/meta-lead-webhook/index.ts`
+
+### Alteração 1 — função `qualificarLead` (Critério 7)
+
+Substituir o bloco atual:
+```ts
+const respuestasAfirmativas = ['si', 'sí', 'yes', 'true', '1', 'y', 's'];
+const tieneRespuestaAfirmativa = respuestasAfirmativas.includes(respuestaAhorros);
+const tieneMontoValido = (montoAhorros ?? 0) > 0;
+
+if (!tieneRespuestaAfirmativa && !tieneMontoValido) {
+  return { cualificado: false, razon_no_cualificado: 'Sin ahorros declarados...' };
+}
+```
+
+Pelo novo:
+```ts
+const AHORROS_MINIMO = 5000;
+const respuestasAfirmativas = ['si', 'sí', 'yes'];
+const tieneRespuestaAfirmativa = respuestasAfirmativas.includes(respuestaAhorros);
+const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
+
+if (!tieneRespuestaAfirmativa && !tieneMontoSuficiente) {
+  return {
+    cualificado: false,
+    razon_no_cualificado: `Ahorros insuficientes (mínimo ${AHORROS_MINIMO}€ o respuesta afirmativa)`
+  };
+}
+```
+
+### Alteração 2 — confirmar fluxo do `montoAhorros` no Precio Máximo
+
+Já está correto hoje (linha 829-834): `calcularPrecioMaximoInmuebleMeta({ ahorros: montoAhorros, ... })` aplica a fórmula que já validamos:
+
+- **P1** (tope por ahorros): `CPmax = (15.000 + ahorros) / 2` → `PrecioMax_P1 = CPmax / %ITP_CCAA`
+- **P2** (tope por ingresos): `montoMaxFinanciable / %financiación`
+- **Precio recomendado** = `MIN(P1, P2)`
+
+Vou apenas adicionar um log explícito para deixar visível no log do edge function que o `montoAhorros` usado é o mesmo valor que validou o lead (rastreabilidade).
+
+### Alteração 3 — atualizar memória
+
+Atualizar `mem://features/meta-ads-qualification-rules-2025` para refletir a nova regra (mínimo 5.000€, lista de afirmativas reduzida para `si/sí/yes`).
+
+## O que NÃO muda
+
+- Builder Bitrix (`_shared/bitrixPayload.ts`): intocado. `meta_monto_ahorros` continua chegando ao Make igual.
+- Simulador front (`src/lib/simuladorUtils.ts`): mantém a regra dinâmica `valor_inmueble × %ITP CCAA` (mais rigorosa que 5k para imóveis caros).
+- URLs do webhook: as mesmas.
+- Cálculos de hipoteca e crédito pessoal: intocados.
 - Banco de dados: nenhuma migração.
-- CRM, simulador, PDF: intocados.
 
-## O que vou tocar
+## Impacto esperado
 
-**Único arquivo: `supabase/functions/_shared/bitrixPayload.ts**`
+- Leads com `monto_ahorros < 5.000€` **e sem resposta `si/sí/yes`** → automaticamente para `descualificados` e disparam o webhook de descualificados.
+- Leads que dizem `si/sí/yes` continuam qualificados mesmo sem informar valor exato.
+- O valor de `montoAhorros` (mesmo que < 5.000€, quando combinado com resposta afirmativa) continua entrando no cálculo de `precio_max_recomendado` via P1.
 
-Vou expandir o `buildBitrixPayloadFromLead` para:
+## Validação após deploy
 
-1. Adicionar de volta `lead_documento`, `lead_numero_de_viviendas`, `lead_disponibilidad` (extraindo das notas com fallbacks seguros).
-2. Manter todos os campos atuais, incluindo os 4 cálculos corretos já blindados.
-3. Manter o teto de 15.000€ duro no crédito pessoal e a cuota recalculada (84m, 8% TAE) — inclusive normalizando leads antigos.
+1. Enviar payload de teste com `monto_ahorros: 3000` e `tiene_ahorros_impuestos: ""` → deve resultar em `descualificados` com razão "Ahorros insuficientes".
+2. Enviar com `monto_ahorros: 0` e `tiene_ahorros_impuestos: "si"` → deve qualificar.
+3. Enviar com `monto_ahorros: 8000` e `tiene_ahorros_impuestos: ""` → deve qualificar.
+4. Conferir nos logs do edge function que `[CP]`, `Precio máximo inmueble` e `meta_monto_ahorros` no payload Bitrix usam o mesmo `montoAhorros`.
 
-Como o `meta-lead-webhook` e o `make-webhook-proxy` (botão "Probar Meta → Bitrix") **já usam o mesmo helper**, basta corrigir num único lugar e os dois fluxos passam a enviar o payload completo idêntico.
-
-## Validação após o deploy
-
-1. Clicar em **"Probar Meta → Bitrix (payload real)"**.
-2. Confirmar no Make que aparecem todos os campos do seu template Bitrix (incluindo `lead_documento`, `lead_numero_de_viviendas`, `lead_disponibilidad`).
-3. Confirmar que `sim_personal_monto_maximo ≤ 15000` e os 4 valores de hipoteca/crédito batem com o simulador.
-
-## Pergunta rápida antes de tocar
-
-Para `lead_numero_de_viviendas` e `lead_disponibilidad`, **qual era exatamente a origem do dado original** que você usava antes? Eu identifiquei estas opções nas notas dos leads do Meta:
-
-- `lead_numero_de_viviendas` → vem de `Habitaciones:` (mesmo valor do `lead_habitaciones`)? Ou era um campo separado tipo "cuántas viviendas viste"?
-- `lead_disponibilidad` → vem de `Preferência de chamada:` (mañana/tarde/noche)? Ou era outro campo (dia da semana, horário específico)?
-
-Se confirmar isso (ou disser "use o mesmo da `Preferência de chamada` e do `Habitaciones`"), faço o ajuste e nada mais muda no resto do payload.
