@@ -290,7 +290,8 @@ const PublicDocumentUpload = () => {
                       className="w-full"
                       onClick={() => {
                         setDone(false);
-                        setFile(null);
+                        setFiles([]);
+                        setHolderScopes([]);
                         setAnalysisId(null);
                         setStatusFlow("uploading");
                         setAprobable(null);
@@ -372,7 +373,8 @@ const PublicDocumentUpload = () => {
                       className="w-full"
                       onClick={() => {
                         setDone(false);
-                        setFile(null);
+                        setFiles([]);
+                        setHolderScopes([]);
                         setAnalysisId(null);
                         setStatusFlow("uploading");
                         setAprobable(null);
