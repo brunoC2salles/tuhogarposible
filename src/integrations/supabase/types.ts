@@ -1357,6 +1357,7 @@ export type Database = {
     }
     Functions: {
       generate_bewor_token: { Args: never; Returns: string }
+      generate_document_token: { Args: never; Returns: string }
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
       get_distinct_filter_values: {
         Args: never
