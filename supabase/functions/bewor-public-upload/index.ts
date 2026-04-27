@@ -83,12 +83,19 @@ Deno.serve(async (req) => {
     const leadId = tokenRow.lead_id; // pode ser null (standalone)
 
     // 2. Criar registro de análise (status CREATED) — lead_id pode ser null
+    const holderScopes = files.map((_, index) => {
+      const raw = String(form.get(`holder_scope_${index}`) || form.get("holder_scope") || "titular_1");
+      return (["titular_1", "titular_2", "ambos"].includes(raw) ? raw : "titular_1") as HolderScope;
+    });
+
     const { data: analysis, error: insErr } = await admin
       .from("lead_document_analysis")
       .insert({
         lead_id: leadId,
         tipo: "movimientos_bancarios",
         status: "CREATED",
+        analysis_provider: "internal",
+        num_titulares: numTitulares,
       })
       .select()
       .single();
@@ -101,146 +108,73 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Upload para Storage (bucket lead-documents)
+    // 3. Upload para Storage (bucket lead-documents) + extração local de texto
     const folder = leadId || "standalone";
-    const filePath = `bewor/${folder}/${analysis.id}.pdf`;
-    const arrayBuf = await file.arrayBuffer();
-    const { error: upErr } = await admin.storage
-      .from("lead-documents")
-      .upload(filePath, arrayBuf, { contentType: "application/pdf", upsert: true });
+    const uploadedFiles: UploadedStatementFile[] = [];
+    const aiFiles: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }> = [];
 
-    if (upErr) {
-      console.error("storage upload error:", upErr);
-      await admin
-        .from("lead_document_analysis")
-        .update({ status: "ERROR", error_message: `Storage: ${upErr.message}` })
-        .eq("id", analysis.id);
-      return new Response(JSON.stringify({ error: "No se pudo guardar el archivo" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const holderScope = holderScopes[i];
+      const extracted = await extractPdfText(file);
+      const filePath = `bank-statements/${folder}/${analysis.id}/${i + 1}.pdf`;
+      const { error: upErr } = await admin.storage
+        .from("lead-documents")
+        .upload(filePath, extracted.arrayBuffer, { contentType: "application/pdf", upsert: true });
+
+      if (upErr) {
+        console.error("storage upload error:", upErr);
+        await admin
+          .from("lead_document_analysis")
+          .update({ status: "ERROR", error_message: `Storage: ${upErr.message}` })
+          .eq("id", analysis.id);
+        return new Response(JSON.stringify({ error: "No se pudo guardar el archivo" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      uploadedFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, path: filePath, holder_scope: holderScope, size: file.size, pages: extracted.totalPages });
+      aiFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, holder_scope: holderScope, text: extracted.text, pages: extracted.totalPages });
     }
 
     await admin
       .from("lead_document_analysis")
-      .update({ file_path: filePath })
+      .update({
+        file_path: uploadedFiles[0]?.path || null,
+        analysis_input: { files: uploadedFiles, num_titulares: numTitulares },
+        status: "PROCESSING",
+      })
       .eq("id", analysis.id);
 
-    // 4. Chamar Bewor /third-party/request
-    const baseUrl = Deno.env.get("BEWOR_BASE_URL")!;
-    const jwt = Deno.env.get("BEWOR_THIRD_PARTY_JWT");
-    const webhookSecret = Deno.env.get("BEWOR_WEBHOOK_SECRET")!;
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const webhookUrl = `${supabaseUrl}/functions/v1/bewor-webhook?secret=${webhookSecret}&analysis_id=${analysis.id}`;
+    const aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+    const viabilidade = calculateStatementViability(aiResult, numTitulares);
+    const firstHolder = aiResult.titulares?.[0];
 
-    // FASE 1 — type configurável via env var para testar variantes da Bewor
-    const requestType = Deno.env.get("BEWOR_REQUEST_TYPE") || "movimientos_bancarios";
+    await admin
+      .from("lead_document_analysis")
+      .update({
+        status: "FINISHED",
+        result: { provider: "internal", ai_result: aiResult },
+        viabilidade_sugerida: viabilidade,
+        extracted_financials: aiResult,
+        confidence_score: aiResult.confidence ?? null,
+        manual_review_required: !!viabilidade.manual_review_required,
+        months_detected: viabilidade.months_detected,
+        missing_months: viabilidade.missing_months,
+        finished_at: new Date().toISOString(),
+        holder_name: firstHolder?.holder_name || null,
+        iban: firstHolder?.iban_masked || null,
+        bank_name: firstHolder?.bank_name || null,
+        period_start: firstHolder?.period_start || null,
+        monthly_income: viabilidade.ingresos_detectados > 0 ? viabilidade.ingresos_detectados : null,
+      })
+      .eq("id", analysis.id);
 
-    if (!jwt) {
-      await admin
-        .from("lead_document_analysis")
-        .update({
-          status: "ERROR",
-          error_message: "BEWOR_THIRD_PARTY_JWT no configurado",
-        })
-        .eq("id", analysis.id);
-      return new Response(
-        JSON.stringify({
-          success: true,
-          analysis_id: analysis.id,
-          message: "Documento recibido. Te contactaremos en breve.",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // FASE 1 — instrumentação: tentar listar types disponíveis na conta Bewor
-    console.log(`[bewor-instrumentation] Probing Bewor capabilities. Configured type: "${requestType}"`);
-    try {
-      const probePaths = [
-        "/api/v1/third-party/types",
-        "/api/v1/third-party/request-types",
-        "/api/v1/third-party/capabilities",
-        "/api/v1/third-party/account",
-      ];
-      for (const path of probePaths) {
-        try {
-          const probeRes = await fetch(`${baseUrl}${path}`, {
-            method: "GET",
-            headers: { Accept: "application/json", Authorization: `Bearer ${jwt}` },
-          });
-          const probeText = await probeRes.text();
-          console.log(
-            `[bewor-instrumentation] GET ${path} → ${probeRes.status}: ${probeText.slice(0, 1000)}`
-          );
-        } catch (probeErr) {
-          console.log(`[bewor-instrumentation] GET ${path} failed:`, String(probeErr));
-        }
-      }
-    } catch (e) {
-      console.log("[bewor-instrumentation] probe loop error:", String(e));
-    }
-
-    const beworForm = new FormData();
-    beworForm.append("file", file, file.name || "documento.pdf");
-    beworForm.append("type", requestType);
-    beworForm.append("callback_url", webhookUrl);
-
-    console.log(`[bewor-instrumentation] Sending request with type="${requestType}"`);
-
-    const beworRes = await fetch(`${baseUrl}/api/v1/third-party/request`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${jwt}`,
-      },
-      body: beworForm,
-    });
-
-    const beworText = await beworRes.text();
-    let beworJson: any = null;
-    try {
-      beworJson = JSON.parse(beworText);
-    } catch {
-      beworJson = { raw: beworText };
-    }
-
-    // FASE 1 — log completo da resposta da Bewor (estrutura inteira)
-    console.log(
-      `[bewor-instrumentation] Bewor response status=${beworRes.status} body=${beworText.slice(0, 4000)}`
-    );
-    console.log(
-      `[bewor-instrumentation] Bewor response keys: ${
-        beworJson && typeof beworJson === "object" ? Object.keys(beworJson).join(", ") : "N/A"
-      }`
-    );
-
-    if (!beworRes.ok) {
-      console.error("Bewor request failed:", beworRes.status, beworText);
-      await admin
-        .from("lead_document_analysis")
-        .update({
-          status: "ERROR",
-          error_message: `Bewor ${beworRes.status}: ${beworText.slice(0, 500)}`,
-        })
-        .eq("id", analysis.id);
-    } else {
-      const requestId =
-        beworJson?.request_id || beworJson?.id || beworJson?.requestId || null;
-      await admin
-        .from("lead_document_analysis")
-        .update({
-          status: "PROCESSING",
-          request_id: requestId,
-          result: beworJson,
-        })
-        .eq("id", analysis.id);
-
-      await admin
-        .from("lead_document_tokens")
-        .update({ used_at: new Date().toISOString() })
-        .eq("id", tokenRow.id);
-    }
+    await admin
+      .from("lead_document_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", tokenRow.id);
 
     return new Response(
       JSON.stringify({
