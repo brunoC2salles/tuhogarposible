@@ -248,7 +248,7 @@ const PublicDocumentUpload = () => {
                 <div className="space-y-4 border-t border-border pt-4">
                   <StepIndicator label="Documento subido" state="done" />
                   <StepIndicator
-                    label="Analizando con OCR"
+                    label="Analizando extractos"
                     state={
                       statusFlow === "finished"
                         ? "done"
@@ -316,22 +316,14 @@ const PublicDocumentUpload = () => {
                         Hipoteca aprobable
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-background rounded-md p-3 text-center">
+                    <div className="bg-background rounded-md p-3 text-center">
                         <p className="text-xs text-muted-foreground">Hipoteca máxima estimada</p>
                         <p className="text-lg font-bold text-foreground">
                           {hipotecaMax.toLocaleString("es-ES")} €
                         </p>
-                      </div>
-                      <div className="bg-background rounded-md p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Cuota mensual máx.</p>
-                        <p className="text-lg font-bold text-foreground">
-                          {cuotaMax.toLocaleString("es-ES")} €
-                        </p>
-                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                      Estimación basada en OCR. Tu agente confirmará los términos finales contigo.
+                      Tu agente confirmará los términos finales contigo.
                     </p>
                   </div>
                 )}
@@ -400,9 +392,9 @@ const PublicDocumentUpload = () => {
                     Hola{nombre ? `, ${nombre}` : ""}
                   </h1>
                   <p className="text-muted-foreground">
-                    Sube tus <strong>movimientos bancarios de los últimos 6 meses</strong> en formato PDF.
+                    Sube tus <strong>extractos bancarios de los últimos 12 meses</strong> en formato PDF.
                   </p>
-                  <p className="text-sm text-muted-foreground">Tamaño máximo: 10 MB</p>
+                  <p className="text-sm text-muted-foreground">Máximo 3 PDFs. Tamaño máximo: 10 MB por archivo.</p>
                 </div>
 
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
@@ -411,8 +403,8 @@ const PublicDocumentUpload = () => {
                     <div className="text-xs text-foreground space-y-1">
                       <p className="font-semibold">Importante para un análisis válido:</p>
                       <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                        <li>Extracto <strong>completo</strong> de los últimos 6 meses</li>
-                        <li>Mínimo 4-5 páginas (no solo la portada o el resumen)</li>
+                        <li>Extractos <strong>completos</strong> de los últimos 12 meses</li>
+                        <li>Hasta 3 documentos PDF en total</li>
                         <li>Debe incluir los movimientos detallados con fechas e importes</li>
                       </ul>
                     </div>
