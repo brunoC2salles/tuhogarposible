@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, Key, Copy } from 'lucide-react';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
@@ -62,42 +62,6 @@ const AdminSettings = () => {
   });
   const [scrapingProcessing, setScrapingProcessing] = useState(false);
   const [scrapingMessage, setScrapingMessage] = useState('');
-
-  // Bewor JWT
-  const [generatingJwt, setGeneratingJwt] = useState(false);
-  const [beworJwt, setBeworJwt] = useState('');
-  const [beworJwtRaw, setBeworJwtRaw] = useState<any>(null);
-
-  const handleGenerateBeworJwt = async () => {
-    setGeneratingJwt(true);
-    setBeworJwt('');
-    setBeworJwtRaw(null);
-    try {
-      const { data, error } = await supabase.functions.invoke('bewor-admin-token', {
-        method: 'POST',
-      });
-      if (error) throw error;
-      if (data?.third_party_token) {
-        setBeworJwt(data.third_party_token);
-        setBeworJwtRaw(data.raw);
-        toast.success('JWT generado. Copia y guarda como secret BEWOR_THIRD_PARTY_JWT.');
-      } else {
-        setBeworJwtRaw(data);
-        toast.error('No se recibió token. Revisa la respuesta abajo.');
-      }
-    } catch (err: any) {
-      console.error('Error generando JWT Bewor:', err);
-      toast.error(err?.message || 'Error generando JWT Bewor');
-    } finally {
-      setGeneratingJwt(false);
-    }
-  };
-
-  const handleCopyBeworJwt = async () => {
-    if (!beworJwt) return;
-    await navigator.clipboard.writeText(beworJwt);
-    toast.success('Token copiado al portapapeles');
-  };
 
   useEffect(() => {
     if (webhookUrl && !localWebhookUrl) {
@@ -628,51 +592,6 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Bewor JWT Generator */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5" />
-              Generar JWT Third-Party Bewor
-            </CardTitle>
-            <CardDescription>
-              Ejecuta esto una vez para generar el token JWT de Bewor. Después cópialo y guárdalo como secret <code className="text-xs bg-muted px-1 rounded">BEWOR_THIRD_PARTY_JWT</code>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button onClick={handleGenerateBeworJwt} disabled={generatingJwt}>
-              <Key className="h-4 w-4 mr-2" />
-              {generatingJwt ? 'Generando...' : 'Generar JWT Bewor'}
-            </Button>
-
-            {beworJwt && (
-              <div className="space-y-2">
-                <Label>Third-Party Token</Label>
-                <div className="flex gap-2">
-                  <Input value={beworJwt} readOnly className="font-mono text-xs" />
-                  <Button variant="outline" onClick={handleCopyBeworJwt}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Alert>
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Copia este valor y agrégalo como secret <strong>BEWOR_THIRD_PARTY_JWT</strong> en la configuración de Edge Functions.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-
-            {beworJwtRaw && (
-              <details className="text-xs">
-                <summary className="cursor-pointer text-muted-foreground">Ver respuesta raw</summary>
-                <pre className="mt-2 p-2 bg-muted rounded overflow-auto max-h-64">
-                  {JSON.stringify(beworJwtRaw, null, 2)}
-                </pre>
-              </details>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </AdminLayout>
   );
