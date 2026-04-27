@@ -259,7 +259,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
       ...existing,
       ingresos: Number(ingresosToApply),
       deudas: Number(v?.deudas_detectadas || 0),
-      _bewor_applied_at: new Date().toISOString(),
+      _statement_analysis_applied_at: new Date().toISOString(),
     };
 
     const { error } = await supabase
@@ -339,11 +339,11 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   const ingresosManual = Number(a.monthly_income || 0);
                   const ingresosFinal = ingresosManual > 0 ? ingresosManual : ingresosAuto;
                   const isInternal = a.analysis_provider === "internal";
-                  const beworStatus = (v.bewor_status || "").toString().toUpperCase();
+                  const legacyStatus = (v.bewor_status || "").toString().toUpperCase();
                   const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
                   const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
                   const needsManualReview = !!v.needs_manual_review;
-                  const hasBeworFlags = !isInternal && (warnings.length > 0 || kos.length > 0);
+                  const hasLegacyFlags = !isInternal && (warnings.length > 0 || kos.length > 0);
 
                   const translateReason = (txt: string) => {
                     const t = (txt || "").toUpperCase();
@@ -355,16 +355,16 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                     return txt;
                   };
 
-                  const beworFlagsBlock = hasBeworFlags ? (
+                  const legacyFlagsBlock = hasLegacyFlags ? (
                     <div className={`rounded-md border p-3 space-y-2 ${
-                      beworStatus === "KO"
+                      legacyStatus === "KO"
                         ? "border-destructive/40 bg-destructive/5"
                         : "border-border bg-muted"
                     }`}>
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold">Avisos del análisis Bewor</p>
-                        <Badge variant={beworStatus === "KO" ? "destructive" : beworStatus === "OK" ? "default" : "secondary"}>
-                          {beworStatus || "—"}
+                        <p className="text-sm font-semibold">Avisos del análisis</p>
+                        <Badge variant={legacyStatus === "KO" ? "destructive" : legacyStatus === "OK" ? "default" : "secondary"}>
+                          {legacyStatus || "—"}
                         </Badge>
                       </div>
                       {kos.length > 0 && (
@@ -396,11 +396,11 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                     );
                   }
 
-                  // Cenário 1: Bewor KO — documento inválido
-                  if (!isInternal && beworStatus === "KO") {
+                  // Cenário 1: análisis no válido — documento inválido
+                  if (!isInternal && legacyStatus === "KO") {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
-                        {beworFlagsBlock}
+                        {legacyFlagsBlock}
                         <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
                           <p className="text-sm font-semibold">Documento no válido</p>
                           <p className="text-xs text-muted-foreground mt-1">
@@ -430,7 +430,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   if (needsManualReview && ingresosFinal === 0) {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
-                        {beworFlagsBlock}
+                        {legacyFlagsBlock}
                         <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
                           <div className="flex items-start gap-2">
                             <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
@@ -468,7 +468,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   // Cenário 3: Análise completa com cálculo automático ou ingresos manuais já preenchidos
                   return (
                     <div className="space-y-3 border-t border-border pt-3">
-                      {beworFlagsBlock}
+                      {legacyFlagsBlock}
                       <ExtractedDataCard analysis={a} onSaved={refetch} />
                       <ViabilityLight
                         aprobable={!!v.aprobable || ingresosFinal > 0}
