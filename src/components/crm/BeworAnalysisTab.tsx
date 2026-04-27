@@ -61,7 +61,7 @@ const ViabilityLight = ({ aprobable, hipoteca }: { aprobable: boolean; hipoteca:
   );
 };
 
-/** Cartão destacado com todos os dados extraídos pela Bewor + edição manual */
+/** Cartão destacado com todos os dados extraídos + edição manual */
 const ExtractedDataCard = ({
   analysis,
   onSaved,
@@ -86,8 +86,10 @@ const ExtractedDataCard = ({
     (analysis.result as any)?.document_fields ||
     (analysis.result as any)?.result?.document_fields ||
     {};
-  const pages = v.pages || (analysis.result as any)?.result?.pages || "—";
+  const pages = v.pages || (analysis.result as any)?.result?.pages || analysis.analysis_input?.files?.reduce?.((s: number, f: any) => s + Number(f.pages || 0), 0) || "—";
   const confidence = v.confidence ?? (analysis.result as any)?.result?.confidence ?? null;
+  const isInternal = analysis.analysis_provider === "internal";
+  const extracted = analysis.extracted_financials || analysis.result?.ai_result || {};
   const period = analysis.period_start
     ? `Desde ${format(new Date(analysis.period_start), "dd/MM/yyyy")}`
     : docFields.period_start_date
@@ -148,7 +150,30 @@ const ExtractedDataCard = ({
             {pages} {confidence !== null ? `• ${Math.round(Number(confidence) * 100)}%` : ""}
           </p>
         </div>
+        {isInternal && (
+          <>
+            <div className="bg-background rounded p-2">
+              <p className="text-xs text-muted-foreground">Meses detectados</p>
+              <p className="font-medium">{analysis.months_detected ?? v.months_detected ?? "—"}/12</p>
+            </div>
+            <div className="bg-background rounded p-2">
+              <p className="text-xs text-muted-foreground">Ahorros</p>
+              <p className="font-medium">{Number(v.ahorros_detectados || 0).toLocaleString("es-ES")} €</p>
+            </div>
+          </>
+        )}
       </div>
+
+      {isInternal && Array.isArray(extracted.titulares) && extracted.titulares.length > 0 && (
+        <div className="rounded border border-border bg-background p-2 space-y-1">
+          <p className="text-xs font-medium">Titulares detectados</p>
+          {extracted.titulares.map((h: any) => (
+            <p key={h.index} className="text-xs text-muted-foreground">
+              Titular {h.index}: {Number(h.monthly_recurring_income || h.average_monthly_income || 0).toLocaleString("es-ES")} €/mes ingresos · {Number(h.monthly_debts || 0).toLocaleString("es-ES")} €/mes deudas
+            </p>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <div className="space-y-1">
