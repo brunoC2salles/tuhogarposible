@@ -48,7 +48,7 @@ export async function extractPdfText(file: File) {
 }
 
 
-function compactStatementText(text: string, maxChars = 85000): string {
+function compactStatementText(text: string, maxChars = 65000): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (normalized.length <= maxChars) return normalized;
 
@@ -104,6 +104,31 @@ export function buildFallbackAiResult(): StatementAiResult {
   };
 }
 
+function emptyToNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeAiResult(result: StatementAiResult): StatementAiResult {
+  return {
+    titulares: Array.isArray(result.titulares)
+      ? result.titulares.map((holder) => ({
+          ...holder,
+          holder_name: emptyToNull(holder.holder_name),
+          bank_name: emptyToNull(holder.bank_name),
+          iban_masked: emptyToNull(holder.iban_masked),
+          period_start: emptyToNull(holder.period_start),
+          period_end: emptyToNull(holder.period_end),
+          warnings: Array.isArray(holder.warnings) ? holder.warnings : [],
+          months: Array.isArray(holder.months) ? holder.months : [],
+        }))
+      : [],
+    months_detected: Array.isArray(result.months_detected) ? result.months_detected : [],
+    missing_months: Array.isArray(result.missing_months) ? result.missing_months : [],
+    confidence: Number(result.confidence || 0),
+    warnings: Array.isArray(result.warnings) ? result.warnings : [],
+  };
+}
+
 export async function analyzeStatementsWithAi(input: {
   files: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }>;
   numTitulares: number;
@@ -127,6 +152,7 @@ export async function analyzeStatementsWithAi(input: {
     "Deudas: cuotas recurrentes de préstamo, crédito, financiación o hipoteca existente.",
     "Ahorros: usa el saldo final más reciente detectado o Saldo disponible si existe. Si no hay saldo, usa 0 y añade warning.",
     "Para dos titulares, mantén titulares separados; el backend sumará los importes.",
+    "Para campos de texto desconocidos, devuelve una cadena vacía, nunca null.",
   ].join(" ");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -159,11 +185,11 @@ export async function analyzeStatementsWithAi(input: {
                     type: "object",
                     properties: {
                       index: { type: "integer", enum: [1, 2] },
-                      holder_name: { type: ["string", "null"] },
-                      bank_name: { type: ["string", "null"] },
-                      iban_masked: { type: ["string", "null"] },
-                      period_start: { type: ["string", "null"], description: "YYYY-MM-DD" },
-                      period_end: { type: ["string", "null"], description: "YYYY-MM-DD" },
+                      holder_name: { type: "string", description: "Nombre del titular o cadena vacía si no aparece" },
+                      bank_name: { type: "string", description: "Nombre del banco o cadena vacía si no aparece" },
+                      iban_masked: { type: "string", description: "IBAN completo o enmascarado, o cadena vacía si no aparece" },
+                      period_start: { type: "string", description: "YYYY-MM-DD o cadena vacía si no aparece" },
+                      period_end: { type: "string", description: "YYYY-MM-DD o cadena vacía si no aparece" },
                       months_detected: { type: "integer" },
                       months: { type: "array", items: { type: "string" } },
                       monthly_recurring_income: { type: "number" },
@@ -193,8 +219,14 @@ export async function analyzeStatementsWithAi(input: {
   });
 
   if (!response.ok) {
+    const gatewayBody = await response.text().catch(() => "");
+    console.error("AI gateway statement analysis error", {
+      status: response.status,
+      body: gatewayBody.slice(0, 500),
+    });
     if (response.status === 429) throw new Error("AI_RATE_LIMIT");
     if (response.status === 402) throw new Error("AI_PAYMENT_REQUIRED");
+    if (response.status === 400) throw new Error("AI_BAD_REQUEST");
     throw new Error(`AI_GATEWAY_${response.status}`);
   }
 
@@ -202,7 +234,7 @@ export async function analyzeStatementsWithAi(input: {
   const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
   if (!args) return buildFallbackAiResult();
   try {
-    return JSON.parse(args) as StatementAiResult;
+    return normalizeAiResult(JSON.parse(args) as StatementAiResult);
   } catch {
     return buildFallbackAiResult();
   }

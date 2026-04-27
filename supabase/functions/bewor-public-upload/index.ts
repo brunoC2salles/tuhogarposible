@@ -152,9 +152,12 @@ Deno.serve(async (req) => {
       aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
     } catch (aiErr) {
       const message = aiErr instanceof Error ? aiErr.message : String(aiErr);
+      const publicMessage = message === "AI_BAD_REQUEST"
+        ? "No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente."
+        : message;
       await admin
         .from("lead_document_analysis")
-        .update({ status: "ERROR", error_message: message })
+        .update({ status: "ERROR", error_message: publicMessage })
         .eq("id", analysis.id);
       throw aiErr;
     }
@@ -206,6 +209,12 @@ Deno.serve(async (req) => {
     if (message === "AI_PAYMENT_REQUIRED") {
       return new Response(JSON.stringify({ error: "Es necesario añadir créditos al workspace de Lovable AI para continuar con el análisis." }), {
         status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (message === "AI_BAD_REQUEST" || message.startsWith("AI_GATEWAY_")) {
+      return new Response(JSON.stringify({ error: "No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente." }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

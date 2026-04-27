@@ -154,7 +154,11 @@ const PublicDocumentUpload = () => {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "Error al enviar el documento");
+        const rawError = String(data.error || "");
+        const friendlyError = rawError.includes("AI_GATEWAY_") || rawError.includes("AI_BAD_REQUEST")
+          ? "No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente."
+          : rawError || "Error al enviar el documento";
+        toast.error(friendlyError);
       } else {
         setDone(true);
         setAnalysisId(data.analysis_id || null);

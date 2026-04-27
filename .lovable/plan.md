@@ -1,57 +1,47 @@
-Plano de implementação
+Diagnóstico
 
-1. Limpar a página de Verificación de Extractos
-- Trocar textos e colunas que ainda dizem “Bewor” para linguagem neutra do leitor interno.
-- Atualizar os badges de estado para usar os campos internos: FINISHED, ERROR, PROCESSING, revisión manual, 12 meses incompletos e aprobado/no aprobado.
-- Remover a coluna “Records” e qualquer lógica de contagem específica da API antiga.
-- Renomear “Ingresos Bewor” para “Ingresos mensuales”.
+O erro não vem do PDF nem do botão de upload em si. O arquivo está sendo recebido pela Edge Function, o texto é extraído, mas a chamada ao Lovable AI está retornando HTTP 400 (`AI_GATEWAY_400`).
 
-2. Criar link automático para leads fora do CRM e testes
-- Na própria página `/admin/verificaciones-extractos`, adicionar um card “Crear enlace de verificación”.
-- O botão criará um token standalone com `lead_id = null`, usando a estrutura já existente em `lead_document_tokens`.
-- Mostrar o link gerado (`/documentos/{token}`), botão para copiar e lista de links standalone ativos.
-- Esses uploads continuarão entrando como análises sem lead vinculado, permitindo testes e envio a pessoas que ainda não estão no CRM.
+A causa mais provável está no payload enviado ao AI Gateway em `internalStatementAnalysis.ts`: o schema de tool calling usa tipos como `type: ["string", "null"]`. Esse formato pode ser rejeitado pelo gateway/modelo, gerando 400 antes mesmo da análise começar. Como a função hoje só mostra `AI_GATEWAY_400`, o usuário final vê uma mensagem técnica e pouco útil.
 
-3. Melhorar o modal “ver mais” da verificação
-- Ao clicar no olho, mostrar um resumo completo e claro:
-  - Nome/titular
-  - Banco
-  - IBAN
-  - DNI/NIE quando houver
-  - Número de titulares
-  - Meses detectados e meses faltantes
-  - Ingresos mensuales
-  - Créditos/deudas mensuales
-  - Ahorros
-  - Cuota máxima
-  - Hipoteca máxima
-  - Resultado aprovado/não aprovado
-  - Confiança e avisos da IA
-- Para 2 titulares, mostrar cada titular separadamente e também os totais somados.
-- Manter edição manual apenas do que já existe hoje: DNI/NIE e ingresos mensuales, sem criar complexidade adicional.
+Plano de correção
 
-4. Base de dados: remover dependência Bewor sem quebrar histórico
-- Criar migração para mudar o default de `lead_document_analysis.analysis_provider` de `'bewor'` para `'internal'`.
-- Adicionar uma função de token com nome neutro, por exemplo `generate_document_token()`, e alterar o trigger de lead qualificado para usar esse novo nome.
-- Manter temporariamente campos/rotas antigas que ainda são usadas pelo frontend (`bewor-public-upload`, `bewor-public-status`, `bewor-get-token-info`) para não quebrar links existentes; remover apenas referências e lógica externa da Bewor que já não devem aparecer ou ser usadas.
-- Não apagar dados históricos de análises antigas por segurança; apenas deixar a operação nova 100% interna.
+1. Corrigir o schema estruturado enviado ao Lovable AI
+- Trocar os campos nullable (`holder_name`, `bank_name`, `iban_masked`, `period_start`, `period_end`) para um formato aceito pelo gateway.
+- Melhor opção: usar `type: "string"` e instruir que, quando não houver valor, retorne string vazia.
+- Ajustar a normalização pós-resposta para converter strings vazias em `null` quando salvar no banco.
+- Manter o modelo barato atual, sem aumentar custo neste momento.
 
-5. Remover partes Bewor visíveis e obsoletas
-- Remover da página de configurações o card “Generar JWT Third-Party Bewor”.
-- Remover estados/imports relacionados a gerar JWT Bewor nessa página.
-- Revisar textos do CRM relacionados a “Avisos del análisis Bewor” para linguagem neutra quando aplicável.
+2. Tornar a análise mais resiliente
+- Reduzir um pouco o limite de texto enviado por PDF para diminuir risco de payload muito grande em extratos longos.
+- Manter a estratégia atual de compactação inteligente: início, fim e amostras mensais.
+- Se a IA não devolver tool call válido, salvar resultado fallback com revisão manual em vez de quebrar o fluxo sempre que possível.
 
-6. Ajustar Edge Functions públicas para fluxo interno
-- Em `bewor-public-status`, remover o fallback que busca resultado direto na Bewor.
-- Remover imports de `beworExtraction` desse status público, deixando o endpoint apenas consultar a análise interna salva no banco.
-- Manter o nome técnico das funções por compatibilidade com links e frontend, mas sem chamada externa Bewor.
+3. Melhorar mensagem de erro ao cliente
+- No backend, quando houver erro 400 do AI Gateway, salvar a análise como `ERROR` com uma mensagem interna clara.
+- No frontend público, trocar `Error: AI_GATEWAY_400` por uma mensagem amigável, por exemplo:
+  - “No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente.”
+- Evitar expor códigos técnicos ao lead.
 
-7. Validação
-- Rodar typecheck/build do frontend.
-- Rodar `deno check` nas Edge Functions afetadas.
+4. Adicionar logging seguro para diagnosticar sem expor dados sensíveis
+- No erro do AI Gateway, registrar apenas status e um resumo curto da resposta do gateway.
+- Não registrar o texto completo do extrato nem dados bancários sensíveis.
+
+5. Validar com os casos reais
+- Rodar `deno check` na Edge Function afetada.
+- Testar novamente o upload com o PDF CaixaBank da imagem e com os exemplos ING/CaixaBank já usados.
 - Confirmar que:
-  - a página de verificações não mostra Bewor;
-  - link standalone é gerado e copiado;
-  - análises standalone aparecem como “sin lead vinculado”;
-  - modal mostra IBAN, nome, ahorros, créditos, ingresos mensuales e detalhes por titular;
-  - fluxo normal de lead qualificado continua gerando link automático.
+  - upload aceita até 3 PDFs;
+  - a análise finaliza sem `AI_GATEWAY_400`;
+  - o resultado público mostra apenas aprovação e hipoteca máxima;
+  - a página admin mantém IBAN, titular, ingresos, créditos, ahorros e detalhes por titular.
+
+Arquivos que serão alterados
+
+- `supabase/functions/_shared/internalStatementAnalysis.ts`
+- `supabase/functions/bewor-public-upload/index.ts`
+- `src/pages/PublicDocumentUpload.tsx`
+
+Observação
+
+Não vou mexer na base de dados nem em regras do CRM para esta correção. A mudança é focada em estabilizar o leitor interno e melhorar o tratamento do erro.
