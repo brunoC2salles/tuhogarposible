@@ -21,7 +21,9 @@ const PublicDocumentUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [numTitulares, setNumTitulares] = useState<1 | 2>(1);
+  const [holderScopes, setHolderScopes] = useState<string[]>([]);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [statusFlow, setStatusFlow] = useState<ProcessingStatus>("uploading");
   const [aprobable, setAprobable] = useState<boolean | null>(null);
@@ -114,26 +116,38 @@ const PublicDocumentUpload = () => {
     };
   }, [analysisId, done]);
 
-  const handleFile = (f: File | null) => {
-    if (!f) return;
-    if (f.type !== "application/pdf") {
-      toast.error("Solo se permiten archivos PDF");
+  const handleFiles = (selected: FileList | File[] | null) => {
+    const next = Array.from(selected || []);
+    if (next.length === 0) return;
+    if (next.length > 3) {
+      toast.error("Máximo 3 documentos PDF");
       return;
     }
-    if (f.size > MAX_SIZE) {
-      toast.error("El archivo supera 10 MB");
-      return;
+    for (const f of next) {
+      if (f.type !== "application/pdf") {
+        toast.error("Solo se permiten archivos PDF");
+        return;
+      }
+      if (f.size > MAX_SIZE) {
+        toast.error("Cada archivo debe tener como máximo 10 MB");
+        return;
+      }
     }
-    setFile(f);
+    setFiles(next);
+    setHolderScopes(next.map((_, index) => holderScopes[index] || "titular_1"));
   };
 
   const handleUpload = async () => {
-    if (!file || !token) return;
+    if (files.length === 0 || !token) return;
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append("token", token);
-      fd.append("file", file);
+      fd.append("num_titulares", String(numTitulares));
+      files.forEach((file, index) => {
+        fd.append("files", file);
+        fd.append(`holder_scope_${index}`, holderScopes[index] || "titular_1");
+      });
       const res = await fetch(`${SUPABASE_URL}/functions/v1/bewor-public-upload`, {
         method: "POST",
         body: fd,
