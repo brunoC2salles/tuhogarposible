@@ -70,6 +70,11 @@ const maskIban = (iban: string | null) => {
 const getFinancials = (row: AnalysisRow) =>
   row.extracted_financials || row.result?.ai_result || row.result?.result?.ai_result || {};
 
+const getFirstFile = (row: AnalysisRow) => {
+  const files = row.result?.analysis_input?.files || row.extracted_financials?.analysis_input?.files || row.analysis_input?.files;
+  return Array.isArray(files) ? files[0] : null;
+};
+
 const StatusBadge = ({ row }: { row: AnalysisRow }) => {
   const v = row.viabilidade_sugerida || {};
 
@@ -312,12 +317,16 @@ const VerificacionesExtractos = () => {
                     const v = r.viabilidade_sugerida || {};
                     const ingresos = r.monthly_income ?? v.ingresos_detectados ?? 0;
                     const months = r.months_detected ?? v.months_detected ?? null;
+                    const firstFile = getFirstFile(r);
                     return (
                       <TableRow key={r.id}>
                         <TableCell>
                           <div className="font-medium">{getClientLabel(r)}</div>
                           {r.holder_dni && (
                             <div className="text-xs text-muted-foreground">DNI: {r.holder_dni}</div>
+                          )}
+                          {r.status === "ERROR" && firstFile?.name && (
+                            <div className="text-xs text-muted-foreground">PDF: {firstFile.name}</div>
                           )}
                           {!r.lead_id && (
                             <Badge variant="outline" className="mt-1 text-xs">Sin lead vinculado</Badge>
@@ -395,6 +404,22 @@ const VerificacionesExtractos = () => {
                   <InfoBox label="Resultado" value={v.aprobable ? "Aprobado" : "No aprobado"} />
                 </div>
 
+                {selected.status === "ERROR" && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="font-semibold">Error de procesamiento</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{selected.error_message || "No se pudo completar la lectura automática."}</p>
+                    {(() => {
+                      const firstFile = getFirstFile(selected);
+                      if (!firstFile) return null;
+                      return (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Archivo: {firstFile.name || "—"} · Páginas: {firstFile.pages || "—"}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                )}
+
                 {titulares.length > 0 && (
                   <div className="rounded-md border p-3 space-y-2">
                     <p className="text-sm font-semibold">Detalle por titular</p>
@@ -439,7 +464,7 @@ const VerificacionesExtractos = () => {
                 <details className="text-xs">
                   <summary className="cursor-pointer text-muted-foreground">Ver JSON crudo</summary>
                   <pre className="mt-2 bg-muted p-2 rounded overflow-auto max-h-60">
-                    {JSON.stringify(selected.result, null, 2)}
+                    {JSON.stringify({ result: selected.result, analysis_input: selected.analysis_input, error_message: selected.error_message }, null, 2)}
                   </pre>
                 </details>
               </div>
