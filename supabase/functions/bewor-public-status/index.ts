@@ -1,21 +1,11 @@
-// Endpoint público para o cliente fazer polling do status do análise após upload.
-// Não requer JWT — só precisa do analysis_id retornado pelo bewor-public-upload.
-// Inclui FALLBACK ATIVO: se PROCESSING > 30s e há request_id, busca direto na Bewor via GET.
+// Endpoint público para o cliente fazer polling do status da análise após upload.
+// Não requer JWT — só precisa do analysis_id retornado pelo upload público.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import {
-  calcularViabilidad,
-  extractIncomeAndDebts,
-  extractStructuredData,
-  buildViabilidadeWithMetadata,
-  fetchBeworResult,
-} from "../_shared/beworExtraction.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const FALLBACK_AFTER_MS = 30 * 1000;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -49,52 +39,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // FALLBACK ATIVO: se PROCESSING há mais de 30s e tem request_id, buscar na Bewor
-    const isProcessing = data.status === "PROCESSING" || data.status === "PENDING" || data.status === "RECEIVED";
-    const ageMs = Date.now() - new Date(data.created_at).getTime();
-    if (data.analysis_provider !== "internal" && isProcessing && data.request_id && ageMs > FALLBACK_AFTER_MS) {
-      console.log(`[fallback] analysis=${analysisId} age=${Math.round(ageMs / 1000)}s — fetching Bewor GET`);
-      const fullResult = await fetchBeworResult(data.request_id);
-      const beworStatus = (fullResult?.status || fullResult?.result?.status || "").toString().toUpperCase();
-      const isFinished = beworStatus === "FINISHED" || beworStatus === "COMPLETED" || !!fullResult?.result;
-
-      if (fullResult && isFinished) {
-        const { income, debts, source } = extractIncomeAndDebts(fullResult);
-        let viabilidade: any = calcularViabilidad(income, debts);
-        viabilidade = buildViabilidadeWithMetadata(fullResult, viabilidade);
-        const structured = extractStructuredData(fullResult);
-        console.log(`[fallback] extracted income=${income} debts=${debts} source=${source}`);
-        console.log(`[fallback] structured:`, JSON.stringify(structured));
-
-        await admin
-          .from("lead_document_analysis")
-          .update({
-            status: "FINISHED",
-            result: fullResult,
-            viabilidade_sugerida: viabilidade,
-            finished_at: new Date().toISOString(),
-            holder_name: structured.holder_name,
-            holder_dni: structured.holder_dni,
-            iban: structured.iban,
-            bank_name: structured.bank_name,
-            period_start: structured.period_start,
-            monthly_income: income > 0 ? Math.round(income) : null,
-          })
-          .eq("id", analysisId);
-
-        // Re-ler para refletir o estado atualizado
-        const { data: refreshed } = await admin
-          .from("lead_document_analysis")
-          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name, analysis_provider, months_detected, missing_months")
-          .eq("id", analysisId)
-          .maybeSingle();
-        if (refreshed) data = refreshed;
-      }
-    }
 
     const v = (data.viabilidade_sugerida as any) || {};
     const ingresos = Number(v.ingresos_detectados || 0);
-    const beworStatus = (v.bewor_status || "").toString().toUpperCase();
+    const legacyStatus = (v.bewor_status || "").toString().toUpperCase();
     const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
     const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
     const pages = Number(v.pages || 0);
@@ -118,7 +66,7 @@ Deno.serve(async (req) => {
       if (v.incomplete_months) {
         inconclusive_reason =
           "El extracto enviado no contiene los últimos 12 meses completos. Por favor, sube un documento que cubra los últimos 12 meses para poder calcular tu hipoteca máxima.";
-      } else if (beworStatus === "KO" || kos.length > 0) {
+      } else if (legacyStatus === "KO" || kos.length > 0) {
         inconclusive_reason =
           "Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";
       } else if (pages > 0 && pages < 2) {
@@ -148,8 +96,8 @@ Deno.serve(async (req) => {
         validated_message,
         holder_name: holderName,
         bank_name: bankName,
-        bewor_status: beworStatus || null,
-        bewor_warnings: warnings,
+        analysis_status: legacyStatus || null,
+        analysis_warnings: warnings,
         pages,
         months_detected: data.months_detected ?? v.months_detected ?? null,
         missing_months: data.missing_months ?? v.missing_months ?? [],
@@ -157,7 +105,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("bewor-public-status error:", err);
+    console.error("public-status error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
