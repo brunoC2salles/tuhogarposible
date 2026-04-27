@@ -147,7 +147,17 @@ Deno.serve(async (req) => {
       })
       .eq("id", analysis.id);
 
-    const aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+    let aiResult;
+    try {
+      aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+    } catch (aiErr) {
+      const message = aiErr instanceof Error ? aiErr.message : String(aiErr);
+      await admin
+        .from("lead_document_analysis")
+        .update({ status: "ERROR", error_message: message })
+        .eq("id", analysis.id);
+      throw aiErr;
+    }
     const viabilidade = calculateStatementViability(aiResult, numTitulares);
     const firstHolder = aiResult.titulares?.[0];
 
