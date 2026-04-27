@@ -417,33 +417,70 @@ const PublicDocumentUpload = () => {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
-                    handleFile(e.dataTransfer.files?.[0] ?? null);
+                    handleFiles(e.dataTransfer.files ?? null);
                   }}
                 >
                   <input
                     ref={inputRef}
                     type="file"
                     accept="application/pdf"
+                    multiple
                     className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => handleFiles(e.target.files ?? null)}
                   />
-                  {file ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <span className="text-sm">{file.name}</span>
+                  {files.length > 0 ? (
+                    <div className="space-y-2">
+                      {files.map((file) => (
+                        <div key={file.name} className="flex items-center justify-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <span className="text-sm truncate">{file.name}</span>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Upload className="h-8 w-8" />
-                      <p>Haz clic o arrastra tu PDF aquí</p>
+                      <p>Haz clic o arrastra tus PDFs aquí</p>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Titulares</label>
+                    <select
+                      value={numTitulares}
+                      onChange={(e) => setNumTitulares(Number(e.target.value) as 1 | 2)}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value={1}>1 titular</option>
+                      <option value={2}>2 titulares</option>
+                    </select>
+                  </div>
+                  {numTitulares === 2 && files.map((file, index) => (
+                    <div key={`${file.name}-holder`} className="space-y-1">
+                      <label className="text-xs text-muted-foreground truncate block">{file.name}</label>
+                      <select
+                        value={holderScopes[index] || "titular_1"}
+                        onChange={(e) => {
+                          const next = [...holderScopes];
+                          next[index] = e.target.value;
+                          setHolderScopes(next);
+                        }}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="titular_1">Titular 1</option>
+                        <option value="titular_2">Titular 2</option>
+                        <option value="ambos">Cuenta conjunta</option>
+                      </select>
+                    </div>
+                  ))}
                 </div>
 
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={!file || uploading}
+                  disabled={files.length === 0 || uploading}
                   onClick={handleUpload}
                 >
                   {uploading ? (
