@@ -61,7 +61,7 @@ const ViabilityLight = ({ aprobable, hipoteca }: { aprobable: boolean; hipoteca:
   );
 };
 
-/** Cartão destacado com todos os dados extraídos pela Bewor + edição manual */
+/** Cartão destacado com todos os dados extraídos + edição manual */
 const ExtractedDataCard = ({
   analysis,
   onSaved,
@@ -86,8 +86,10 @@ const ExtractedDataCard = ({
     (analysis.result as any)?.document_fields ||
     (analysis.result as any)?.result?.document_fields ||
     {};
-  const pages = v.pages || (analysis.result as any)?.result?.pages || "—";
+  const pages = v.pages || (analysis.result as any)?.result?.pages || analysis.analysis_input?.files?.reduce?.((s: number, f: any) => s + Number(f.pages || 0), 0) || "—";
   const confidence = v.confidence ?? (analysis.result as any)?.result?.confidence ?? null;
+  const isInternal = analysis.analysis_provider === "internal";
+  const extracted = analysis.extracted_financials || analysis.result?.ai_result || {};
   const period = analysis.period_start
     ? `Desde ${format(new Date(analysis.period_start), "dd/MM/yyyy")}`
     : docFields.period_start_date
@@ -148,7 +150,30 @@ const ExtractedDataCard = ({
             {pages} {confidence !== null ? `• ${Math.round(Number(confidence) * 100)}%` : ""}
           </p>
         </div>
+        {isInternal && (
+          <>
+            <div className="bg-background rounded p-2">
+              <p className="text-xs text-muted-foreground">Meses detectados</p>
+              <p className="font-medium">{analysis.months_detected ?? v.months_detected ?? "—"}/12</p>
+            </div>
+            <div className="bg-background rounded p-2">
+              <p className="text-xs text-muted-foreground">Ahorros</p>
+              <p className="font-medium">{Number(v.ahorros_detectados || 0).toLocaleString("es-ES")} €</p>
+            </div>
+          </>
+        )}
       </div>
+
+      {isInternal && Array.isArray(extracted.titulares) && extracted.titulares.length > 0 && (
+        <div className="rounded border border-border bg-background p-2 space-y-1">
+          <p className="text-xs font-medium">Titulares detectados</p>
+          {extracted.titulares.map((h: any) => (
+            <p key={h.index} className="text-xs text-muted-foreground">
+              Titular {h.index}: {Number(h.monthly_recurring_income || h.average_monthly_income || 0).toLocaleString("es-ES")} €/mes ingresos · {Number(h.monthly_debts || 0).toLocaleString("es-ES")} €/mes deudas
+            </p>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-2 pt-1">
         <div className="space-y-1">
@@ -256,7 +281,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
         <div>
           <h3 className="font-semibold">Análisis de documentos</h3>
           <p className="text-sm text-muted-foreground">
-            Movimientos bancarios analizados automáticamente (Bewor OCR)
+            Extractos bancarios analizados automáticamente
           </p>
         </div>
         <Button onClick={() => setRequestOpen(true)}>
@@ -313,11 +338,12 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                   const ingresosAuto = Number(v.ingresos_detectados || 0);
                   const ingresosManual = Number(a.monthly_income || 0);
                   const ingresosFinal = ingresosManual > 0 ? ingresosManual : ingresosAuto;
+                  const isInternal = a.analysis_provider === "internal";
                   const beworStatus = (v.bewor_status || "").toString().toUpperCase();
                   const warnings: string[] = Array.isArray(v.bewor_warnings) ? v.bewor_warnings : [];
                   const kos: string[] = Array.isArray(v.bewor_kos) ? v.bewor_kos : [];
                   const needsManualReview = !!v.needs_manual_review;
-                  const hasBeworFlags = warnings.length > 0 || kos.length > 0;
+                  const hasBeworFlags = !isInternal && (warnings.length > 0 || kos.length > 0);
 
                   const translateReason = (txt: string) => {
                     const t = (txt || "").toUpperCase();
@@ -354,8 +380,24 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                     </div>
                   ) : null;
 
+                  if (isInternal && v.incomplete_months) {
+                    return (
+                      <div className="space-y-3 border-t border-border pt-3">
+                        <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                          <p className="text-sm font-semibold">Extracto incompleto</p>
+                          <p className="text-xs text-muted-foreground mt-1">{v.razon}</p>
+                        </div>
+                        <ExtractedDataCard analysis={a} onSaved={refetch} />
+                        <Button size="sm" variant="outline" onClick={() => handleDownload(a.file_path, a.id)} disabled={!a.file_path || downloadingId === a.id} className="w-full">
+                          {downloadingId === a.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+                          Descargar PDF original
+                        </Button>
+                      </div>
+                    );
+                  }
+
                   // Cenário 1: Bewor KO — documento inválido
-                  if (beworStatus === "KO") {
+                  if (!isInternal && beworStatus === "KO") {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">
                         {beworFlagsBlock}

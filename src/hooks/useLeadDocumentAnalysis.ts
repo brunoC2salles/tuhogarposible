@@ -20,6 +20,14 @@ export interface LeadDocumentAnalysis {
   bank_name: string | null;
   period_start: string | null;
   monthly_income: number | null;
+  analysis_provider?: string | null;
+  num_titulares?: number | null;
+  analysis_input?: any;
+  extracted_financials?: any;
+  confidence_score?: number | null;
+  manual_review_required?: boolean | null;
+  months_detected?: number | null;
+  missing_months?: any;
 }
 
 export const useLeadDocumentAnalysis = (leadId: string | undefined) => {

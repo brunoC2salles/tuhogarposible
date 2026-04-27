@@ -171,9 +171,11 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
     sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
 
-    // ===== CRM e Bewor =====
+    // ===== CRM e documentos =====
     crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
     bewor_link_documentos: beworLink || '',
+    documentos_link: beworLink || '',
+    bank_statement_upload_link: beworLink || '',
   };
 
   // Recomendações (até 3, links Vercel)

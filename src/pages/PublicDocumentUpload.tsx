@@ -21,7 +21,9 @@ const PublicDocumentUpload = () => {
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [done, setDone] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [numTitulares, setNumTitulares] = useState<1 | 2>(1);
+  const [holderScopes, setHolderScopes] = useState<string[]>([]);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [statusFlow, setStatusFlow] = useState<ProcessingStatus>("uploading");
   const [aprobable, setAprobable] = useState<boolean | null>(null);
@@ -114,26 +116,38 @@ const PublicDocumentUpload = () => {
     };
   }, [analysisId, done]);
 
-  const handleFile = (f: File | null) => {
-    if (!f) return;
-    if (f.type !== "application/pdf") {
-      toast.error("Solo se permiten archivos PDF");
+  const handleFiles = (selected: FileList | File[] | null) => {
+    const next = Array.from(selected || []);
+    if (next.length === 0) return;
+    if (next.length > 3) {
+      toast.error("Máximo 3 documentos PDF");
       return;
     }
-    if (f.size > MAX_SIZE) {
-      toast.error("El archivo supera 10 MB");
-      return;
+    for (const f of next) {
+      if (f.type !== "application/pdf") {
+        toast.error("Solo se permiten archivos PDF");
+        return;
+      }
+      if (f.size > MAX_SIZE) {
+        toast.error("Cada archivo debe tener como máximo 10 MB");
+        return;
+      }
     }
-    setFile(f);
+    setFiles(next);
+    setHolderScopes(next.map((_, index) => holderScopes[index] || "titular_1"));
   };
 
   const handleUpload = async () => {
-    if (!file || !token) return;
+    if (files.length === 0 || !token) return;
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append("token", token);
-      fd.append("file", file);
+      fd.append("num_titulares", String(numTitulares));
+      files.forEach((file, index) => {
+        fd.append("files", file);
+        fd.append(`holder_scope_${index}`, holderScopes[index] || "titular_1");
+      });
       const res = await fetch(`${SUPABASE_URL}/functions/v1/bewor-public-upload`, {
         method: "POST",
         body: fd,
@@ -234,7 +248,7 @@ const PublicDocumentUpload = () => {
                 <div className="space-y-4 border-t border-border pt-4">
                   <StepIndicator label="Documento subido" state="done" />
                   <StepIndicator
-                    label="Analizando con OCR"
+                    label="Analizando extractos"
                     state={
                       statusFlow === "finished"
                         ? "done"
@@ -276,7 +290,8 @@ const PublicDocumentUpload = () => {
                       className="w-full"
                       onClick={() => {
                         setDone(false);
-                        setFile(null);
+                        setFiles([]);
+                        setHolderScopes([]);
                         setAnalysisId(null);
                         setStatusFlow("uploading");
                         setAprobable(null);
@@ -301,22 +316,14 @@ const PublicDocumentUpload = () => {
                         Hipoteca aprobable
                       </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-background rounded-md p-3 text-center">
+                    <div className="bg-background rounded-md p-3 text-center">
                         <p className="text-xs text-muted-foreground">Hipoteca máxima estimada</p>
                         <p className="text-lg font-bold text-foreground">
                           {hipotecaMax.toLocaleString("es-ES")} €
                         </p>
-                      </div>
-                      <div className="bg-background rounded-md p-3 text-center">
-                        <p className="text-xs text-muted-foreground">Cuota mensual máx.</p>
-                        <p className="text-lg font-bold text-foreground">
-                          {cuotaMax.toLocaleString("es-ES")} €
-                        </p>
-                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground text-center">
-                      Estimación basada en OCR. Tu agente confirmará los términos finales contigo.
+                      Tu agente confirmará los términos finales contigo.
                     </p>
                   </div>
                 )}
@@ -358,7 +365,8 @@ const PublicDocumentUpload = () => {
                       className="w-full"
                       onClick={() => {
                         setDone(false);
-                        setFile(null);
+                        setFiles([]);
+                        setHolderScopes([]);
                         setAnalysisId(null);
                         setStatusFlow("uploading");
                         setAprobable(null);
@@ -384,9 +392,9 @@ const PublicDocumentUpload = () => {
                     Hola{nombre ? `, ${nombre}` : ""}
                   </h1>
                   <p className="text-muted-foreground">
-                    Sube tus <strong>movimientos bancarios de los últimos 6 meses</strong> en formato PDF.
+                    Sube tus <strong>extractos bancarios de los últimos 12 meses</strong> en formato PDF.
                   </p>
-                  <p className="text-sm text-muted-foreground">Tamaño máximo: 10 MB</p>
+                  <p className="text-sm text-muted-foreground">Máximo 3 PDFs. Tamaño máximo: 10 MB por archivo.</p>
                 </div>
 
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
@@ -395,8 +403,8 @@ const PublicDocumentUpload = () => {
                     <div className="text-xs text-foreground space-y-1">
                       <p className="font-semibold">Importante para un análisis válido:</p>
                       <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                        <li>Extracto <strong>completo</strong> de los últimos 6 meses</li>
-                        <li>Mínimo 4-5 páginas (no solo la portada o el resumen)</li>
+                        <li>Extractos <strong>completos</strong> de los últimos 12 meses</li>
+                        <li>Hasta 3 documentos PDF en total</li>
                         <li>Debe incluir los movimientos detallados con fechas e importes</li>
                       </ul>
                     </div>
@@ -409,33 +417,70 @@ const PublicDocumentUpload = () => {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={(e) => {
                     e.preventDefault();
-                    handleFile(e.dataTransfer.files?.[0] ?? null);
+                    handleFiles(e.dataTransfer.files ?? null);
                   }}
                 >
                   <input
                     ref={inputRef}
                     type="file"
                     accept="application/pdf"
+                    multiple
                     className="hidden"
-                    onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => handleFiles(e.target.files ?? null)}
                   />
-                  {file ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <span className="text-sm">{file.name}</span>
+                  {files.length > 0 ? (
+                    <div className="space-y-2">
+                      {files.map((file) => (
+                        <div key={file.name} className="flex items-center justify-center gap-2">
+                          <FileText className="h-5 w-5 text-primary" />
+                          <span className="text-sm truncate">{file.name}</span>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-2 text-muted-foreground">
                       <Upload className="h-8 w-8" />
-                      <p>Haz clic o arrastra tu PDF aquí</p>
+                      <p>Haz clic o arrastra tus PDFs aquí</p>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Titulares</label>
+                    <select
+                      value={numTitulares}
+                      onChange={(e) => setNumTitulares(Number(e.target.value) as 1 | 2)}
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value={1}>1 titular</option>
+                      <option value={2}>2 titulares</option>
+                    </select>
+                  </div>
+                  {numTitulares === 2 && files.map((file, index) => (
+                    <div key={`${file.name}-holder`} className="space-y-1">
+                      <label className="text-xs text-muted-foreground truncate block">{file.name}</label>
+                      <select
+                        value={holderScopes[index] || "titular_1"}
+                        onChange={(e) => {
+                          const next = [...holderScopes];
+                          next[index] = e.target.value;
+                          setHolderScopes(next);
+                        }}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="titular_1">Titular 1</option>
+                        <option value="titular_2">Titular 2</option>
+                        <option value="ambos">Cuenta conjunta</option>
+                      </select>
+                    </div>
+                  ))}
                 </div>
 
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={!file || uploading}
+                  disabled={files.length === 0 || uploading}
                   onClick={handleUpload}
                 >
                   {uploading ? (
