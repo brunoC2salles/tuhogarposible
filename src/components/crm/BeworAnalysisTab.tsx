@@ -426,7 +426,7 @@ const BeworAnalysisTab = ({ leadId, leadName, leadPhone, leadEmail }: Props) => 
                     );
                   }
 
-                  // Cenário 2: Documento validado mas Bewor não extraiu records (revisão manual necessária)
+                  // Cenário 2: Documento validado mas el análisis no extrajo ingresos
                   if (needsManualReview && ingresosFinal === 0) {
                     return (
                       <div className="space-y-3 border-t border-border pt-3">

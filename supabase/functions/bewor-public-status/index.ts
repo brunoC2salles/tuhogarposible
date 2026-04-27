@@ -50,8 +50,7 @@ Deno.serve(async (req) => {
     const holderName = (data as any).holder_name || null;
     const bankName = (data as any).bank_name || null;
 
-    // Per user request: se não há ingressos calculados nem cálculo de crédito, é um problema do documento
-    // (mesmo que a Bewor diga "OK" só de validação). Cliente deve contactar o agente.
+    // Se não há ingresos calculados nem cálculo de crédito, o resultado é inconclusivo.
     const hasCalculation =
       data.status === "FINISHED" &&
       ingresos > 0 &&
