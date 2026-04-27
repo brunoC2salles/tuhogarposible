@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     let { data, error } = await admin
       .from("lead_document_analysis")
-      .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name")
+      .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name, analysis_provider, months_detected, missing_months")
       .eq("id", analysisId)
       .maybeSingle();
 
@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // FALLBACK ATIVO: se PROCESSING há mais de 30s e tem request_id, buscar na Bewor
     const isProcessing = data.status === "PROCESSING" || data.status === "PENDING" || data.status === "RECEIVED";
     const ageMs = Date.now() - new Date(data.created_at).getTime();
-    if (isProcessing && data.request_id && ageMs > FALLBACK_AFTER_MS) {
+    if (data.analysis_provider !== "internal" && isProcessing && data.request_id && ageMs > FALLBACK_AFTER_MS) {
       console.log(`[fallback] analysis=${analysisId} age=${Math.round(ageMs / 1000)}s — fetching Bewor GET`);
       const fullResult = await fetchBeworResult(data.request_id);
       const beworStatus = (fullResult?.status || fullResult?.result?.status || "").toString().toUpperCase();
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
         // Re-ler para refletir o estado atualizado
         const { data: refreshed } = await admin
           .from("lead_document_analysis")
-          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name")
+          .select("id, status, error_message, finished_at, viabilidade_sugerida, request_id, created_at, holder_name, bank_name, analysis_provider, months_detected, missing_months")
           .eq("id", analysisId)
           .maybeSingle();
         if (refreshed) data = refreshed;
@@ -115,7 +115,10 @@ Deno.serve(async (req) => {
 
     let inconclusive_reason: string | null = null;
     if (inconclusive) {
-      if (beworStatus === "KO" || kos.length > 0) {
+      if (v.incomplete_months) {
+        inconclusive_reason =
+          "El extracto enviado no contiene los últimos 12 meses completos. Por favor, sube un documento que cubra los últimos 12 meses para poder calcular tu hipoteca máxima.";
+      } else if (beworStatus === "KO" || kos.length > 0) {
         inconclusive_reason =
           "Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";
       } else if (pages > 0 && pages < 2) {
@@ -148,6 +151,8 @@ Deno.serve(async (req) => {
         bewor_status: beworStatus || null,
         bewor_warnings: warnings,
         pages,
+        months_detected: data.months_detected ?? v.months_detected ?? null,
+        missing_months: data.missing_months ?? v.missing_months ?? [],
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
