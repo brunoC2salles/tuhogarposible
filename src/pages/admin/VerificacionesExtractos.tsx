@@ -40,6 +40,7 @@ interface AnalysisRow {
   period_start: string | null;
   monthly_income: number | null;
   result: any;
+  analysis_input?: any;
   viabilidade_sugerida: any;
   error_message: string | null;
   analysis_provider?: string | null;
@@ -114,7 +115,7 @@ const VerificacionesExtractos = () => {
     const { data, error } = await supabase
       .from("lead_document_analysis")
       .select(
-        "id, lead_id, status, created_at, finished_at, holder_name, holder_dni, iban, bank_name, period_start, monthly_income, result, viabilidade_sugerida, error_message, analysis_provider, num_titulares, extracted_financials, confidence_score, manual_review_required, months_detected, missing_months, lead:leads(id, nombre_completo)"
+        "id, lead_id, status, created_at, finished_at, holder_name, holder_dni, iban, bank_name, period_start, monthly_income, result, analysis_input, viabilidade_sugerida, error_message, analysis_provider, num_titulares, extracted_financials, confidence_score, manual_review_required, months_detected, missing_months, lead:leads(id, nombre_completo)"
       )
       .order("created_at", { ascending: false })
       .limit(500);
