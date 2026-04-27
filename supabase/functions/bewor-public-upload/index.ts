@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzeStatementsWithAi,
+  buildFallbackAiResult,
   calculateStatementViability,
   extractPdfText,
   type HolderScope,
@@ -152,14 +153,15 @@ Deno.serve(async (req) => {
       aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
     } catch (aiErr) {
       const message = aiErr instanceof Error ? aiErr.message : String(aiErr);
-      const publicMessage = message === "AI_BAD_REQUEST"
-        ? "No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente."
-        : message;
-      await admin
-        .from("lead_document_analysis")
-        .update({ status: "ERROR", error_message: publicMessage })
-        .eq("id", analysis.id);
-      throw aiErr;
+      if (message === "AI_RATE_LIMIT" || message === "AI_PAYMENT_REQUIRED") {
+        await admin
+          .from("lead_document_analysis")
+          .update({ status: "ERROR", error_message: message })
+          .eq("id", analysis.id);
+        throw aiErr;
+      }
+      console.error("statement analysis fallback", { analysis_id: analysis.id, message });
+      aiResult = buildFallbackAiResult();
     }
     const viabilidade = calculateStatementViability(aiResult, numTitulares);
     const firstHolder = aiResult.titulares?.[0];

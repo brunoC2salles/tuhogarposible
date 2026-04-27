@@ -1,47 +1,63 @@
 Diagnóstico
 
-O erro não vem do PDF nem do botão de upload em si. O arquivo está sendo recebido pela Edge Function, o texto é extraído, mas a chamada ao Lovable AI está retornando HTTP 400 (`AI_GATEWAY_400`).
+O problema não é que os PDFs sejam ilegíveis. Eu consegui validar os dois anexos:
 
-A causa mais provável está no payload enviado ao AI Gateway em `internalStatementAnalysis.ts`: o schema de tool calling usa tipos como `type: ["string", "null"]`. Esse formato pode ser rejeitado pelo gateway/modelo, gerando 400 antes mesmo da análise começar. Como a função hoje só mostra `AI_GATEWAY_400`, o usuário final vê uma mensagem técnica e pouco útil.
+- CaixaBank: o PDF tem texto/tabelas extraíveis, titular, IBAN, período e movimentos aparecem corretamente.
+- ING: também tem texto extraível, IBAN, titular/NIE, período, saldo final, movimentos e uma nómina detectável.
+
+O bloqueio real está antes da leitura financeira: a chamada ao Lovable AI está sendo recusada com HTTP 400 por causa do schema de tool calling enviado no backend. O log exato diz:
+
+```text
+GenerateContentRequest.tools[0].function_declarations[0].parameters.properties[titulares].items.required[0]: property is not defined
+```
+
+Isso significa que o provider está validando o schema de forma mais estrita: dentro de `titulares.items.required`, existem campos obrigatórios que ele considera não definidos no objeto. Na prática, o modelo nem chega a analisar o texto do PDF; por isso o admin fica sem `result`, sem `extracted_financials` e sem `viabilidade_sugerida`.
 
 Plano de correção
 
 1. Corrigir o schema estruturado enviado ao Lovable AI
-- Trocar os campos nullable (`holder_name`, `bank_name`, `iban_masked`, `period_start`, `period_end`) para um formato aceito pelo gateway.
-- Melhor opção: usar `type: "string"` e instruir que, quando não houver valor, retorne string vazia.
-- Ajustar a normalização pós-resposta para converter strings vazias em `null` quando salvar no banco.
-- Manter o modelo barato atual, sem aumentar custo neste momento.
+- Em `supabase/functions/_shared/internalStatementAnalysis.ts`, tornar o schema de `titulares.items` totalmente compatível com Gemini/Lovable AI.
+- Incluir nos `required` todos os campos definidos em `properties` do holder, incluindo os campos de texto opcionais que hoje existem em `properties` mas não estão em `required`.
+- Como o schema usa `additionalProperties: false`, todos os campos esperados precisam estar definidos e coerentes.
+- Manter strings vazias para dados desconhecidos e a normalização posterior para `null`.
 
-2. Tornar a análise mais resiliente
-- Reduzir um pouco o limite de texto enviado por PDF para diminuir risco de payload muito grande em extratos longos.
-- Manter a estratégia atual de compactação inteligente: início, fim e amostras mensais.
-- Se a IA não devolver tool call válido, salvar resultado fallback com revisão manual em vez de quebrar o fluxo sempre que possível.
+2. Melhorar a robustez contra erros de schema/modelo
+- Se a IA devolver resposta sem tool call ou JSON inválido, salvar um resultado fallback estruturado em vez de deixar tudo vazio.
+- Se o gateway devolver 400 por schema, registrar erro técnico nos logs, mas manter mensagem amigável ao cliente.
+- Para análises que falham no AI Gateway, gravar pelo menos um resultado mínimo com `manual_review_required = true`, preservando o arquivo e metadados.
 
-3. Melhorar mensagem de erro ao cliente
-- No backend, quando houver erro 400 do AI Gateway, salvar a análise como `ERROR` com uma mensagem interna clara.
-- No frontend público, trocar `Error: AI_GATEWAY_400` por uma mensagem amigável, por exemplo:
-  - “No se pudo analizar automáticamente el extracto. Nuestro equipo revisará el documento manualmente.”
-- Evitar expor códigos técnicos ao lead.
+3. Ajustar o modelo para melhor leitura dos extratos reais
+- Trocar o modelo barato atual (`google/gemini-2.5-flash-lite`) para o padrão recomendado `google/gemini-3-flash-preview`, que é mais adequado para extração estruturada e menos frágil nestes documentos.
+- Manter limite de texto compacto para controlar custo e payload.
 
-4. Adicionar logging seguro para diagnosticar sem expor dados sensíveis
-- No erro do AI Gateway, registrar apenas status e um resumo curto da resposta do gateway.
-- Não registrar o texto completo do extrato nem dados bancários sensíveis.
+4. Validar com os PDFs anexados
+- Reprocessar o fluxo usando os mesmos tipos de documentos:
+  - CaixaBank com 59 páginas e período 01/01/2025–27/04/2026.
+  - ING com 10 páginas e período 01/10/2025–31/12/2025.
+- Confirmar que o registro no banco sai de `ERROR` para `FINISHED` em novos uploads.
+- Confirmar que o painel admin passa a mostrar titular, banco, IBAN, período, ingresos, ahorros, créditos/deudas e detalhes por titular.
 
-5. Validar com os casos reais
-- Rodar `deno check` na Edge Function afetada.
-- Testar novamente o upload com o PDF CaixaBank da imagem e com os exemplos ING/CaixaBank já usados.
-- Confirmar que:
-  - upload aceita até 3 PDFs;
-  - a análise finaliza sem `AI_GATEWAY_400`;
-  - o resultado público mostra apenas aprovação e hipoteca máxima;
-  - a página admin mantém IBAN, titular, ingresos, créditos, ahorros e detalhes por titular.
+5. Melhorar o painel admin para casos de erro
+- Na tabela de Verificación de Extractos, quando uma análise estiver em `ERROR`, mostrar também:
+  - nome do arquivo;
+  - páginas;
+  - data;
+  - mensagem técnica resumida para admin, sem expor dados bancários sensíveis.
+- Isso evita que futuros erros pareçam “vazios” no painel.
 
-Arquivos que serão alterados
+Arquivos a alterar
 
 - `supabase/functions/_shared/internalStatementAnalysis.ts`
 - `supabase/functions/bewor-public-upload/index.ts`
-- `src/pages/PublicDocumentUpload.tsx`
+- `src/pages/admin/VerificacionesExtractos.tsx`
 
-Observação
+Validação técnica após implementar
 
-Não vou mexer na base de dados nem em regras do CRM para esta correção. A mudança é focada em estabilizar o leitor interno e melhorar o tratamento do erro.
+- Rodar `deno check` nas Edge Functions afetadas.
+- Fazer build frontend.
+- Consultar logs da Edge Function `bewor-public-upload` para confirmar que o erro `property is not defined` desapareceu.
+- Consultar as últimas linhas de `lead_document_analysis` para verificar novos resultados com `status = FINISHED` e dados preenchidos.
+
+Observação importante
+
+Os registros já criados em `ERROR` não têm resultado financeiro porque a IA nunca chegou a processar os PDFs. Depois da correção, o caminho mais seguro é subir novamente os mesmos PDFs por um link novo. Se quiser, também posso incluir um botão admin de “Reprocesar” para reaproveitar o PDF já guardado no Storage sem pedir novo upload.
