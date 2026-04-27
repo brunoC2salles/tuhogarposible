@@ -1,7 +1,11 @@
-// Recebe PDF do cliente via token público, valida, faz upload para Storage e envia para Bewor.
-// Suporta tokens standalone (sem lead_id) para testes ou novos clientes não cadastrados.
-// FASE 1: instrumentação para descobrir o type correto da Bewor que dispara extração financeira.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  analyzeStatementsWithAi,
+  calculateStatementViability,
+  extractPdfText,
+  type HolderScope,
+  type UploadedStatementFile,
+} from "../_shared/internalStatementAnalysis.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +13,7 @@ const corsHeaders = {
 };
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILES = 3;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -16,26 +21,38 @@ Deno.serve(async (req) => {
   try {
     const form = await req.formData();
     const token = form.get("token") as string | null;
-    const file = form.get("file") as File | null;
+    const files = form.getAll("files").filter((v): v is File => v instanceof File);
+    const legacyFile = form.get("file") as File | null;
+    if (legacyFile && files.length === 0) files.push(legacyFile);
+    const numTitulares = Math.min(2, Math.max(1, Number(form.get("num_titulares") || 1)));
 
-    if (!token || !file) {
-      return new Response(JSON.stringify({ error: "token y file requeridos" }), {
+    if (!token || files.length === 0) {
+      return new Response(JSON.stringify({ error: "token y archivos requeridos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (file.type !== "application/pdf") {
-      return new Response(JSON.stringify({ error: "Solo se permiten archivos PDF" }), {
+    if (files.length > MAX_FILES) {
+      return new Response(JSON.stringify({ error: "Máximo 3 documentos PDF" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (file.size > MAX_SIZE) {
-      return new Response(JSON.stringify({ error: "Archivo supera 10 MB" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+    for (const file of files) {
+      if (file.type !== "application/pdf") {
+        return new Response(JSON.stringify({ error: "Solo se permiten archivos PDF" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (file.size > MAX_SIZE) {
+        return new Response(JSON.stringify({ error: "Cada archivo debe tener como máximo 10 MB" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     const admin = createClient(
