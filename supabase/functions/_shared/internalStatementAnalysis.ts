@@ -162,7 +162,7 @@ export async function analyzeStatementsWithAi(input: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
+      model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: systemPrompt },
         {
@@ -184,7 +184,7 @@ export async function analyzeStatementsWithAi(input: {
                   items: {
                     type: "object",
                     properties: {
-                      index: { type: "integer", enum: [1, 2] },
+                      index: { type: "number", description: "1 para el primer titular, 2 para el segundo titular" },
                       holder_name: { type: "string", description: "Nombre del titular o cadena vacía si no aparece" },
                       bank_name: { type: "string", description: "Nombre del banco o cadena vacía si no aparece" },
                       iban_masked: { type: "string", description: "IBAN completo o enmascarado, o cadena vacía si no aparece" },
@@ -199,8 +199,7 @@ export async function analyzeStatementsWithAi(input: {
                       confidence: { type: "number", minimum: 0, maximum: 1 },
                       warnings: { type: "array", items: { type: "string" } },
                     },
-                    required: ["index", "months_detected", "monthly_recurring_income", "average_monthly_income", "monthly_debts", "savings_balance", "confidence", "warnings"],
-                    additionalProperties: false,
+                    description: "Datos extraídos de un titular. Devuelve todos los campos posibles; usa cadena vacía, 0 o lista vacía si no hay dato.",
                   },
                 },
                 months_detected: { type: "array", items: { type: "string" } },
