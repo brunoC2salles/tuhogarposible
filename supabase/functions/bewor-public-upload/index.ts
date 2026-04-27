@@ -186,6 +186,19 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("bewor-public-upload error:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "AI_RATE_LIMIT") {
+      return new Response(JSON.stringify({ error: "El servicio de análisis está temporalmente limitado. Inténtalo de nuevo en unos minutos." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (message === "AI_PAYMENT_REQUIRED") {
+      return new Response(JSON.stringify({ error: "Es necesario añadir créditos al workspace de Lovable AI para continuar con el análisis." }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
