@@ -42,7 +42,7 @@ const RequestDocumentsModal = ({ open, onOpenChange, leadId, leadName, leadPhone
 
   const sendWhatsApp = (url: string) => {
     const text = encodeURIComponent(
-      `Hola ${leadName}, por favor sube tus movimientos bancarios de los últimos 6 meses en este enlace seguro: ${url}`
+      `Hola ${leadName}, por favor sube tus extractos bancarios de los últimos 12 meses en este enlace seguro: ${url}`
     );
     const phone = (leadPhone || "").replace(/\D/g, "");
     const link = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
@@ -52,7 +52,7 @@ const RequestDocumentsModal = ({ open, onOpenChange, leadId, leadName, leadPhone
   const sendEmail = (url: string) => {
     const subject = encodeURIComponent("Solicitud de documentación - Tu Hogar Posible");
     const body = encodeURIComponent(
-      `Hola ${leadName},\n\nPor favor sube tus movimientos bancarios de los últimos 6 meses en el siguiente enlace seguro:\n\n${url}\n\nGracias.`
+      `Hola ${leadName},\n\nPor favor sube tus extractos bancarios de los últimos 12 meses en el siguiente enlace seguro:\n\n${url}\n\nGracias.`
     );
     window.open(`mailto:${leadEmail || ""}?subject=${subject}&body=${body}`);
   };
@@ -68,8 +68,8 @@ const RequestDocumentsModal = ({ open, onOpenChange, leadId, leadName, leadPhone
 
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Genera un enlace seguro para que <strong>{leadName}</strong> suba sus movimientos bancarios
-            (PDF, máx. 5 MB). El enlace expira en 7 días.
+            Genera un enlace seguro para que <strong>{leadName}</strong> suba sus extractos bancarios
+            de los últimos 12 meses (hasta 3 PDFs). El enlace expira en 7 días.
           </p>
 
           <Button onClick={handleCreate} disabled={creating} className="w-full">
