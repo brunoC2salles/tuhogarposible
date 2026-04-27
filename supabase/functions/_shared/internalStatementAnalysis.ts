@@ -47,6 +47,53 @@ export async function extractPdfText(file: File) {
   return { text: String(text || ""), totalPages, arrayBuffer };
 }
 
+
+function compactStatementText(text: string, maxChars = 85000): string {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+
+  const headSize = Math.floor(maxChars * 0.25);
+  const tailSize = Math.floor(maxChars * 0.25);
+  const middleBudget = maxChars - headSize - tailSize - 500;
+
+  const monthRegex = /(?:\b\d{2}[-\/]\d{2}[-\/]\d{4}\b|\b\d{4}[-\/]\d{2}[-\/]\d{2}\b)/g;
+  const matches = Array.from(normalized.matchAll(monthRegex));
+  const buckets: Record<string, number[]> = {};
+
+  for (const match of matches) {
+    const raw = match[0];
+    let month = "";
+    if (/^\d{2}[-\/]\d{2}[-\/]\d{4}$/.test(raw)) {
+      const [, mm, yyyy] = raw.split(/[-\/]/);
+      month = `${yyyy}-${mm}`;
+    } else {
+      const [yyyy, mm] = raw.split(/[-\/]/);
+      month = `${yyyy}-${mm}`;
+    }
+    if (!buckets[month]) buckets[month] = [];
+    buckets[month].push(match.index || 0);
+  }
+
+  const months = Object.keys(buckets).sort();
+  const snippets: string[] = [];
+  const perMonth = Math.max(900, Math.floor(middleBudget / Math.max(months.length, 1)));
+
+  for (const month of months) {
+    const positions = buckets[month];
+    const pos = positions[Math.floor(positions.length / 2)] || positions[0];
+    const start = Math.max(0, pos - Math.floor(perMonth / 2));
+    snippets.push(`[MUESTRA ${month}] ${normalized.slice(start, start + perMonth)}`);
+  }
+
+  return [
+    normalized.slice(0, headSize),
+    "[CONTENIDO INTERMEDIO RESUMIDO POR MESES]",
+    snippets.join(" "),
+    "[FINAL DEL DOCUMENTO]",
+    normalized.slice(-tailSize),
+  ].join(" ");
+}
+
 export function buildFallbackAiResult(): StatementAiResult {
   return {
     titulares: [],
@@ -66,7 +113,7 @@ export async function analyzeStatementsWithAi(input: {
 
   const compactText = input.files
     .map((file, index) => {
-      const safeText = file.text.replace(/\s+/g, " ").slice(0, 45000);
+      const safeText = compactStatementText(file.text);
       return `PDF ${index + 1}: ${file.name}\nTitular: ${file.holder_scope}\nPáginas: ${file.pages}\nTexto:\n${safeText}`;
     })
     .join("\n\n---\n\n");
@@ -75,9 +122,10 @@ export async function analyzeStatementsWithAi(input: {
     "Eres un analista financiero que extrae datos de extractos bancarios españoles.",
     "Devuelve SIEMPRE los datos usando la función estructurada.",
     "Identifica meses cubiertos en formato YYYY-MM. Deben ser meses con movimientos o saldo real, no meses inventados.",
+    "Si un documento indica Periodo/Fecha inicio/Fecha fin, úsalo como señal principal para months_detected, verificándolo con movimientos.",
     "Ingresos recurrentes: nómina, pensión, prestación o transferencias salariales recurrentes. Ignora Bizum, devoluciones y transferencias familiares puntuales.",
     "Deudas: cuotas recurrentes de préstamo, crédito, financiación o hipoteca existente.",
-    "Ahorros: usa el saldo final más reciente detectado. Si no hay saldo, usa 0 y añade warning.",
+    "Ahorros: usa el saldo final más reciente detectado o Saldo disponible si existe. Si no hay saldo, usa 0 y añade warning.",
     "Para dos titulares, mantén titulares separados; el backend sumará los importes.",
   ].join(" ");
 
