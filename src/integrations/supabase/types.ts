@@ -420,9 +420,13 @@ export type Database = {
       }
       lead_document_analysis: {
         Row: {
+          analysis_input: Json | null
+          analysis_provider: string
           bank_name: string | null
+          confidence_score: number | null
           created_at: string
           error_message: string | null
+          extracted_financials: Json | null
           file_path: string | null
           finished_at: string | null
           holder_dni: string | null
@@ -430,7 +434,11 @@ export type Database = {
           iban: string | null
           id: string
           lead_id: string | null
+          manual_review_required: boolean
+          missing_months: Json | null
           monthly_income: number | null
+          months_detected: number | null
+          num_titulares: number
           period_start: string | null
           request_id: string | null
           result: Json | null
@@ -440,9 +448,13 @@ export type Database = {
           viabilidade_sugerida: Json | null
         }
         Insert: {
+          analysis_input?: Json | null
+          analysis_provider?: string
           bank_name?: string | null
+          confidence_score?: number | null
           created_at?: string
           error_message?: string | null
+          extracted_financials?: Json | null
           file_path?: string | null
           finished_at?: string | null
           holder_dni?: string | null
@@ -450,7 +462,11 @@ export type Database = {
           iban?: string | null
           id?: string
           lead_id?: string | null
+          manual_review_required?: boolean
+          missing_months?: Json | null
           monthly_income?: number | null
+          months_detected?: number | null
+          num_titulares?: number
           period_start?: string | null
           request_id?: string | null
           result?: Json | null
@@ -460,9 +476,13 @@ export type Database = {
           viabilidade_sugerida?: Json | null
         }
         Update: {
+          analysis_input?: Json | null
+          analysis_provider?: string
           bank_name?: string | null
+          confidence_score?: number | null
           created_at?: string
           error_message?: string | null
+          extracted_financials?: Json | null
           file_path?: string | null
           finished_at?: string | null
           holder_dni?: string | null
@@ -470,7 +490,11 @@ export type Database = {
           iban?: string | null
           id?: string
           lead_id?: string | null
+          manual_review_required?: boolean
+          missing_months?: Json | null
           monthly_income?: number | null
+          months_detected?: number | null
+          num_titulares?: number
           period_start?: string | null
           request_id?: string | null
           result?: Json | null
