@@ -17,6 +17,7 @@ export interface Inmueble {
   urlExterna?: string;
   imageUrl?: string;
   images?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface Agente {

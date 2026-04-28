@@ -20,7 +20,7 @@ import { useInmuebles, CreateInmuebleData, DatabaseInmueble } from "@/hooks/useI
 import { useReservas, DatabaseReserva } from "@/hooks/useReservas";
 import { useAgentes } from "@/hooks/useAgentes";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Upload, Users, Building2, Calendar, Trash2, Edit, Download, FileJson, X } from "lucide-react";
+import { Plus, Upload, Users, Building2, Calendar, Trash2, FileJson, X } from "lucide-react";
 import { toast } from "sonner";
 import { Inmueble } from "@/types/inventario";
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -444,6 +444,16 @@ const AdminInventario = () => {
     return undefined;
   };
 
+  const isValidPropertyImage = (value: any): value is string => {
+    if (typeof value !== 'string' || value.length === 0) return false;
+    const image = value.toLowerCase();
+    return !(
+      image.includes('st3.idealista.com/static/common/icons') ||
+      image.includes('st3.idealista.com/static/common/img/icons/px.png') ||
+      image.includes('/resources/img/cee/')
+    );
+  };
+
   // 4️⃣ Auto-detectar Tipo de Propriedade
   const detectPropertyType = (title: string = '', url: string = ''): CreateInmuebleData['tipo'] => {
     const text = `${title} ${url}`.toLowerCase();
@@ -488,23 +498,28 @@ const AdminInventario = () => {
     console.log(`[Sync] Novos produtos recebidos: ${newProducts.length}`);
     
     try {
-      // 1️⃣ Buscar produtos existentes do proveedor
+      // 1️⃣ Buscar todos os produtos existentes: Idealista substitui o inventário visível inteiro
       const { data: existingProducts, error: fetchError } = await supabase
         .from('inmuebles')
-        .select('id, codigo_inventario, proveedor, precio, quartos, banheiros, area_m2, titulo, direccion, image_url, images')
-        .eq('proveedor', proveedor);
+        .select('id, codigo_inventario, proveedor, precio, quartos, banheiros, area_m2, titulo, direccion, image_url, images, disponible');
 
       if (fetchError) throw fetchError;
 
       console.log(`[Sync] Produtos existentes no BD: ${existingProducts?.length || 0}`);
 
-      // 2️⃣ Buscar produtos protegidos (com reservas ou leads)
-      const { data: protectedIds, error: protectedError } = await supabase
-        .rpc('get_protected_inmuebles', { provider: proveedor });
+      // 2️⃣ Buscar produtos protegidos (com reservas ou leads) de todos os proveedores
+      const [{ data: linkedProducts, error: linkedError }, { data: reservedProducts, error: reservedError }] = await Promise.all([
+        supabase.from('lead_inmuebles').select('inmueble_id'),
+        supabase.from('reservas').select('inmueble_id'),
+      ]);
 
-      if (protectedError) throw protectedError;
+      if (linkedError) throw linkedError;
+      if (reservedError) throw reservedError;
 
-      const protectedSet = new Set(protectedIds?.map((p: any) => p.inmueble_id) || []);
+      const protectedSet = new Set([
+        ...((linkedProducts || []).map((p: any) => p.inmueble_id)),
+        ...((reservedProducts || []).map((p: any) => p.inmueble_id)),
+      ]);
       console.log(`[Sync] Produtos protegidos: ${protectedSet.size}`);
 
       // 3️⃣ Criar mapas para identificação
@@ -554,9 +569,14 @@ const AdminInventario = () => {
         }
       }
 
-      // Identificar produtos para desabilitar (não no JSON novo e não protegidos)
+      // Identificar produtos para remover do inventário visível
+      // - Idealista ausente no novo JSON: desabilitar
+      // - Proveedores antigos: desabilitar sempre, preservando referências históricas
       for (const [key, existing] of existingMap.entries()) {
-        if (!newProductsMap.has(key) && !protectedSet.has(existing.id)) {
+        const isMissingIdealista = existing.proveedor === proveedor && !newProductsMap.has(key);
+        const isOldProvider = existing.proveedor !== proveedor;
+
+        if ((isMissingIdealista || isOldProvider) && existing.disponible !== false) {
           toDisable.push(existing.id);
         }
       }
@@ -656,7 +676,7 @@ const AdminInventario = () => {
       
       console.log('[JSON Import] Archivo cargado:', jsonData);
       
-      const items = jsonData.items || [];
+      const items = Array.isArray(jsonData) ? jsonData : (jsonData.items || []);
       const validItems: CreateInmuebleData[] = [];
       const errors: string[] = [];
       
@@ -664,14 +684,15 @@ const AdminInventario = () => {
         const item = items[i];
         
         try {
-          // ✅ Validação UNIVERSAL - detecta ambos os formatos
-          const precioRaw = item.price || item.price_eur;
-          if (!precioRaw || !item.address) {
-            errors.push(`Item ${i + 1}: Preço ou endereço ausente`);
+          // ✅ Validação UNIVERSAL - detecta Solvia/Hipoges/Idealista
+          const precioRaw = item.price || item.price_eur || item.precio_eur || item.precio;
+          const rawLocation = item.address || item.ubicacion || item.detalle?.ubicacion || '';
+          if (!precioRaw || !rawLocation) {
+            errors.push(`Item ${i + 1}: Preço ou localização ausente`);
             continue;
           }
           
-          const { ciudad, region, direccion } = parseAddress(item.address);
+          const { ciudad, region, direccion } = parseAddress(rawLocation);
           
           // ⚠️ Validação mais flexível - permite endereços parciais
           if (!ciudad && !region && !direccion) {
@@ -698,10 +719,12 @@ const AdminInventario = () => {
 
           // ✅ Processar imagens - TODOS OS FORMATOS (incluindo Hipoges)
           let images: string[] | undefined;
-          if (item.images && Array.isArray(item.images)) {
-            images = item.images.filter((img: any) => typeof img === 'string' && img.length > 0);
+          if (item.imagenes && Array.isArray(item.imagenes)) {
+            images = item.imagenes.filter((img: any) => isValidPropertyImage(img));
+          } else if (item.images && Array.isArray(item.images)) {
+            images = item.images.filter((img: any) => isValidPropertyImage(img));
           } else if (item.image_urls && Array.isArray(item.image_urls)) {
-            images = item.image_urls.filter((img: any) => typeof img === 'string' && img.length > 0);
+            images = item.image_urls.filter((img: any) => isValidPropertyImage(img));
           } else if (item.image_url && typeof item.image_url === 'string' && item.image_url.length > 0) {
             images = [item.image_url];
           } else if (item.image && typeof item.image === 'string' && item.image.length > 0) {
@@ -713,7 +736,7 @@ const AdminInventario = () => {
           const firstImage = images?.[0] || '';
 
           // ✅ Detectar proveedor do JSON (source ou portal)
-          const proveedor = jsonData.source || jsonData.portal || 'Solvia';
+          const proveedor = Array.isArray(jsonData) ? 'Idealista' : (jsonData.source || jsonData.portal || 'Solvia');
           
           // ✅ Log para debug de imagens
           if (i < 5) {
@@ -721,7 +744,7 @@ const AdminInventario = () => {
           }
           
           const inmueble: CreateInmuebleData = {
-            titulo: item.title || '',
+            titulo: item.title || item.titulo || item.detalle?.titulo || '',
             ciudad: ciudad || 'N/D',
             region: region || 'N/D',
             tipo: item.property_type 
@@ -730,9 +753,9 @@ const AdminInventario = () => {
             precio: parsePrice(precioRaw),
             direccion,
             proveedor: proveedor,
-            quartos: parseSimpleNumber(item.rooms),
-            banheiros: parseSimpleNumber(item.bathrooms),
-            area_m2: parseArea(item.area || item.area_m2),
+            quartos: parseSimpleNumber(item.rooms ?? item.propiedades?.habitaciones),
+            banheiros: parseSimpleNumber(item.bathrooms ?? item.propiedades?.banos),
+            area_m2: parseArea(item.area || item.area_m2 || item.propiedades?.superficie_m2),
             url_externa: item.url || '',
             image_url: firstImage,
             images: images,
@@ -761,7 +784,7 @@ const AdminInventario = () => {
       }
       
       // 🔄 SINCRONIZAÇÃO INTELIGENTE DE INVENTÁRIO
-      const proveedor = jsonData.source || jsonData.portal || 'Solvia';
+      const proveedor = Array.isArray(jsonData) ? 'Idealista' : (jsonData.source || jsonData.portal || 'Solvia');
       console.log(`[JSON Import] Iniciando sincronização para: ${proveedor}`);
       
       const syncResult = await syncInventory(validItems, proveedor);
