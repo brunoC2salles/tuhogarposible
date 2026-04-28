@@ -760,14 +760,6 @@ const AdminInventario = () => {
             image_url: firstImage,
             images: images,
             codigo_inventario: codigoInventario,
-            metadata: {
-              descripcion: item.descripcion || item.detalle?.descripcion || null,
-              detalles: item.detalles || null,
-              propiedades: item.propiedades || null,
-              anunciante: item.anunciante || item.detalle?.anunciante || null,
-              telefono_anunciante: item.detalle?.telefono || null,
-              ubicacion_original: rawLocation,
-            },
           };
           
           validItems.push(inmueble);
@@ -1213,7 +1205,6 @@ const AdminInventario = () => {
                         urlExterna: inmueble.url_externa || undefined,
                         imageUrl: inmueble.image_url || undefined,
                         codigoInventario: inmueble.codigo_inventario || undefined,
-                        metadata: inmueble.metadata || undefined,
                       }}
                       showSolicitarVisita={false}
                       showEditButton={true}
