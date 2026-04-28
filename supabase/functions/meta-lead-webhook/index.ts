@@ -382,7 +382,9 @@ function parseDeudas(deudasInput?: string | number): number {
 /**
  * Parser robusto de ahorros — aceita formatos como:
  *   "5000", "5.000", "5,000", "5000€", "5 k", "5k", "5K",
- *   "10mil", "10 mil", "10.5k", "7K€"
+ *   "10mil", "10 mil", "10.5k", "7K€", "6 mil por ahora".
+ *   Respostas numéricas entre 5 e 100 são interpretadas como milhares:
+ *   "5" -> 5000, "6" -> 6000, "10" -> 10000, "100" -> 100000.
  * Retorna o valor em euros (número).
  */
 function parseAhorros(input?: string | number): number {
@@ -400,9 +402,9 @@ function parseAhorros(input?: string | number): number {
     .trim();
   if (!raw) return 0;
 
-  // Tentar capturar "<número><sufixo>" onde sufixo ∈ {k, mil}
-  // Aceita ponto/vírgula como decimal: "10.5k", "10,5mil"
-  const m = raw.match(/^([0-9]+(?:[.,][0-9]+)?)(k|mil)$/);
+  // Tentar capturar "<número><sufixo>" onde sufixo ∈ {k, mil}, mesmo dentro de texto livre.
+  // Aceita ponto/vírgula como decimal: "10.5k", "10,5mil", "6milporahora"
+  const m = raw.match(/([0-9]+(?:[.,][0-9]+)?)(k|mil)/);
   if (m) {
     const num = parseFloat(m[1].replace(',', '.'));
     return isNaN(num) ? 0 : Math.max(0, num * 1000);
@@ -420,7 +422,14 @@ function parseAhorros(input?: string | number): number {
   }
 
   const parsed = parseFloat(cleaned);
-  return isNaN(parsed) ? 0 : Math.max(0, parsed);
+  if (isNaN(parsed)) return 0;
+
+  // Heurística Meta Ads: respostas curtas como "5", "6", "10" normalmente significam milhares.
+  if (/^\d{1,3}$/.test(cleaned) && parsed >= 5 && parsed <= 100) {
+    return parsed * 1000;
+  }
+
+  return Math.max(0, parsed);
 }
 
 /**
