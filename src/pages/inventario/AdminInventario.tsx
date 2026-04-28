@@ -444,6 +444,16 @@ const AdminInventario = () => {
     return undefined;
   };
 
+  const isValidPropertyImage = (value: any): value is string => {
+    if (typeof value !== 'string' || value.length === 0) return false;
+    const image = value.toLowerCase();
+    return !(
+      image.includes('st3.idealista.com/static/common/icons') ||
+      image.includes('st3.idealista.com/static/common/img/icons/px.png') ||
+      image.includes('/resources/img/cee/')
+    );
+  };
+
   // 4️⃣ Auto-detectar Tipo de Propriedade
   const detectPropertyType = (title: string = '', url: string = ''): CreateInmuebleData['tipo'] => {
     const text = `${title} ${url}`.toLowerCase();
