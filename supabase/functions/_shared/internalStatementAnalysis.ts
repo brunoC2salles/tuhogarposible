@@ -236,6 +236,40 @@ export function buildDeclaredCoverageResult(input: {
   });
 }
 
+export function buildWeakExtractionManualReviewResult(input: {
+  fileName?: string;
+  totalPages: number;
+  referenceDate?: Date;
+}): StatementAiResult {
+  const end = input.referenceDate || new Date();
+  const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - (REQUIRED_MONTHS - 1), 1));
+  const months = enumerateInclusiveMonths(start, end);
+  const warning = `El PDF tiene ${input.totalPages} páginas pero no contiene texto nativo suficiente para lectura automática. Se valida la cobertura mínima por extensión del extracto y se deriva a revisión manual.`;
+
+  return normalizeAiResult({
+    titulares: [{
+      index: 1,
+      holder_name: "",
+      bank_name: "",
+      iban_masked: "",
+      period_start: start.toISOString().slice(0, 10),
+      period_end: end.toISOString().slice(0, 10),
+      months_detected: months.length,
+      months,
+      monthly_recurring_income: 0,
+      average_monthly_income: 0,
+      monthly_debts: 0,
+      savings_balance: 0,
+      confidence: 0.25,
+      warnings: [warning],
+    }],
+    months_detected: months,
+    missing_months: [],
+    confidence: 0.25,
+    warnings: [warning, input.fileName ? `Archivo: ${input.fileName}` : "Revisión manual requerida"],
+  });
+}
+
 export function enrichStatementResultWithDeterministicCoverage(
   result: StatementAiResult,
   files: Array<{ text: string }>
