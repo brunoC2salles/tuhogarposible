@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzeStatementsWithAi,
+  buildWeakExtractionManualReviewResult,
   buildFallbackAiResult,
   calculateStatementViability,
   enrichStatementResultWithDeterministicCoverage,
@@ -151,7 +152,21 @@ Deno.serve(async (req) => {
 
     let aiResult;
     try {
-      aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+      const weakFile = aiFiles.find((file, index) => uploadedFiles[index]?.pages && uploadedFiles[index].pages! >= 12 && (file.text || "").replace(/\s+/g, " ").trim().length < 800);
+      if (weakFile) {
+        console.warn("statement weak text extraction; forcing manual-review coverage fallback", {
+          analysis_id: analysis.id,
+          file: weakFile.name,
+          pages: weakFile.pages,
+          text_length: (weakFile.text || "").length,
+        });
+        aiResult = buildWeakExtractionManualReviewResult({
+          fileName: weakFile.name,
+          totalPages: weakFile.pages,
+        });
+      } else {
+        aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+      }
     } catch (aiErr) {
       const message = aiErr instanceof Error ? aiErr.message : String(aiErr);
       if (message === "AI_RATE_LIMIT" || message === "AI_PAYMENT_REQUIRED") {
