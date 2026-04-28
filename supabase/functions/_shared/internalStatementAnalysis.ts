@@ -407,6 +407,8 @@ export function calculateStatementViability(ai: StatementAiResult, numTitulares:
   const detectedMonths = Array.from(new Set(ai.months_detected || [])).sort();
   const missingMonths = Array.isArray(ai.missing_months) ? ai.missing_months : [];
   const hasTwelveMonths = detectedMonths.length >= REQUIRED_MONTHS && missingMonths.length === 0;
+  const firstHolder = titulares[0];
+  const periodValidatedOnly = hasTwelveMonths && ingresos <= 0 && Number(ai.confidence || 0) < 0.65;
 
   if (!hasTwelveMonths) {
     return {
@@ -421,6 +423,27 @@ export function calculateStatementViability(ai: StatementAiResult, numTitulares:
       missing_months: missingMonths,
       manual_review_required: true,
       incomplete_months: true,
+    };
+  }
+
+  if (periodValidatedOnly) {
+    const periodText = firstHolder?.period_start && firstHolder?.period_end
+      ? `: el extracto cubre ${firstHolder.period_start} a ${firstHolder.period_end}`
+      : "";
+    return {
+      aprobable: false,
+      hipoteca_maxima: 0,
+      cuota_max: 0,
+      ingresos_detectados: 0,
+      deudas_detectadas: Math.round(deudas),
+      ahorros_detectados: Math.round(ahorros),
+      razon: `Documento válido con 12 meses completos${periodText}. Revisión manual requerida porque la extracción financiera automática no obtuvo ingresos con suficiente confianza.`,
+      months_detected: detectedMonths.length,
+      missing_months: [],
+      manual_review_required: true,
+      needs_manual_review: true,
+      incomplete_months: false,
+      period_validated: true,
     };
   }
 
