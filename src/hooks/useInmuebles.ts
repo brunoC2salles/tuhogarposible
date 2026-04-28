@@ -22,6 +22,7 @@ export interface DatabaseInmueble {
   url_externa?: string;
   image_url?: string;
   images?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface CreateInmuebleData {
@@ -40,6 +41,7 @@ export interface CreateInmuebleData {
   url_externa?: string;
   image_url?: string;
   images?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export const useInmuebles = () => {
