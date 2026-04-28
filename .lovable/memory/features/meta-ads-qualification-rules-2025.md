@@ -22,8 +22,10 @@ Reglas de cualificación automática aplicadas en `supabase/functions/meta-lead-
    - Numérico puro: `5000`, `5000.50`
    - Con símbolo monetario o espacios: `5000€`, `5 000`, `7 K€`
    - Sufijos `k`/`K`: `5k`, `7K`, `10.5k`, `5,5k`
-   - Sufijos `mil`/`MIL`: `10mil`, `10 mil`, `4 mil`, `7,5 mil`
+   - Sufijos `mil`/`MIL`: `10mil`, `10 mil`, `4 mil`, `7,5 mil`, `6 mil por ahora`
    - Separador de miles con punto/coma: `5.000`, `10,000`, `1.500.000`
    - Decimal con coma: `5,5` → 5.5 (cuando NO hay patrón de miles)
+   - Respuestas numéricas cortas entre 5 y 100 se interpretan como miles: `5` → 5000, `6` → 6000, `10` → 10000, `100` → 100000.
    - Heurística: si el patrón es `^\d{1,3}([.,]\d{3})+$` se trata como separador de miles; si no, la coma se interpreta como decimal.
    - Resultado siempre en euros (número), `Math.max(0, ...)`. Nunca negativo.
+   - La cualificación usa el mayor valor parseado entre `monto_ahorros` y `tiene_ahorros_impuestos`, porque Meta puede enviar cantidades en cualquiera de los dos campos.
