@@ -65,6 +65,9 @@ Deno.serve(async (req) => {
       if (v.incomplete_months) {
         inconclusive_reason =
           "El extracto enviado no contiene los últimos 12 meses completos. Por favor, sube un documento que cubra los últimos 12 meses para poder calcular tu hipoteca máxima.";
+      } else if (v.period_validated || v.needs_manual_review) {
+        inconclusive_reason =
+          v.razon || "Documento válido recibido. Nuestro equipo revisará manualmente los movimientos para calcular tu hipoteca máxima.";
       } else if (legacyStatus === "KO" || kos.length > 0) {
         inconclusive_reason =
           "Hubo un problema procesando tu extracto. Por favor, contacta con tu agente para que te ayude a subir el documento correcto.";

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import {
   analyzeStatementsWithAi,
+  buildWeakExtractionManualReviewResult,
   buildFallbackAiResult,
   calculateStatementViability,
   enrichStatementResultWithDeterministicCoverage,
@@ -113,7 +114,7 @@ Deno.serve(async (req) => {
     // 3. Upload para Storage (bucket lead-documents) + extração local de texto
     const folder = leadId || "standalone";
     const uploadedFiles: UploadedStatementFile[] = [];
-    const aiFiles: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }> = [];
+    const aiFiles: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number; weakExtraction: boolean }> = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -137,7 +138,7 @@ Deno.serve(async (req) => {
       }
 
       uploadedFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, path: filePath, holder_scope: holderScope, size: file.size, pages: extracted.totalPages });
-      aiFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, holder_scope: holderScope, text: extracted.text, pages: extracted.totalPages });
+      aiFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, holder_scope: holderScope, text: extracted.text, pages: extracted.totalPages, weakExtraction: extracted.weakExtraction });
     }
 
     await admin
@@ -151,7 +152,21 @@ Deno.serve(async (req) => {
 
     let aiResult;
     try {
-      aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+      const weakFile = aiFiles.find((file) => file.weakExtraction && file.pages >= 12);
+      if (weakFile) {
+        console.warn("statement weak text extraction; forcing manual-review coverage fallback", {
+          analysis_id: analysis.id,
+          file: weakFile.name,
+          pages: weakFile.pages,
+          text_length: (weakFile.text || "").length,
+        });
+        aiResult = buildWeakExtractionManualReviewResult({
+          fileName: weakFile.name,
+          totalPages: weakFile.pages,
+        });
+      } else {
+        aiResult = await analyzeStatementsWithAi({ files: aiFiles, numTitulares });
+      }
     } catch (aiErr) {
       const message = aiErr instanceof Error ? aiErr.message : String(aiErr);
       if (message === "AI_RATE_LIMIT" || message === "AI_PAYMENT_REQUIRED") {

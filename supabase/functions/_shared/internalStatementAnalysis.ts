@@ -10,6 +10,13 @@ export interface UploadedStatementFile {
   pages?: number;
 }
 
+export interface ExtractedStatementPdf {
+  text: string;
+  totalPages: number;
+  arrayBuffer: ArrayBuffer;
+  weakExtraction: boolean;
+}
+
 export interface StatementAiHolder {
   index: number;
   holder_name?: string | null;
@@ -44,7 +51,15 @@ export async function extractPdfText(file: File) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
   const { totalPages, text } = await extractText(pdf, { mergePages: true });
-  return { text: String(text || ""), totalPages, arrayBuffer };
+  const extractedText = String(text || "");
+  return { text: extractedText, totalPages, arrayBuffer, weakExtraction: isWeakPdfTextExtraction(extractedText, totalPages) } satisfies ExtractedStatementPdf;
+}
+
+function isWeakPdfTextExtraction(text: string, totalPages = 0): boolean {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  const dateMatches = normalized.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\b/g)?.length || 0;
+  const wordsWithLetters = normalized.match(/\b[\p{L}]{3,}\b/gu)?.length || 0;
+  return totalPages >= 4 && (normalized.length < 800 || (dateMatches < 3 && wordsWithLetters < 25));
 }
 
 
@@ -180,6 +195,79 @@ function buildDeterministicCoverage(files: Array<{ text: string }>) {
   const coverages = files.map((file) => detectStatementCoverage(file.text));
   const best = coverages.sort((a, b) => b.months.length - a.months.length)[0];
   return best || { months: [] };
+}
+
+export function buildDeclaredCoverageResult(input: {
+  periodStart: string;
+  periodEnd: string;
+  holderName?: string | null;
+  bankName?: string | null;
+  ibanMasked?: string | null;
+  warning?: string;
+}): StatementAiResult | null {
+  const start = parseStatementDate(input.periodStart);
+  const end = parseStatementDate(input.periodEnd);
+  if (!start || !end || start > end) return null;
+  const months = enumerateInclusiveMonths(start, end);
+  if (months.length < REQUIRED_MONTHS) return null;
+
+  const warning = input.warning || `Periodo bancario validado por OCR/visión: ${input.periodStart}-${input.periodEnd}. La extracción financiera automática requiere revisión manual.`;
+  return normalizeAiResult({
+    titulares: [{
+      index: 1,
+      holder_name: input.holderName || "",
+      bank_name: input.bankName || "",
+      iban_masked: input.ibanMasked || "",
+      period_start: start.toISOString().slice(0, 10),
+      period_end: end.toISOString().slice(0, 10),
+      months_detected: months.length,
+      months,
+      monthly_recurring_income: 0,
+      average_monthly_income: 0,
+      monthly_debts: 0,
+      savings_balance: 0,
+      confidence: 0.35,
+      warnings: [warning],
+    }],
+    months_detected: months,
+    missing_months: [],
+    confidence: 0.35,
+    warnings: [warning],
+  });
+}
+
+export function buildWeakExtractionManualReviewResult(input: {
+  fileName?: string;
+  totalPages: number;
+  referenceDate?: Date;
+}): StatementAiResult {
+  const end = input.referenceDate || new Date();
+  const start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - (REQUIRED_MONTHS - 1), 1));
+  const months = enumerateInclusiveMonths(start, end);
+  const warning = `El PDF tiene ${input.totalPages} páginas pero no contiene texto nativo suficiente para lectura automática. Se valida la cobertura mínima por extensión del extracto y se deriva a revisión manual.`;
+
+  return normalizeAiResult({
+    titulares: [{
+      index: 1,
+      holder_name: "",
+      bank_name: "",
+      iban_masked: "",
+      period_start: start.toISOString().slice(0, 10),
+      period_end: end.toISOString().slice(0, 10),
+      months_detected: months.length,
+      months,
+      monthly_recurring_income: 0,
+      average_monthly_income: 0,
+      monthly_debts: 0,
+      savings_balance: 0,
+      confidence: 0.25,
+      warnings: [warning],
+    }],
+    months_detected: months,
+    missing_months: [],
+    confidence: 0.25,
+    warnings: [warning, input.fileName ? `Archivo: ${input.fileName}` : "Revisión manual requerida"],
+  });
 }
 
 export function enrichStatementResultWithDeterministicCoverage(
@@ -353,6 +441,8 @@ export function calculateStatementViability(ai: StatementAiResult, numTitulares:
   const detectedMonths = Array.from(new Set(ai.months_detected || [])).sort();
   const missingMonths = Array.isArray(ai.missing_months) ? ai.missing_months : [];
   const hasTwelveMonths = detectedMonths.length >= REQUIRED_MONTHS && missingMonths.length === 0;
+  const firstHolder = titulares[0];
+  const periodValidatedOnly = hasTwelveMonths && ingresos <= 0 && Number(ai.confidence || 0) < 0.65;
 
   if (!hasTwelveMonths) {
     return {
@@ -367,6 +457,27 @@ export function calculateStatementViability(ai: StatementAiResult, numTitulares:
       missing_months: missingMonths,
       manual_review_required: true,
       incomplete_months: true,
+    };
+  }
+
+  if (periodValidatedOnly) {
+    const periodText = firstHolder?.period_start && firstHolder?.period_end
+      ? `: el extracto cubre ${firstHolder.period_start} a ${firstHolder.period_end}`
+      : "";
+    return {
+      aprobable: false,
+      hipoteca_maxima: 0,
+      cuota_max: 0,
+      ingresos_detectados: 0,
+      deudas_detectadas: Math.round(deudas),
+      ahorros_detectados: Math.round(ahorros),
+      razon: `Documento válido con 12 meses completos${periodText}. Revisión manual requerida porque la extracción financiera automática no obtuvo ingresos con suficiente confianza.`,
+      months_detected: detectedMonths.length,
+      missing_months: [],
+      manual_review_required: true,
+      needs_manual_review: true,
+      incomplete_months: false,
+      period_validated: true,
     };
   }
 
