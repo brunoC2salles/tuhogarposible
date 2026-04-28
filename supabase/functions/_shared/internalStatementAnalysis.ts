@@ -104,6 +104,112 @@ export function buildFallbackAiResult(): StatementAiResult {
   };
 }
 
+function parseStatementDate(raw: string): Date | null {
+  const trimmed = raw.trim();
+  const ddmmyyyy = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (ddmmyyyy) {
+    const [, dd, mm, yyyy] = ddmmyyyy;
+    return new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+  }
+
+  const yyyymmdd = trimmed.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+  if (yyyymmdd) {
+    const [, yyyy, mm, dd] = yyyymmdd;
+    return new Date(Date.UTC(Number(yyyy), Number(mm) - 1, Number(dd)));
+  }
+
+  return null;
+}
+
+function monthKey(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function enumerateInclusiveMonths(start: Date, end: Date): string[] {
+  const months: string[] = [];
+  const cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+  const limit = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+
+  while (cursor <= limit) {
+    months.push(monthKey(cursor));
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  return months;
+}
+
+function detectStatementCoverage(text: string): { months: string[]; period_start?: string; period_end?: string; warning?: string } {
+  const normalized = text.replace(/\s+/g, " ");
+  const periodRegex = /\b(?:periodo|período|period)\b\s*:?\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s*(?:-|–|—|a|al|hasta)\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/i;
+  const periodMatch = normalized.match(periodRegex);
+
+  if (periodMatch) {
+    const start = parseStatementDate(periodMatch[1]);
+    const end = parseStatementDate(periodMatch[2]);
+    if (start && end && start <= end) {
+      const months = enumerateInclusiveMonths(start, end);
+      if (months.length >= REQUIRED_MONTHS) {
+        return {
+          months,
+          period_start: start.toISOString().slice(0, 10),
+          period_end: end.toISOString().slice(0, 10),
+          warning: `Meses validados por el periodo declarado del extracto: ${periodMatch[1]}-${periodMatch[2]}.`,
+        };
+      }
+    }
+  }
+
+  const transactionMonths = new Set<string>();
+  for (const match of normalized.matchAll(/\b(?:\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\b/g)) {
+    const date = parseStatementDate(match[0]);
+    if (date) transactionMonths.add(monthKey(date));
+  }
+
+  const months = Array.from(transactionMonths).sort();
+  if (months.length >= REQUIRED_MONTHS) {
+    return {
+      months,
+      warning: "Meses validados por fechas de movimientos detectadas en el extracto.",
+    };
+  }
+
+  return { months };
+}
+
+function buildDeterministicCoverage(files: Array<{ text: string }>) {
+  const coverages = files.map((file) => detectStatementCoverage(file.text));
+  const best = coverages.sort((a, b) => b.months.length - a.months.length)[0];
+  return best || { months: [] };
+}
+
+export function enrichStatementResultWithDeterministicCoverage(
+  result: StatementAiResult,
+  files: Array<{ text: string }>
+): StatementAiResult {
+  const coverage = buildDeterministicCoverage(files);
+  const detectedMonths = Array.from(new Set(result.months_detected || [])).sort();
+  const shouldOverride = coverage.months.length >= REQUIRED_MONTHS && (detectedMonths.length < REQUIRED_MONTHS || (result.missing_months || []).length > 0);
+
+  if (!shouldOverride) return result;
+
+  const warnings = Array.from(new Set([...(result.warnings || []), coverage.warning || "Meses validados por lectura determinística del extracto."]));
+
+  return normalizeAiResult({
+    ...result,
+    months_detected: coverage.months,
+    missing_months: [],
+    warnings,
+    titulares: (result.titulares || []).map((holder) => ({
+      ...holder,
+      period_start: holder.period_start || coverage.period_start || null,
+      period_end: holder.period_end || coverage.period_end || null,
+      months_detected: Math.max(Number(holder.months_detected || 0), coverage.months.length),
+      months: Array.from(new Set([...(holder.months || []), ...coverage.months])).sort(),
+      warnings: Array.from(new Set([...(holder.warnings || []), coverage.warning || "Meses validados por lectura determinística del extracto."])),
+    })),
+  });
+}
+
 function emptyToNull(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
