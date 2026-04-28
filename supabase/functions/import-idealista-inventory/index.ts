@@ -145,7 +145,8 @@ Deno.serve(async (req) => {
 
     const { data: existing, error: existingError } = await adminClient
       .from('inmuebles')
-      .select('id, proveedor, codigo_inventario, disponible');
+      .select('id, proveedor, codigo_inventario, disponible')
+      .eq('disponible', true);
     if (existingError) throw existingError;
 
     const incomingKeys = new Set(rows.map((row) => `Idealista:${row.codigo_inventario}`));
