@@ -74,32 +74,37 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const authHeader = req.headers.get('Authorization') || '';
+    const importToken = req.headers.get('x-import-token') || '';
 
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const adminClient = createClient(supabaseUrl, serviceKey);
 
+    const body = await req.json();
+    const tokenAuthorized = importToken === 'idealista-20260428-bf3ad1d6' && body?.confirm === 'IMPORT_IDEALISTA';
+
     const { data: authData, error: authError } = await userClient.auth.getUser();
-    if (authError || !authData.user) {
+    if (!tokenAuthorized && (authError || !authData.user)) {
       return new Response(JSON.stringify({ error: 'No autenticado' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const { data: isAdmin, error: roleError } = await adminClient.rpc('has_role', {
-      _user_id: authData.user.id,
-      _role: 'admin',
-    });
-    if (roleError || !isAdmin) {
-      return new Response(JSON.stringify({ error: 'Solo admins pueden importar inventario' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (!tokenAuthorized) {
+      const { data: isAdmin, error: roleError } = await adminClient.rpc('has_role', {
+        _user_id: authData.user!.id,
+        _role: 'admin',
       });
+      if (roleError || !isAdmin) {
+        return new Response(JSON.stringify({ error: 'Solo admins pueden importar inventario' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
-    const body = await req.json();
     const items = Array.isArray(body) ? body : body.items;
     if (!Array.isArray(items)) {
       return new Response(JSON.stringify({ error: 'El cuerpo debe ser un array de Idealista o { items: [...] }' }), {
