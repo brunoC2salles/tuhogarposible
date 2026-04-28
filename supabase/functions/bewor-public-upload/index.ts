@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     // 3. Upload para Storage (bucket lead-documents) + extração local de texto
     const folder = leadId || "standalone";
     const uploadedFiles: UploadedStatementFile[] = [];
-    const aiFiles: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }> = [];
+    const aiFiles: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number; weakExtraction: boolean }> = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
       }
 
       uploadedFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, path: filePath, holder_scope: holderScope, size: file.size, pages: extracted.totalPages });
-      aiFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, holder_scope: holderScope, text: extracted.text, pages: extracted.totalPages });
+      aiFiles.push({ name: file.name || `extracto-${i + 1}.pdf`, holder_scope: holderScope, text: extracted.text, pages: extracted.totalPages, weakExtraction: extracted.weakExtraction });
     }
 
     await admin
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
 
     let aiResult;
     try {
-      const weakFile = aiFiles.find((file, index) => uploadedFiles[index]?.pages && uploadedFiles[index].pages! >= 12 && (file.text || "").replace(/\s+/g, " ").trim().length < 800);
+      const weakFile = aiFiles.find((file) => file.weakExtraction && file.pages >= 12);
       if (weakFile) {
         console.warn("statement weak text extraction; forcing manual-review coverage fallback", {
           analysis_id: analysis.id,
