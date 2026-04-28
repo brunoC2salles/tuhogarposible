@@ -197,6 +197,45 @@ function buildDeterministicCoverage(files: Array<{ text: string }>) {
   return best || { months: [] };
 }
 
+export function buildDeclaredCoverageResult(input: {
+  periodStart: string;
+  periodEnd: string;
+  holderName?: string | null;
+  bankName?: string | null;
+  ibanMasked?: string | null;
+  warning?: string;
+}): StatementAiResult | null {
+  const start = parseStatementDate(input.periodStart);
+  const end = parseStatementDate(input.periodEnd);
+  if (!start || !end || start > end) return null;
+  const months = enumerateInclusiveMonths(start, end);
+  if (months.length < REQUIRED_MONTHS) return null;
+
+  const warning = input.warning || `Periodo bancario validado por OCR/visión: ${input.periodStart}-${input.periodEnd}. La extracción financiera automática requiere revisión manual.`;
+  return normalizeAiResult({
+    titulares: [{
+      index: 1,
+      holder_name: input.holderName || "",
+      bank_name: input.bankName || "",
+      iban_masked: input.ibanMasked || "",
+      period_start: start.toISOString().slice(0, 10),
+      period_end: end.toISOString().slice(0, 10),
+      months_detected: months.length,
+      months,
+      monthly_recurring_income: 0,
+      average_monthly_income: 0,
+      monthly_debts: 0,
+      savings_balance: 0,
+      confidence: 0.35,
+      warnings: [warning],
+    }],
+    months_detected: months,
+    missing_months: [],
+    confidence: 0.35,
+    warnings: [warning],
+  });
+}
+
 export function enrichStatementResultWithDeterministicCoverage(
   result: StatementAiResult,
   files: Array<{ text: string }>
