@@ -3,6 +3,7 @@ import {
   analyzeStatementsWithAi,
   buildFallbackAiResult,
   calculateStatementViability,
+  enrichStatementResultWithDeterministicCoverage,
   extractPdfText,
   type HolderScope,
   type UploadedStatementFile,
@@ -163,6 +164,7 @@ Deno.serve(async (req) => {
       console.error("statement analysis fallback", { analysis_id: analysis.id, message });
       aiResult = buildFallbackAiResult();
     }
+    aiResult = enrichStatementResultWithDeterministicCoverage(aiResult, aiFiles);
     const viabilidade = calculateStatementViability(aiResult, numTitulares);
     const firstHolder = aiResult.titulares?.[0];
 
