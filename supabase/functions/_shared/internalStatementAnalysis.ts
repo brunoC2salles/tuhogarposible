@@ -10,6 +10,13 @@ export interface UploadedStatementFile {
   pages?: number;
 }
 
+export interface ExtractedStatementPdf {
+  text: string;
+  totalPages: number;
+  arrayBuffer: ArrayBuffer;
+  weakExtraction: boolean;
+}
+
 export interface StatementAiHolder {
   index: number;
   holder_name?: string | null;
@@ -44,7 +51,15 @@ export async function extractPdfText(file: File) {
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
   const { totalPages, text } = await extractText(pdf, { mergePages: true });
-  return { text: String(text || ""), totalPages, arrayBuffer };
+  const extractedText = String(text || "");
+  return { text: extractedText, totalPages, arrayBuffer, weakExtraction: isWeakPdfTextExtraction(extractedText, totalPages) } satisfies ExtractedStatementPdf;
+}
+
+function isWeakPdfTextExtraction(text: string, totalPages = 0): boolean {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  const dateMatches = normalized.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\b/g)?.length || 0;
+  const wordsWithLetters = normalized.match(/\b[\p{L}]{3,}\b/gu)?.length || 0;
+  return totalPages >= 4 && (normalized.length < 800 || (dateMatches < 3 && wordsWithLetters < 25));
 }
 
 
