@@ -1,47 +1,47 @@
-Confirmé que el PDF subido es válido: en la página 1 aparece `Periodo: 28/04/2025-28/04/2026`, con 39 páginas y movimientos distribuidos desde abril de 2025 hasta abril de 2026.
+Vou corrigir a lógica para que respostas afirmativas em `tiene_ahorros_impuestos` qualifiquem o lead, mesmo sem valor numérico, e para que o campo enviado ao Bitrix seja normalizado como `sí`.
 
-El fallo no es del documento. El problema es que la función desplegada está extrayendo del PDF prácticamente solo números de página, por eso la IA responde “documento vacío / sin texto procesable” y el sistema termina marcando `months_detected = 0`.
+Plano de implementação:
 
-Plan de corrección:
+1. Normalizar respostas afirmativas de ahorros
+   - Criar/ajustar uma função de normalização para reconhecer `si`, `sí`, `yes` e derivados.
+   - Incluir variações comuns como maiúsculas/minúsculas, acentos, espaços e textos derivados do tipo `sí tengo`, `si tengo ahorros`, `yes I have`, `yes tengo`, etc.
+   - Evitar falsos positivos óbvios como `no`, `no tengo`, `sin ahorros`.
 
-1. Robustecer la extracción de texto del PDF
-   - Mantener la extracción actual con `unpdf` como primer intento.
-   - Añadir una segunda vía de extracción para PDFs escaneados o PDFs donde `unpdf` devuelve texto insuficiente.
-   - Si el texto extraído contiene muy pocas palabras/fechas, marcarlo como extracción débil y activar fallback en vez de aceptar `0 meses`.
+2. Corrigir a qualificação no webhook Meta Ads
+   - Em `supabase/functions/meta-lead-webhook/index.ts`, manter o lead como qualificado se:
+     - respondeu afirmativamente sobre ahorros; ou
+     - declarou `monto_ahorros >= 5000`.
+   - Isso preserva a regra que você pediu: quem responde `si`, `sí`, `yes` e derivados deve ser qualificado.
 
-2. Validar cobertura por OCR/visión cuando el texto nativo falla
-   - Para documentos con extracción débil, analizar al menos las páginas clave del PDF con IA multimodal/visión.
-   - Extraer específicamente estos datos:
-     - entidad bancaria
-     - titular
-     - IBAN
-     - periodo declarado
-     - fechas de movimientos visibles
-   - Usar `Periodo: 28/04/2025-28/04/2026` como fuente principal para validar los 12 meses cuando esté presente.
+3. Normalizar o valor salvo para reenvio
+   - Quando a resposta for afirmativa, salvar `meta_tiene_ahorros` como `sí` dentro de `simulador_hipotecario_data`.
+   - Assim, qualquer reenvio/manual proxy que usa os dados salvos também mantém o valor padronizado.
 
-3. Cambiar la regla de viabilidad para este caso
-   - Si el documento tiene periodo bancario válido de 12+ meses, no mostrar al cliente “no contiene los últimos 12 meses”.
-   - Si aún no se pueden calcular ingresos/deudas con confianza, mostrar un estado correcto de “documento válido, revisión manual requerida”, no “documento incompleto”.
+4. Corrigir o payload enviado ao Bitrix
+   - Em `supabase/functions/_shared/bitrixPayload.ts`, garantir que `meta_tiene_ahorros` saia como `sí` quando a resposta original for afirmativa.
+   - Se houver valor numérico suficiente mas não houver resposta textual afirmativa, manter o texto original ou vazio, sem inventar resposta.
+   - O campo `meta_monto_ahorros` continuará enviando o número parseado normalmente.
 
-4. Guardar diagnóstico técnico en el análisis
-   - Registrar en `result`/`warnings` si se usó fallback OCR/visión.
-   - Guardar `months_detected = 13`, `missing_months = []`, `incomplete_months = false` cuando el periodo declarado cubra de abril 2025 a abril 2026.
+5. Atualizar memória/regra do projeto
+   - Atualizar a documentação de memória da regra Meta Ads para refletir que derivados afirmativos também qualificam e que o payload Bitrix deve enviar `meta_tiene_ahorros: "sí"` para respostas afirmativas.
 
-5. Reparar los análisis fallidos recientes de este mismo documento
-   - Actualizar los registros recientes que quedaron con `months_detected = 0` para este PDF.
-   - Dejarlos como documento válido con revisión manual, en vez de rechazo por meses incompletos.
+6. Verificação
+   - Validar mentalmente os principais casos:
 
-6. Desplegar y probar
-   - Desplegar `bewor-public-upload` con la nueva lógica.
-   - Probar nuevamente con este PDF.
-   - Verificar que el estado público ya no muestre “no contiene los últimos 12 meses completos”.
+```text
+"si"               -> qualificado, Bitrix meta_tiene_ahorros = "sí"
+"sí"               -> qualificado, Bitrix meta_tiene_ahorros = "sí"
+"yes"              -> qualificado, Bitrix meta_tiene_ahorros = "sí"
+"sí tengo"         -> qualificado, Bitrix meta_tiene_ahorros = "sí"
+"yes tengo ahorros"-> qualificado, Bitrix meta_tiene_ahorros = "sí"
+"no"               -> não qualifica por resposta afirmativa
+"no tengo"         -> não qualifica por resposta afirmativa
+monto_ahorros 5000 -> qualifica por valor mínimo
+```
 
-Archivos previstos:
-- `supabase/functions/_shared/internalStatementAnalysis.ts`
-- `supabase/functions/bewor-public-upload/index.ts`
-- Posible migración SQL para corregir los análisis recientes ya creados.
+Arquivos a alterar:
+- `supabase/functions/meta-lead-webhook/index.ts`
+- `supabase/functions/_shared/bitrixPayload.ts`
+- `.lovable/memory/features/meta-ads-qualification-rules-2025.md`
 
-Resultado esperado:
-- Este documento CaixaBank será reconocido como válido para cobertura de 12 meses.
-- El cliente no verá más el mensaje incorrecto de extracto incompleto.
-- Cuando la extracción financiera no sea suficiente, el sistema pedirá revisión manual, pero sin invalidar el documento por meses.
+Depois de aprovado, implemento a correção diretamente.
