@@ -830,11 +830,16 @@ Deno.serve(async (req) => {
     const montoAhorrosDeclarado = parseAhorros(data.monto_ahorros);
     const montoAhorrosRespuesta = parseAhorros(data.tiene_ahorros_impuestos);
     const montoAhorros = Math.max(montoAhorrosDeclarado, montoAhorrosRespuesta);
+    const tieneRespuestaAhorrosAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
+    const metaTieneAhorrosNormalizado = tieneRespuestaAhorrosAfirmativa
+      ? 'sí'
+      : (data.tiene_ahorros_impuestos || null);
     console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros, {
       rawMonto: data.monto_ahorros,
       rawRespuesta: data.tiene_ahorros_impuestos,
       montoAhorrosDeclarado,
       montoAhorrosRespuesta,
+      tieneRespuestaAhorrosAfirmativa,
     });
 
     // 3. Qualificar lead (passa edad parseada e ahorros)
@@ -1065,7 +1070,7 @@ Deno.serve(async (req) => {
       tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
       // Snapshot dos inputs Meta usados para reconstrução
       meta_monto_ahorros: montoAhorros,
-      meta_tiene_ahorros: data.tiene_ahorros_impuestos || null,
+      meta_tiene_ahorros: metaTieneAhorrosNormalizado,
       meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
       meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
       meta_dni_nie: data.tiene_nie_dni || null,
