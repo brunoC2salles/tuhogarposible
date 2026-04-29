@@ -44,6 +44,24 @@ function extractNumber(value: any): number {
   return m ? Number(m[1].replace(/\./g, '')) : 0;
 }
 
+function normalizeAhorrosResponse(value: any): string {
+  if (value === undefined || value === null) return '';
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function isAffirmativeAhorrosResponse(value: any): boolean {
+  const normalized = normalizeAhorrosResponse(value);
+  if (!normalized) return false;
+  if (/\b(no|sin|ningun|ninguna|nada|0)\b/.test(normalized)) return false;
+  return /\b(si|yes|tengo|dispongo|cuento|claro|afirmativo)\b/.test(normalized);
+}
+
 export interface BitrixPayloadInput {
   lead: any;            // row da tabela leads (com simulador_personal_data e simulador_hipotecario_data)
   agente?: any | null;  // profile do agente
@@ -90,6 +108,7 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
   const metaTieneAhorros =
     simHipoteca.meta_tiene_ahorros ??
     (extractFromNotes(lead.notas, 'Ahorros para impuestos').split(' - ')[0] || '');
+  const metaTieneAhorrosBitrix = isAffirmativeAhorrosResponse(metaTieneAhorros) ? 'sí' : metaTieneAhorros;
   const metaViviendaSel =
     simHipoteca.meta_vivienda_seleccionada ??
     extractFromNotes(lead.notas, 'Vivienda seleccionada') ??
@@ -141,7 +160,7 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     meta_antiguedad_trabajo: metaAntiguedad,
     meta_deudas_mensuales: deudas,
     meta_monto_ahorros: metaMontoAhorros,
-    meta_tiene_ahorros: metaTieneAhorros,
+    meta_tiene_ahorros: metaTieneAhorrosBitrix,
     meta_vivienda_seleccionada: metaViviendaSel,
 
     // ===== Agente =====
