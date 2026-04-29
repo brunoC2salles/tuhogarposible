@@ -432,6 +432,24 @@ function parseAhorros(input?: string | number): number {
   return Math.max(0, parsed);
 }
 
+function normalizeAhorrosResponse(input?: string | number | null): string {
+  if (input === undefined || input === null) return '';
+  return String(input)
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function isAffirmativeAhorrosResponse(input?: string | number | null): boolean {
+  const normalized = normalizeAhorrosResponse(input);
+  if (!normalized) return false;
+  if (/\b(no|sin|ningun|ninguna|nada|0)\b/.test(normalized)) return false;
+  return /\b(si|yes|tengo|dispongo|cuento|claro|afirmativo)\b/.test(normalized);
+}
+
 /**
  * Parseia idade de múltiplos formatos possíveis do Meta Ads
  * Aceita: edad, age, birth_year, ano_nacimiento, fecha_nacimiento
@@ -533,17 +551,11 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   }
   
   // Critério 7: Ahorros para impuestos.
-  // El candidato se considera cualificado si:
-  //   (a) responde afirmativamente ("sí", "si", "yes", "true", "1") en `tiene_ahorros_impuestos`, O
-  //   (b) declara un monto numérico > 0 en `monto_ahorros`.
-  // La regla dinámica completa (valor inmueble × % ITP CCAA) se aplica en el simulador
-  // hipotecario (src/lib/simuladorUtils.ts) cuando el cliente introduce el precio real.
-  // Regla endurecida (2025-04): cualifica si responde afirmativamente con "si/sí/yes"
-  // O si declara monto_ahorros >= 5.000€. Caso contrario, descualificado.
+  // Cualifica si responde afirmativamente con "si/sí/yes" y derivados,
+  // o si declara monto_ahorros >= 5.000€.
   const AHORROS_MINIMO = 5000;
-  const respuestaAhorros = (data.tiene_ahorros_impuestos || '').toString().trim().toLowerCase();
-  const respuestasAfirmativas = ['si', 'sí', 'yes'];
-  const tieneRespuestaAfirmativa = respuestasAfirmativas.includes(respuestaAhorros);
+  const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
+  const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
 
   console.log('[meta-lead-webhook] Validação ahorros:', {
@@ -818,11 +830,16 @@ Deno.serve(async (req) => {
     const montoAhorrosDeclarado = parseAhorros(data.monto_ahorros);
     const montoAhorrosRespuesta = parseAhorros(data.tiene_ahorros_impuestos);
     const montoAhorros = Math.max(montoAhorrosDeclarado, montoAhorrosRespuesta);
+    const tieneRespuestaAhorrosAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
+    const metaTieneAhorrosNormalizado = tieneRespuestaAhorrosAfirmativa
+      ? 'sí'
+      : (data.tiene_ahorros_impuestos || null);
     console.log('[meta-lead-webhook] Monto ahorros parseado:', montoAhorros, {
       rawMonto: data.monto_ahorros,
       rawRespuesta: data.tiene_ahorros_impuestos,
       montoAhorrosDeclarado,
       montoAhorrosRespuesta,
+      tieneRespuestaAhorrosAfirmativa,
     });
 
     // 3. Qualificar lead (passa edad parseada e ahorros)
@@ -1053,7 +1070,7 @@ Deno.serve(async (req) => {
       tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
       // Snapshot dos inputs Meta usados para reconstrução
       meta_monto_ahorros: montoAhorros,
-      meta_tiene_ahorros: data.tiene_ahorros_impuestos || null,
+      meta_tiene_ahorros: metaTieneAhorrosNormalizado,
       meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
       meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
       meta_dni_nie: data.tiene_nie_dni || null,
