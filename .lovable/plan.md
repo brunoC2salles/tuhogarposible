@@ -1,47 +1,33 @@
-Vou corrigir a lógica para que respostas afirmativas em `tiene_ahorros_impuestos` qualifiquem o lead, mesmo sem valor numérico, e para que o campo enviado ao Bitrix seja normalizado como `sí`.
+Vou gerar uma tabela CSV baixável com todos os leads aprovados dos últimos 2 dias, no formato solicitado.
 
-Plano de implementação:
-
-1. Normalizar respostas afirmativas de ahorros
-   - Criar/ajustar uma função de normalização para reconhecer `si`, `sí`, `yes` e derivados.
-   - Incluir variações comuns como maiúsculas/minúsculas, acentos, espaços e textos derivados do tipo `sí tengo`, `si tengo ahorros`, `yes I have`, `yes tengo`, etc.
-   - Evitar falsos positivos óbvios como `no`, `no tengo`, `sin ahorros`.
-
-2. Corrigir a qualificação no webhook Meta Ads
-   - Em `supabase/functions/meta-lead-webhook/index.ts`, manter o lead como qualificado se:
-     - respondeu afirmativamente sobre ahorros; ou
-     - declarou `monto_ahorros >= 5000`.
-   - Isso preserva a regra que você pediu: quem responde `si`, `sí`, `yes` e derivados deve ser qualificado.
-
-3. Normalizar o valor salvo para reenvio
-   - Quando a resposta for afirmativa, salvar `meta_tiene_ahorros` como `sí` dentro de `simulador_hipotecario_data`.
-   - Assim, qualquer reenvio/manual proxy que usa os dados salvos também mantém o valor padronizado.
-
-4. Corrigir o payload enviado ao Bitrix
-   - Em `supabase/functions/_shared/bitrixPayload.ts`, garantir que `meta_tiene_ahorros` saia como `sí` quando a resposta original for afirmativa.
-   - Se houver valor numérico suficiente mas não houver resposta textual afirmativa, manter o texto original ou vazio, sem inventar resposta.
-   - O campo `meta_monto_ahorros` continuará enviando o número parseado normalmente.
-
-5. Atualizar memória/regra do projeto
-   - Atualizar a documentação de memória da regra Meta Ads para refletir que derivados afirmativos também qualificam e que o payload Bitrix deve enviar `meta_tiene_ahorros: "sí"` para respostas afirmativas.
-
-6. Verificação
-   - Validar mentalmente os principais casos:
+Escopo do arquivo:
+- Filtrar leads criados nos últimos 2 dias.
+- Considerar como “aprovados” os leads que não estão em `descualificados` e/ou têm `simulador_hipotecario_data.aprobado = true`.
+- Exportar as colunas exatamente nesta ordem:
 
 ```text
-"si"               -> qualificado, Bitrix meta_tiene_ahorros = "sí"
-"sí"               -> qualificado, Bitrix meta_tiene_ahorros = "sí"
-"yes"              -> qualificado, Bitrix meta_tiene_ahorros = "sí"
-"sí tengo"         -> qualificado, Bitrix meta_tiene_ahorros = "sí"
-"yes tengo ahorros"-> qualificado, Bitrix meta_tiene_ahorros = "sí"
-"no"               -> não qualifica por resposta afirmativa
-"no tengo"         -> não qualifica por resposta afirmativa
-monto_ahorros 5000 -> qualifica por valor mínimo
+email,email,email,phone,phone,phone,madid,fn,ln,zip,ct,st,country,dob,doby,gen,age,uid,value
 ```
 
-Arquivos a alterar:
-- `supabase/functions/meta-lead-webhook/index.ts`
-- `supabase/functions/_shared/bitrixPayload.ts`
-- `.lovable/memory/features/meta-ads-qualification-rules-2025.md`
+Preenchimento previsto:
+- `email`, `email`, `email`: mesmo email repetido 3 vezes.
+- `phone`, `phone`, `phone`: mesmo telefone repetido 3 vezes.
+- `madid`: vazio, porque não temos esse identificador.
+- `fn`: primeiro nome.
+- `ln`: restante do nome/sobrenome.
+- `zip`: vazio, porque não temos código postal.
+- `ct`: cidade de interesse, quando existir.
+- `st`: região/zona de interesse, quando existir.
+- `country`: `ES` para Espanha.
+- `dob`: vazio, salvo se houver data de nascimento disponível no JSON do lead.
+- `doby`: ano de nascimento, se existir no JSON.
+- `gen`: vazio, porque não temos gênero.
+- `age`: idade, se existir no JSON.
+- `uid`: ID interno do lead.
+- `value`: valor do imóvel desejado ou valor máximo/preço máximo aprovado da simulação hipotecária, quando existir.
 
-Depois de aprovado, implemento a correção diretamente.
+Após aprovação, vou:
+1. Consultar a base Supabase.
+2. Transformar os dados para esse layout.
+3. Gerar o arquivo em `/mnt/documents/`, por exemplo `leads_hipoteca_aprobada_ultimos_2_dias.csv`.
+4. Entregar o link de download do CSV.
