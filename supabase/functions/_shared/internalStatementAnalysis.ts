@@ -337,6 +337,9 @@ export async function analyzeStatementsWithAi(input: {
     })
     .join("\n\n---\n\n");
 
+  const detectedBanks = Array.from(new Set(input.files.map(f => detectBankFromText(f.text)).filter(Boolean)));
+  const bankHint = detectedBanks.length ? `Bancos detectados deterministicamente: ${detectedBanks.join(", ")}.` : "";
+
   const systemPrompt = [
     "Eres un analista financiero que extrae datos de extractos bancarios españoles.",
     "Devuelve SIEMPRE los datos usando la función estructurada.",
@@ -347,6 +350,32 @@ export async function analyzeStatementsWithAi(input: {
     "Ahorros: usa el saldo final más reciente detectado o Saldo disponible si existe. Si no hay saldo, usa 0 y añade warning.",
     "Para dos titulares, mantén titulares separados; el backend sumará los importes.",
     "Para campos de texto desconocidos, devuelve una cadena vacía, nunca null.",
+    "",
+    "=== REGLAS ESPECÍFICAS POR BANCO ===",
+    "",
+    "[BBVA] — Identificable por BIC 'BBVAESMM', IBAN que empieza por 'ES.. 0182' o cabecera 'EXTRACTO MENSUAL DE CUENTAS PERSONALES'.",
+    "  Estructura: tabla con columnas F.Oper. | F.Valor | Concepto | Importe | Saldo. Titular en línea 'Titulares: NOMBRE'.",
+    "  INGRESOS RECURRENTES (nómina) en BBVA:",
+    "    - 'ABONO DE NOMINA POR TRANSFERENCIA' seguido del nombre de la empresa pagadora.",
+    "    - 'TRANSFERENCIAS' cuyo concepto contiene 'NOMINA' (ej: 'NOMINA ENERO JUAN PEREZ').",
+    "  DEUDAS RECURRENTES en BBVA:",
+    "    - 'ADEUDO A SU CARGO' con referencia a financieras (COFIDIS, CETELEM, WIZINK, etc.).",
+    "    - 'ADEUDO DE ENTIDAD FINANCIERA' (ej: CAIXABANK PAYMENTS CONSUMER, SANTANDER CONSUMER).",
+    "    - 'CARGO POR AMORTIZACION DE PRESTAMO/CREDITO' → cuota de préstamo del propio BBVA.",
+    "  IGNORAR (NO son ingreso ni deuda recurrente) en BBVA:",
+    "    - 'BIZUM' (enviado o recibido), aunque sea repetitivo.",
+    "    - 'INGRESO EN EFECTIVO' → no es nómina.",
+    "    - 'RET. EFECTIVO A DEBITO CON TARJ. EN CAJERO' → retirada cajero.",
+    "    - 'PAGO CON TARJETA EN ...' / 'PAGO CON TARJETA DE ...' → gastos puntuales.",
+    "    - 'TRANSFERENCIAS' con concepto 'ALQUILER' → es gasto del cliente, NO deuda financiera.",
+    "    - 'LIQUIDACION DE INTERESES-COMISIONES-GASTOS' → comisión bancaria puntual.",
+    "    - 'CARGO POR PAGO DE IMPUESTOS - TRIBUTOS' → impuesto puntual, no deuda recurrente.",
+    "  SALDO FINAL en BBVA al pie del extracto:",
+    "    - 'SALDO A SU FAVOR [importe]' → saldo POSITIVO del cliente (úsalo como savings_balance).",
+    "    - 'SALDO A NUESTRO FAVOR [importe]' → saldo NEGATIVO del cliente (descubierto). Usa savings_balance = 0 y añade warning de descubierto.",
+    "  PERIODO en BBVA: la cabecera dice 'EXTRACTO DE [MES] [AÑO]' (ej: 'EXTRACTO DE MARZO 2026'). Convierte el mes español a YYYY-MM.",
+    "",
+    bankHint,
   ].join(" ");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
