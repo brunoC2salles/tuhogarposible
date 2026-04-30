@@ -323,6 +323,42 @@ function normalizeAiResult(result: StatementAiResult): StatementAiResult {
   };
 }
 
+/**
+ * Detección determinística del banco a partir del texto del extracto.
+ * Devuelve un nombre canónico (ej: 'BBVA') o null si no se reconoce.
+ */
+export function detectBankFromText(text: string): string | null {
+  const t = (text || "").toUpperCase();
+  if (t.includes("BBVAESMM") || /IBAN\s*ES\d{2}\s*0182/.test(t) || t.includes("EXTRACTO MENSUAL DE CUENTAS PERSONALES")) {
+    return "BBVA";
+  }
+  if (t.includes("BSCHESMM") || /IBAN\s*ES\d{2}\s*00(?:30|49|75)/.test(t)) return "Santander";
+  if (t.includes("CAIXESBB") || /IBAN\s*ES\d{2}\s*2100/.test(t)) return "CaixaBank";
+  if (t.includes("INGDESMM") || /IBAN\s*ES\d{2}\s*1465/.test(t)) return "ING";
+  if (t.includes("SABBESBB") || /IBAN\s*ES\d{2}\s*0081/.test(t)) return "Sabadell";
+  return null;
+}
+
+/**
+ * Parser determinístico del saldo final BBVA.
+ * - 'SALDO A SU FAVOR X' → positivo (X)
+ * - 'SALDO A NUESTRO FAVOR X' → negativo (-X)
+ */
+export function parseBbvaFinalBalance(text: string): number | null {
+  const normalized = (text || "").replace(/\s+/g, " ");
+  const nuestroMatch = normalized.match(/SALDO\s+A\s+NUESTRO\s+FAVOR\s+([\d.,]+)/i);
+  if (nuestroMatch) {
+    const value = parseFloat(nuestroMatch[1].replace(/\./g, "").replace(",", "."));
+    if (!isNaN(value)) return -Math.abs(value);
+  }
+  const suMatch = normalized.match(/SALDO\s+A\s+SU\s+FAVOR\s+([\d.,]+)/i);
+  if (suMatch) {
+    const value = parseFloat(suMatch[1].replace(/\./g, "").replace(",", "."));
+    if (!isNaN(value)) return value;
+  }
+  return null;
+}
+
 export async function analyzeStatementsWithAi(input: {
   files: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }>;
   numTitulares: number;
@@ -337,6 +373,9 @@ export async function analyzeStatementsWithAi(input: {
     })
     .join("\n\n---\n\n");
 
+  const detectedBanks = Array.from(new Set(input.files.map(f => detectBankFromText(f.text)).filter(Boolean)));
+  const bankHint = detectedBanks.length ? `Bancos detectados deterministicamente: ${detectedBanks.join(", ")}.` : "";
+
   const systemPrompt = [
     "Eres un analista financiero que extrae datos de extractos bancarios españoles.",
     "Devuelve SIEMPRE los datos usando la función estructurada.",
@@ -347,6 +386,32 @@ export async function analyzeStatementsWithAi(input: {
     "Ahorros: usa el saldo final más reciente detectado o Saldo disponible si existe. Si no hay saldo, usa 0 y añade warning.",
     "Para dos titulares, mantén titulares separados; el backend sumará los importes.",
     "Para campos de texto desconocidos, devuelve una cadena vacía, nunca null.",
+    "",
+    "=== REGLAS ESPECÍFICAS POR BANCO ===",
+    "",
+    "[BBVA] — Identificable por BIC 'BBVAESMM', IBAN que empieza por 'ES.. 0182' o cabecera 'EXTRACTO MENSUAL DE CUENTAS PERSONALES'.",
+    "  Estructura: tabla con columnas F.Oper. | F.Valor | Concepto | Importe | Saldo. Titular en línea 'Titulares: NOMBRE'.",
+    "  INGRESOS RECURRENTES (nómina) en BBVA:",
+    "    - 'ABONO DE NOMINA POR TRANSFERENCIA' seguido del nombre de la empresa pagadora.",
+    "    - 'TRANSFERENCIAS' cuyo concepto contiene 'NOMINA' (ej: 'NOMINA ENERO JUAN PEREZ').",
+    "  DEUDAS RECURRENTES en BBVA:",
+    "    - 'ADEUDO A SU CARGO' con referencia a financieras (COFIDIS, CETELEM, WIZINK, etc.).",
+    "    - 'ADEUDO DE ENTIDAD FINANCIERA' (ej: CAIXABANK PAYMENTS CONSUMER, SANTANDER CONSUMER).",
+    "    - 'CARGO POR AMORTIZACION DE PRESTAMO/CREDITO' → cuota de préstamo del propio BBVA.",
+    "  IGNORAR (NO son ingreso ni deuda recurrente) en BBVA:",
+    "    - 'BIZUM' (enviado o recibido), aunque sea repetitivo.",
+    "    - 'INGRESO EN EFECTIVO' → no es nómina.",
+    "    - 'RET. EFECTIVO A DEBITO CON TARJ. EN CAJERO' → retirada cajero.",
+    "    - 'PAGO CON TARJETA EN ...' / 'PAGO CON TARJETA DE ...' → gastos puntuales.",
+    "    - 'TRANSFERENCIAS' con concepto 'ALQUILER' → es gasto del cliente, NO deuda financiera.",
+    "    - 'LIQUIDACION DE INTERESES-COMISIONES-GASTOS' → comisión bancaria puntual.",
+    "    - 'CARGO POR PAGO DE IMPUESTOS - TRIBUTOS' → impuesto puntual, no deuda recurrente.",
+    "  SALDO FINAL en BBVA al pie del extracto:",
+    "    - 'SALDO A SU FAVOR [importe]' → saldo POSITIVO del cliente (úsalo como savings_balance).",
+    "    - 'SALDO A NUESTRO FAVOR [importe]' → saldo NEGATIVO del cliente (descubierto). Usa savings_balance = 0 y añade warning de descubierto.",
+    "  PERIODO en BBVA: la cabecera dice 'EXTRACTO DE [MES] [AÑO]' (ej: 'EXTRACTO DE MARZO 2026'). Convierte el mes español a YYYY-MM.",
+    "",
+    bankHint,
   ].join(" ");
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

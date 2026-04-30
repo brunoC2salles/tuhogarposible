@@ -1,79 +1,64 @@
-Respirei fundo e fui direto aos dados. Você tem razão em se preocupar: o CSV que eu gerei usou um critério errado/amplo demais para “aprovado”.
 
-Diagnóstico confirmado:
+## Aprendizaje del formato BBVA
 
-```text
-Últimas 48h no banco:
-- 121 leads criados
-- 13 estão visíveis/ativos no CRM como stage != descualificados
-- 108 estão em descualificados
-- 92 têm simulador_hipotecario_data.aprobado = true
+Después de analizar los dos extractos, identifiqué patrones claros y específicos del BBVA que vale la pena enseñar al lector interno:
 
-Distribuição:
-- nuevo_lead + hipoteca_aprobada=true: 13
-- descualificados + hipoteca_aprobada=true: 79
-- descualificados + hipoteca_aprobada=false: 29
-```
+### Estructura BBVA detectada
+- **Cabecera**: `EXTRACTO MENSUAL DE CUENTAS PERSONALES` + `EXTRACTO DE [MES] [AÑO]`
+- **IBAN**: formato `IBAN ES21 0182 5332 ...` (código BBVA = `0182`)
+- **BIC**: `BBVAESMM` — confirma banco BBVA
+- **Titulares**: línea `Titulares: NOMBRE COMPLETO`
+- **Tabla**: columnas `F.Oper. | F.Valor | Concepto | Importe | Saldo`
+- **Saldo final**: línea `SALDO A SU FAVOR [importe]` o `SALDO A NUESTRO FAVOR [importe]` (este último indica saldo NEGATIVO)
+- **Saldo anterior**: fila `SALDO ANTERIOR ----` con saldo inicial del mes
 
-O problema foi a interpretação do campo `simulador_hipotecario_data.aprobado`.
+### Conceptos BBVA que SON ingresos recurrentes (nómina)
+- `ABONO DE NOMINA POR TRANSFERENCIA` + nombre empresa (ej: `PENALVER MESA S.L.`) → nómina clara
+- `TRANSFERENCIAS\nNOMINA [MES] [NOMBRE]` → también es nómina (formato variante)
 
-Esse campo indica que, pela simulação financeira/hipotecária, a pessoa teria capacidade numérica para uma hipoteca. Mas isso NÃO significa que o lead foi qualificado para o CRM/Bitrix.
+### Conceptos BBVA que SON deudas recurrentes
+- `ADEUDO A SU CARGO ... COFIDIS` → cuota préstamo Cofidis (recurrente mensual)
+- `ADEUDO DE ENTIDAD FINANCIERA ... CAIXABANK PAYMENTS CONSUMER` → cuota financiera (recurrente)
+- `CARGO POR AMORTIZACION DE PRESTAMO/CREDITO` → cuota préstamo BBVA (recurrente)
 
-A qualificação real do webhook é outra: se o lead falha em critérios como antiguidade laboral, morosidade, idade, DNI/NIE, rendimento, dívida ou ahorros, ele é gravado como `stage = descualificados` e não deveria entrar na lista de “qualificados”.
+### Conceptos BBVA a IGNORAR para ingresos/deudas
+- `BIZUM RECIBIDO/ENVIADO: Sin concepto` → NO es ingreso recurrente
+- `INGRESO EN EFECTIVO` → NO es nómina
+- `RET. EFECTIVO A DEBITO CON TARJ. EN CAJERO` → retirada cajero, no es deuda
+- `PAGO CON TARJETA EN ...` → gasto puntual, no deuda
+- `TRANSFERENCIAS\nALQUILER ...` → es alquiler que paga el cliente (gasto), NO confundir con deuda financiera
+- `LIQUIDACION DE INTERESES-COMISIONES-GASTOS` → gasto bancario puntual
+- `CARGO POR PAGO DE IMPUESTOS - TRIBUTOS` → impuestos, no deuda recurrente
 
-No arquivo de 38 leads que você está vendo agora, conferi os IDs do próprio CSV:
+### Saldo final / ahorros
+- En BBVA el saldo final está al pie: `SALDO A SU FAVOR 6,83` (positivo) o `SALDO A NUESTRO FAVOR 72,97` (negativo, deuda con el banco).
+- Ojo: ambos clientes terminaron con saldo muy bajo o negativo → ahorros ≈ 0.
 
-```text
-Arquivo: leads_hipoteca_aprobada_ahorros_ultimos_2_meses.csv
-Total no CSV: 38
-- 15 estão em nuevo_lead
-- 23 estão em descualificados
-```
+## Plan de implementación
 
-Ou seja: 23 dos 38 não deveriam estar nessa lista de leads qualificados. Eles entraram porque eu filtrei por `hipoteca_aprobada=true`, e isso incluiu descualificados que tinham simulação positiva mas foram reprovados por outros critérios.
+### 1. Enriquecer el system prompt en `analyzeStatementsWithAi`
+Archivo: `supabase/functions/_shared/internalStatementAnalysis.ts`
 
-Razões extraídas desses 23 descualificados do CSV:
+Añadir un bloque específico de "Reglas por banco — BBVA" al `systemPrompt`, con la guía anterior:
+- Reconocer banco por BIC `BBVAESMM` o IBAN que empieza por `ES.. 0182`.
+- Lista explícita de conceptos = ingreso recurrente.
+- Lista explícita de conceptos = deuda recurrente.
+- Lista explícita de conceptos a IGNORAR.
+- Interpretación de `SALDO A NUESTRO FAVOR` como saldo NEGATIVO al cliente.
 
-```text
-- 18: Antigüedad laboral insuficiente (menos de 1 año)
-- 3: Está en fichero de morosidad
-- 2: Edad superior a 54 años
-```
+### 2. Añadir detección determinística de banco BBVA
+Nueva función helper `detectBankFromText(text)` que reconozca BBVA cuando aparezca `BBVAESMM`, `IBAN ES.. 0182` o `EXTRACTO MENSUAL DE CUENTAS PERSONALES`. Usarlo como hint extra al pasar al modelo (`Banco detectado: BBVA`) para activar el contexto correcto.
 
-Conclusão objetiva:
+### 3. Mejorar parser de saldo final BBVA (determinístico)
+Añadir parser que extraiga `SALDO A SU FAVOR [num]` (positivo) o `SALDO A NUESTRO FAVOR [num]` (negativo) como fallback cuando el modelo devuelva `savings_balance = 0`. Esto evita perder el saldo cuando la IA falla.
 
-O CRM está certo. O erro está no CSV/exportação que eu gerei, porque tratei “simulação hipotecária aprovada” como “lead qualificado”. São conceitos diferentes.
+### 4. Guardar memoria del aprendizaje
+Crear `mem://features/bbva-statement-patterns` con las reglas específicas del banco para futuras iteraciones (Santander, ING, etc.).
 
-Plano de correção:
+### Detalles técnicos
+- Cambios solo en `supabase/functions/_shared/internalStatementAnalysis.ts` (sin modificar contratos públicos).
+- No requiere migración DB.
+- Deploy de las edge functions afectadas: `bewor-public-upload` (consume el shared).
 
-1. Regenerar imediatamente o CSV correto usando como critério principal:
-   ```sql
-   stage <> 'descualificados'
-   ```
-   Ou seja, somente leads que realmente permanecem ativos/qualificados no CRM.
-
-2. Para os últimos 2 dias, o arquivo correto deve ter aproximadamente os mesmos 13 leads ativos encontrados no banco agora, podendo bater com os 11 do CRM dependendo de:
-   - janela exata de “últimos 2 dias” versus dias calendário;
-   - filtro visual atual do CRM;
-   - leads criados depois da sua contagem.
-
-3. Gerar também um arquivo de auditoria separado, se você quiser, com os leads que foram indevidamente incluídos no CSV anterior:
-   - ID
-   - nome
-   - email
-   - telefone
-   - stage
-   - motivo de descualificação
-   - `simulador_hipotecario_data.aprobado`
-
-4. A partir de agora, para exports de “qualificados”, usar sempre a regra:
-   ```text
-   qualificado = stage != descualificados
-   ```
-   e nunca apenas `simulador_hipotecario_data.aprobado = true`.
-
-5. Opcionalmente, ajustar o nome dos próximos arquivos para evitar ambiguidade:
-   - `leads_crm_qualificados_ultimos_2_dias.csv`
-   - em vez de `leads_hipoteca_aprobada...`, porque “hipoteca aprovada” pode confundir simulação com qualificação real.
-
-Se você aprovar, eu gero agora o CSV corrigido e, se quiser, também o CSV de auditoria com os 23 que foram incluídos indevidamente.
+### Notas para el usuario
+Los dos PDFs son de 1 mes cada uno (febrero y marzo 2026) del **mismo titular** (Jesús Daniel Bailón Castro, IBAN BBVA terminado en 8241). La regla de **12 meses obligatorios** se mantiene — estos archivos servirán solo como entrenamiento del prompt, no como análisis válido si se suben tal cual.
