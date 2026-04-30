@@ -323,6 +323,42 @@ function normalizeAiResult(result: StatementAiResult): StatementAiResult {
   };
 }
 
+/**
+ * Detección determinística del banco a partir del texto del extracto.
+ * Devuelve un nombre canónico (ej: 'BBVA') o null si no se reconoce.
+ */
+export function detectBankFromText(text: string): string | null {
+  const t = (text || "").toUpperCase();
+  if (t.includes("BBVAESMM") || /IBAN\s*ES\d{2}\s*0182/.test(t) || t.includes("EXTRACTO MENSUAL DE CUENTAS PERSONALES")) {
+    return "BBVA";
+  }
+  if (t.includes("BSCHESMM") || /IBAN\s*ES\d{2}\s*00(?:30|49|75)/.test(t)) return "Santander";
+  if (t.includes("CAIXESBB") || /IBAN\s*ES\d{2}\s*2100/.test(t)) return "CaixaBank";
+  if (t.includes("INGDESMM") || /IBAN\s*ES\d{2}\s*1465/.test(t)) return "ING";
+  if (t.includes("SABBESBB") || /IBAN\s*ES\d{2}\s*0081/.test(t)) return "Sabadell";
+  return null;
+}
+
+/**
+ * Parser determinístico del saldo final BBVA.
+ * - 'SALDO A SU FAVOR X' → positivo (X)
+ * - 'SALDO A NUESTRO FAVOR X' → negativo (-X)
+ */
+export function parseBbvaFinalBalance(text: string): number | null {
+  const normalized = (text || "").replace(/\s+/g, " ");
+  const nuestroMatch = normalized.match(/SALDO\s+A\s+NUESTRO\s+FAVOR\s+([\d.,]+)/i);
+  if (nuestroMatch) {
+    const value = parseFloat(nuestroMatch[1].replace(/\./g, "").replace(",", "."));
+    if (!isNaN(value)) return -Math.abs(value);
+  }
+  const suMatch = normalized.match(/SALDO\s+A\s+SU\s+FAVOR\s+([\d.,]+)/i);
+  if (suMatch) {
+    const value = parseFloat(suMatch[1].replace(/\./g, "").replace(",", "."));
+    if (!isNaN(value)) return value;
+  }
+  return null;
+}
+
 export async function analyzeStatementsWithAi(input: {
   files: Array<{ name: string; holder_scope: HolderScope; text: string; pages: number }>;
   numTitulares: number;
