@@ -1,64 +1,75 @@
+## Feed XML público do inventário
 
-## Aprendizaje del formato BBVA
+Criar uma edge function pública que retorna em tempo real um XML com **todos os 12.375 imóveis** do inventário, pronto para ser consumido por portais ou ferramentas externas.
 
-Después de analizar los dos extractos, identifiqué patrones claros y específicos del BBVA que vale la pena enseñar al lector interno:
+### Endpoint
+```
+GET https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/inventory-xml
+```
 
-### Estructura BBVA detectada
-- **Cabecera**: `EXTRACTO MENSUAL DE CUENTAS PERSONALES` + `EXTRACTO DE [MES] [AÑO]`
-- **IBAN**: formato `IBAN ES21 0182 5332 ...` (código BBVA = `0182`)
-- **BIC**: `BBVAESMM` — confirma banco BBVA
-- **Titulares**: línea `Titulares: NOMBRE COMPLETO`
-- **Tabla**: columnas `F.Oper. | F.Valor | Concepto | Importe | Saldo`
-- **Saldo final**: línea `SALDO A SU FAVOR [importe]` o `SALDO A NUESTRO FAVOR [importe]` (este último indica saldo NEGATIVO)
-- **Saldo anterior**: fila `SALDO ANTERIOR ----` con saldo inicial del mes
+Parâmetros opcionais (querystring):
+- `disponible=true` — filtra só os disponíveis
+- `proveedor=Hipoges` — filtra por fornecedor
+- `limit=N` — limita quantidade (default: todos)
 
-### Conceptos BBVA que SON ingresos recurrentes (nómina)
-- `ABONO DE NOMINA POR TRANSFERENCIA` + nombre empresa (ej: `PENALVER MESA S.L.`) → nómina clara
-- `TRANSFERENCIAS\nNOMINA [MES] [NOMBRE]` → también es nómina (formato variante)
+Resposta: `Content-Type: application/xml; charset=utf-8`, com cache de 10 minutos (`Cache-Control: public, max-age=600`).
 
-### Conceptos BBVA que SON deudas recurrentes
-- `ADEUDO A SU CARGO ... COFIDIS` → cuota préstamo Cofidis (recurrente mensual)
-- `ADEUDO DE ENTIDAD FINANCIERA ... CAIXABANK PAYMENTS CONSUMER` → cuota financiera (recurrente)
-- `CARGO POR AMORTIZACION DE PRESTAMO/CREDITO` → cuota préstamo BBVA (recurrente)
+### Estrutura XML gerada
 
-### Conceptos BBVA a IGNORAR para ingresos/deudas
-- `BIZUM RECIBIDO/ENVIADO: Sin concepto` → NO es ingreso recurrente
-- `INGRESO EN EFECTIVO` → NO es nómina
-- `RET. EFECTIVO A DEBITO CON TARJ. EN CAJERO` → retirada cajero, no es deuda
-- `PAGO CON TARJETA EN ...` → gasto puntual, no deuda
-- `TRANSFERENCIAS\nALQUILER ...` → es alquiler que paga el cliente (gasto), NO confundir con deuda financiera
-- `LIQUIDACION DE INTERESES-COMISIONES-GASTOS` → gasto bancario puntual
-- `CARGO POR PAGO DE IMPUESTOS - TRIBUTOS` → impuestos, no deuda recurrente
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<inmuebles generated_at="2026-05-01T12:00:00Z" total="12375">
+  <inmueble>
+    <id>uuid</id>
+    <codigo_inventario>HIP-12345</codigo_inventario>
+    <titulo><![CDATA[Piso reformado en centro]]></titulo>
+    <tipo>apartamento</tipo>
+    <precio currency="EUR">125000</precio>
+    <disponible>true</disponible>
+    <ubicacion>
+      <ciudad><![CDATA[Madrid]]></ciudad>
+      <region><![CDATA[Comunidad de Madrid]]></region>
+      <direccion><![CDATA[Calle Mayor 12]]></direccion>
+    </ubicacion>
+    <caracteristicas>
+      <quartos>3</quartos>
+      <banheiros>2</banheiros>
+      <area_m2>85</area_m2>
+    </caracteristicas>
+    <proveedor><![CDATA[Hipoges]]></proveedor>
+    <url_externa>https://...</url_externa>
+    <imagen_principal>https://...</imagen_principal>
+    <imagenes>
+      <imagen>https://...</imagen>
+      <imagen>https://...</imagen>
+    </imagenes>
+    <fechas>
+      <created_at>2026-04-15T10:00:00Z</created_at>
+      <updated_at>2026-04-30T08:00:00Z</updated_at>
+    </fechas>
+  </inmueble>
+  ...
+</inmuebles>
+```
 
-### Saldo final / ahorros
-- En BBVA el saldo final está al pie: `SALDO A SU FAVOR 6,83` (positivo) o `SALDO A NUESTRO FAVOR 72,97` (negativo, deuda con el banco).
-- Ojo: ambos clientes terminaron con saldo muy bajo o negativo → ahorros ≈ 0.
+Todos os campos texto vão envolvidos em `<![CDATA[...]]>` para evitar erros com caracteres especiais (`&`, `<`, acentos).
 
-## Plan de implementación
+### Detalhes técnicos
 
-### 1. Enriquecer el system prompt en `analyzeStatementsWithAi`
-Archivo: `supabase/functions/_shared/internalStatementAnalysis.ts`
+1. **Nova edge function** `supabase/functions/inventory-xml/index.ts`:
+   - Pública (sem JWT) — necessário para portais externos consumirem.
+   - Usa `SUPABASE_SERVICE_ROLE_KEY` internamente para ignorar RLS e ler todos os imóveis.
+   - Pagina internamente em lotes de 1000 (limite padrão Supabase) para extrair os 12k+ registros.
+   - Constrói o XML em streaming (string builder) e retorna como `application/xml`.
+   - CORS habilitado para `*`.
 
-Añadir un bloque específico de "Reglas por banco — BBVA" al `systemPrompt`, con la guía anterior:
-- Reconocer banco por BIC `BBVAESMM` o IBAN que empieza por `ES.. 0182`.
-- Lista explícita de conceptos = ingreso recurrente.
-- Lista explícita de conceptos = deuda recurrente.
-- Lista explícita de conceptos a IGNORAR.
-- Interpretación de `SALDO A NUESTRO FAVOR` como saldo NEGATIVO al cliente.
+2. **Sem alterações no banco** — apenas leitura.
 
-### 2. Añadir detección determinística de banco BBVA
-Nueva función helper `detectBankFromText(text)` que reconozca BBVA cuando aparezca `BBVAESMM`, `IBAN ES.. 0182` o `EXTRACTO MENSUAL DE CUENTAS PERSONALES`. Usarlo como hint extra al pasar al modelo (`Banco detectado: BBVA`) para activar el contexto correcto.
+3. **Sem alterações no frontend** — é um endpoint puro. Opcionalmente posso adicionar um botão "Copiar URL do feed XML" em `/admin/inventario` (avise se quer).
 
-### 3. Mejorar parser de saldo final BBVA (determinístico)
-Añadir parser que extraiga `SALDO A SU FAVOR [num]` (positivo) o `SALDO A NUESTRO FAVOR [num]` (negativo) como fallback cuando el modelo devuelva `savings_balance = 0`. Esto evita perder el saldo cuando la IA falla.
+### O que será criado/editado
+- `supabase/functions/inventory-xml/index.ts` (novo)
+- `supabase/config.toml` — registrar a função com `verify_jwt = false`
 
-### 4. Guardar memoria del aprendizaje
-Crear `mem://features/bbva-statement-patterns` con las reglas específicas del banco para futuras iteraciones (Santander, ING, etc.).
-
-### Detalles técnicos
-- Cambios solo en `supabase/functions/_shared/internalStatementAnalysis.ts` (sin modificar contratos públicos).
-- No requiere migración DB.
-- Deploy de las edge functions afectadas: `bewor-public-upload` (consume el shared).
-
-### Notas para el usuario
-Los dos PDFs son de 1 mes cada uno (febrero y marzo 2026) del **mismo titular** (Jesús Daniel Bailón Castro, IBAN BBVA terminado en 8241). La regla de **12 meses obligatorios** se mantiene — estos archivos servirán solo como entrenamiento del prompt, no como análisis válido si se suben tal cual.
+### Após implantar
+Vou testar o endpoint com `curl`, validar o XML retornado e te passar a URL pronta para uso.

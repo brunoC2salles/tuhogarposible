@@ -42,4 +42,7 @@ verify_jwt = false
 [functions.bewor-public-status]
 verify_jwt = false
 
+[functions.inventory-xml]
+verify_jwt = false
+
 
