@@ -608,7 +608,13 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   
   // 11.6. CAP por número de titulares: 1 titular → 180k, 2+ titulares → 210k
   const topeMaximoPorTitulares = datos.numeroTitulares === '1' ? 180000 : 210000;
-  montoMaximoFinanciable = Math.min(montoMaximoFinanciable, topeMaximoPorTitulares);
+  // 11.7. CAP por LTV aplicado al precio del inmueble (el banco nunca financia más
+  // que precioVivienda × %financiación, independientemente de la capacidad de pago).
+  // Sin esto, "Hipoteca Máxima Financiable" mostraría un valor superior al que el
+  // banco realmente prestaría para esta operación, generando una "Cuota Mensual Máxima"
+  // incoherente con la "Cuota Mensual" real.
+  const topePorLTV = datos.precioVivienda * (porcentajeFinanciamiento / 100);
+  montoMaximoFinanciable = Math.min(montoMaximoFinanciable, topeMaximoPorTitulares, topePorLTV);
   
   // 12. CUOTA MENSUAL (Sistema Francês)
   let cuotaMensual = 0;

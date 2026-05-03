@@ -1,75 +1,50 @@
-## Feed XML público do inventário
+## Problema
 
-Criar uma edge function pública que retorna em tempo real um XML com **todos os 12.375 imóveis** do inventário, pronto para ser consumido por portais ou ferramentas externas.
+Na simulação de um imóvel de 180.000€ aparecem dois valores incoerentes:
 
-### Endpoint
+- **Cuota Mensual** (real): 640,10€/mes → corresponde a financiar 162.000€ (90% LTV de 180k)
+- **Cuota Mensual Máxima**: 711,22€/mes → corresponde a financiar 180.000€
+
+Ambos os blocos mostram "180.000€" como Hipoteca Máxima Financiable, mas as cuotas batem em capitais diferentes. Isto confunde os agentes.
+
+## Causa raiz
+
+Em `src/lib/simuladorUtils.ts` (linhas 601-611) o cálculo de `montoMaximoFinanciable` faz:
+
 ```
-GET https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/inventory-xml
-```
-
-Parâmetros opcionais (querystring):
-- `disponible=true` — filtra só os disponíveis
-- `proveedor=Hipoges` — filtra por fornecedor
-- `limit=N` — limita quantidade (default: todos)
-
-Resposta: `Content-Type: application/xml; charset=utf-8`, com cache de 10 minutos (`Cache-Control: public, max-age=600`).
-
-### Estrutura XML gerada
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<inmuebles generated_at="2026-05-01T12:00:00Z" total="12375">
-  <inmueble>
-    <id>uuid</id>
-    <codigo_inventario>HIP-12345</codigo_inventario>
-    <titulo><![CDATA[Piso reformado en centro]]></titulo>
-    <tipo>apartamento</tipo>
-    <precio currency="EUR">125000</precio>
-    <disponible>true</disponible>
-    <ubicacion>
-      <ciudad><![CDATA[Madrid]]></ciudad>
-      <region><![CDATA[Comunidad de Madrid]]></region>
-      <direccion><![CDATA[Calle Mayor 12]]></direccion>
-    </ubicacion>
-    <caracteristicas>
-      <quartos>3</quartos>
-      <banheiros>2</banheiros>
-      <area_m2>85</area_m2>
-    </caracteristicas>
-    <proveedor><![CDATA[Hipoges]]></proveedor>
-    <url_externa>https://...</url_externa>
-    <imagen_principal>https://...</imagen_principal>
-    <imagenes>
-      <imagen>https://...</imagen>
-      <imagen>https://...</imagen>
-    </imagenes>
-    <fechas>
-      <created_at>2026-04-15T10:00:00Z</created_at>
-      <updated_at>2026-04-30T08:00:00Z</updated_at>
-    </fechas>
-  </inmueble>
-  ...
-</inmuebles>
+min(capacidade_por_ingressos, topeAbsoluto[180k/210k])
 ```
 
-Todos os campos texto vão envolvidos em `<![CDATA[...]]>` para evitar erros com caracteres especiais (`&`, `<`, acentos).
+Não considera o **LTV aplicado ao preço do imóvel**. Para esta operação, o banco nunca emprestaria mais do que `precioVivienda × %financiación = 180.000 × 90% = 162.000€`, mas o sistema mostra 180.000€ porque o cliente tem ingressos suficientes para suportar esse valor em teoria.
 
-### Detalhes técnicos
+A "Cuota Mensual Máxima" em `ResultadosCombinados.tsx` (linhas 36-41) calcula a partir desse `montoMaximoFinanciable` inflado → daí os 711,22€ em vez de 640,10€.
 
-1. **Nova edge function** `supabase/functions/inventory-xml/index.ts`:
-   - Pública (sem JWT) — necessário para portais externos consumirem.
-   - Usa `SUPABASE_SERVICE_ROLE_KEY` internamente para ignorar RLS e ler todos os imóveis.
-   - Pagina internamente em lotes de 1000 (limite padrão Supabase) para extrair os 12k+ registros.
-   - Constrói o XML em streaming (string builder) e retorna como `application/xml`.
-   - CORS habilitado para `*`.
+## Correção
 
-2. **Sem alterações no banco** — apenas leitura.
+Em `src/lib/simuladorUtils.ts`, na seção 11.5/11.6, adicionar o LTV como mais um teto:
 
-3. **Sem alterações no frontend** — é um endpoint puro. Opcionalmente posso adicionar um botão "Copiar URL do feed XML" em `/admin/inventario` (avise se quer).
+```
+montoMaximoFinanciable = min(
+  capacidade_por_ingressos,        // já existe
+  topeAbsolutoPorTitulares,        // já existe (180k / 210k)
+  precioVivienda × (porcentajeFinanciamiento / 100)   // NOVO
+)
+```
 
-### O que será criado/editado
-- `supabase/functions/inventory-xml/index.ts` (novo)
-- `supabase/config.toml` — registrar a função com `verify_jwt = false`
+Resultado para o caso do print: `min(~180k, 180.000, 162.000) = 162.000€`. A Cuota Mensual Máxima passa a ser 640,10€ — igual à Cuota Mensual real, eliminando a confusão.
 
-### Após implantar
-Vou testar o endpoint com `curl`, validar o XML retornado e te passar a URL pronta para uso.
+## Comportamento esperado em outros cenários
+
+- Cliente com ingressos baixos para um imóvel barato: continua limitado pela capacidade (como hoje).
+- Cliente com ingressos altos e imóvel caro acima do tope absoluto: continua limitado pelos 180k/210k.
+- Cliente com boa capacidade mas LTV restritivo (residente, não-residente, inversão, etc.): passa a refletir corretamente o máximo real para aquele imóvel.
+
+## Arquivos afetados
+
+- `src/lib/simuladorUtils.ts` — adicionar o teto por LTV no cálculo de `montoMaximoFinanciable` (≈3 linhas).
+
+Os componentes de UI (`ResultadosCombinados.tsx`, `ResultadosSimulacionHipotecaria.tsx`) já leem o valor corrigido e não precisam de alteração — a Cuota Mensual Máxima passará automaticamente a coincidir com a Cuota Mensual quando o LTV for o fator limitante.
+
+## Memory
+
+Atualizar `mem://features/mortgage-simulator-rules-2025` para refletir que `montoMaximoFinanciable` agora é o mínimo entre capacidade, tope absoluto e LTV × preço.
