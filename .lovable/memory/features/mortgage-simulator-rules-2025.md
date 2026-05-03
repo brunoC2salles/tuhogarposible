@@ -29,6 +29,12 @@ Regras do simulador hipotecário em `src/lib/simuladorUtils.ts` (função `calcu
 - 1 titular: 180.000€
 - 2+ titulares: 210.000€
 
+## Cálculo de `montoMaximoFinanciable` (Hipoteca Máxima Financiable)
+É o MENOR de três limites:
+1. Capacidade por ingressos: cuota máx (35% líquidos) revertida → capital
+2. Tope absoluto por titulares (180k / 210k)
+3. **LTV × precioVivienda** (sem isto, a "Cuota Mensual Máxima" mostrada na UI fica inflada e não bate com a Cuota Mensual real)
+
 ## Capacidade de endividamento (DTI)
 - Cuota máxima = (ingresos_netos − deudas_mensuales) × 0,35
 
