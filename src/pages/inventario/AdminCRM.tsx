@@ -1,13 +1,16 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, CalendarDays, CalendarRange, Calendar, Search, Kanban } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, Search, Kanban } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
+import { AgentStatsModal } from '@/components/crm/AgentStatsModal';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -18,11 +21,46 @@ import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
 
+type PeriodOption = '30' | '90' | 'all';
+
+const STORAGE_KEY = 'admincrm.filters.v1';
+
+const loadStoredFilters = (): { period: PeriodOption; includeDisqualified: boolean } => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        period: (['30', '90', 'all'].includes(parsed.period) ? parsed.period : '30') as PeriodOption,
+        includeDisqualified: !!parsed.includeDisqualified,
+      };
+    }
+  } catch {}
+  return { period: '30', includeDisqualified: false };
+};
+
 const AdminCRM = () => {
-  const { leads, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
+  // Filtros de carga (lidos do localStorage para persistir entre sessões)
+  const initial = useMemo(() => loadStoredFilters(), []);
+  const [period, setPeriod] = useState<PeriodOption>(initial.period);
+  const [includeDisqualified, setIncludeDisqualified] = useState<boolean>(initial.includeDisqualified);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ period, includeDisqualified }));
+    } catch {}
+  }, [period, includeDisqualified]);
+
+  const periodDays = period === 'all' ? null : Number(period);
+
+  const { leads, updateLeadStage, updateLead, createLead, deleteLead } = useLeads({
+    periodDays,
+    includeDisqualified,
+  });
   const { agentes } = useAgentes();
 
   const [selectedAgent, setSelectedAgent] = useState<{ id: string; nombre: string } | null>(null);
+  const [agentStatsOpen, setAgentStatsOpen] = useState(false);
 
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
@@ -52,12 +90,12 @@ const AdminCRM = () => {
     updateLeadStage(leadId, 'descualificados');
   };
 
-  // OPTIMIZED: Memoize all metric calculations
+  // Stats baseados nos leads carregados (respeitando os filtros atuais)
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     const totalLeads = leads.length;
     const leadsThisMonth = leads.filter(l => {
       const created = new Date(l.created_at);
@@ -65,20 +103,20 @@ const AdminCRM = () => {
     }).length;
     const leadsConvertidos = leads.filter(l => l.stage === 'subida_expediente_bancos').length;
     const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
-    
+
     return { totalLeads, leadsThisMonth, leadsConvertidos, tasaConversion };
   }, [leads]);
 
-  // OPTIMIZED: Pre-index leads by agent with period stats
+  // Pre-index leads by agent with period stats (usado no pop-up)
   const agentesWithStats = useMemo(() => {
     const now = new Date();
     const todayStart = startOfDay(now);
-    const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
 
     return agentes.map(agente => {
       const agentLeads = leads.filter(l => l.agente_asignado_id === agente.id);
-      const activeLeads = agentLeads.filter(l => 
+      const activeLeads = agentLeads.filter(l =>
         l.stage !== 'subida_expediente_bancos' && l.stage !== 'descualificados'
       );
       const convertedLeads = agentLeads.filter(l => l.stage === 'subida_expediente_bancos');
@@ -91,9 +129,9 @@ const AdminCRM = () => {
         total: agentLeads.length,
         active: activeLeads.length,
         converted: convertedLeads.length,
-        conversionRate: agentLeads.length > 0 
-          ? (convertedLeads.length / agentLeads.length) * 100 
-          : 0
+        conversionRate: agentLeads.length > 0
+          ? (convertedLeads.length / agentLeads.length) * 100
+          : 0,
       };
     });
   }, [agentes, leads]);
@@ -105,33 +143,13 @@ const AdminCRM = () => {
       return;
     }
 
-    const headers = [
-      'Agente',
-      'Email',
-      'Hoy',
-      'Semana',
-      'Mes',
-      'Total',
-      'Activos',
-      'Convertidos',
-      'Tasa Conversión (%)'
-    ];
-
+    const headers = ['Agente', 'Email', 'Hoy', 'Semana', 'Mes', 'Total', 'Activos', 'Convertidos', 'Tasa Conversión (%)'];
     const rows = agentesWithStats.map(a => [
-      a.nombre,
-      a.email,
-      a.today,
-      a.thisWeek,
-      a.thisMonth,
-      a.total,
-      a.active,
-      a.converted,
-      a.conversionRate.toFixed(1)
+      a.nombre, a.email, a.today, a.thisWeek, a.thisMonth, a.total, a.active, a.converted, a.conversionRate.toFixed(1),
     ]);
 
     const BOM = '\uFEFF';
     const csv = BOM + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    
     downloadCSV(csv, `estadisticas-agentes-${format(new Date(), 'yyyy-MM-dd')}.csv`);
     toast.success(`Estadísticas de ${agentesWithStats.length} agentes exportadas`);
   };
@@ -155,7 +173,7 @@ const AdminCRM = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Leads</CardTitle>
+              <CardTitle className="text-sm font-medium">Leads cargados</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -182,112 +200,65 @@ const AdminCRM = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.tasaConversion}%</div>
-              <p className="text-xs text-muted-foreground">De todos los leads</p>
+              <p className="text-xs text-muted-foreground">De los leads cargados</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Agent Statistics Table */}
+        {/* Global Kanban View — agora protagonista da página */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Leads por Agente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Agente</TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <CalendarDays className="h-4 w-4" />
-                        Hoy
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <CalendarRange className="h-4 w-4" />
-                        Semana
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        Mes
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-center">Total</TableHead>
-                    <TableHead className="text-center">Activos</TableHead>
-                    <TableHead className="text-center">Conversión</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {agentesWithStats.map(agente => (
-                    <TableRow 
-                      key={agente.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => setSelectedAgent({ id: agente.id, nombre: agente.nombre })}
-                    >
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{agente.nombre}</p>
-                          <p className="text-sm text-muted-foreground">{agente.email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-medium text-primary">{agente.today}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                         <span className="font-medium text-foreground">{agente.thisWeek}</span>
-                       </TableCell>
-                       <TableCell className="text-center">
-                         <span className="font-medium text-foreground">{agente.thisMonth}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="font-bold">{agente.total}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-muted-foreground">{agente.active}</span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className={agente.conversionRate > 0 ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
-                          {agente.conversionRate.toFixed(1)}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {agentesWithStats.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        No hay agentes registrados
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Kanban className="h-5 w-5" />
+                  Vista Kanban — Leads
+                </CardTitle>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={() => setAgentStatsOpen(true)}>
+                    <Users className="h-4 w-4 mr-2" />
+                    Ver leads por agente
+                  </Button>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar lead..."
+                      value={kanbanSearch}
+                      onChange={e => setKanbanSearch(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+              </div>
 
-        {/* Global Kanban View */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2">
-                <Kanban className="h-5 w-5" />
-                Vista Kanban — Todos los Leads
-              </CardTitle>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar lead..."
-                  value={kanbanSearch}
-                  onChange={e => setKanbanSearch(e.target.value)}
-                  className="pl-9"
-                />
+              {/* Linha de filtros de carga */}
+              <div className="flex items-center gap-4 flex-wrap pt-1">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground">Período:</Label>
+                  <Select value={period} onValueChange={(v) => setPeriod(v as PeriodOption)}>
+                    <SelectTrigger className="h-8 w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">Últimos 30 días</SelectItem>
+                      <SelectItem value="90">Últimos 90 días</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="include-disq"
+                    checked={includeDisqualified}
+                    onCheckedChange={setIncludeDisqualified}
+                  />
+                  <Label htmlFor="include-disq" className="text-sm cursor-pointer">
+                    Incluir descualificados
+                  </Label>
+                </div>
+                <span className="text-xs text-muted-foreground ml-auto">
+                  Mostrando {leads.length} leads
+                </span>
               </div>
             </div>
           </CardHeader>
@@ -304,7 +275,15 @@ const AdminCRM = () => {
         </Card>
       </div>
 
-      {/* Agent Leads Kanban Modal */}
+      {/* Pop-up: Leads por Agente */}
+      <AgentStatsModal
+        open={agentStatsOpen}
+        onClose={() => setAgentStatsOpen(false)}
+        agentes={agentesWithStats}
+        onSelectAgent={(a) => setSelectedAgent(a)}
+      />
+
+      {/* Agent Leads Kanban Modal (drilldown) */}
       {selectedAgent && (
         <AgentLeadsKanbanModal
           open={!!selectedAgent}
