@@ -328,7 +328,8 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
       fetchLeads();
     }
   // Usar IDs estáveis para evitar refetch quando apenas referência muda
-  }, [user?.id, isAdmin, profile?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isAdmin, profile?.id, periodDays, includeDisqualified]);
 
   return {
     leads,
