@@ -6,7 +6,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchAllPaginated } from '@/lib/fetchAllPaginated';
 import { correctEmail } from '@/lib/emailCorrection';
 
-export const useLeads = () => {
+interface UseLeadsOptions {
+  /** Limita aos leads criados nos últimos N dias. null = sem limite. Default: null */
+  periodDays?: number | null;
+  /** Inclui leads em stage 'descualificados'. Default: true (não filtra) */
+  includeDisqualified?: boolean;
+}
+
+export const useLeads = (options: UseLeadsOptions = {}) => {
+  const { periodDays = null, includeDisqualified = true } = options;
   const { user, isAdmin, profile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +29,11 @@ export const useLeads = () => {
 
       const isSupervisor = profile?.role === 'supervisor';
 
+      // Calcular cutoff date para filtro de período
+      const sinceIso = periodDays != null
+        ? new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
       // Paginated fetch to overcome the 1000-row PostgREST default cap
       const data = await fetchAllPaginated<any>((from, to) => {
         let q = supabase
@@ -33,6 +46,12 @@ export const useLeads = () => {
           .range(from, to);
         if (!isAdmin && !isSupervisor) {
           q = q.eq('agente_asignado_id', user.id);
+        }
+        if (sinceIso) {
+          q = q.gte('created_at', sinceIso);
+        }
+        if (!includeDisqualified) {
+          q = q.neq('stage', 'descualificados');
         }
         return q;
       });
@@ -309,7 +328,8 @@ export const useLeads = () => {
       fetchLeads();
     }
   // Usar IDs estáveis para evitar refetch quando apenas referência muda
-  }, [user?.id, isAdmin, profile?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, isAdmin, profile?.id, periodDays, includeDisqualified]);
 
   return {
     leads,
