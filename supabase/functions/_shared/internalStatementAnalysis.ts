@@ -483,6 +483,18 @@ export async function analyzeStatementsWithAi(input: {
                       savings_balance: { type: "number" },
                       confidence: { type: "number", minimum: 0, maximum: 1 },
                       warnings: { type: "array", items: { type: "string" } },
+                      active_debts_detail: {
+                        type: "array",
+                        description: "Lista de créditos ACTIVOS detectados (cumplen whitelist + regla de actividad). monthly_debts debe ser la suma de monthly_amount de esta lista.",
+                        items: {
+                          type: "object",
+                          properties: {
+                            concepto: { type: "string" },
+                            monthly_amount: { type: "number" },
+                            last_seen_month: { type: "string", description: "YYYY-MM del último cargo detectado" },
+                          },
+                        },
+                      },
                     },
                     description: "Datos extraídos de un titular. Devuelve todos los campos posibles; usa cadena vacía, 0 o lista vacía si no hay dato.",
                   },
