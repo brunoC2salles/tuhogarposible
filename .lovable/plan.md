@@ -1,65 +1,57 @@
-# Plano — CRM mais leve e Kanban como protagonista
+# Plano — Webhook dedicado Tally → Housage
 
-## Diagnóstico
+## Objetivo
+Criar um endpoint exclusivo no portal para receber leads do novo formulário Tally (via Make HTTPS) e atribuí-los **sempre** ao agente Housage (`fa5038e7-0e88-49c7-88ae-ac506e12340b`), sem passar pelo round-robin.
 
-Hoje o `useLeads` traz **4.779 leads** (3.145 descualificados + 1.634 ativos) toda vez que o CRM abre, e o mesmo hook é compartilhado pelo `AdminCRM`, `AgenteCRM`, `SupervisorCRM` e `AgentLeadsKanbanModal`. Cada `updateLead`/`updateLeadStage` chama `fetchLeads()` e re-renderiza o Kanban inteiro com milhares de cards. É essa a raiz da lentidão.
+## Arquitetura
 
-O `AdminCRM` ainda mostra a tabela "Leads por Agente" inline, ocupando muito espaço acima do Kanban.
-
-## O que vai mudar
-
-### 1. Filtro de carga padrão no `useLeads` (a parte que mais impacta performance)
-
-Adicionar um parâmetro opcional ao hook para limitar o que é carregado, **sem mexer no comportamento atual de quem não passar nada** (assim `AgenteCRM` e `SupervisorCRM` continuam iguais e não há regressão):
-
-```ts
-useLeads({ periodDays?: 30 | 90 | null, includeDisqualified?: boolean })
+```text
+Tally form → Make (HTTP node) → POST https://<supabase>/functions/v1/tally-housage-webhook
+                                            ↓
+                                 Insert em `leads` com agente_asignado_id = Housage
+                                            ↓
+                                 (mesmas notificações usadas pelo meta-lead-webhook)
 ```
 
-Regras:
-- Padrão no `AdminCRM`: `periodDays: 30`, `includeDisqualified: false` → ~1.500 leads (queda de ~70%).
-- Filtro aplicado **na query Supabase** (`.gte('created_at', ...)` e `.neq('stage','descualificados')`), não no cliente — é o que de fato reduz o payload.
-- `AgentLeadsKanbanModal` (drilldown por agente) passa `periodDays: null` para continuar mostrando tudo daquele agente — volume baixo, sem problema.
-- `AgenteCRM` (portal do agente) mantém `periodDays: null` por enquanto — cada agente tem poucos leads próprios, não é o gargalo.
+## O que será criado
 
-### 2. Toggle "Mostrar descualificados" no topo do Kanban (AdminCRM)
+### 1. Edge function `supabase/functions/tally-housage-webhook/index.ts`
+- Endpoint público (`verify_jwt = false`), CORS aberto.
+- Aceita POST com payload flexível do Tally/Make. Campos esperados (todos opcionais exceto nome+contato):
+  - `nombre_completo` / `nombre` / `name`
+  - `email`
+  - `telefono` / `phone`
+  - `ciudad_interes`, `zona_interes`, `valor_inmueble_deseado`, `notas`
+  - Aceita também o formato cru do Tally (`fields: [{label, value}]`) com mapeamento por label.
+- Validação mínima: precisa de pelo menos email **ou** telefone + nome.
+- Insere em `leads` com:
+  - `agente_asignado_id = 'fa5038e7-0e88-49c7-88ae-ac506e12340b'` (constante hardcoded — Housage)
+  - `source = 'manual'` (enum existente; não há valor `tally` no enum atual e evitamos migration)
+  - `notas` prefixado com `[Tally Housage]` para rastreabilidade
+  - `stage = 'nuevo_lead'` (default)
+- Resposta JSON `{ ok: true, lead_id }` (200) ou `{ ok: false, error }` (400/500).
+- Logs em console para debug via Supabase logs.
 
-- Checkbox/switch ao lado da busca: "Incluir descualificados".
-- Ao marcar, refaz o fetch com `includeDisqualified: true` (recarrega, mas só nesse momento).
-- Estado salvo em `localStorage` para lembrar a preferência do admin entre sessões.
+### 2. Sem alterações em DB
+- Housage já existe em `profiles`. **Não** o reativamos agora — você pediu para conectar primeiro e ativar depois.
+- ⚠️ Importante: como o agente está `activo = false`, ele aparecerá em queries que filtram ativos (ex: lista de agentes na UI), mas isso **não impede** que ele seja dono dos leads — o webhook insere o `agente_asignado_id` diretamente. Quando você quiser, basta marcar `activo = true` no painel de agentes.
 
-Selector de período (30 / 90 / Todos) fica ao lado, mesma lógica.
+### 3. Sem alterações em UI
+- Os leads aparecem normalmente no Kanban / AdminCRM / modal de leads do Housage.
 
-### 3. Tabela "Leads por Agente" → Pop-up
+## URL para colar no Make
+Após o deploy automático:
+```
+https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/tally-housage-webhook
+```
+- Method: `POST`
+- Header: `Content-Type: application/json`
+- Não precisa de Authorization.
 
-- Remover o `<Card>` da tabela do corpo do `AdminCRM`.
-- Adicionar botão **"Ver leads por agente"** (ícone `Users`) no header do card do Kanban, ao lado da busca e do "Exportar Estatísticas".
-- Criar componente novo `AgentStatsModal` que recebe `agentesWithStats` e renderiza a mesma tabela atual dentro de um `Dialog` grande. Click numa linha continua abrindo o `AgentLeadsKanbanModal` já existente.
-- Os KPIs do topo (Total / Convertidos / Tasa) **permanecem** como estão.
+## Fora do escopo
+- Reativar o Housage (faremos depois, manualmente).
+- Adicionar `tally` ao enum `lead_source` (evita migration; `notas` já marca a origem).
+- Webhook de saída para Make/Bitrix nesta inserção (replicar fluxo do meta-lead-webhook pode ser feito num passo futuro se você quiser).
 
-### 4. Memo/index update
-
-Atualizar memória com a nova regra: "AdminCRM carrega apenas últimos 30 dias e exclui descualificados por padrão; toggle reabre."
-
-## Arquivos afetados
-
-- `src/hooks/useLeads.ts` — adicionar params opcionais, query condicional, refetch quando params mudam.
-- `src/pages/inventario/AdminCRM.tsx` — passar params, remover tabela inline, adicionar botão+toggle.
-- `src/components/crm/AgentStatsModal.tsx` — **novo**, extrai a tabela atual.
-- `src/components/crm/AgentLeadsKanbanModal.tsx` — passar `periodDays: null` para preservar visão completa do agente.
-- `mem://index.md` (Core) e novo `mem://performance/crm-admin-default-filter`.
-
-## O que **NÃO** vou mexer (proteções)
-
-- `AgenteCRM.tsx`, `SupervisorCRM.tsx`, `LeadKanban.tsx`, `LeadCard.tsx` — comportamento idêntico.
-- Lógica de `updateLead/updateLeadStage/createLead/deleteLead` — sem alterações.
-- RLS, schema, edge functions, webhooks — nada disso entra.
-- Estrutura visual dos cards e cores do Kanban.
-
-## Resultado esperado
-
-- AdminCRM abre carregando ~1.500 leads em vez de 4.779 (≈3x mais rápido na carga inicial e nas re-renderizações pós-update).
-- Kanban vira o foco da página; a análise por agente fica a um clique de distância.
-- Reversível: basta abrir o toggle "Incluir descualificados" + período "Todos" para ver exatamente o que se vê hoje.
-
-Aprove para eu implementar.
+## Como testar depois do deploy
+Posso disparar um POST de teste com `curl_edge_functions` simulando o payload do Make e confirmar que o lead aparece atribuído ao Housage.
