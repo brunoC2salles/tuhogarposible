@@ -32,6 +32,7 @@ export interface StatementAiHolder {
   savings_balance: number;
   confidence: number;
   warnings: string[];
+  active_debts_detail?: Array<{ concepto: string; monthly_amount: number; last_seen_month: string }>;
 }
 
 export interface StatementAiResult {
