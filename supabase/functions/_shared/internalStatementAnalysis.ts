@@ -32,6 +32,7 @@ export interface StatementAiHolder {
   savings_balance: number;
   confidence: number;
   warnings: string[];
+  active_debts_detail?: Array<{ concepto: string; monthly_amount: number; last_seen_month: string }>;
 }
 
 export interface StatementAiResult {
@@ -382,10 +383,35 @@ export async function analyzeStatementsWithAi(input: {
     "Identifica meses cubiertos en formato YYYY-MM. Deben ser meses con movimientos o saldo real, no meses inventados.",
     "Si un documento indica Periodo/Fecha inicio/Fecha fin, úsalo como señal principal para months_detected, verificándolo con movimientos.",
     "Ingresos recurrentes: nómina, pensión, prestación o transferencias salariales recurrentes. Ignora Bizum, devoluciones y transferencias familiares puntuales.",
-    "Deudas: cuotas recurrentes de préstamo, crédito, financiación o hipoteca existente.",
     "Ahorros: usa el saldo final más reciente detectado o Saldo disponible si existe. Si no hay saldo, usa 0 y añade warning.",
     "Para dos titulares, mantén titulares separados; el backend sumará los importes.",
     "Para campos de texto desconocidos, devuelve una cadena vacía, nunca null.",
+    "",
+    "=== REGLAS ESTRICTAS DE CLASIFICACIÓN DE DEUDA (TODOS LOS BANCOS) ===",
+    "",
+    "Un cargo SOLO cuenta como 'monthly_debts' si cumple TODAS estas condiciones:",
+    "  1) Es un préstamo, crédito al consumo, hipoteca, leasing/renting financiero, tarjeta revolving o pago aplazado.",
+    "  2) Es un CRÉDITO ACTIVO: aparece en el ÚLTIMO mes del extracto (o en uno de los 2 últimos meses) Y tiene al menos 2 cuotas en los últimos 6 meses.",
+    "  3) Si la última cuota detectada es anterior a 3 meses respecto al final del extracto, el crédito está FINALIZADO y NO se suma. Añade warning: 'Crédito X finalizado, no incluido en deuda activa'.",
+    "",
+    "WHITELIST de conceptos que SÍ son crédito/deuda (busca estas palabras clave):",
+    "  - 'FINANCIERA …' (SOFINCO, CETELEM, COFIDIS, WIZINK, CAIXABANK PAYMENTS CONSUMER, SANTANDER CONSUMER, BBVA CONSUMER, ABANCA CONSUMER, BANKINTER CONSUMER, OPENBANK CONSUMER, EVO FINANCE, CARREFOUR PASS, YOUNITED, MONEYMAN, VIVUS, CREDITEA).",
+    "  - 'PRESTAMO', 'CREDITO', 'HIPOTECA', 'AMORTIZACION DE PRESTAMO/CREDITO', 'CUOTA PRESTAMO', 'CUOTA HIPOTECA'.",
+    "  - 'LEASING' o 'RENTING' con entidad financiera.",
+    "  - 'TARJETA REVOLVING', 'PAGO APLAZADO'.",
+    "",
+    "BLACKLIST de conceptos que NUNCA son crédito (NO sumar a monthly_debts, aunque sean recurrentes):",
+    "  - SEGUROS Y ASISTENCIAS: 'LEGALITAS', 'MUTUA', 'MAPFRE', 'ALLIANZ', 'AXA', 'ZURICH', 'LINEA DIRECTA', 'OCASO', 'SANITAS', 'ADESLAS', 'DKV', 'GENERALI', cualquier 'SEGURO …', 'ASISTENCIA …'.",
+    "  - EDUCACIÓN / MENSUALIDADES ESCOLARES: 'ESTUDIOS …', 'COLEGIO', 'ACADEMIA', 'CAMBRIDGE', 'ESCUELA', 'UNIVERSIDAD', 'MATRICULA', 'GUARDERIA'.",
+    "  - SUMINISTROS: 'FACTOR ENERGIA', 'IBERDROLA', 'ENDESA', 'NATURGY', 'REPSOL', 'MOVISTAR', 'VODAFONE', 'ORANGE', 'MASMOVIL', 'O2', 'DIGI', 'YOIGO', 'CANAL ISABEL', 'AGUAS DE …', 'EMASESA'.",
+    "  - IMPUESTOS Y TASAS: 'AYUNTAMIENTO', 'AGENCIA TRIBUTARIA', 'HACIENDA', 'IBI', 'IVTM', 'TASA', 'TRIBUTO'.",
+    "  - SUSCRIPCIONES: 'NETFLIX', 'SPOTIFY', 'HBO', 'DISNEY', 'PRIME VIDEO', 'APPLE', 'GOOGLE', 'MICROSOFT', 'AMAZON PRIME'.",
+    "  - GIMNASIOS: 'BASIC FIT', 'MCFIT', 'VIRGIN ACTIVE', 'ALTAFIT', 'SYNERGY', 'GIMNASIO'.",
+    "  - ALQUILER: 'ALQUILER' (es gasto del cliente, no deuda financiera).",
+    "  - BIZUM, retiradas en cajero, compras con tarjeta, ingresos en efectivo, comisiones bancarias.",
+    "",
+    "Devuelve además 'active_debts_detail' con la lista de créditos activos detectados (concepto, monthly_amount, last_seen_month en YYYY-MM). Solo créditos de la whitelist y que cumplan la regla de actividad.",
+    "'monthly_debts' debe ser EXACTAMENTE la suma de 'monthly_amount' de los créditos activos. Si no hay créditos activos, devuelve 0.",
     "",
     "=== REGLAS ESPECÍFICAS POR BANCO ===",
     "",
@@ -457,6 +483,18 @@ export async function analyzeStatementsWithAi(input: {
                       savings_balance: { type: "number" },
                       confidence: { type: "number", minimum: 0, maximum: 1 },
                       warnings: { type: "array", items: { type: "string" } },
+                      active_debts_detail: {
+                        type: "array",
+                        description: "Lista de créditos ACTIVOS detectados (cumplen whitelist + regla de actividad). monthly_debts debe ser la suma de monthly_amount de esta lista.",
+                        items: {
+                          type: "object",
+                          properties: {
+                            concepto: { type: "string" },
+                            monthly_amount: { type: "number" },
+                            last_seen_month: { type: "string", description: "YYYY-MM del último cargo detectado" },
+                          },
+                        },
+                      },
                     },
                     description: "Datos extraídos de un titular. Devuelve todos los campos posibles; usa cadena vacía, 0 o lista vacía si no hay dato.",
                   },
