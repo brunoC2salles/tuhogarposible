@@ -859,6 +859,16 @@ Deno.serve(async (req) => {
     // 4. Atribuir agente — força agente se force_agent_id presente, senão round-robin
     let agenteAsignado = null;
 
+    // Housage só pode ser forçado pelo fluxo Tally
+    const HOUSAGE_AGENT_ID = 'fa5038e7-0e88-49c7-88ae-ac506e12340b';
+    if (data.force_agent_id === HOUSAGE_AGENT_ID && data.source_origin !== 'tally_housage') {
+      console.error('[meta-lead-webhook] tentativa bloqueada de forçar Housage sem origem Tally');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Housage está reservado ao fluxo Tally e não pode ser atribuído por esta origem.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (data.force_agent_id) {
       console.log('[meta-lead-webhook] force_agent_id presente, pulando round-robin:', data.force_agent_id);
       const { data: forcedAgent, error: forcedErr } = await supabase
@@ -904,6 +914,7 @@ Deno.serve(async (req) => {
             .from('profiles')
             .select('id, nombre, email, telefono, tidycal_url, region_round_robin')
             .eq('activo', true)
+            .neq('id', HOUSAGE_AGENT_ID)
             .not('region_round_robin', 'is', null)
             .order('nombre');
 
