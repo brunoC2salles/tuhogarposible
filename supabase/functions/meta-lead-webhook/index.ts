@@ -1115,7 +1115,7 @@ Deno.serve(async (req) => {
         agente_asignado_id: agenteAsignado?.id || null,
         // Leads não qualificados vão direto para 'descualificados'
         stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados',
-        source: 'meta_ads',
+        source: isTallyHousage ? 'manual' : 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonalEnriched,
           simulador_hipotecario_data: simulacionHipotecariaEnriched
