@@ -45,4 +45,7 @@ verify_jwt = false
 [functions.inventory-xml]
 verify_jwt = false
 
+[functions.tally-housage-webhook]
+verify_jwt = false
+
 
