@@ -31,16 +31,21 @@ Deno.serve(async (req) => {
     // region is now a specific comunidad autónoma (e.g. "Cataluña") or null
     console.log(`[Round-Robin] Región solicitada: ${region || 'null'}, TurnoOverride: ${turnoOverride || 'none'}`);
 
+    // Housage está reservado exclusivamente ao funil Tally — nunca entra no round-robin
+    const HOUSAGE_AGENT_ID = 'fa5038e7-0e88-49c7-88ae-ac506e12340b';
+
     // 1. Buscar TODOS los agentes activos
-    const { data: allAgents, error: agentsError } = await supabaseAdmin
+    const { data: rawAgents, error: agentsError } = await supabaseAdmin
       .from('profiles')
       .select('id, nombre, email, tidycal_url, telefono, disponibilidad, region_round_robin')
       .eq('activo', true)
+      .neq('id', HOUSAGE_AGENT_ID)
       .order('nombre');
 
     if (agentsError) throw agentsError;
 
-    console.log(`[Round-Robin] Agentes activos totales: ${allAgents?.length || 0}`);
+    const allAgents = rawAgents;
+    console.log(`[Round-Robin] Agentes activos totales (Housage excluído do pool): ${allAgents?.length || 0}`);
 
     if (!allAgents || allAgents.length === 0) {
       return new Response(
