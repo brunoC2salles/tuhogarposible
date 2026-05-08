@@ -1,57 +1,78 @@
-# Plano — Webhook dedicado Tally → Housage
 
-## Objetivo
-Criar um endpoint exclusivo no portal para receber leads do novo formulário Tally (via Make HTTPS) e atribuí-los **sempre** ao agente Housage (`fa5038e7-0e88-49c7-88ae-ac506e12340b`), sem passar pelo round-robin.
+# Plano — Tally → mesmo pipeline do Meta Ads (forçando Housage)
 
-## Arquitetura
+## Diagnóstico
+Hoje o `tally-housage-webhook` faz só um INSERT cru em `leads`. Isso quebra:
+- qualificação (não roda `qualificarLead`)
+- simulador personal e hipotecário (campos `simulador_personal_data` / `simulador_hipotecario_data` ficam vazios)
+- payload Bitrix para o Make
+- normalização de zona/região, ingresos, ahorros, edad, etc.
 
-```text
-Tally form → Make (HTTP node) → POST https://<supabase>/functions/v1/tally-housage-webhook
-                                            ↓
-                                 Insert em `leads` com agente_asignado_id = Housage
-                                            ↓
-                                 (mesmas notificações usadas pelo meta-lead-webhook)
+A imagem do Tally confirma: as perguntas são **idênticas** às do form Meta Ads. Logo, o caminho certo é fazer o Tally entregar o **mesmo objeto** que o Meta Ads consome e reusar o pipeline existente.
+
+## Estratégia
+1. `tally-housage-webhook` vira só um **adaptador**: recebe payload do Tally (formato `fields[]` ou flat do Make), normaliza para o shape `MetaLeadData` e **encaminha** para `meta-lead-webhook` com uma flag `force_agent_id = Housage`.
+2. `meta-lead-webhook` ganha suporte opcional a `force_agent_id` no body: se vier preenchido, pula o round-robin e atribui esse agente direto (mesmo que `activo = false`). Tudo o resto (qualificação, simuladores, notas, Bitrix payload, webhook de saída) roda igual ao Meta Ads.
+
+Assim, leads do Tally e do Meta Ads passam pelo **mesmo código** — nada de divergência futura.
+
+## Mapeamento de campos Tally → MetaLeadData
+Baseado na imagem anexada:
+
+| Label Tally | Campo interno (igual Meta Ads) |
+|---|---|
+| Nombre | `nombre` |
+| Correo | `email` |
+| Telefono | `telefono` |
+| Edad | `edad` |
+| ¿Cuánto tiempo llevas en tu trabajo actual? | `antiguedad_trabajo` |
+| ¿Tiene NIE o DNI? | `tiene_nie_dni` |
+| ¿Te encuentras en un fichero de morosidad? | `en_fichero_morosidad` |
+| ¿Cuando prefieres que te llamamos? | `preferencia_llamada` |
+| ¿En que zona quieres vivir? | `zona_interes` |
+| Rango de ingresos neto mensuales del hogar | `rango_ingresos` |
+| ¿Cuánto pagas mensualmente de crédito/deuda? | `deudas_mensuales` |
+| Numero de habitaciones que buscas | `habitaciones` |
+| ¿Cuentas con ahorros para los impuestos? | `tiene_ahorros_impuestos` |
+| ¿Cuánto? (ahorros) | `monto_ahorros` |
+| ¿Cuentas con la vivienda seleccionada? | `tiene_vivienda_seleccionada` |
+
+O adaptador aceita matching tolerante por label (lowercase + sem acentos + sem pontuação) e também aceita o payload já flat do Make.
+
+## Mudanças em código
+
+### 1) `supabase/functions/tally-housage-webhook/index.ts` — reescrita completa
+- Parse do payload Tally (suporta `{fields:[{label,value}]}`, `{data:{fields:[...]}}` e payload flat).
+- `LABEL_MAP` ampliado conforme tabela acima.
+- Monta objeto `MetaLeadData` exatamente como o Meta envia.
+- Faz `fetch` interno para `meta-lead-webhook` passando `force_agent_id: HOUSAGE_AGENT_ID` e marca `source_origin: 'tally_housage'` para rastreio nas notas.
+- Retorna o JSON do meta-lead-webhook (`{ success, lead_id, ... }`).
+
+### 2) `supabase/functions/meta-lead-webhook/index.ts` — alterações pontuais
+- Aceitar campos extras opcionais do body: `force_agent_id?: string` e `source_origin?: string`.
+- Se `force_agent_id` presente:
+  - Pular round-robin / fallback.
+  - Buscar `profiles` por id (sem filtro `activo`) e usar como `agenteAsignado`.
+  - Se não encontrar, retornar 400 com erro claro.
+- Prefixar `notas` com `[Tally Housage]` quando `source_origin === 'tally_housage'` (mantém o resto do fluxo intacto: qualificação, simuladores, JSON enriquecido, Bitrix payload, webhook Make, notificações).
+- `source` no insert continua `meta_ads` (enum existente; mantém estatísticas) — o rastreio fica nas notas. Alternativa se preferir: continuar `manual` para Tally; podemos decidir junto.
+
+### 3) Sem migrations
+- Nenhuma alteração de schema. Housage continua `activo = false` até você ativar.
+
+## URL para o Make (sem mudanças)
+```
+POST https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/tally-housage-webhook
+Content-Type: application/json
 ```
 
-## O que será criado
+## Como validar depois do deploy
+- Disparar `curl_edge_functions` para `tally-housage-webhook` com um payload Tally simulado completo.
+- Conferir nos logs do `meta-lead-webhook` que rodou qualificação + simuladores.
+- Conferir no CRM que o lead apareceu atribuído ao Housage com `simulador_personal_data` e `simulador_hipotecario_data` preenchidos.
 
-### 1. Edge function `supabase/functions/tally-housage-webhook/index.ts`
-- Endpoint público (`verify_jwt = false`), CORS aberto.
-- Aceita POST com payload flexível do Tally/Make. Campos esperados (todos opcionais exceto nome+contato):
-  - `nombre_completo` / `nombre` / `name`
-  - `email`
-  - `telefono` / `phone`
-  - `ciudad_interes`, `zona_interes`, `valor_inmueble_deseado`, `notas`
-  - Aceita também o formato cru do Tally (`fields: [{label, value}]`) com mapeamento por label.
-- Validação mínima: precisa de pelo menos email **ou** telefone + nome.
-- Insere em `leads` com:
-  - `agente_asignado_id = 'fa5038e7-0e88-49c7-88ae-ac506e12340b'` (constante hardcoded — Housage)
-  - `source = 'manual'` (enum existente; não há valor `tally` no enum atual e evitamos migration)
-  - `notas` prefixado com `[Tally Housage]` para rastreabilidade
-  - `stage = 'nuevo_lead'` (default)
-- Resposta JSON `{ ok: true, lead_id }` (200) ou `{ ok: false, error }` (400/500).
-- Logs em console para debug via Supabase logs.
+## Decisões pendentes (rápidas)
+1. `source` no insert para leads Tally: `meta_ads` (mistura nas métricas) **ou** `manual` (separa nas métricas, prefixo `[Tally Housage]` nas notas para identificar)?
+2. Ao receber lead Tally **descualificado**, queremos mesmo assim atribuir ao Housage (mesmo comportamento do Meta), ou deixar sem agente como hoje os descualificados?
 
-### 2. Sem alterações em DB
-- Housage já existe em `profiles`. **Não** o reativamos agora — você pediu para conectar primeiro e ativar depois.
-- ⚠️ Importante: como o agente está `activo = false`, ele aparecerá em queries que filtram ativos (ex: lista de agentes na UI), mas isso **não impede** que ele seja dono dos leads — o webhook insere o `agente_asignado_id` diretamente. Quando você quiser, basta marcar `activo = true` no painel de agentes.
-
-### 3. Sem alterações em UI
-- Os leads aparecem normalmente no Kanban / AdminCRM / modal de leads do Housage.
-
-## URL para colar no Make
-Após o deploy automático:
-```
-https://tnzgpzablwfptagfbnvb.supabase.co/functions/v1/tally-housage-webhook
-```
-- Method: `POST`
-- Header: `Content-Type: application/json`
-- Não precisa de Authorization.
-
-## Fora do escopo
-- Reativar o Housage (faremos depois, manualmente).
-- Adicionar `tally` ao enum `lead_source` (evita migration; `notas` já marca a origem).
-- Webhook de saída para Make/Bitrix nesta inserção (replicar fluxo do meta-lead-webhook pode ser feito num passo futuro se você quiser).
-
-## Como testar depois do deploy
-Posso disparar um POST de teste com `curl_edge_functions` simulando o payload do Make e confirmar que o lead aparece atribuído ao Housage.
+Se você não responder, sigo com: `source = 'manual'` + atribui Housage **sempre** (qualificado ou não), pois o pedido original foi "todo lead deste form vai para o Housage".

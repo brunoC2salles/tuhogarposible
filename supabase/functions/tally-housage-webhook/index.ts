@@ -1,4 +1,10 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// ============================================================================
+// TALLY → HOUSAGE WEBHOOK
+// Adaptador: recebe payload do Tally (via Make), normaliza para o shape do
+// meta-lead-webhook e encaminha forçando o agente Housage.
+// Assim, o lead passa pelo MESMO pipeline (qualificação + simuladores +
+// Bitrix payload + webhook Make) que os leads do Meta Ads.
+// ============================================================================
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,92 +14,127 @@ const corsHeaders = {
 
 const HOUSAGE_AGENT_ID = 'fa5038e7-0e88-49c7-88ae-ac506e12340b';
 
-// Normaliza chave de label do Tally para matching
+// Normaliza chave/label para matching tolerante (lowercase + sem acentos + sem pontuação)
 const norm = (s: string) =>
   s.toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[¿?¡!.,;:()]+/g, ' ')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
 
-// Mapeia labels conhecidos -> campos internos
-const LABEL_MAP: Record<string, string> = {
-  nombre: 'nombre_completo',
-  nombre_completo: 'nombre_completo',
-  name: 'nombre_completo',
-  full_name: 'nombre_completo',
-  nome: 'nombre_completo',
-  nome_completo: 'nombre_completo',
-  email: 'email',
-  correo: 'email',
-  correo_electronico: 'email',
-  e_mail: 'email',
-  telefono: 'telefono',
-  telefone: 'telefono',
-  phone: 'telefono',
-  movil: 'telefono',
-  whatsapp: 'telefono',
-  ciudad: 'ciudad_interes',
-  ciudad_interes: 'ciudad_interes',
-  city: 'ciudad_interes',
-  zona: 'zona_interes',
-  zona_interes: 'zona_interes',
-  valor: 'valor_inmueble_deseado',
-  presupuesto: 'valor_inmueble_deseado',
-  precio: 'valor_inmueble_deseado',
-  valor_inmueble: 'valor_inmueble_deseado',
-  valor_inmueble_deseado: 'valor_inmueble_deseado',
-  notas: 'notas',
-  comentarios: 'notas',
-  mensaje: 'notas',
-  message: 'notas',
-};
+// Mapa de labels Tally → campos esperados pelo meta-lead-webhook
+// Inclui pedaços-chave da label para matching parcial robusto.
+const LABEL_PATTERNS: Array<{ match: RegExp; field: string }> = [
+  // Identificação
+  { match: /^(nombre|nome|name|full_name|nombre_completo)$/, field: 'nombre' },
+  { match: /^(correo|email|e_mail|correo_electronico|mail)$/, field: 'email' },
+  { match: /^(telefono|telefone|phone|movil|whatsapp|tel)$/, field: 'telefono' },
+  { match: /^(edad|age|anos|años)$/, field: 'edad' },
 
-interface ParsedLead {
-  nombre_completo?: string;
-  email?: string;
-  telefono?: string;
-  ciudad_interes?: string;
-  zona_interes?: string;
-  valor_inmueble_deseado?: number;
-  notas?: string;
-  extras: Record<string, unknown>;
+  // Qualificação
+  { match: /tiempo.*trabajo|antiguedad|trabajo_actual|cuanto_tiempo/, field: 'antiguedad_trabajo' },
+  { match: /(nie|dni|documento|identifica)/, field: 'tiene_nie_dni' },
+  { match: /(morosidad|fichero|asnef|rai)/, field: 'en_fichero_morosidad' },
+  { match: /(prefieres.*llam|preferencia.*llam|cuando.*llam|horario.*llam)/, field: 'preferencia_llamada' },
+
+  // Imóvel desejado
+  { match: /(zona|donde.*vivir|ciudad_interes|donde_quieres)/, field: 'zona_interes' },
+  { match: /(rango.*ingresos|ingresos.*mensual|ingresos_neto|ingresos_hogar|ingresos)/, field: 'rango_ingresos' },
+  { match: /(deuda|credito.*pagas|pagas_mensual|cuota.*deuda|cuanto_pagas)/, field: 'deudas_mensuales' },
+  { match: /(habitacion|cuartos|dormitorios|numero.*habitacion)/, field: 'habitaciones' },
+
+  // Ahorros / vivienda
+  { match: /(ahorros.*impuesto|cuentas.*ahorros|tienes.*ahorros|dispones.*ahorros)/, field: 'tiene_ahorros_impuestos' },
+  { match: /(monto.*ahorros|cuanto.*ahorros|cuanto$)/, field: 'monto_ahorros' },
+  { match: /(vivienda.*selecciona|tienes.*vivienda|cuentas.*vivienda)/, field: 'tiene_vivienda_seleccionada' },
+];
+
+function mapLabel(label: string): string | null {
+  const n = norm(label);
+  if (!n) return null;
+  for (const { match, field } of LABEL_PATTERNS) {
+    if (match.test(n)) return field;
+  }
+  return null;
 }
 
-function parsePayload(body: any): ParsedLead {
-  const out: ParsedLead = { extras: {} };
+// Extrai valor "human-readable" de um field do Tally (suporta options/choices)
+function extractTallyValue(f: any): unknown {
+  let v = f?.value ?? f?.answer ?? f?.text;
 
-  const set = (key: string, value: unknown) => {
-    if (value === null || value === undefined || value === '') return;
-    if (key === 'valor_inmueble_deseado') {
-      const n = typeof value === 'number' ? value : Number(String(value).replace(/[^\d.,-]/g, '').replace(',', '.'));
-      if (!isNaN(n) && n > 0) (out as any)[key] = n;
-      return;
-    }
-    (out as any)[key] = String(value).trim();
+  // Tally costuma enviar IDs em "value" e os labels em "options"
+  if (Array.isArray(f?.options) && Array.isArray(v)) {
+    const labels = v
+      .map((id: any) => f.options.find((o: any) => o.id === id)?.text ?? id)
+      .filter(Boolean);
+    return labels.join(', ');
+  }
+  if (Array.isArray(f?.options) && (typeof v === 'string' || typeof v === 'number')) {
+    const opt = f.options.find((o: any) => o.id === v);
+    if (opt?.text) return opt.text;
+  }
+  if (Array.isArray(v)) {
+    return v.map((x: any) => x?.text ?? x?.label ?? x).join(', ');
+  }
+  return v;
+}
+
+interface MetaLeadShape {
+  nombre?: string;
+  email?: string;
+  telefono?: string;
+  edad?: number | string;
+  antiguedad_trabajo?: string;
+  tiene_nie_dni?: string;
+  en_fichero_morosidad?: string;
+  preferencia_llamada?: string;
+  zona_interes?: string;
+  rango_ingresos?: string;
+  deudas_mensuales?: number | string;
+  habitaciones?: number | string;
+  tiene_ahorros_impuestos?: string;
+  monto_ahorros?: string | number;
+  tiene_vivienda_seleccionada?: string;
+  // Marcadores
+  force_agent_id: string;
+  source_origin: string;
+  [k: string]: unknown;
+}
+
+function buildMetaShape(body: any): MetaLeadShape {
+  const out: MetaLeadShape = {
+    force_agent_id: HOUSAGE_AGENT_ID,
+    source_origin: 'tally_housage',
   };
 
-  // 1) Campos diretos no body
+  const setField = (field: string, value: unknown) => {
+    if (value === null || value === undefined || value === '') return;
+    (out as any)[field] = value;
+  };
+
+  // 1) Campos diretos no body (caso o Make já tenha "achatado")
   for (const [k, v] of Object.entries(body || {})) {
-    const mapped = LABEL_MAP[norm(k)];
-    if (mapped) set(mapped, v);
-    else if (typeof v !== 'object') out.extras[k] = v;
+    if (k === 'fields' || k === 'data') continue;
+    const field = mapLabel(k);
+    if (field) setField(field, typeof v === 'object' ? JSON.stringify(v) : v);
   }
 
-  // 2) Formato cru do Tally: { fields: [{ label, value }] } ou { data: { fields: [...] } }
+  // 2) Formato cru do Tally: { fields:[{label,value,options?}] } ou { data:{fields:[...]} }
   const fields =
     (Array.isArray(body?.fields) && body.fields) ||
     (Array.isArray(body?.data?.fields) && body.data.fields) ||
     [];
 
   for (const f of fields) {
-    const label = f?.label || f?.key || f?.name;
-    let value = f?.value ?? f?.answer;
-    if (Array.isArray(value)) value = value.map((x: any) => x?.text ?? x?.label ?? x).join(', ');
+    const label = f?.label || f?.key || f?.name || f?.title;
     if (!label) continue;
-    const mapped = LABEL_MAP[norm(String(label))];
-    if (mapped) set(mapped, value);
-    else if (value !== undefined && value !== null && value !== '') out.extras[String(label)] = value;
+    const field = mapLabel(String(label));
+    if (!field) continue;
+    const value = extractTallyValue(f);
+    if (value !== undefined && value !== null && value !== '') {
+      setField(field, value);
+    }
   }
 
   return out;
@@ -114,67 +155,56 @@ Deno.serve(async (req) => {
     let body: any = {};
     try { body = raw ? JSON.parse(raw) : {}; } catch { body = {}; }
 
-    console.log('[tally-housage-webhook] payload recebido:', raw.slice(0, 2000));
+    console.log('[tally-housage-webhook] payload recebido (raw, primeiros 2000 chars):', raw.slice(0, 2000));
 
-    const lead = parsePayload(body);
+    const metaShape = buildMetaShape(body);
+    console.log('[tally-housage-webhook] payload normalizado para meta-lead-webhook:', JSON.stringify(metaShape));
 
-    if (!lead.nombre_completo || (!lead.email && !lead.telefono)) {
+    // Validação mínima — meta-lead-webhook exige nombre + telefono + email
+    const missing: string[] = [];
+    if (!metaShape.nombre) missing.push('nombre');
+    if (!metaShape.telefono) missing.push('telefono');
+    if (!metaShape.email) missing.push('email');
+    if (missing.length) {
       return new Response(
         JSON.stringify({
           ok: false,
-          error: 'Campos obrigatórios ausentes: nombre_completo + (email ou telefono)',
-          parsed: lead,
+          error: `Campos obrigatórios ausentes: ${missing.join(', ')}`,
+          parsed: metaShape,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    // Encaminhar para meta-lead-webhook (mesmo pipeline do Meta Ads)
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const targetUrl = `${supabaseUrl}/functions/v1/meta-lead-webhook`;
 
-    // Monta notas com prefixo + extras
-    const extrasText = Object.keys(lead.extras).length
-      ? '\n\nCampos adicionales:\n' +
-        Object.entries(lead.extras)
-          .map(([k, v]) => `- ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`)
-          .join('\n')
-      : '';
-    const notas = `[Tally Housage]${lead.notas ? ' ' + lead.notas : ''}${extrasText}`.trim();
+    const fwd = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${serviceKey}`,
+        apikey: serviceKey,
+      },
+      body: JSON.stringify(metaShape),
+    });
 
-    const insertPayload = {
-      nombre_completo: lead.nombre_completo,
-      email: lead.email || '',
-      telefono: lead.telefono || '',
-      ciudad_interes: lead.ciudad_interes || null,
-      zona_interes: lead.zona_interes || null,
-      valor_inmueble_deseado: lead.valor_inmueble_deseado || null,
-      notas,
-      agente_asignado_id: HOUSAGE_AGENT_ID,
-      source: 'manual' as const,
-      stage: 'nuevo_lead' as const,
-    };
+    const fwdText = await fwd.text();
+    let fwdJson: any = null;
+    try { fwdJson = JSON.parse(fwdText); } catch { fwdJson = { raw: fwdText }; }
 
-    const { data, error } = await supabase
-      .from('leads')
-      .insert(insertPayload)
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('[tally-housage-webhook] erro ao inserir lead:', error);
-      return new Response(
-        JSON.stringify({ ok: false, error: error.message }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    console.log('[tally-housage-webhook] lead criado:', data.id, '→ Housage');
+    console.log('[tally-housage-webhook] meta-lead-webhook respondeu', fwd.status, fwdText.slice(0, 1000));
 
     return new Response(
-      JSON.stringify({ ok: true, lead_id: data.id, agente: 'Housage' }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      JSON.stringify({
+        ok: fwd.ok,
+        forwarded_to: 'meta-lead-webhook',
+        agente_forzado: 'Housage',
+        meta_response: fwdJson,
+      }),
+      { status: fwd.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (err) {
     console.error('[tally-housage-webhook] erro inesperado:', err);

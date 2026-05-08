@@ -115,6 +115,10 @@ interface MetaLeadData {
   tiene_ahorros_impuestos?: string;
   monto_ahorros?: string | number;
   tiene_vivienda_seleccionada?: string;
+  // Override opcional: força atribuição a um agente específico (ex: Tally → Housage)
+  force_agent_id?: string;
+  // Marcador opcional de origem (ex: 'tally_housage')
+  source_origin?: string;
 }
 
 interface QualificationResult {
@@ -852,10 +856,27 @@ Deno.serve(async (req) => {
     
     console.log('[meta-lead-webhook] Região:', region, 'Turno:', turnoPreferido);
 
-    // 4. Atribuir agente via round-robin
+    // 4. Atribuir agente — força agente se force_agent_id presente, senão round-robin
     let agenteAsignado = null;
-    
-    if (qualificacao.cualificado) {
+
+    if (data.force_agent_id) {
+      console.log('[meta-lead-webhook] force_agent_id presente, pulando round-robin:', data.force_agent_id);
+      const { data: forcedAgent, error: forcedErr } = await supabase
+        .from('profiles')
+        .select('id, nombre, email, telefono, tidycal_url, region_round_robin')
+        .eq('id', data.force_agent_id)
+        .maybeSingle();
+
+      if (forcedErr || !forcedAgent) {
+        console.error('[meta-lead-webhook] force_agent_id não encontrado:', data.force_agent_id, forcedErr);
+        return new Response(
+          JSON.stringify({ success: false, error: `force_agent_id no encontrado: ${data.force_agent_id}` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      agenteAsignado = forcedAgent;
+      console.log('[meta-lead-webhook] Agente forçado:', agenteAsignado.nombre);
+    } else if (qualificacao.cualificado) {
       try {
         const { data: agenteData, error: agenteError } = await supabase.functions.invoke('get-next-agent', {
           body: { 
@@ -1026,9 +1047,12 @@ Deno.serve(async (req) => {
     ) : null;
     const marketInfo = ciudadParaValidar ? getProvinceMarketPrice(ciudadParaValidar) : null;
 
+    const isTallyHousage = data.source_origin === 'tally_housage';
+    const sourcePrefix = isTallyHousage ? '[Tally Housage]' : 'Lead do Meta Ads.';
+
     // Montar notas com informações de qualificação
     const notasLead = [
-      `Lead do Meta Ads.`,
+      sourcePrefix,
       `Qualificação automática: ${qualificacao.cualificado ? 'CUALIFICADO' : 'NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
       `Edad: ${edadParsed || 'não informada'}`,
       `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
@@ -1091,7 +1115,7 @@ Deno.serve(async (req) => {
         agente_asignado_id: agenteAsignado?.id || null,
         // Leads não qualificados vão direto para 'descualificados'
         stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados',
-        source: 'meta_ads',
+        source: isTallyHousage ? 'manual' : 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonalEnriched,
           simulador_hipotecario_data: simulacionHipotecariaEnriched
