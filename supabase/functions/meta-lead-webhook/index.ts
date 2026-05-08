@@ -1047,9 +1047,12 @@ Deno.serve(async (req) => {
     ) : null;
     const marketInfo = ciudadParaValidar ? getProvinceMarketPrice(ciudadParaValidar) : null;
 
+    const isTallyHousage = data.source_origin === 'tally_housage';
+    const sourcePrefix = isTallyHousage ? '[Tally Housage]' : 'Lead do Meta Ads.';
+
     // Montar notas com informações de qualificação
     const notasLead = [
-      `Lead do Meta Ads.`,
+      sourcePrefix,
       `Qualificação automática: ${qualificacao.cualificado ? 'CUALIFICADO' : 'NO CUALIFICADO - ' + qualificacao.razon_no_cualificado}`,
       `Edad: ${edadParsed || 'não informada'}`,
       `Preferência de chamada: ${data.preferencia_llamada || 'não especificada'}`,
