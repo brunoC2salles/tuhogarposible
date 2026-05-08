@@ -115,6 +115,10 @@ interface MetaLeadData {
   tiene_ahorros_impuestos?: string;
   monto_ahorros?: string | number;
   tiene_vivienda_seleccionada?: string;
+  // Override opcional: força atribuição a um agente específico (ex: Tally → Housage)
+  force_agent_id?: string;
+  // Marcador opcional de origem (ex: 'tally_housage')
+  source_origin?: string;
 }
 
 interface QualificationResult {
