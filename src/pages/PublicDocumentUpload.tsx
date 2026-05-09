@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, CheckCircle2, AlertCircle, FileText, Clock } from "lucide-react";
 import Logo from "@/components/Logo";
+import clavesImg from "@/assets/claves.png";
 import { toast } from "sonner";
 
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -391,6 +392,11 @@ const PublicDocumentUpload = () => {
 
             {!loading && valid && !done && (
               <div className="space-y-6">
+                <img
+                  src={clavesImg}
+                  alt="Llaves de tu hogar"
+                  className="mx-auto h-32 w-auto"
+                />
                 <div className="text-center space-y-2">
                   <h1 className="text-2xl font-semibold text-foreground">
                     Hola{nombre ? `, ${nombre}` : ""}
