@@ -392,6 +392,11 @@ const PublicDocumentUpload = () => {
 
             {!loading && valid && !done && (
               <div className="space-y-6">
+                <img
+                  src={clavesImg}
+                  alt="Llaves de tu hogar"
+                  className="mx-auto h-32 w-auto"
+                />
                 <div className="text-center space-y-2">
                   <h1 className="text-2xl font-semibold text-foreground">
                     Hola{nombre ? `, ${nombre}` : ""}
