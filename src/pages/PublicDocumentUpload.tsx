@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload, CheckCircle2, AlertCircle, FileText, Clock } from "lucide-react";
 import Logo from "@/components/Logo";
+import clavesImg from "@/assets/claves.png";
 import { toast } from "sonner";
 
 const MAX_SIZE = 10 * 1024 * 1024;
