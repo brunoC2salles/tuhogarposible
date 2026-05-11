@@ -89,8 +89,6 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
   const deudas = Number(simHipoteca.deudas ?? simPersonal.deudas ?? 0);
 
   // Hipoteca: cuota REAL + valor max = precio recomendado MIN(P1,P2)
-  const hipotecaMontoFinanciable =
-    simHipoteca.monto_maximo_financiable ?? simHipoteca.montoFinanciable ?? 0;
   const hipotecaCuotaReal =
     simHipoteca.cuota_mensual_real ?? simHipoteca.cuota_maxima_mensual ?? simHipoteca.cuotaMensual ?? 0;
   const hipotecaValorMaxInmueble =
@@ -98,6 +96,12 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     simHipoteca.valor_maximo_inmueble ??
     simHipoteca.valorMaximoInmueble ??
     0;
+  // REGRA (2026-05): monto_financiable = precio_maximo_inmueble (mesmo valor).
+  // O cap absoluto por titular (180k/210k) deixou de ser enviado ao Bitrix.
+  const hipotecaMontoFinanciableRaw =
+    simHipoteca.monto_maximo_financiable ?? simHipoteca.montoFinanciable ?? 0;
+  const hipotecaMontoFinanciable =
+    Number(hipotecaValorMaxInmueble) > 0 ? Number(hipotecaValorMaxInmueble) : Number(hipotecaMontoFinanciableRaw);
 
   // Campos Meta — priorizar JSON enriquecido; fallback notas (leads antigos)
   const metaMontoAhorros = Number(
