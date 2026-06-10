@@ -18,6 +18,8 @@ import {
   DollarSign,
   Settings,
   FileCheck,
+  Building2,
+  LayoutDashboard,
 } from 'lucide-react';
 
 const menuItems = [
@@ -25,6 +27,7 @@ const menuItems = [
     group: 'Gestión',
     items: [
       { title: 'Página Inicial', url: '/', icon: Home },
+      { title: 'Panel Admin', url: '/admin', icon: LayoutDashboard },
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
       { title: 'Dashboard Analítico', url: '/admin/dashboard', icon: BarChart3 },
     ],
@@ -40,6 +43,7 @@ const menuItems = [
     items: [
       { title: 'Verificación de Extractos', url: '/admin/verificaciones-extractos', icon: FileCheck },
       { title: 'Academia', url: '/academia', icon: GraduationCap },
+      { title: 'Portal del Agente', url: '/inventario/agente', icon: Building2 },
     ],
   },
   {
