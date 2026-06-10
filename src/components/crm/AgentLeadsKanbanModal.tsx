@@ -291,14 +291,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
         />
       )}
 
-      {/* Recomendaciones Modal */}
-      {recomendacionesLead && (
-        <RecomendacionesModal
-          open={!!recomendacionesLead}
-          onClose={() => setRecomendacionesLead(null)}
-          lead={recomendacionesLead}
-        />
-      )}
     </>
   );
 };
