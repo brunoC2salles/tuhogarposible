@@ -306,80 +306,6 @@ export type Database = {
           },
         ]
       }
-      inmuebles: {
-        Row: {
-          agente_asignado: string | null
-          area_m2: number | null
-          banheiros: number | null
-          ciudad: string
-          codigo_inventario: string | null
-          created_at: string
-          direccion: string
-          disponible: boolean
-          id: string
-          image_url: string | null
-          images: Json | null
-          precio: number
-          proveedor: string
-          quartos: number | null
-          region: string
-          tipo: Database["public"]["Enums"]["tipo_inmueble"]
-          titulo: string | null
-          updated_at: string
-          url_externa: string | null
-        }
-        Insert: {
-          agente_asignado?: string | null
-          area_m2?: number | null
-          banheiros?: number | null
-          ciudad: string
-          codigo_inventario?: string | null
-          created_at?: string
-          direccion: string
-          disponible?: boolean
-          id?: string
-          image_url?: string | null
-          images?: Json | null
-          precio: number
-          proveedor: string
-          quartos?: number | null
-          region: string
-          tipo: Database["public"]["Enums"]["tipo_inmueble"]
-          titulo?: string | null
-          updated_at?: string
-          url_externa?: string | null
-        }
-        Update: {
-          agente_asignado?: string | null
-          area_m2?: number | null
-          banheiros?: number | null
-          ciudad?: string
-          codigo_inventario?: string | null
-          created_at?: string
-          direccion?: string
-          disponible?: boolean
-          id?: string
-          image_url?: string | null
-          images?: Json | null
-          precio?: number
-          proveedor?: string
-          quartos?: number | null
-          region?: string
-          tipo?: Database["public"]["Enums"]["tipo_inmueble"]
-          titulo?: string | null
-          updated_at?: string
-          url_externa?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "inmuebles_agente_asignado_fkey"
-            columns: ["agente_asignado"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lead_comments: {
         Row: {
           arquivo_nome: string | null
@@ -737,45 +663,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lead_historico_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      lead_inmuebles: {
-        Row: {
-          created_at: string
-          id: string
-          inmueble_id: string
-          lead_id: string
-          vinculado_por: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          inmueble_id: string
-          lead_id: string
-          vinculado_por: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          inmueble_id?: string
-          lead_id?: string
-          vinculado_por?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_inmuebles_inmueble_id_fkey"
-            columns: ["inmueble_id"]
-            isOneToOne: false
-            referencedRelation: "inmuebles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lead_inmuebles_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
@@ -1163,104 +1050,6 @@ export type Database = {
         }
         Relationships: []
       }
-      reservas: {
-        Row: {
-          agente_id: string
-          created_at: string
-          estado: Database["public"]["Enums"]["estado_reserva"]
-          fecha_solicitud: string
-          fecha_visita: string | null
-          hora_visita: string | null
-          id: string
-          inmueble_id: string
-          notas: string | null
-          updated_at: string
-        }
-        Insert: {
-          agente_id: string
-          created_at?: string
-          estado?: Database["public"]["Enums"]["estado_reserva"]
-          fecha_solicitud?: string
-          fecha_visita?: string | null
-          hora_visita?: string | null
-          id?: string
-          inmueble_id: string
-          notas?: string | null
-          updated_at?: string
-        }
-        Update: {
-          agente_id?: string
-          created_at?: string
-          estado?: Database["public"]["Enums"]["estado_reserva"]
-          fecha_solicitud?: string
-          fecha_visita?: string | null
-          hora_visita?: string | null
-          id?: string
-          inmueble_id?: string
-          notas?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "reservas_agente_id_fkey"
-            columns: ["agente_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "reservas_inmueble_id_fkey"
-            columns: ["inmueble_id"]
-            isOneToOne: false
-            referencedRelation: "inmuebles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      scraping_progress: {
-        Row: {
-          attempts: number | null
-          created_at: string | null
-          error_message: string | null
-          id: string
-          images_found: number | null
-          inmueble_id: string | null
-          last_attempt_at: string | null
-          status: string
-          updated_at: string | null
-        }
-        Insert: {
-          attempts?: number | null
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          images_found?: number | null
-          inmueble_id?: string | null
-          last_attempt_at?: string | null
-          status: string
-          updated_at?: string | null
-        }
-        Update: {
-          attempts?: number | null
-          created_at?: string | null
-          error_message?: string | null
-          id?: string
-          images_found?: number | null
-          inmueble_id?: string | null
-          last_attempt_at?: string | null
-          status?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scraping_progress_inmueble_id_fkey"
-            columns: ["inmueble_id"]
-            isOneToOne: true
-            referencedRelation: "inmuebles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       training_videos: {
         Row: {
           activo: boolean | null
@@ -1358,20 +1147,7 @@ export type Database = {
     Functions: {
       generate_document_token: { Args: never; Returns: string }
       get_agent_statistics: { Args: { agent_id: string }; Returns: Json }
-      get_distinct_filter_values: {
-        Args: never
-        Returns: {
-          ciudades: string[]
-          tipos: string[]
-        }[]
-      }
       get_next_invoice_number: { Args: never; Returns: string }
-      get_protected_inmuebles: {
-        Args: { provider: string }
-        Returns: {
-          inmueble_id: string
-        }[]
-      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
