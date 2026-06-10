@@ -8,7 +8,7 @@ import { LeadKanban } from './LeadKanban';
 import { LeadDetailsModal } from './LeadDetailsModal';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
 import { SimuladoresModal } from './SimuladoresModal';
-import { RecomendacionesModal } from './RecomendacionesModal';
+
 import { useLeads } from '@/hooks/useLeads';
 import { Lead, LeadStage, LeadFormData } from '@/types/crm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -34,7 +34,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
-  const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
 
   // Filter leads by agent and search query
   const agentLeads = useMemo(() => {
@@ -264,10 +263,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
           setDetailsLead(null);
           setSimuladoresLead(lead);
         }}
-        onOpenRecomendaciones={(lead) => {
-          setDetailsLead(null);
-          setRecomendacionesLead(lead);
-        }}
       />
 
       {/* Edit Lead Modal */}
@@ -291,14 +286,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
         />
       )}
 
-      {/* Recomendaciones Modal */}
-      {recomendacionesLead && (
-        <RecomendacionesModal
-          open={!!recomendacionesLead}
-          onClose={() => setRecomendacionesLead(null)}
-          lead={recomendacionesLead}
-        />
-      )}
     </>
   );
 };

@@ -9,7 +9,6 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AgenteInventario from "./pages/inventario/AgenteInventario";
-import AdminInventario from "./pages/inventario/AdminInventario";
 import AgenteCRM from "./pages/inventario/AgenteCRM";
 import AdminCRM from "./pages/inventario/AdminCRM";
 import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
@@ -19,7 +18,6 @@ import AgentSettings from "./pages/AgentSettings";
 import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
 import AgenteDetails from "./pages/AgenteDetails";
-import ProdutoPublico from "./pages/ProdutoPublico";
 import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
 import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
 import Dashboard from "./pages/admin/Dashboard";
@@ -50,14 +48,6 @@ const App = () => (
           <ProtectedRoute allowedRoles={['agente', 'admin']}>
             <AgenteInventario />
           </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/inventario/admin" 
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AdminInventario />
-                </ProtectedRoute>
               } 
             />
             <Route 
@@ -124,7 +114,6 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route path="/produto/:id" element={<ProdutoPublico />} />
             <Route path="/documentos/:token" element={<PublicDocumentUpload />} />
             <Route
               path="/admin/verificaciones-extractos"

@@ -10,7 +10,7 @@ import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
-import { RecomendacionesModal } from '@/components/crm/RecomendacionesModal';
+
 import { Lead, STAGE_LABELS, LeadStage } from '@/types/crm';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -36,7 +36,7 @@ export default function AgenteDetails() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [simulatorsModalOpen, setSimulatorsModalOpen] = useState(false);
-  const [recomendacionesModalOpen, setRecomendacionesModalOpen] = useState(false);
+  
 
   useEffect(() => {
     if (agenteId) {
@@ -96,11 +96,6 @@ export default function AgenteDetails() {
     setSimulatorsModalOpen(true);
   };
 
-  const handleOpenRecomendaciones = (lead: Lead) => {
-    setSelectedLead(lead);
-    setDetailsModalOpen(false);
-    setRecomendacionesModalOpen(true);
-  };
 
   if (loading) {
     return (
@@ -266,7 +261,6 @@ export default function AgenteDetails() {
         onClose={() => setDetailsModalOpen(false)}
         lead={selectedLead}
         onOpenSimulators={handleOpenSimulators}
-        onOpenRecomendaciones={handleOpenRecomendaciones}
       />
 
       <SimuladoresModal
@@ -276,12 +270,6 @@ export default function AgenteDetails() {
         onSave={(leadId, updates) => {
           // Implementar se necessário
         }}
-      />
-
-      <RecomendacionesModal
-        open={recomendacionesModalOpen}
-        onClose={() => setRecomendacionesModalOpen(false)}
-        lead={selectedLead}
       />
     </div>
   );

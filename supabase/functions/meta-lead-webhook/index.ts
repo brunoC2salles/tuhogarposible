@@ -981,69 +981,9 @@ Deno.serve(async (req) => {
     console.log('[meta-lead-webhook] Precio máximo inmueble:', precioMaxInmueble);
     console.log('[meta-lead-webhook] Plan combinado:', planPagos);
 
-    // 6. Buscar recomendações de imóveis (zonaParseada já calculado arriba)
-    let recomendaciones: any[] = [];
-    
-    if (qualificacao.cualificado) {
-      try {
-        // CORREÇÃO: Validar se valor_maximo_inmueble é válido (não NaN)
-        const valorMaxInm = simulacionHipotecaria.valor_maximo_inmueble;
-        const precioMaximo = !isNaN(valorMaxInm) && valorMaxInm > 0 
-          ? Math.round(valorMaxInm * 1.35)  // 135% do valor máximo
-          : null;  // Sem limite se simulação falhou
-        
-        console.log('[meta-lead-webhook] Precio máximo para busca:', precioMaximo);
-        
-        let query = supabase
-          .from('inmuebles')
-          .select('id, titulo, precio, quartos, ciudad, region, direccion, image_url, url_externa')
-          .eq('disponible', true);
-        
-        // CORREÇÃO: Aplicar filtro de preço apenas se válido
-        if (precioMaximo) {
-          query = query.lte('precio', precioMaximo);
-        }
-        
-        // CORREÇÃO: Usar cidade EXTRAÍDA do parseZonaInteres (ex: "Valencia")
-        // em vez do texto livre (ex: "Valencia, preferiblemente un pueblo cercano")
-        // Isso evita que vírgulas quebrem o parser SQL do Supabase
-        const ciudadBuscar = zonaParseada.ciudad;
-        const regionBuscar = zonaParseada.region;
-        
-        if (ciudadBuscar) {
-          // Busca segura: apenas nome da cidade, sem vírgulas ou texto adicional
-          query = query.or(
-            `ciudad.ilike.%${ciudadBuscar}%,region.ilike.%${ciudadBuscar}%`
-          );
-          console.log('[meta-lead-webhook] Buscando por cidade:', ciudadBuscar);
-        } else if (regionBuscar) {
-          query = query.or(
-            `ciudad.ilike.%${regionBuscar}%,region.ilike.%${regionBuscar}%`
-          );
-          console.log('[meta-lead-webhook] Buscando por região:', regionBuscar);
-        } else {
-          console.log('[meta-lead-webhook] Sem filtro de localização, busca geral');
-        }
-        
-        // Filtrar por habitaciones se especificado
-        if (data.habitaciones) {
-          query = query.gte('quartos', data.habitaciones);
-        }
-        
-        const { data: inmuebles, error: inmError } = await query
-          .order('precio', { ascending: true })
-          .limit(5);
-        
-        if (inmError) {
-          console.error('[meta-lead-webhook] Erro ao buscar imóveis:', inmError);
-        } else {
-          recomendaciones = inmuebles || [];
-          console.log('[meta-lead-webhook] Recomendaciones encontradas:', recomendaciones.length);
-        }
-      } catch (err) {
-        console.error('[meta-lead-webhook] Exceção ao buscar imóveis:', err);
-      }
-    }
+    // Recomendações de imóveis removidas — inventário próprio decomissionado
+    const recomendaciones: any[] = [];
+
 
     // 7. Salvar lead no banco
     let leadId = null;

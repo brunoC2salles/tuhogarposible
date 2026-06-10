@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Shield, Calculator, GraduationCap } from "lucide-react";
+import { Users, Calculator, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 
@@ -37,25 +37,6 @@ const Index = () => {
               <Link to="/inventario/agente">
                 <Button className="w-full text-sm sm:text-base" size="lg">
                   Acceder como Agente
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="hover-lift rounded-2xl border-2 hover:border-primary transition-all duration-300">
-            <CardHeader className="text-center pb-4">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Shield className="w-8 h-8 text-primary" />
-              </div>
-              <CardTitle className="text-2xl">Panel de Administración</CardTitle>
-              <CardDescription className="text-lg">
-                Gestiona propiedades, agentes y reservas. Importa datos desde CSV
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Link to="/inventario/admin">
-                <Button className="w-full" size="lg">
-                  Acceder como Admin
                 </Button>
               </Link>
             </CardContent>

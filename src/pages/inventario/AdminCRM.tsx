@@ -15,7 +15,7 @@ import { LeadKanban } from '@/components/crm/LeadKanban';
 import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
-import { RecomendacionesModal } from '@/components/crm/RecomendacionesModal';
+
 import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
@@ -67,7 +67,7 @@ const AdminCRM = () => {
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
-  const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
+  
 
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
@@ -300,7 +300,7 @@ const AdminCRM = () => {
           open={!!detailsLead}
           onClose={() => setDetailsLead(null)}
           onOpenSimulators={lead => { setDetailsLead(null); setSimuladoresLead(lead); }}
-          onOpenRecomendaciones={lead => { setDetailsLead(null); setRecomendacionesLead(lead); }}
+          
         />
       )}
 
@@ -324,14 +324,6 @@ const AdminCRM = () => {
           open={!!simuladoresLead}
           onClose={() => setSimuladoresLead(null)}
           onSave={async (leadId, updates) => { await updateLead(leadId, updates); }}
-        />
-      )}
-
-      {recomendacionesLead && (
-        <RecomendacionesModal
-          lead={recomendacionesLead}
-          open={!!recomendacionesLead}
-          onClose={() => setRecomendacionesLead(null)}
         />
       )}
     </AdminLayout>
