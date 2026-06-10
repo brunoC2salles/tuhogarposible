@@ -14,7 +14,6 @@ import {
   Home,
   Users,
   BarChart3,
-  Building,
   GraduationCap,
   DollarSign,
   Settings,
@@ -39,7 +38,6 @@ const menuItems = [
   {
     group: 'Operacional',
     items: [
-      { title: 'Inventario', url: '/inventario/admin', icon: Building },
       { title: 'Verificación de Extractos', url: '/admin/verificaciones-extractos', icon: FileCheck },
       { title: 'Academia', url: '/academia', icon: GraduationCap },
     ],
