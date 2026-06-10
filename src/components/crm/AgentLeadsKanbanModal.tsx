@@ -34,7 +34,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
-  const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
 
   // Filter leads by agent and search query
   const agentLeads = useMemo(() => {
@@ -263,10 +262,6 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
         onOpenSimulators={(lead) => {
           setDetailsLead(null);
           setSimuladoresLead(lead);
-        }}
-        onOpenRecomendaciones={(lead) => {
-          setDetailsLead(null);
-          setRecomendacionesLead(lead);
         }}
       />
 

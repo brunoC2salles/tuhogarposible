@@ -8,7 +8,7 @@ import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
 import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
-import { RecomendacionesModal } from '@/components/crm/RecomendacionesModal';
+
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
 import { Lead } from '@/types/crm';
 import { Plus, ArrowLeft, Users, Building, LogOut, Settings } from 'lucide-react';
@@ -28,7 +28,7 @@ const AgenteCRM = () => {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
-  const [recomendacionesLead, setRecomendacionesLead] = useState<Lead | null>(null);
+  
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -211,14 +211,8 @@ const AgenteCRM = () => {
         onClose={() => setDetailsLead(null)}
         lead={detailsLead}
         onOpenSimulators={setSimuladoresLead}
-        onOpenRecomendaciones={setRecomendacionesLead}
       />
 
-      <RecomendacionesModal
-        open={!!recomendacionesLead}
-        onClose={() => setRecomendacionesLead(null)}
-        lead={recomendacionesLead}
-      />
 
       <SimuladoresModal
         open={!!simuladoresLead}

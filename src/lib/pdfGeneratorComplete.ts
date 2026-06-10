@@ -9,14 +9,6 @@ import logo from '@/assets/logo.png';
 
 export async function generateLeadCompletePDF(lead: Lead) {
   try {
-    // Buscar inmuebles vinculados
-    const { data: leadInmuebles } = await supabase
-      .from('lead_inmuebles')
-      .select('inmueble:inmuebles(*)')
-      .eq('lead_id', lead.id);
-
-    const inmuebles = leadInmuebles?.map(li => (li as any).inmueble).filter(Boolean) || [];
-
     // Calcular simulaciones se não existirem (apenas para exibição no PDF)
     let simuladorPersonalDisplay = lead.simulador_personal_data;
     let simuladorHipotecaDisplay = lead.simulador_hipotecario_data;
