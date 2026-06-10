@@ -15,9 +15,8 @@ import BeworAnalysisTab from './BeworAnalysisTab';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calculator, Home, User, Building2, FileText, Upload, Download, Trash2, Plus, ExternalLink, UserCog, Eye, Pencil, MapPin, Bed, Bath, Maximize2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Calculator, Home, User, FileText, Upload, Download, Trash2, Plus, ExternalLink, UserCog, Eye, Pencil, AlertTriangle } from 'lucide-react';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
-import { useLeadInmuebles } from '@/hooks/useLeadInmuebles';
 import { useLeadDocuments } from '@/hooks/useLeadDocuments';
 import { useLeadExternalLinks } from '@/hooks/useLeadExternalLinks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,7 +28,6 @@ import { LeadServicesComponent } from '@/components/crm/LeadServices';
 import { DocumentPreviewModal } from '@/components/crm/DocumentPreviewModal';
 import { useAgentes } from '@/hooks/useAgentes';
 import { useLeads } from '@/hooks/useLeads';
-import { useRecomendaciones } from '@/hooks/useRecomendaciones';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -49,10 +47,8 @@ export const LeadDetailsModal = ({
   const { user, isAdmin } = useAuth();
   const { agentes } = useAgentes();
   const { reassignLead } = useLeads();
-  const { inmuebles, loading: inmueblesLoading, unlinkInmueble, linkInmueble } = useLeadInmuebles(lead?.id);
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument, getPreviewUrl } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
-  const { recomendaciones, loading: recomendacionesLoading } = useRecomendaciones({ lead: lead || undefined, enabled: open && !!lead });
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
@@ -89,13 +85,7 @@ export const LeadDetailsModal = ({
     }).format(value);
   };
 
-  const handleUnlinkInmueble = async (inmuebleId: string) => {
-    if (!lead || !user) return;
-    const success = await unlinkInmueble(lead.id, inmuebleId);
-    if (success) {
-      toast.success('Inmueble desvinculado');
-    }
-  };
+
 
   const handleExportPDF = async () => {
     if (!lead) return;
@@ -186,10 +176,10 @@ export const LeadDetailsModal = ({
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-1 h-auto">
+        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1 h-auto">
           <TabsTrigger value="info" className="text-xs sm:text-sm">Info</TabsTrigger>
           <TabsTrigger value="simulators" className="text-xs sm:text-sm">Simul.</TabsTrigger>
-          <TabsTrigger value="inmuebles" className="text-xs sm:text-sm">Inmuebles ({inmuebles.length})</TabsTrigger>
+          <TabsTrigger value="enlaces" className="text-xs sm:text-sm">Enlaces ({externalLinks.length})</TabsTrigger>
           <TabsTrigger value="servicios" className="text-xs sm:text-sm">Servicios</TabsTrigger>
           <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
           <TabsTrigger value="bewor" className="text-xs sm:text-sm">Análisis</TabsTrigger>
@@ -383,7 +373,7 @@ export const LeadDetailsModal = ({
           )}
         </TabsContent>
 
-        <TabsContent value="inmuebles" className="space-y-4">
+        <TabsContent value="enlaces" className="space-y-4">
           <div className="flex justify-end mb-4">
             <Button onClick={() => setShowExternalLinkForm(!showExternalLinkForm)} size="sm" variant="outline">
               <Plus className="h-4 w-4 mr-2" />
@@ -407,7 +397,7 @@ export const LeadDetailsModal = ({
                   <Label htmlFor="external-title">Título (opcional)</Label>
                   <Input
                     id="external-title"
-                    placeholder="Ej: Casa en Casafari"
+                    placeholder="Ej: Casa en Idealista"
                     value={externalLinkTitle}
                     onChange={(e) => setExternalLinkTitle(e.target.value)}
                   />
@@ -430,202 +420,45 @@ export const LeadDetailsModal = ({
 
           {linksLoading ? (
             <div className="text-center text-muted-foreground py-4">Cargando enlaces...</div>
-          ) : externalLinks.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold">Enlaces Externos</h4>
-              <div className="grid gap-3">
-                {externalLinks.map((link) => (
-                  <Card key={link.id}>
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">{link.titulo || 'Enlace externo'}</p>
-                        <a 
-                          href={link.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline truncate block"
-                        >
-                          <ExternalLink className="h-3 w-3 inline mr-1" />
-                          {link.url}
-                        </a>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteExternalLink(link.id)}
+          ) : externalLinks.length > 0 ? (
+            <div className="grid gap-3">
+              {externalLinks.map((link) => (
+                <Card key={link.id}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{link.titulo || 'Enlace externo'}</p>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline truncate block"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                        <ExternalLink className="h-3 w-3 inline mr-1" />
+                        {link.url}
+                      </a>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteExternalLink(link.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          )}
-
-          {inmueblesLoading ? (
-            <div className="text-center text-muted-foreground py-8">Cargando...</div>
-          ) : inmuebles.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-sm font-semibold flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                Inmuebles Vinculados ({inmuebles.length})
-              </h4>
-              <div className="grid gap-3">
-                {inmuebles.map((inmueble) => (
-                  <Card key={inmueble.id} className="border-green-200 bg-green-50/30">
-                    <CardContent className="flex items-center justify-between p-4">
-                      <div className="flex gap-3 flex-1 min-w-0">
-                        {inmueble.imageUrl && (
-                          <img 
-                            src={inmueble.imageUrl} 
-                            alt={inmueble.titulo || 'Inmueble'} 
-                            className="w-16 h-16 object-cover rounded-md flex-shrink-0"
-                          />
-                        )}
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{inmueble.titulo || `${inmueble.tipo} en ${inmueble.ciudad}`}</p>
-                          <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {inmueble.direccion}
-                          </p>
-                          <p className="text-sm font-semibold text-primary mt-1">{formatCurrency(Number(inmueble.precio))}</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-1 flex-shrink-0">
-                        {inmueble.urlExterna && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => window.open(inmueble.urlExterna, '_blank')}
-                            title="Ver en web"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleUnlinkInmueble(inmueble.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
-              Recomendaciones ({recomendaciones.length})
-            </h4>
-            <p className="text-xs text-muted-foreground">
-              Propiedades basadas en la ciudad, zona y valor deseado del lead
-            </p>
-            
-            {recomendacionesLoading ? (
-              <div className="text-center text-muted-foreground py-6">Cargando recomendaciones...</div>
-            ) : recomendaciones.length === 0 ? (
-              <div className="text-center text-muted-foreground py-6 border rounded-md">
-                No hay recomendaciones disponibles para este perfil
-              </div>
-            ) : (
-              <div className="grid gap-3 max-h-[400px] overflow-y-auto">
-                {recomendaciones.map((inmueble) => {
-                  const isAlreadyLinked = inmuebles.some(i => i.id === inmueble.id);
-                  return (
-                    <Card key={inmueble.id} className={isAlreadyLinked ? 'opacity-60' : ''}>
-                      <CardContent className="flex items-center gap-3 p-3">
-                        {inmueble.imageUrl && (
-                          <img 
-                            src={inmueble.imageUrl} 
-                            alt={inmueble.titulo || 'Inmueble'} 
-                            className="w-20 h-20 object-cover rounded-md flex-shrink-0"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{inmueble.titulo || `${inmueble.tipo} en ${inmueble.ciudad}`}</p>
-                          <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                            <MapPin className="h-3 w-3" />
-                            {inmueble.ciudad} - {inmueble.direccion}
-                          </p>
-                          <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                            {inmueble.quartos && (
-                              <span className="flex items-center gap-1">
-                                <Bed className="h-3 w-3" />
-                                {inmueble.quartos}
-                              </span>
-                            )}
-                            {inmueble.banheiros && (
-                              <span className="flex items-center gap-1">
-                                <Bath className="h-3 w-3" />
-                                {inmueble.banheiros}
-                              </span>
-                            )}
-                            {inmueble.areaM2 && (
-                              <span className="flex items-center gap-1">
-                                <Maximize2 className="h-3 w-3" />
-                                {inmueble.areaM2}m²
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm font-semibold text-primary mt-1">{formatCurrency(Number(inmueble.precio))}</p>
-                        </div>
-                        <div className="flex flex-col gap-1 flex-shrink-0">
-                          {inmueble.urlExterna && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => window.open(inmueble.urlExterna, '_blank')}
-                              title="Ver detalle"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {isAlreadyLinked ? (
-                            <Badge variant="secondary" className="text-xs">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Vinculado
-                            </Badge>
-                          ) : (
-                            <Button
-                              size="sm"
-                              onClick={async () => {
-                                if (!lead?.id || !user?.id) return;
-                                const success = await linkInmueble(lead.id, inmueble.id, user.id);
-                                if (success) {
-                                  toast.success('Inmueble vinculado');
-                                }
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Vincular
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {!inmueblesLoading && inmuebles.length === 0 && externalLinks.length === 0 && recomendaciones.length === 0 && (
+          ) : (
             <div className="text-center text-muted-foreground py-8">
-              No hay inmuebles vinculados ni recomendaciones para este lead
+              No hay enlaces externos para este lead
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="servicios" className="space-y-4">
-          <LeadServicesComponent 
-            leadId={lead.id} 
-            propertyPrice={inmuebles && inmuebles.length > 0 ? inmuebles[0].precio : 0}
+          <LeadServicesComponent
+            leadId={lead.id}
+            propertyPrice={lead.valor_inmueble_deseado || 0}
           />
         </TabsContent>
 

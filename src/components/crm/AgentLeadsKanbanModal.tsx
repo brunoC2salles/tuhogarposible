@@ -8,7 +8,7 @@ import { LeadKanban } from './LeadKanban';
 import { LeadDetailsModal } from './LeadDetailsModal';
 import { CreateEditLeadModal } from './CreateEditLeadModal';
 import { SimuladoresModal } from './SimuladoresModal';
-import { RecomendacionesModal } from './RecomendacionesModal';
+
 import { useLeads } from '@/hooks/useLeads';
 import { Lead, LeadStage, LeadFormData } from '@/types/crm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
