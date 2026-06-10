@@ -3,11 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Calculator, GraduationCap, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
-import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
-  const { isAdmin } = useAuth();
-
   const cards = [
     {
       title: "Portal del Agente",
@@ -39,7 +36,7 @@ const Index = () => {
       icon: Shield,
       to: "/admin",
       cta: "Acceder como Admin",
-      show: isAdmin,
+      show: true,
     },
   ];
 
