@@ -323,50 +323,9 @@ Deno.serve(async (req) => {
         agente = ag;
       }
 
-      // Get recommendations - MESMA lógica do frontend useRecomendaciones.ts
-      let recomendaciones: any[] = [];
-      
-      let query = supabase
-        .from('inmuebles')
-        .select('id, titulo, precio, ciudad, direccion, region, url_externa')
-        .eq('disponible', true);
+      // Recomendações removidas — inventário próprio decomissionado
+      const recomendaciones: any[] = [];
 
-      // Construir filtro combinado para cidade e zona (igual useRecomendaciones.ts)
-      if (lead.ciudad_interes && lead.zona_interes) {
-        query = query.or(
-          `ciudad.ilike.%${lead.ciudad_interes}%,` +
-          `region.ilike.%${lead.zona_interes}%,` +
-          `direccion.ilike.%${lead.zona_interes}%`
-        );
-      } else if (lead.ciudad_interes) {
-        query = query.ilike('ciudad', `%${lead.ciudad_interes}%`);
-      } else if (lead.zona_interes) {
-        query = query.or(
-          `region.ilike.%${lead.zona_interes}%,` +
-          `direccion.ilike.%${lead.zona_interes}%,` +
-          `ciudad.ilike.%${lead.zona_interes}%`
-        );
-      }
-
-      const { data: recs } = await query;
-      let filteredRecs = recs || [];
-
-      // Filtrar por valor (se disponível) - até 135% do valor máximo do imóvel
-      const simHipotecaData = lead.simulador_hipotecario_data as any || {};
-      const valorMaximo = simHipotecaData.valor_maximo_inmueble || simHipotecaData.valorMaximoInmueble || 0;
-      
-      if (valorMaximo > 0) {
-        const maxValue = valorMaximo * 1.35;
-        filteredRecs = filteredRecs.filter((r: any) => r.precio <= maxValue);
-        
-        // Ordenar por proximidade ao valor máximo
-        filteredRecs.sort((a: any, b: any) => 
-          Math.abs(a.precio - valorMaximo) - Math.abs(b.precio - valorMaximo)
-        );
-      }
-
-      // Limitar a 3 recomendações para o webhook
-      recomendaciones = filteredRecs.slice(0, 3);
 
       // Bewor: link ativo de upload de documentos
       const { data: beworToken } = await supabase
@@ -463,22 +422,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get recommendations
-      let recomendaciones: any[] = [];
-      const { data: linkedInmuebles } = await supabase
-        .from('lead_inmuebles')
-        .select('inmueble_id')
-        .eq('lead_id', lead_id)
-        .limit(5);
+      // Recomendações removidas — inventário próprio decomissionado
+      const recomendaciones: any[] = [];
 
-      if (linkedInmuebles && linkedInmuebles.length > 0) {
-        const inmuebleIds = linkedInmuebles.map(li => li.inmueble_id);
-        const { data: inmuebles } = await supabase
-          .from('inmuebles')
-          .select('id, titulo, precio, ciudad, direccion')
-          .in('id', inmuebleIds);
-        recomendaciones = inmuebles || [];
-      }
 
       // Bewor: link ativo de upload de documentos
       const { data: beworToken2 } = await supabase
