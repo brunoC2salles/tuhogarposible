@@ -1309,11 +1309,14 @@ Deno.serve(async (req) => {
             body: JSON.stringify(bitrixPayload)
           });
 
-          // Registrar log
+          // Registrar log com corpo da resposta em caso de erro
           const logStatus = webhookResponse.ok ? 'success' : 'error';
-          const errorMessage = !webhookResponse.ok 
-            ? `HTTP ${webhookResponse.status}: ${webhookResponse.statusText}` 
-            : null;
+          let errorMessage: string | null = null;
+          if (!webhookResponse.ok) {
+            let respBody = '';
+            try { respBody = (await webhookResponse.text()).substring(0, 500); } catch {}
+            errorMessage = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText} | body: ${respBody}`;
+          }
 
           await supabase.from('webhook_logs').insert({
             webhook_url: webhookUrl + ' (meta_bitrix)',
