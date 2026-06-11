@@ -1276,6 +1276,10 @@ Deno.serve(async (req) => {
             notas: notasLead,
             simulador_personal_data: simulacionPersonalEnriched,
             simulador_hipotecario_data: simulacionHipotecariaEnriched,
+            fecha_reunion: fechaReunion,
+            hora_reunion: horaReunion,
+            zona_horaria_reunion: zonaHorariaReunion,
+            reunion_datetime: reunionDateTime,
           };
 
           // Build payload Bitrix usando a fonte ÚNICA compartilhada
