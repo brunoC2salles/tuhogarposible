@@ -1145,6 +1145,18 @@ Deno.serve(async (req) => {
       meta_habitaciones: data.habitaciones || null,
     };
 
+    // Parse de agendamento de reunião vindo do formulário Meta Ads
+    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha);
+    const horaReunion = parseHoraReunion(data.hora_reunion || data.meeting_time || data.hora);
+    const zonaHorariaReunion = (data.zona_horaria_reunion || 'Europe/Madrid').trim() || 'Europe/Madrid';
+    let reunionDateTime = buildReunionDateTime(fechaReunion, horaReunion, zonaHorariaReunion);
+    // Se veio meeting_datetime ISO completo, prioriza-o
+    if (data.meeting_datetime) {
+      const direct = new Date(data.meeting_datetime);
+      if (!isNaN(direct.getTime())) reunionDateTime = direct.toISOString();
+    }
+    console.log('[meta-lead-webhook] Agendamento:', { fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
+
     try {
       const { data: leadData, error: leadError } = await supabase
         .from('leads')
@@ -1161,7 +1173,11 @@ Deno.serve(async (req) => {
         source: isTallyHousage ? 'manual' : 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonalEnriched,
-          simulador_hipotecario_data: simulacionHipotecariaEnriched
+          simulador_hipotecario_data: simulacionHipotecariaEnriched,
+          fecha_reunion: fechaReunion,
+          hora_reunion: horaReunion,
+          zona_horaria_reunion: zonaHorariaReunion,
+          reunion_datetime: reunionDateTime,
         })
         .select('id')
         .single();
