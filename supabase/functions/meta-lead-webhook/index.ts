@@ -115,10 +115,102 @@ interface MetaLeadData {
   tiene_ahorros_impuestos?: string;
   monto_ahorros?: string | number;
   tiene_vivienda_seleccionada?: string;
+  // Agendamento de reunião (vindo do formulário Meta Ads via Make)
+  fecha_reunion?: string;
+  hora_reunion?: string;
+  zona_horaria_reunion?: string;
+  meeting_date?: string;
+  meeting_time?: string;
+  meeting_datetime?: string;
+  fecha?: string;
+  hora?: string;
   // Override opcional: força atribuição a um agente específico (ex: Tally → Housage)
   force_agent_id?: string;
   // Marcador opcional de origem (ex: 'tally_housage')
   source_origin?: string;
+}
+
+// ============= PARSER DE AGENDAMENTO DE REUNIÃO =============
+/**
+ * Normaliza data para formato YYYY-MM-DD. Aceita ISO, DD/MM/YYYY, DD-MM-YYYY.
+ */
+function parseFechaReunion(raw?: string): string | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  // ISO já
+  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  // DD/MM/YYYY ou DD-MM-YYYY
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (dmy) {
+    const dd = dmy[1].padStart(2, '0');
+    const mm = dmy[2].padStart(2, '0');
+    let yy = dmy[3];
+    if (yy.length === 2) yy = '20' + yy;
+    return `${yy}-${mm}-${dd}`;
+  }
+  // Fallback: tentar Date.parse
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  return null;
+}
+
+/**
+ * Normaliza hora para HH:MM:SS (24h). Aceita "HH:MM", "HH:MM:SS", "10:30 AM/PM".
+ */
+function parseHoraReunion(raw?: string): string | null {
+  if (!raw) return null;
+  const s = String(raw).trim();
+  if (!s) return null;
+  // AM/PM
+  const ampm = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)$/);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const m = ampm[2];
+    const sec = ampm[3] || '00';
+    const isPm = ampm[4].toLowerCase() === 'pm';
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${m}:${sec}`;
+  }
+  // 24h HH:MM ou HH:MM:SS
+  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (m24) {
+    const h = m24[1].padStart(2, '0');
+    return `${h}:${m24[2]}:${m24[3] || '00'}`;
+  }
+  return null;
+}
+
+/**
+ * Combina fecha + hora + timezone em ISO timestamptz.
+ * Como o timezone vem como nome (Europe/Madrid), tratamos o horário como local de Madrid
+ * computando o offset apropriado e gerando ISO UTC.
+ */
+function buildReunionDateTime(fecha: string | null, hora: string | null, tz: string): string | null {
+  if (!fecha || !hora) return null;
+  try {
+    // Cria "wall-clock" e calcula o offset do timezone para essa data
+    const wall = new Date(`${fecha}T${hora}Z`); // tratamos como UTC inicial
+    // Descobre que hora local seria no tz
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    const parts = Object.fromEntries(fmt.formatToParts(wall).map(p => [p.type, p.value]));
+    const asTzMs = Date.UTC(
+      Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute), Number(parts.second)
+    );
+    const offsetMs = asTzMs - wall.getTime();
+    return new Date(wall.getTime() - offsetMs).toISOString();
+  } catch (err) {
+    console.error('[meta-lead-webhook] Erro construindo reunion_datetime:', err);
+    return null;
+  }
 }
 
 interface QualificationResult {
@@ -1084,68 +1176,7 @@ Deno.serve(async (req) => {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
     }
 
-    // 7.5. DISPARO AUTOMÁTICO: Se lead foi descualificado, disparar webhook de descualificação
-    if (!qualificacao.cualificado && leadId) {
-      try {
-        // Buscar URL do webhook de descualificados
-        const { data: disqualifiedSetting } = await supabase
-          .from('admin_settings')
-          .select('value')
-          .eq('key', 'webhook_disqualified_url')
-          .single();
-
-        const disqualifiedWebhookUrl = disqualifiedSetting?.value;
-
-        if (disqualifiedWebhookUrl && disqualifiedWebhookUrl.trim() !== '') {
-          console.log('[meta-lead-webhook] Disparando webhook de descualificação automaticamente');
-
-          const disqualifiedPayload = {
-            source: 'disqualified_lead_auto',
-            timestamp: new Date().toISOString(),
-            lead_id: leadId,
-            lead_nombre: data.nombre,
-            lead_email: data.email,
-            lead_telefono: data.telefono,
-            lead_zona_interes: data.zona_interes || null,
-            lead_ciudad_interes: zonaParseada.ciudad || null,
-            razon_descualificacion: qualificacao.razon_no_cualificado || 'Não qualificado',
-            agente_nombre: agenteAsignado?.nombre || null,
-            agente_email: agenteAsignado?.email || null,
-            test_mode: false
-          };
-
-          const disqualifiedResponse = await fetch(disqualifiedWebhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(disqualifiedPayload)
-          });
-
-          // Registrar log
-          await supabase.from('webhook_logs').insert({
-            webhook_url: disqualifiedWebhookUrl + ' (disqualified_auto)',
-            status: disqualifiedResponse.ok ? 'success' : 'error',
-            error_message: !disqualifiedResponse.ok 
-              ? `HTTP ${disqualifiedResponse.status}: ${disqualifiedResponse.statusText}` 
-              : null,
-            payload: disqualifiedPayload
-          });
-
-          console.log('[meta-lead-webhook] Webhook descualificação automática:', 
-            disqualifiedResponse.ok ? 'success' : 'error');
-        } else {
-          console.log('[meta-lead-webhook] URL do webhook de descualificação não configurada');
-        }
-      } catch (disErr) {
-        console.error('[meta-lead-webhook] Erro ao disparar webhook de descualificação:', disErr);
-        
-        // Registrar erro no log
-        await supabase.from('webhook_logs').insert({
-          webhook_url: 'webhook_disqualified_url (auto_error)',
-          status: 'error',
-          error_message: disErr.message || 'Erro desconhecido'
-        });
-      }
-    }
+    // 7.5. (REMOVIDO) Webhook automático de descualificados — não usamos mais
 
     // 8. Montar resposta completa para o Make.com
     const response = {
