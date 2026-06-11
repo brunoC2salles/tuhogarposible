@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -204,6 +204,15 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
           <div className="flex items-center gap-2 text-primary">
             <Target className="h-3 w-3 flex-shrink-0" />
             <span className="truncate text-xs font-medium">Hasta {formatCurrency(precioMaximoInmueble)}</span>
+          </div>
+        )}
+
+        {(lead.fecha_reunion || lead.reunion_datetime) && (
+          <div className="flex items-center gap-2 text-primary">
+            <CalendarClock className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate text-xs font-medium">
+              Reunión: {lead.fecha_reunion || ''}{lead.hora_reunion ? ` ${String(lead.hora_reunion).slice(0,5)}` : ''}
+            </span>
           </div>
         )}
 
