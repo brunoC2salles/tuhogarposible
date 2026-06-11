@@ -66,28 +66,25 @@ function flattenPayload(obj: Record<string, any>, prefix = ''): Record<string, s
 // Builder do payload Bitrix vive em ../_shared/bitrixPayload.ts (fonte única)
 // ============================================================================
 
-// Send webhook with x-www-form-urlencoded
+// Send webhook with JSON (mesma forma usada por meta-lead-webhook).
+// Retorna sucesso, status e corpo (truncado) para diagnóstico.
 async function sendToMake(webhookUrl: string, payload: Record<string, any>): Promise<{ success: boolean; status: number; body: string }> {
-  const flatPayload = flattenPayload(payload);
-  const body = new URLSearchParams(flatPayload).toString();
-  
-  console.log('[make-webhook-proxy] Sending to Make.com:', webhookUrl);
-  console.log('[make-webhook-proxy] Flat payload keys:', Object.keys(flatPayload).join(', '));
-  
+  console.log('[make-webhook-proxy] Sending to Make.com (JSON):', webhookUrl);
+  console.log('[make-webhook-proxy] Payload keys:', Object.keys(payload).join(', '));
+
   const response = await fetch(webhookUrl, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
-    },
-    body,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
-  
-  const responseBody = await response.text();
-  
+
+  let responseBody = '';
+  try { responseBody = (await response.text()).substring(0, 500); } catch {}
+
   return {
     success: response.ok,
     status: response.status,
-    body: responseBody.substring(0, 500),
+    body: responseBody,
   };
 }
 
