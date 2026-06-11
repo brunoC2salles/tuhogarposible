@@ -208,7 +208,7 @@ Deno.serve(async (req) => {
         sim_hipoteca_capital: (submission.simulador_hipotecario_data as any)?.capitalPropioNecesario || 0,
         
         // CRM URL
-        crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${submission.lead_id || submission.id}`,
+        crm_url: `https://tuhogarposible.lovable.app/agente/crm?lead=${submission.lead_id || submission.id}`,
       };
 
       // Send to Make
@@ -337,7 +337,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       const beworLink = beworToken?.token
-        ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken.token}`
+        ? `https://tuhogarposible.lovable.app/documentos/${beworToken.token}`
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
@@ -436,7 +436,7 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
       const beworLink2 = beworToken2?.token
-        ? `https://tu-hogar-vista.lovable.app/documentos/${beworToken2.token}`
+        ? `https://tuhogarposible.lovable.app/documentos/${beworToken2.token}`
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)

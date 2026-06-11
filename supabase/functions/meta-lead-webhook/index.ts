@@ -1238,7 +1238,7 @@ Deno.serve(async (req) => {
       
       // URL do CRM para gestão do lead (NÃO É RECOMENDAÇÃO DE IMÓVEL)
       crm_url: leadId 
-        ? `https://tu-hogar-vista.lovable.app/agente/crm?lead=${leadId}`
+        ? `https://tuhogarposible.lovable.app/agente/crm?lead=${leadId}`
         : null,
       
       metadata: {
