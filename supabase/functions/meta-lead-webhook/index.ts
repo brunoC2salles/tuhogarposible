@@ -136,13 +136,15 @@ interface MetaLeadData {
  */
 function parseFechaReunion(raw?: string): string | null {
   if (!raw) return null;
-  const s = String(raw).trim();
+  let s = String(raw).trim();
   if (!s) return null;
-  // ISO já
+  // Remove dia da semana em ES/EN/PT (ex: "Lunes 15/06/2026", "Monday, 15-06-2026")
+  s = s.replace(/^(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday|segunda|terça|terca|quarta|quinta|sexta)[,\s]+/i, '').trim();
+  // ISO YYYY-MM-DD (com ou sem hora)
   const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  // DD/MM/YYYY ou DD-MM-YYYY
-  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+  const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
   if (dmy) {
     const dd = dmy[1].padStart(2, '0');
     const mm = dmy[2].padStart(2, '0');
@@ -150,35 +152,67 @@ function parseFechaReunion(raw?: string): string | null {
     if (yy.length === 2) yy = '20' + yy;
     return `${yy}-${mm}-${dd}`;
   }
-  // Fallback: tentar Date.parse
+  // "15 de junio de 2026" / "15 junio 2026"
+  const meses: Record<string, string> = {
+    enero: '01', febrero: '02', marzo: '03', abril: '04', mayo: '05', junio: '06',
+    julio: '07', agosto: '08', septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
+  };
+  const esMatch = s.toLowerCase().match(/^(\d{1,2})\s*(?:de\s+)?([a-záéíóú]+)(?:\s+de\s+(\d{2,4}))?/i);
+  if (esMatch) {
+    const mesKey = esMatch[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (meses[mesKey]) {
+      const dd = esMatch[1].padStart(2, '0');
+      const mm = meses[mesKey];
+      let yy = esMatch[3] || String(new Date().getFullYear());
+      if (yy.length === 2) yy = '20' + yy;
+      return `${yy}-${mm}-${dd}`;
+    }
+  }
+  // Fallback Date.parse
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   return null;
 }
 
 /**
- * Normaliza hora para HH:MM:SS (24h). Aceita "HH:MM", "HH:MM:SS", "10:30 AM/PM".
+ * Normaliza hora para HH:MM:SS (24h). Aceita "HH:MM", "HH:MM:SS", "10:30 AM/PM",
+ * "10h", "10h30", "10.30", "10 30", "10" (hora cheia), "10 horas".
  */
 function parseHoraReunion(raw?: string): string | null {
   if (!raw) return null;
-  const s = String(raw).trim();
+  let s = String(raw).trim().toLowerCase();
   if (!s) return null;
+  // Remove "hs", "horas", "h." finais comuns em ES
+  s = s.replace(/\s*(horas?|hrs?)\b\.?/g, '').trim();
   // AM/PM
-  const ampm = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM|am|pm)$/);
+  const ampm = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)$/);
   if (ampm) {
     let h = parseInt(ampm[1], 10);
     const m = ampm[2];
     const sec = ampm[3] || '00';
-    const isPm = ampm[4].toLowerCase() === 'pm';
+    const isPm = ampm[4] === 'pm';
     if (isPm && h < 12) h += 12;
     if (!isPm && h === 12) h = 0;
     return `${String(h).padStart(2, '0')}:${m}:${sec}`;
   }
-  // 24h HH:MM ou HH:MM:SS
-  const m24 = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  // "10h30" ou "10h"
+  const hFmt = s.match(/^(\d{1,2})h(\d{2})?$/);
+  if (hFmt) {
+    const h = hFmt[1].padStart(2, '0');
+    const m = (hFmt[2] || '00').padStart(2, '0');
+    return `${h}:${m}:00`;
+  }
+  // 24h HH:MM(:SS) ou HH.MM ou HH MM
+  const m24 = s.match(/^(\d{1,2})[:\.\s](\d{2})(?:[:\.\s](\d{2}))?$/);
   if (m24) {
     const h = m24[1].padStart(2, '0');
     return `${h}:${m24[2]}:${m24[3] || '00'}`;
+  }
+  // Apenas hora inteira: "10"
+  const onlyH = s.match(/^(\d{1,2})$/);
+  if (onlyH) {
+    const h = parseInt(onlyH[1], 10);
+    if (h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:00:00`;
   }
   return null;
 }
