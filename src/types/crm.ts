@@ -43,6 +43,10 @@ export interface Lead {
   agente_asignado_id?: string;
   source: LeadSource;
   notas?: string;
+  fecha_reunion?: string | null;
+  hora_reunion?: string | null;
+  zona_horaria_reunion?: string | null;
+  reunion_datetime?: string | null;
   created_at: string;
   updated_at: string;
   last_stage_change_at: string;

@@ -25,71 +25,58 @@ const AdminSettings = () => {
   const { 
     webhookUrl, 
     metaBitrixWebhookUrl,
-    disqualifiedWebhookUrl,
     inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
-    savingDisqualified,
     savingInmovilla,
-    testingDisqualified,
     webhookLogs, 
     metaBitrixLogs,
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
-    saveDisqualifiedWebhookUrl,
     saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
-    testDisqualifiedWebhook,
+    replayQualifiedSince,
     refreshLogs,
     refreshMetaBitrixLogs
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
-  const [localDisqualifiedWebhookUrl, setLocalDisqualifiedWebhookUrl] = useState('');
   const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
+  const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
+  const [replaying, setReplaying] = useState(false);
   
-  // Scraping states
   const [scrapingStats, setScrapingStats] = useState({
-    total: 0,
-    pending: 0,
-    completed: 0,
-    failed: 0,
-    progress: 0
+    total: 0, pending: 0, completed: 0, failed: 0, progress: 0
   });
   const [scrapingProcessing, setScrapingProcessing] = useState(false);
   const [scrapingMessage, setScrapingMessage] = useState('');
 
   useEffect(() => {
-    if (webhookUrl && !localWebhookUrl) {
-      setLocalWebhookUrl(webhookUrl);
-    }
+    if (webhookUrl && !localWebhookUrl) setLocalWebhookUrl(webhookUrl);
   }, [webhookUrl]);
 
   useEffect(() => {
-    if (metaBitrixWebhookUrl && !localMetaBitrixWebhookUrl) {
-      setLocalMetaBitrixWebhookUrl(metaBitrixWebhookUrl);
-    }
+    if (metaBitrixWebhookUrl && !localMetaBitrixWebhookUrl) setLocalMetaBitrixWebhookUrl(metaBitrixWebhookUrl);
   }, [metaBitrixWebhookUrl]);
 
   useEffect(() => {
-    if (disqualifiedWebhookUrl && !localDisqualifiedWebhookUrl) {
-      setLocalDisqualifiedWebhookUrl(disqualifiedWebhookUrl);
-    }
-  }, [disqualifiedWebhookUrl]);
-
-  useEffect(() => {
-    if (inmovillaUrl && !localInmovillaUrl) {
-      setLocalInmovillaUrl(inmovillaUrl);
-    }
+    if (inmovillaUrl && !localInmovillaUrl) setLocalInmovillaUrl(inmovillaUrl);
   }, [inmovillaUrl]);
 
   useEffect(() => {
     fetchScrapingStats();
   }, []);
+
+  const handleReplay = async () => {
+    setReplaying(true);
+    const sinceIso = new Date(replaySince).toISOString();
+    await replayQualifiedSince(sinceIso);
+    setReplaying(false);
+  };
 
   const fetchScrapingStats = async () => {
     try {
@@ -365,63 +352,35 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Integração Make.com - Leads Descualificados */}
+        {/* Reenviar leads qualificados */}
         <Card>
           <CardHeader>
-            <CardTitle>Integración Make.com - Leads Descualificados</CardTitle>
+            <CardTitle>Reenviar leads qualificados al Bitrix</CardTitle>
             <CardDescription>
-              Configure el webhook para enviar leads descualificados y disparar emails de agradecimiento
+              Reenvía al webhook Meta Ads → Bitrix los leads qualificados creados a partir de la fecha indicada.
+              Los leads que ya tienen un envío con éxito son ignorados automáticamente (no duplica deals).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Este webhook se dispara automáticamente cuando un lead es movido a "Descualificados".
-                Configure un escenario en Make.com para enviar un email de agradecimiento explicando el motivo.
-              </AlertDescription>
-            </Alert>
-
             <div className="space-y-2">
-              <Label htmlFor="webhook-disqualified-url">URL del Webhook (Descualificados)</Label>
+              <Label htmlFor="replay-since">Desde (fecha y hora)</Label>
               <Input
-                id="webhook-disqualified-url"
-                type="url"
-                placeholder="https://hook.eu2.make.com/..."
-                value={localDisqualifiedWebhookUrl}
-                onChange={(e) => setLocalDisqualifiedWebhookUrl(e.target.value)}
+                id="replay-since"
+                type="datetime-local"
+                value={replaySince}
+                onChange={(e) => setReplaySince(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                El payload incluye: nombre, email, teléfono, zona de interés y razón de descualificación
+                Sugerencia: 08/06/2026 11:49 UTC — momento del primer error reciente.
               </p>
             </div>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={async () => {
-                  const success = await saveDisqualifiedWebhookUrl(localDisqualifiedWebhookUrl);
-                  if (success) refreshLogs();
-                }} 
-                disabled={savingDisqualified}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {savingDisqualified ? 'Guardando...' : 'Guardar'}
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={testDisqualifiedWebhook} 
-                disabled={testingDisqualified || !localDisqualifiedWebhookUrl.trim()}
-                title="Probar con el último lead descualificado"
-              >
-                <TestTube className="h-4 w-4 mr-2" />
-                {testingDisqualified ? 'Probando...' : 'Probar Webhook'}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              La prueba enviará los datos del último lead descualificado al webhook configurado
-            </p>
+            <Button onClick={handleReplay} disabled={replaying}>
+              <TestTube className="h-4 w-4 mr-2" />
+              {replaying ? 'Reenviando...' : 'Reenviar leads qualificados'}
+            </Button>
           </CardContent>
         </Card>
+
         {/* Logs de Webhook */}
         <Card>
           <CardHeader>

@@ -765,10 +765,13 @@ export type Database = {
           ciudad_interes: string | null
           created_at: string
           email: string
+          fecha_reunion: string | null
+          hora_reunion: string | null
           id: string
           last_stage_change_at: string
           nombre_completo: string
           notas: string | null
+          reunion_datetime: string | null
           simulador_hipotecario_data: Json | null
           simulador_personal_data: Json | null
           source: Database["public"]["Enums"]["lead_source"]
@@ -776,6 +779,7 @@ export type Database = {
           telefono: string
           updated_at: string
           valor_inmueble_deseado: number | null
+          zona_horaria_reunion: string | null
           zona_interes: string | null
         }
         Insert: {
@@ -783,10 +787,13 @@ export type Database = {
           ciudad_interes?: string | null
           created_at?: string
           email: string
+          fecha_reunion?: string | null
+          hora_reunion?: string | null
           id?: string
           last_stage_change_at?: string
           nombre_completo: string
           notas?: string | null
+          reunion_datetime?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -794,6 +801,7 @@ export type Database = {
           telefono: string
           updated_at?: string
           valor_inmueble_deseado?: number | null
+          zona_horaria_reunion?: string | null
           zona_interes?: string | null
         }
         Update: {
@@ -801,10 +809,13 @@ export type Database = {
           ciudad_interes?: string | null
           created_at?: string
           email?: string
+          fecha_reunion?: string | null
+          hora_reunion?: string | null
           id?: string
           last_stage_change_at?: string
           nombre_completo?: string
           notas?: string | null
+          reunion_datetime?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -812,6 +823,7 @@ export type Database = {
           telefono?: string
           updated_at?: string
           valor_inmueble_deseado?: number | null
+          zona_horaria_reunion?: string | null
           zona_interes?: string | null
         }
         Relationships: [

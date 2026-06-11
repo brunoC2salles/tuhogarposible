@@ -159,6 +159,12 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_disponibilidad: metaPreferencia,
     lead_documento: metaDniNie,
 
+    // ===== Agendamento de reunião (vem do formulário Meta Ads) =====
+    lead_fecha_reunion: lead.fecha_reunion || '',
+    lead_hora_reunion: lead.hora_reunion || '',
+    lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
+    lead_reunion_datetime: lead.reunion_datetime || '',
+
     // ===== Meta (mantém nomes do template) =====
     meta_dni_nie: metaDniNie,
     meta_antiguedad_trabajo: metaAntiguedad,
@@ -195,19 +201,11 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
 
     // ===== CRM e documentos =====
-    crm_url: `https://tu-hogar-vista.lovable.app/agente/crm?lead=${lead.id}`,
+    crm_url: `https://tuhogarposible.lovable.app/agente/crm?lead=${lead.id}`,
     bewor_link_documentos: beworLink || '',
     documentos_link: beworLink || '',
     bank_statement_upload_link: beworLink || '',
   };
-
-  // Recomendações (até 3, links Vercel)
-  recom.forEach((rec, index) => {
-    const num = index + 1;
-    payload[`recom_${num}_titulo`] = rec.titulo || `${rec.ciudad || ''} - ${rec.direccion || ''}`;
-    payload[`recom_${num}_precio`] = rec.precio;
-    payload[`recom_${num}_url`] = rec.id ? `https://inventariotuhogarposible.vercel.app/produto/${rec.id}` : '';
-  });
 
   // Extras adicionais (test=true, assignment_type, etc.)
   Object.assign(payload, extra);
@@ -219,6 +217,9 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
   console.log('[bitrixPayload] sim_hipoteca_monto_financiable:', payload.sim_hipoteca_monto_financiable,
     '| sim_hipoteca_valor_max_inmueble:', payload.sim_hipoteca_valor_max_inmueble,
     '| sim_hipoteca_cuota_maxima:', payload.sim_hipoteca_cuota_maxima);
+  console.log('[bitrixPayload] fecha_reunion:', payload.lead_fecha_reunion,
+    '| hora_reunion:', payload.lead_hora_reunion,
+    '| reunion_datetime:', payload.lead_reunion_datetime);
 
   return payload;
 }
