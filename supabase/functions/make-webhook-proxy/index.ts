@@ -470,6 +470,128 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ============================================
+    // ACTION: replay_qualified_since
+    // Reenvia ao Bitrix (webhook_meta_bitrix_url) todos os leads qualificados
+    // criados a partir de `since`, pulando os que já têm log success com mesmo lead_id.
+    // ============================================
+    if (action === 'replay_qualified_since') {
+      const since: string | undefined = body.since;
+      if (!since) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'since (ISO datetime) é obrigatório' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: cfg } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_meta_bitrix_url')
+        .single();
+      const webhookUrl = cfg?.value;
+      if (!webhookUrl || !isValidWebhookUrl(webhookUrl)) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Webhook Meta/Bitrix não configurado ou inválido' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Leads qualificados desde `since`
+      const { data: leads, error: leadsErr } = await supabase
+        .from('leads')
+        .select('*')
+        .neq('stage', 'descualificados')
+        .gte('created_at', since)
+        .order('created_at', { ascending: true });
+
+      if (leadsErr) {
+        return new Response(
+          JSON.stringify({ success: false, error: leadsErr.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const summary = {
+        total: leads?.length || 0,
+        skipped_already_sent: 0,
+        sent_ok: 0,
+        sent_failed: 0,
+        details: [] as Array<{ lead_id: string; nombre: string; status: string; http?: number; reason?: string }>,
+      };
+
+      for (const lead of leads || []) {
+        // Verifica se já existe envio bem-sucedido para este lead_id
+        const { data: prior } = await supabase
+          .from('webhook_logs')
+          .select('id')
+          .eq('status', 'success')
+          .filter('payload->>lead_id', 'eq', lead.id)
+          .limit(1);
+
+        if (prior && prior.length > 0) {
+          summary.skipped_already_sent++;
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'already_sent' });
+          continue;
+        }
+
+        // Busca agente
+        let agente: any = null;
+        if (lead.agente_asignado_id) {
+          const { data: ag } = await supabase
+            .from('profiles')
+            .select('id, nombre, email, telefono, tidycal_url')
+            .eq('id', lead.agente_asignado_id)
+            .single();
+          agente = ag;
+        }
+
+        // Bewor link
+        const { data: tk } = await supabase
+          .from('lead_document_tokens')
+          .select('token')
+          .eq('lead_id', lead.id)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const beworLink = tk?.token ? `https://tuhogarposible.lovable.app/documentos/${tk.token}` : '';
+
+        const payload = buildBitrixPayloadFromLead({
+          lead,
+          agente,
+          recomendaciones: [],
+          beworLink,
+          source: 'replay_qualified',
+          extra: { replay: 'true', replay_since: since },
+        });
+
+        const result = await sendToMake(webhookUrl, payload);
+
+        await supabase.from('webhook_logs').insert({
+          webhook_url: webhookUrl + ' (replay_qualified)',
+          status: result.success ? 'success' : 'error',
+          error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
+          payload: payload as any,
+        });
+
+        if (result.success) {
+          summary.sent_ok++;
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'sent', http: result.status });
+        } else {
+          summary.sent_failed++;
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'failed', http: result.status, reason: result.body });
+        }
+      }
+
+      console.log('[make-webhook-proxy] replay_qualified_since summary:', summary);
+
+      return new Response(
+        JSON.stringify({ success: true, since, ...summary }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: false, error: 'Unknown action' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
