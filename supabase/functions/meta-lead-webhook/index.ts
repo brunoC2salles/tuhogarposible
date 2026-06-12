@@ -1211,7 +1211,11 @@ Deno.serve(async (req) => {
     };
 
     // Parse de agendamento de reunião vindo do formulário Meta Ads
-    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha);
+    const horaReunionTextoRaw = [data.fecha_reunion, data.hora_reunion, data.meeting_time, data.hora]
+      .filter((v) => v !== undefined && v !== null && String(v).trim() !== '')
+      .map((v) => String(v).trim())
+      .join(' ').trim() || null;
+    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha || data.hora_reunion || data.meeting_time);
     const horaReunion = parseHoraReunion(data.hora_reunion || data.meeting_time || data.hora);
     const zonaHorariaReunion = (data.zona_horaria_reunion || 'Europe/Madrid').trim() || 'Europe/Madrid';
     let reunionDateTime = buildReunionDateTime(fechaReunion, horaReunion, zonaHorariaReunion);
@@ -1220,7 +1224,7 @@ Deno.serve(async (req) => {
       const direct = new Date(data.meeting_datetime);
       if (!isNaN(direct.getTime())) reunionDateTime = direct.toISOString();
     }
-    console.log('[meta-lead-webhook] Agendamento:', { fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
+    console.log('[meta-lead-webhook] Agendamento:', { horaReunionTextoRaw, fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
 
     try {
       const { data: leadData, error: leadError } = await supabase
@@ -1241,6 +1245,7 @@ Deno.serve(async (req) => {
           simulador_hipotecario_data: simulacionHipotecariaEnriched,
           fecha_reunion: fechaReunion,
           hora_reunion: horaReunion,
+          hora_reunion_texto: horaReunionTextoRaw,
           zona_horaria_reunion: zonaHorariaReunion,
           reunion_datetime: reunionDateTime,
         })
