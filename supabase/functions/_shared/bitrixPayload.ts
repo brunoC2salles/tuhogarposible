@@ -162,6 +162,7 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     // ===== Agendamento de reunião (vem do formulário Meta Ads) =====
     lead_fecha_reunion: lead.fecha_reunion || '',
     lead_hora_reunion: lead.hora_reunion || '',
+    lead_hora_reunion_texto: lead.hora_reunion_texto || '',
     lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
     lead_reunion_datetime: lead.reunion_datetime || '',
 
