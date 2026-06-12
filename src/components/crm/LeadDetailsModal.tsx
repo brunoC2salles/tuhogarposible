@@ -236,13 +236,18 @@ export const LeadDetailsModal = ({
                 <p className="text-sm text-muted-foreground">Valor Deseado</p>
                 <p className="font-medium">{formatCurrency(lead.valor_inmueble_deseado)}</p>
               </div>
-              {(lead.fecha_reunion || lead.reunion_datetime) && (
+              {(lead.fecha_reunion || lead.reunion_datetime || lead.hora_reunion_texto) && (
                 <div className="col-span-2 p-3 bg-primary/5 rounded-md">
-                  <p className="text-sm text-muted-foreground">Reunión agendada</p>
-                  <p className="font-medium">
-                    {lead.fecha_reunion || ''}{lead.hora_reunion ? ` · ${String(lead.hora_reunion).slice(0,5)}` : ''}
-                    {lead.zona_horaria_reunion ? ` (${lead.zona_horaria_reunion})` : ''}
-                  </p>
+                  <p className="text-sm text-muted-foreground">Preferencia de reunión</p>
+                  {lead.hora_reunion_texto && (
+                    <p className="font-medium">{lead.hora_reunion_texto}</p>
+                  )}
+                  {lead.fecha_reunion && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Interpretado: {lead.fecha_reunion}{lead.hora_reunion ? ` · ${String(lead.hora_reunion).slice(0,5)}` : ''}
+                      {lead.zona_horaria_reunion ? ` (${lead.zona_horaria_reunion})` : ''}
+                    </p>
+                  )}
                 </div>
               )}
             </CardContent>
