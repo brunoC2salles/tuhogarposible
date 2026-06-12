@@ -27,6 +27,36 @@ export function normalizarCreditoPersonal(simPersonal: any): { monto: number; cu
 
   return { monto, cuota };
 }
+/**
+ * Combina fecha (YYYY-MM-DD) + hora (HH:mm[:ss]) num formato ISO local
+ * `YYYY-MM-DDTHH:mm:ss` que o campo "data e hora" do Bitrix aceita nativamente.
+ * Sem hora → 00:00:00. Sem fecha → string vazia.
+ */
+export function buildFechaReunionBitrix(
+  fecha: string | null | undefined,
+  hora: string | null | undefined
+): string {
+  if (!fecha) return '';
+  const f = String(fecha).trim();
+  // Aceita YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss (já ISO)
+  const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!dateMatch) return '';
+  const datePart = dateMatch[1];
+
+  let timePart = '00:00:00';
+  if (hora) {
+    const h = String(hora).trim();
+    const m = h.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      const hh = m[1].padStart(2, '0');
+      const mm = m[2];
+      const ss = m[3] || '00';
+      timePart = `${hh}:${mm}:${ss}`;
+    }
+  }
+  return `${datePart}T${timePart}`;
+}
+
 
 /** Extrai um campo "Chave: valor" das notas do lead. */
 export function extractFromNotes(notas: string | null | undefined, key: string): string {
