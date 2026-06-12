@@ -165,6 +165,9 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_hora_reunion_texto: lead.hora_reunion_texto || '',
     lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
     lead_reunion_datetime: lead.reunion_datetime || '',
+    // Pré-formatado para o campo data+hora do Bitrix (YYYY-MM-DDTHH:mm:ss).
+    // Evita parseDate/formatDate no Make: basta mapear este campo diretamente.
+    lead_fecha_reunion_bitrix: buildFechaReunionBitrix(lead.fecha_reunion, lead.hora_reunion),
 
     // ===== Meta (mantém nomes do template) =====
     meta_dni_nie: metaDniNie,
