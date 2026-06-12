@@ -131,20 +131,51 @@ interface MetaLeadData {
 }
 
 // ============= PARSER DE AGENDAMENTO DE REUNIÃO =============
+
+/** Normaliza string: lowercase, sem acentos, espaços colapsados. */
+function normalizeText(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+const DIAS_SEMANA: Record<string, number> = {
+  domingo: 0, sunday: 0,
+  lunes: 1, monday: 1, segunda: 1,
+  martes: 2, tuesday: 2, terca: 2,
+  miercoles: 3, wednesday: 3, quarta: 3,
+  jueves: 4, thursday: 4, quinta: 4,
+  viernes: 5, friday: 5, sexta: 5,
+  sabado: 6, saturday: 6,
+};
+
+/** Detecta dia da semana no texto e devolve a próxima ocorrência (YYYY-MM-DD). */
+function extractFechaFromDayOfWeek(raw: string): string | null {
+  const n = normalizeText(raw);
+  for (const [nome, dow] of Object.entries(DIAS_SEMANA)) {
+    if (n.includes(nome)) {
+      const hoje = new Date();
+      let diff = dow - hoje.getDay();
+      if (diff <= 0) diff += 7;
+      const target = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + diff);
+      const yy = target.getFullYear();
+      const mm = String(target.getMonth() + 1).padStart(2, '0');
+      const dd = String(target.getDate()).padStart(2, '0');
+      return `${yy}-${mm}-${dd}`;
+    }
+  }
+  return null;
+}
+
 /**
- * Normaliza data para formato YYYY-MM-DD. Aceita ISO, DD/MM/YYYY, DD-MM-YYYY.
+ * Aceita ISO, DD/MM/YYYY, "15 de junio de 2026", ou nomes de dias da semana
+ * (próxima ocorrência). Retorna YYYY-MM-DD ou null.
  */
 function parseFechaReunion(raw?: string): string | null {
   if (!raw) return null;
-  let s = String(raw).trim();
+  const s = String(raw).trim();
   if (!s) return null;
-  // Remove dia da semana em ES/EN/PT (ex: "Lunes 15/06/2026", "Monday, 15-06-2026")
-  s = s.replace(/^(lunes|martes|miércoles|miercoles|jueves|viernes|sábado|sabado|domingo|monday|tuesday|wednesday|thursday|friday|saturday|sunday|segunda|terça|terca|quarta|quinta|sexta)[,\s]+/i, '').trim();
-  // ISO YYYY-MM-DD (com ou sem hora)
-  const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const isoMatch = s.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
-  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
-  const dmy = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  const dmy = s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
   if (dmy) {
     const dd = dmy[1].padStart(2, '0');
     const mm = dmy[2].padStart(2, '0');
@@ -152,12 +183,11 @@ function parseFechaReunion(raw?: string): string | null {
     if (yy.length === 2) yy = '20' + yy;
     return `${yy}-${mm}-${dd}`;
   }
-  // "15 de junio de 2026" / "15 junio 2026"
   const meses: Record<string, string> = {
     enero: '01', febrero: '02', marzo: '03', abril: '04', mayo: '05', junio: '06',
     julio: '07', agosto: '08', septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
   };
-  const esMatch = s.toLowerCase().match(/^(\d{1,2})\s*(?:de\s+)?([a-záéíóú]+)(?:\s+de\s+(\d{2,4}))?/i);
+  const esMatch = s.toLowerCase().match(/(\d{1,2})\s*(?:de\s+)?([a-záéíóú]+)(?:\s+de\s+(\d{2,4}))?/i);
   if (esMatch) {
     const mesKey = esMatch[2].normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     if (meses[mesKey]) {
@@ -168,47 +198,48 @@ function parseFechaReunion(raw?: string): string | null {
       return `${yy}-${mm}-${dd}`;
     }
   }
-  // Fallback Date.parse
+  const dow = extractFechaFromDayOfWeek(s);
+  if (dow) return dow;
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   return null;
 }
 
 /**
- * Normaliza hora para HH:MM:SS (24h). Aceita "HH:MM", "HH:MM:SS", "10:30 AM/PM",
- * "10h", "10h30", "10.30", "10 30", "10" (hora cheia), "10 horas".
+ * Aceita "HH:MM", "10:30 AM/PM", "10h30", "10.30", ranges "16:00-20:00" (pega início),
+ * "Mañana 14:30". Texto sem hora exata ("mañana", "tarde") retorna null.
  */
 function parseHoraReunion(raw?: string): string | null {
   if (!raw) return null;
-  let s = String(raw).trim().toLowerCase();
+  const s = String(raw).trim().toLowerCase().replace(/\s*(horas?|hrs?)\b\.?/g, '').trim();
   if (!s) return null;
-  // Remove "hs", "horas", "h." finais comuns em ES
-  s = s.replace(/\s*(horas?|hrs?)\b\.?/g, '').trim();
-  // AM/PM
-  const ampm = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)$/);
+  const ampm = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)/);
   if (ampm) {
     let h = parseInt(ampm[1], 10);
-    const m = ampm[2];
-    const sec = ampm[3] || '00';
-    const isPm = ampm[4] === 'pm';
-    if (isPm && h < 12) h += 12;
-    if (!isPm && h === 12) h = 0;
-    return `${String(h).padStart(2, '0')}:${m}:${sec}`;
+    if (ampm[4] === 'pm' && h < 12) h += 12;
+    if (ampm[4] === 'am' && h === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${ampm[2]}:${ampm[3] || '00'}`;
   }
-  // "10h30" ou "10h"
-  const hFmt = s.match(/^(\d{1,2})h(\d{2})?$/);
+  const colon = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (colon) {
+    const h = parseInt(colon[1], 10);
+    const m = parseInt(colon[2], 10);
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${colon[3] || '00'}`;
+    }
+  }
+  const hFmt = s.match(/(\d{1,2})h(\d{2})?\b/);
   if (hFmt) {
-    const h = hFmt[1].padStart(2, '0');
-    const m = (hFmt[2] || '00').padStart(2, '0');
-    return `${h}:${m}:00`;
+    return `${hFmt[1].padStart(2, '0')}:${(hFmt[2] || '00').padStart(2, '0')}:00`;
   }
-  // 24h HH:MM(:SS) ou HH.MM ou HH MM
-  const m24 = s.match(/^(\d{1,2})[:\.\s](\d{2})(?:[:\.\s](\d{2}))?$/);
-  if (m24) {
-    const h = m24[1].padStart(2, '0');
-    return `${h}:${m24[2]}:${m24[3] || '00'}`;
+  const dot = s.match(/\b(\d{1,2})\.(\d{2})\b/);
+  if (dot) {
+    const h = parseInt(dot[1], 10);
+    const m = parseInt(dot[2], 10);
+    if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+    }
   }
-  // Apenas hora inteira: "10"
   const onlyH = s.match(/^(\d{1,2})$/);
   if (onlyH) {
     const h = parseInt(onlyH[1], 10);
@@ -1180,7 +1211,11 @@ Deno.serve(async (req) => {
     };
 
     // Parse de agendamento de reunião vindo do formulário Meta Ads
-    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha);
+    const horaReunionTextoRaw = [data.fecha_reunion, data.hora_reunion, data.meeting_time, data.hora]
+      .filter((v) => v !== undefined && v !== null && String(v).trim() !== '')
+      .map((v) => String(v).trim())
+      .join(' ').trim() || null;
+    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha || data.hora_reunion || data.meeting_time);
     const horaReunion = parseHoraReunion(data.hora_reunion || data.meeting_time || data.hora);
     const zonaHorariaReunion = (data.zona_horaria_reunion || 'Europe/Madrid').trim() || 'Europe/Madrid';
     let reunionDateTime = buildReunionDateTime(fechaReunion, horaReunion, zonaHorariaReunion);
@@ -1189,7 +1224,7 @@ Deno.serve(async (req) => {
       const direct = new Date(data.meeting_datetime);
       if (!isNaN(direct.getTime())) reunionDateTime = direct.toISOString();
     }
-    console.log('[meta-lead-webhook] Agendamento:', { fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
+    console.log('[meta-lead-webhook] Agendamento:', { horaReunionTextoRaw, fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
 
     try {
       const { data: leadData, error: leadError } = await supabase
@@ -1210,6 +1245,7 @@ Deno.serve(async (req) => {
           simulador_hipotecario_data: simulacionHipotecariaEnriched,
           fecha_reunion: fechaReunion,
           hora_reunion: horaReunion,
+          hora_reunion_texto: horaReunionTextoRaw,
           zona_horaria_reunion: zonaHorariaReunion,
           reunion_datetime: reunionDateTime,
         })
@@ -1312,6 +1348,7 @@ Deno.serve(async (req) => {
             simulador_hipotecario_data: simulacionHipotecariaEnriched,
             fecha_reunion: fechaReunion,
             hora_reunion: horaReunion,
+            hora_reunion_texto: horaReunionTextoRaw,
             zona_horaria_reunion: zonaHorariaReunion,
             reunion_datetime: reunionDateTime,
           };

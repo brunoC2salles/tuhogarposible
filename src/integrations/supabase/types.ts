@@ -767,6 +767,7 @@ export type Database = {
           email: string
           fecha_reunion: string | null
           hora_reunion: string | null
+          hora_reunion_texto: string | null
           id: string
           last_stage_change_at: string
           nombre_completo: string
@@ -789,6 +790,7 @@ export type Database = {
           email: string
           fecha_reunion?: string | null
           hora_reunion?: string | null
+          hora_reunion_texto?: string | null
           id?: string
           last_stage_change_at?: string
           nombre_completo: string
@@ -811,6 +813,7 @@ export type Database = {
           email?: string
           fecha_reunion?: string | null
           hora_reunion?: string | null
+          hora_reunion_texto?: string | null
           id?: string
           last_stage_change_at?: string
           nombre_completo?: string
