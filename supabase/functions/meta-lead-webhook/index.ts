@@ -1348,6 +1348,7 @@ Deno.serve(async (req) => {
             simulador_hipotecario_data: simulacionHipotecariaEnriched,
             fecha_reunion: fechaReunion,
             hora_reunion: horaReunion,
+            hora_reunion_texto: horaReunionTextoRaw,
             zona_horaria_reunion: zonaHorariaReunion,
             reunion_datetime: reunionDateTime,
           };
