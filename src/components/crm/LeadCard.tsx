@@ -207,11 +207,13 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
           </div>
         )}
 
-        {(lead.fecha_reunion || lead.reunion_datetime) && (
+        {(lead.fecha_reunion || lead.reunion_datetime || lead.hora_reunion_texto) && (
           <div className="flex items-center gap-2 text-primary">
             <CalendarClock className="h-3 w-3 flex-shrink-0" />
             <span className="truncate text-xs font-medium">
-              Reunión: {lead.fecha_reunion || ''}{lead.hora_reunion ? ` ${String(lead.hora_reunion).slice(0,5)}` : ''}
+              Reunión: {lead.fecha_reunion
+                ? `${lead.fecha_reunion}${lead.hora_reunion ? ` ${String(lead.hora_reunion).slice(0,5)}` : ''}`
+                : (lead.hora_reunion_texto || '')}
             </span>
           </div>
         )}
