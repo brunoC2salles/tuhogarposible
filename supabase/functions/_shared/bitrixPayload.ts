@@ -27,6 +27,36 @@ export function normalizarCreditoPersonal(simPersonal: any): { monto: number; cu
 
   return { monto, cuota };
 }
+/**
+ * Combina fecha (YYYY-MM-DD) + hora (HH:mm[:ss]) num formato ISO local
+ * `YYYY-MM-DDTHH:mm:ss` que o campo "data e hora" do Bitrix aceita nativamente.
+ * Sem hora → 00:00:00. Sem fecha → string vazia.
+ */
+export function buildFechaReunionBitrix(
+  fecha: string | null | undefined,
+  hora: string | null | undefined
+): string {
+  if (!fecha) return '';
+  const f = String(fecha).trim();
+  // Aceita YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss (já ISO)
+  const dateMatch = f.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!dateMatch) return '';
+  const datePart = dateMatch[1];
+
+  let timePart = '00:00:00';
+  if (hora) {
+    const h = String(hora).trim();
+    const m = h.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (m) {
+      const hh = m[1].padStart(2, '0');
+      const mm = m[2];
+      const ss = m[3] || '00';
+      timePart = `${hh}:${mm}:${ss}`;
+    }
+  }
+  return `${datePart}T${timePart}`;
+}
+
 
 /** Extrai um campo "Chave: valor" das notas do lead. */
 export function extractFromNotes(notas: string | null | undefined, key: string): string {
@@ -165,6 +195,9 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_hora_reunion_texto: lead.hora_reunion_texto || '',
     lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
     lead_reunion_datetime: lead.reunion_datetime || '',
+    // Pré-formatado para o campo data+hora do Bitrix (YYYY-MM-DDTHH:mm:ss).
+    // Evita parseDate/formatDate no Make: basta mapear este campo diretamente.
+    lead_fecha_reunion_bitrix: buildFechaReunionBitrix(lead.fecha_reunion, lead.hora_reunion),
 
     // ===== Meta (mantém nomes do template) =====
     meta_dni_nie: metaDniNie,
@@ -220,7 +253,8 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     '| sim_hipoteca_cuota_maxima:', payload.sim_hipoteca_cuota_maxima);
   console.log('[bitrixPayload] fecha_reunion:', payload.lead_fecha_reunion,
     '| hora_reunion:', payload.lead_hora_reunion,
-    '| reunion_datetime:', payload.lead_reunion_datetime);
+    '| reunion_datetime:', payload.lead_reunion_datetime,
+    '| fecha_reunion_bitrix:', payload.lead_fecha_reunion_bitrix);
 
   return payload;
 }
