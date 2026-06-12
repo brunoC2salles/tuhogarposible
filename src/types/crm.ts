@@ -45,6 +45,7 @@ export interface Lead {
   notas?: string;
   fecha_reunion?: string | null;
   hora_reunion?: string | null;
+  hora_reunion_texto?: string | null;
   zona_horaria_reunion?: string | null;
   reunion_datetime?: string | null;
   created_at: string;
