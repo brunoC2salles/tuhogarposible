@@ -253,7 +253,8 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     '| sim_hipoteca_cuota_maxima:', payload.sim_hipoteca_cuota_maxima);
   console.log('[bitrixPayload] fecha_reunion:', payload.lead_fecha_reunion,
     '| hora_reunion:', payload.lead_hora_reunion,
-    '| reunion_datetime:', payload.lead_reunion_datetime);
+    '| reunion_datetime:', payload.lead_reunion_datetime,
+    '| fecha_reunion_bitrix:', payload.lead_fecha_reunion_bitrix);
 
   return payload;
 }
