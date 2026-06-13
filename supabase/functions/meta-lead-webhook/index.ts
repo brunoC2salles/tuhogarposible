@@ -495,27 +495,66 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
 
 function parseIngresos(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
-  
-  const normalizado = rangoIngresos.toLowerCase().trim();
-  
-  // Tentar match exato
-  if (RANGO_INGRESOS_MAP[normalizado]) {
-    return RANGO_INGRESOS_MAP[normalizado];
+
+  const original = rangoIngresos.toLowerCase().trim();
+
+  // Tentar match exato no map legado
+  if (RANGO_INGRESOS_MAP[original]) {
+    return RANGO_INGRESOS_MAP[original];
   }
-  
-  // Tentar match parcial
+
+  // Normalizar: remover €, nbsp, espaços extra
+  const cleaned = original
+    .replace(/\u00a0/g, ' ')
+    .replace(/€/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Helper: parse número com separador de milhar (ponto ou vírgula seguidos por 3 dígitos)
+  const parseNum = (s: string): number | null => {
+    const t = s.trim().replace(/[.,](?=\d{3}\b)/g, '');
+    const n = parseFloat(t.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Detectar "más/mas de N" ou ">N"
+  const masDe = cleaned.match(/(?:m[aá]s de|>)\s*([\d.,]+)/);
+  if (masDe) {
+    const n = parseNum(masDe[1]);
+    if (n != null) return Math.round(n * 1.2);
+  }
+
+  // Detectar "menos de N" ou "<N"
+  const menosDe = cleaned.match(/(?:menos de|<)\s*([\d.,]+)/);
+  if (menosDe) {
+    const n = parseNum(menosDe[1]);
+    if (n != null) return Math.round(n * 0.8);
+  }
+
+  // Detectar range "A - B" / "A a B" / "A to B" (suporta -, –, —)
+  const range = cleaned.match(/([\d.,]+)\s*(?:-|–|—|a|to)\s*([\d.,]+)/);
+  if (range) {
+    const a = parseNum(range[1]);
+    const b = parseNum(range[2]);
+    if (a != null && b != null) {
+      return Math.round((a + b) / 2);
+    }
+  }
+
+  // Tentar match parcial no map legado (compat)
   for (const [key, value] of Object.entries(RANGO_INGRESOS_MAP)) {
-    if (normalizado.includes(key.replace('€', '').trim())) {
+    if (cleaned.includes(key.replace('€', '').trim())) {
       return value;
     }
   }
-  
-  // Tentar extrair número diretamente
-  const numMatch = rangoIngresos.match(/(\d+)/);
+
+  // Fallback: extrair primeiro número (respeitando milhares)
+  const numMatch = cleaned.match(/[\d.,]+/);
   if (numMatch) {
-    return parseInt(numMatch[1], 10);
+    const n = parseNum(numMatch[0]);
+    if (n != null && n > 0) return Math.round(n);
   }
-  
+
   return 1500; // Valor padrão
 }
 
