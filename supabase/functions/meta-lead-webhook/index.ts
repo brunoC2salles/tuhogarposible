@@ -625,36 +625,75 @@ function parseAhorros(input?: string | number): number {
     return isFinite(input) ? Math.max(0, input) : 0;
   }
 
-  // Normalizar string: minúsculas, sem símbolos monetários, sem espaços
+  // Normalizar string: minúsculas, sem símbolos monetários, espaços colapsados
   const raw = String(input)
     .toLowerCase()
-    .replace(/[€$\s]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[€$]/g, '')
+    .replace(/\s+/g, ' ')
     .trim();
   if (!raw) return 0;
 
-  // Tentar capturar "<número><sufixo>" onde sufixo ∈ {k, mil}, mesmo dentro de texto livre.
-  // Aceita ponto/vírgula como decimal: "10.5k", "10,5mil", "6milporahora"
+  // Helper local: parsea número respeitando separador de milhar
+  const parseNumLocal = (s: string): number | null => {
+    const t = s.trim();
+    if (!t) return null;
+    if (/^\d{1,3}([.,]\d{3})+$/.test(t)) {
+      const n = parseFloat(t.replace(/[.,]/g, ''));
+      return Number.isFinite(n) ? n : null;
+    }
+    const n = parseFloat(t.replace(',', '.'));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  // Detectar range "A - B" (ex.: "25.000€ - 50.000€", "5000 a 10000")
+  const rangeMatch = raw.match(/([\d.,]+)\s*(?:-|–|—|a|to)\s*([\d.,]+)/);
+  if (rangeMatch) {
+    const a = parseNumLocal(rangeMatch[1]);
+    const b = parseNumLocal(rangeMatch[2]);
+    if (a != null && b != null && a > 0 && b > 0) {
+      // Heurística milhares: se valor curto (1-3 dígitos sem separador) entre 5 e 100 → ×1000
+      const aRaw = rangeMatch[1].replace(/[.,]/g, '');
+      const bRaw = rangeMatch[2].replace(/[.,]/g, '');
+      const aFinal = (/^\d{1,3}$/.test(rangeMatch[1]) && a >= 5 && a <= 100) ? a * 1000 : a;
+      const bFinal = (/^\d{1,3}$/.test(rangeMatch[2]) && b >= 5 && b <= 100) ? b * 1000 : b;
+      return Math.round((aFinal + bFinal) / 2);
+    }
+  }
+
+  // "más/mas de N" / ">N" → 1.2x
+  const masDe = raw.match(/(?:m[aá]s de|>)\s*([\d.,]+)/);
+  if (masDe) {
+    const n = parseNumLocal(masDe[1]);
+    if (n != null) return Math.round(n * 1.2);
+  }
+
+  // "menos de N" / "<N" → 0.8x
+  const menosDe = raw.match(/(?:menos de|<)\s*([\d.,]+)/);
+  if (menosDe) {
+    const n = parseNumLocal(menosDe[1]);
+    if (n != null) return Math.round(n * 0.8);
+  }
+
+  // Sufixo k/mil ("5k", "10mil", "10.5k")
   const m = raw.match(/([0-9]+(?:[.,][0-9]+)?)(k|mil)/);
   if (m) {
     const num = parseFloat(m[1].replace(',', '.'));
     return isNaN(num) ? 0 : Math.max(0, num * 1000);
   }
 
-  // Caso não tenha sufixo: pode ter separador de milhar "5.000" ou "5,000"
-  // Heurística: se houver ponto/vírgula seguido de exatamente 3 dígitos
-  // E não houver decimais subsequentes → é separador de milhar
+  // Sem sufixo: pode ter separador de milhar "5.000"
   let cleaned = raw;
   if (/^\d{1,3}([.,]\d{3})+$/.test(cleaned)) {
     cleaned = cleaned.replace(/[.,]/g, '');
   } else {
-    // Caso normal: vírgula decimal → ponto
     cleaned = cleaned.replace(',', '.');
   }
 
   const parsed = parseFloat(cleaned);
   if (isNaN(parsed)) return 0;
 
-  // Heurística Meta Ads: respostas curtas como "5", "6", "10" normalmente significam milhares.
+  // Heurística Meta Ads: "5", "6", "10" → milhares
   if (/^\d{1,3}$/.test(cleaned) && parsed >= 5 && parsed <= 100) {
     return parsed * 1000;
   }
