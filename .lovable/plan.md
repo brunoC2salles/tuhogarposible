@@ -1,58 +1,37 @@
 ## Problema
 
-A fórmula atual no Make do campo `UF_CRM_1779577250982` (Fecha Primera Reunión, tipo **data e hora** no Bitrix) é:
+O lead apareceu no Make mas o módulo HTTP falhou com:
+> Bad control character in string literal in JSON at position 494
+
+Causa: o valor de `hora_reunion` vem do Meta com um `\n` no final (`"15/06 12:00\n"`), e o mapping atual com `ifempty(...)` **não aplica** o `replace(... newline ...)` que os outros campos têm. Isso quebra o JSON antes mesmo de sair do Make.
+
+Em paralelo, o formato novo do Meta é `DD/MM HH:mm` (sem ano), e o `parseFechaReunion` do webhook só aceita `DD/MM/YYYY`. Mesmo que o JSON chegasse, `lead_fecha_reunion_bitrix` ficaria vazio.
+
+## Ajustes
+
+### 1. No Make (você aplica — não é código)
+
+Trocar o mapping de `hora_reunion` por uma versão que limpa control chars **por fora** do `ifempty`:
 
 ```
-if( lead_fecha_reunion ;
-    formatDate( parseDate( lead_fecha_reunion ; "DD/MM/YYYY HH:mm" ) ; "YYYY-MM-DD\TH:mm:ss" ) ;
-    "" )
+"hora_reunion": "{{replace(replace(replace(ifempty(1.data.`indica_día_(dd/mm)_y_hora_(ej._18/00...)`; 1.data.`¿cuándo_te_gustaría_que_te_llamásemos?`); newline; ""); tab; ""); `"`; `\"`)}}"
 ```
 
-O webhook envia `lead_fecha_reunion = "2026-06-15"` (formato ISO `YYYY-MM-DD`, só data), mas o `parseDate` está configurado com máscara `DD/MM/YYYY HH:mm` → não bate → quebra a cadeia `parseDate → formatDate → if` → o Bitrix rejeita o mapeamento do campo inteiro.
+Isso resolve o `InvalidConfigurationError` imediatamente.
 
-A causa real é que estamos enviando **3 campos separados** (`lead_fecha_reunion`, `lead_hora_reunion`, `lead_hora_reunion_texto`) e o Make precisa fazer ginástica pra recombinar — qualquer mismatch quebra tudo.
+### 2. No código (eu aplico)
 
-## Solução (Opção B confirmada)
+Em `supabase/functions/meta-lead-webhook/index.ts`, ampliar `parseFechaReunion` para aceitar `DD/MM` sem ano:
 
-Adicionar **1 campo pré-formatado** no payload do webhook, já no formato exato que o Bitrix de data+hora aceita nativamente, eliminando totalmente o `parseDate`/`formatDate` no Make.
+- Adicionar regex `\b(\d{1,2})[\/\-.](\d{1,2})\b` (com lookahead negativo para não colidir com `DD/MM/YYYY`).
+- Assumir o ano atual; se a data já passou, usar o próximo ano (lead agendando para o futuro).
+- Resultado: `"15/06 12:00"` → `fecha_reunion = 2026-06-15`, `hora_reunion = 12:00:00`, `lead_fecha_reunion_bitrix = 2026-06-15T12:00:00`.
 
-### Novo campo no payload
+Sem alterações em outros arquivos. Em seguida, faço deploy de `meta-lead-webhook`.
 
-| Campo | Formato | Conteúdo |
-|---|---|---|
-| `lead_fecha_reunion_bitrix` | `YYYY-MM-DDTHH:mm:ss` (ISO local, sem timezone) | Combinação de `fecha_reunion` + `hora_reunion`. Se só tiver data → `YYYY-MM-DDT00:00:00`. Se não tiver nada → string vazia `""`. |
+### 3. Validação
 
-Exemplos:
-- fecha=`2026-06-15`, hora=`14:30:00` → `"2026-06-15T14:30:00"`
-- fecha=`2026-06-15`, hora=`null` → `"2026-06-15T00:00:00"`
-- fecha=`null` → `""`
-
-Os campos antigos (`lead_fecha_reunion`, `lead_hora_reunion`, `lead_hora_reunion_texto`, `lead_reunion_datetime`, `lead_zona_horaria_reunion`) **continuam sendo enviados** — assim você não quebra nenhum outro mapeamento existente no Make e ainda mantém o texto cru pro agente ver.
-
-## Alterações no código
-
-**Único arquivo:** `supabase/functions/_shared/bitrixPayload.ts`
-
-Adicionar lógica que computa `lead_fecha_reunion_bitrix` a partir de `lead.fecha_reunion` + `lead.hora_reunion`, e incluir no objeto `payload`.
-
-Não mexer em:
-- `meta-lead-webhook/index.ts` (já salva os campos corretos no banco)
-- Migrations (nenhuma coluna nova)
-- Frontend (campo é só pra Make/Bitrix)
-
-## O que você faz no Make depois do deploy
-
-No node do Bitrix, no campo `UF_CRM_1779577250982`, substituir toda a fórmula `if(...formatDate(parseDate(...))...)` por simplesmente:
-
-```
-{{lead_fecha_reunion_bitrix}}
-```
-
-Sem `if`, sem `parseDate`, sem `formatDate`. Se vier vazio, o Bitrix simplesmente não preenche o campo (não dá erro).
-
-## Validação
-
-1. Deploy da edge function.
-2. `curl` no `meta-lead-webhook` com um payload de teste contendo `hora_reunion: "Mañana 14:30"`.
-3. Verificar nos logs que `lead_fecha_reunion_bitrix` aparece com formato `2026-XX-XXTHH:mm:ss`.
-4. Você atualiza a fórmula no Make e roda o cenário — o erro `DataError parseDate` desaparece.
+Após você salvar o Make e eu fazer o deploy:
+- Replay do lead no Make → verificar que o body chega sem erro de JSON.
+- Conferir nos logs do `meta-lead-webhook` que `lead_fecha_reunion_bitrix` aparece preenchido.
+- Conferir no Bitrix que `UF_CRM_1779577250982` recebeu o valor.
