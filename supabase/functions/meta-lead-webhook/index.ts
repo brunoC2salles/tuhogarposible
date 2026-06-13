@@ -302,8 +302,10 @@ interface QualificationResult {
 // que ocorre quando campos do Facebook Ads contêm quebras de linha, tabs, etc.
 
 function sanitizeJsonString(str: string): string {
-  // Substitui caracteres de controle por escapes válidos ou espaços
-  return str.replace(/[\x00-\x1F\x7F]/g, (char) => {
+  let out = str;
+
+  // 1) Escapa caracteres de controle reais (que quebram JSON.parse)
+  out = out.replace(/[\x00-\x1F\x7F]/g, (char) => {
     switch (char) {
       case '\n': return '\\n';
       case '\r': return '\\r';
@@ -311,6 +313,20 @@ function sanitizeJsonString(str: string): string {
       default: return ' ';
     }
   });
+
+  // 2) Conserta chaves sem aspas de abertura, ex.:  ,  hora_reunion":"..."
+  //    (aparece quando o Make formata mal o JSON e omite a primeira aspa do nome do campo).
+  out = out.replace(/([,{\[]\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*"\s*:)/g, '$1"$2$3');
+
+  // 3) Conserta valor sem aspa de fechamento antes de , } ou ]
+  //    ex.:  "hora_reunion":"17/06 a las 15:00}
+  //    Procura "key":"...<sem aspa>(,|}|])
+  out = out.replace(
+    /("[A-Za-z_][A-Za-z0-9_]*"\s*:\s*"[^"\\]*(?:\\.[^"\\]*)*)(?=[,}\]])/g,
+    (_m, head) => head + '"'
+  );
+
+  return out;
 }
 
 function sanitizeField(value: unknown): unknown {
