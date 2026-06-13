@@ -183,6 +183,20 @@ function parseFechaReunion(raw?: string): string | null {
     if (yy.length === 2) yy = '20' + yy;
     return `${yy}-${mm}-${dd}`;
   }
+  // Formato DD/MM sem ano (ex.: "15/06 12:00"). Assume ano atual; se já passou, usa próximo ano.
+  const dm = s.match(/\b(\d{1,2})[\/\-.](\d{1,2})\b(?!\s*[\/\-.]\s*\d)/);
+  if (dm) {
+    const dd = parseInt(dm[1], 10);
+    const mm = parseInt(dm[2], 10);
+    if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
+      const now = new Date();
+      let yy = now.getFullYear();
+      const candidate = new Date(yy, mm - 1, dd);
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (candidate < today) yy += 1;
+      return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+    }
+  }
   const meses: Record<string, string> = {
     enero: '01', febrero: '02', marzo: '03', abril: '04', mayo: '05', junio: '06',
     julio: '07', agosto: '08', septiembre: '09', setiembre: '09', octubre: '10', noviembre: '11', diciembre: '12'
