@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
 import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead } from '../_shared/bitrixPayload.ts';
+import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
