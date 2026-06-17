@@ -1464,6 +1464,7 @@ Deno.serve(async (req) => {
             hora_reunion_texto: horaReunionTextoRaw,
             zona_horaria_reunion: zonaHorariaReunion,
             reunion_datetime: reunionDateTime,
+            reunion_confidence: reunionConfidence,
           };
 
           // Build payload Bitrix usando a fonte ÚNICA compartilhada
