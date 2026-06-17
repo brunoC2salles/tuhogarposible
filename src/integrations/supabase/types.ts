@@ -670,6 +670,56 @@ export type Database = {
           },
         ]
       }
+      lead_reuniones_recordatorios: {
+        Row: {
+          canal: string | null
+          created_at: string
+          error: string | null
+          id: string
+          lead_id: string
+          reunion_datetime: string
+          scheduled_for: string
+          sent_at: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          canal?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id: string
+          reunion_datetime: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          canal?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          lead_id?: string
+          reunion_datetime?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_reuniones_recordatorios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_services: {
         Row: {
           beneficios: boolean | null

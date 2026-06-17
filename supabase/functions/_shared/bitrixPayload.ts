@@ -198,6 +198,8 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     // Pré-formatado para o campo data+hora do Bitrix (YYYY-MM-DDTHH:mm:ss).
     // Evita parseDate/formatDate no Make: basta mapear este campo diretamente.
     lead_fecha_reunion_bitrix: buildFechaReunionBitrix(lead.fecha_reunion, lead.hora_reunion),
+    // Confiança do parser: 'high' (dia+hora explícitos), 'medium' (só um), 'low' (default)
+    lead_reunion_confidence: lead.reunion_confidence || '',
 
     // ===== Meta (mantém nomes do template) =====
     meta_dni_nie: metaDniNie,
