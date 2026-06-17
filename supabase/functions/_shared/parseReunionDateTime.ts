@@ -149,9 +149,10 @@ function extractHora(text: string): HoraExtract {
   }
 
   if (h === null) {
-    if (hadMañana) return { hora: HORA_MANANA, hadPeriod, hadExplicit: false };
-    if (hadTarde) return { hora: HORA_TARDE, hadPeriod, hadExplicit: false };
+    // Prioridade: tarde/noche > mañana (porque "mañana por la tarde" → tarde)
     if (hadNoche) return { hora: HORA_NOCHE, hadPeriod, hadExplicit: false };
+    if (hadTarde) return { hora: HORA_TARDE, hadPeriod, hadExplicit: false };
+    if (hadMañana) return { hora: HORA_MANANA, hadPeriod, hadExplicit: false };
     return { hora: null, hadPeriod, hadExplicit: false };
   }
 
