@@ -1324,8 +1324,12 @@ Deno.serve(async (req) => {
       .filter((v) => v !== undefined && v !== null && String(v).trim() !== '')
       .map((v) => String(v).trim())
       .join(' ').trim() || null;
-    const fechaReunion = parseFechaReunion(data.fecha_reunion || data.meeting_date || data.fecha || data.hora_reunion || data.meeting_time);
-    const horaReunion = parseHoraReunion(data.hora_reunion || data.meeting_time || data.hora);
+
+    // NOVO: parser robusto com defaults garantidos (sempre devolve fecha+hora)
+    const parsedReunion = parseReunionDateTime(horaReunionTextoRaw || '', new Date());
+    const fechaReunion = parsedReunion.fecha;
+    const horaReunion = parsedReunion.hora;
+    const reunionConfidence = parsedReunion.confidence;
     const zonaHorariaReunion = (data.zona_horaria_reunion || 'Europe/Madrid').trim() || 'Europe/Madrid';
     let reunionDateTime = buildReunionDateTime(fechaReunion, horaReunion, zonaHorariaReunion);
     // Se veio meeting_datetime ISO completo, prioriza-o
@@ -1333,7 +1337,7 @@ Deno.serve(async (req) => {
       const direct = new Date(data.meeting_datetime);
       if (!isNaN(direct.getTime())) reunionDateTime = direct.toISOString();
     }
-    console.log('[meta-lead-webhook] Agendamento:', { horaReunionTextoRaw, fechaReunion, horaReunion, zonaHorariaReunion, reunionDateTime });
+    console.log('[meta-lead-webhook] Agendamento parseado:', { horaReunionTextoRaw, fechaReunion, horaReunion, reunionConfidence, zonaHorariaReunion, reunionDateTime });
 
     try {
       const { data: leadData, error: leadError } = await supabase
