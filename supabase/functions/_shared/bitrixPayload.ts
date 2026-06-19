@@ -190,15 +190,20 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_documento: metaDniNie,
 
     // ===== Agendamento de reunião (vem do formulário Meta Ads) =====
+    // Política: se o lead só deu franja/dia (sem hora), enviamos a data sem hora
+    // e marcamos `lead_reunion_a_definir: true`. O agente confirma no CRM.
     lead_fecha_reunion: lead.fecha_reunion || '',
     lead_hora_reunion: lead.hora_reunion || '',
     lead_hora_reunion_texto: lead.hora_reunion_texto || '',
     lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
     lead_reunion_datetime: lead.reunion_datetime || '',
     // Pré-formatado para o campo data+hora do Bitrix (YYYY-MM-DDTHH:mm:ss).
-    // Evita parseDate/formatDate no Make: basta mapear este campo diretamente.
+    // Vazio quando não temos data; só-data quando não temos hora (00:00:00).
     lead_fecha_reunion_bitrix: buildFechaReunionBitrix(lead.fecha_reunion, lead.hora_reunion),
-    // Confiança do parser: 'high' (dia+hora explícitos), 'medium' (só um), 'low' (default)
+    // Flag para o Make: lead precisa que o agente confirme dia/hora antes do follow-up.
+    lead_reunion_a_definir: !lead.hora_reunion || !lead.fecha_reunion,
+    lead_reunion_notas_originales: lead.hora_reunion_texto || '',
+    // Confiança do parser: 'high' | 'medium' | 'pending_time' | 'pending'
     lead_reunion_confidence: lead.reunion_confidence || '',
 
     // ===== Meta (mantém nomes do template) =====
