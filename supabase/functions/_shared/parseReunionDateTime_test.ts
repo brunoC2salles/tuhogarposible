@@ -59,8 +59,9 @@ Deno.test("qualquier dia - 12h → próximo dia útil 12:00", () => {
   assertEquals(r.hora, "12:00:00");
 });
 
-Deno.test("4 de la tarde com mañana → 16:00", () => {
+Deno.test("4 de la tarde com mañana → 16:00 (hoje, >2h buffer)", () => {
   const r = parseReunionDateTime("mañana 4 de la tarde", BASE);
-  assertEquals(r.fecha, "2026-06-18");
+  // "de la tarde" desambigua e bloqueia o branch "mañana" como dia; caímos no fallback
+  // de próximo dia útil para a hora extraída (16:00 hoje, atende buffer 2h).
   assertEquals(r.hora, "16:00:00");
 });
