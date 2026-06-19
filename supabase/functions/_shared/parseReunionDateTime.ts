@@ -1,30 +1,31 @@
 // ============================================================================
-// parseReunionDateTime — parser robusto para a resposta livre do lead sobre
-// dia/hora da reunião (formulário Meta Ads).
+// parseReunionDateTime — parser do horário livre do lead (formulário Meta Ads).
 //
-// Garante que sempre retorna {fecha, hora} válidos (com defaults). Timezone
-// fixo Europe/Madrid (o builder Bitrix já trata o offset).
+// Política (junho/2026): NÃO inventar hora quando o lead só dá franja
+// (mañana/tarde/noche), só dia da semana (lunes) ou expressão vaga
+// (cualquier día). Nestes casos retornamos `hora = null` e a reunião fica
+// como "a definir" — o agente confirma manualmente no CRM. Sem hora, nenhum
+// recordatório é agendado (o trigger só dispara quando reunion_datetime
+// está completo).
 //
 // Saídas:
-//   fecha:      YYYY-MM-DD
-//   hora:       HH:mm:ss
-//   confidence: 'high' | 'medium' | 'low'
-//     high   = dia e hora explícitos
-//     medium = um dos dois extraído (outro foi inferido)
-//     low    = nada extraído (caiu no default: próximo dia útil 10:00)
+//   fecha:      YYYY-MM-DD | null
+//   hora:       HH:mm:ss   | null
+//   confidence:
+//     'high'         = dia e hora explícitos
+//     'medium'       = ambos extraídos, com alguma inferência
+//     'pending_time' = data ok, hora a definir
+//     'pending'      = nada extraído (vagueza total)
 // ============================================================================
 
+export type ReunionConfidence = 'high' | 'medium' | 'pending_time' | 'pending';
+
 export interface ParsedReunion {
-  fecha: string;          // YYYY-MM-DD
-  hora: string;           // HH:mm:ss
-  confidence: 'high' | 'medium' | 'low';
+  fecha: string | null;
+  hora: string | null;
+  confidence: ReunionConfidence;
   rawInput: string;
 }
-
-const HORA_MANANA = '10:00:00';
-const HORA_TARDE = '15:00:00';
-const HORA_NOCHE = '19:00:00';
-const HORA_DEFAULT = '10:00:00';
 
 const DOW_MAP: Record<string, number> = {
   domingo: 0, dom: 0,
@@ -50,53 +51,45 @@ function pad(n: number): string {
 }
 
 function toLocalYMD(d: Date): string {
-  // Trabalhamos em "wall clock" Europe/Madrid via Intl
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Madrid',
     year: 'numeric', month: '2-digit', day: '2-digit',
   });
-  return fmt.format(d); // YYYY-MM-DD
+  return fmt.format(d);
 }
 
-function todayInMadrid(base: Date): { y: number; m: number; d: number; dow: number } {
-  const ymd = toLocalYMD(base);
-  const [y, m, d] = ymd.split('-').map(Number);
-  // Dia da semana em Madrid
-  const dowFmt = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Madrid', weekday: 'short' });
-  const dowStr = dowFmt.format(base);
-  const dowMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  return { y, m, d, dow: dowMap[dowStr] ?? 1 };
+function todayInMadrid(base: Date): { y: number; m: number; d: number } {
+  const [y, m, d] = toLocalYMD(base).split('-').map(Number);
+  return { y, m, d };
 }
 
-function addDays(y: number, m: number, d: number, days: number): { y: number; m: number; d: number } {
+function addDays(y: number, m: number, d: number, days: number) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + days);
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
 }
 
-function nextWeekday(y: number, m: number, d: number, targetDow: number): { y: number; m: number; d: number } {
+function nextWeekday(y: number, m: number, d: number, targetDow: number) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   const curDow = dt.getUTCDay();
   let diff = (targetDow - curDow + 7) % 7;
-  if (diff === 0) diff = 7; // sempre próxima ocorrência, nunca hoje
+  if (diff === 0) diff = 7;
   dt.setUTCDate(dt.getUTCDate() + diff);
   return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
-}
-
-function nextBusinessDay(y: number, m: number, d: number, includeToday: boolean): { y: number; m: number; d: number } {
-  let cur = { y, m, d };
-  if (!includeToday) cur = addDays(y, m, d, 1);
-  for (let i = 0; i < 7; i++) {
-    const dow = new Date(Date.UTC(cur.y, cur.m - 1, cur.d)).getUTCDay();
-    if (dow !== 0 && dow !== 6) return cur;
-    cur = addDays(cur.y, cur.m, cur.d, 1);
-  }
-  return cur;
 }
 
 function isWeekend(y: number, m: number, d: number): boolean {
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return dow === 0 || dow === 6;
+}
+
+function nextBusinessDay(y: number, m: number, d: number, includeToday: boolean) {
+  let cur = includeToday ? { y, m, d } : addDays(y, m, d, 1);
+  for (let i = 0; i < 7; i++) {
+    if (!isWeekend(cur.y, cur.m, cur.d)) return cur;
+    cur = addDays(cur.y, cur.m, cur.d, 1);
+  }
+  return cur;
 }
 
 function ymdToString(y: number, m: number, d: number): string {
@@ -105,8 +98,8 @@ function ymdToString(y: number, m: number, d: number): string {
 
 interface HoraExtract {
   hora: string | null;
-  hadPeriod: boolean; // mañana/tarde/noche detectado
-  hadExplicit: boolean; // número de hora encontrado
+  hadPeriod: boolean;
+  hadExplicit: boolean;
 }
 
 function extractHora(text: string): HoraExtract {
@@ -115,7 +108,6 @@ function extractHora(text: string): HoraExtract {
   const hadNoche = /\b(noche|noite|evening|night)\b/.test(text);
   const hadPeriod = hadMañana || hadTarde || hadNoche;
 
-  // HH:mm ou HHh ou HHhMM ou HH.MM
   let h: number | null = null;
   let mm = 0;
 
@@ -140,19 +132,12 @@ function extractHora(text: string): HoraExtract {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
   } else if (onlyH) {
-    // Só aceita "12h"/"a las 12" se não for parte de uma data já consumida; verifica range válido
     const candidate = parseInt(onlyH[1], 10);
-    // Evita pegar dia do mês (ex: "25" em "25/06"). Só aceita 0-23.
-    if (candidate >= 0 && candidate <= 23) {
-      h = candidate;
-    }
+    if (candidate >= 0 && candidate <= 23) h = candidate;
   }
 
   if (h === null) {
-    // Prioridade: tarde/noche > mañana (porque "mañana por la tarde" → tarde)
-    if (hadNoche) return { hora: HORA_NOCHE, hadPeriod, hadExplicit: false };
-    if (hadTarde) return { hora: HORA_TARDE, hadPeriod, hadExplicit: false };
-    if (hadMañana) return { hora: HORA_MANANA, hadPeriod, hadExplicit: false };
+    // Política nova: franja (mañana/tarde/noche) SEM número NÃO vira hora.
     return { hora: null, hadPeriod, hadExplicit: false };
   }
 
@@ -173,7 +158,6 @@ interface FechaExtract {
 function extractFecha(text: string, base: Date): FechaExtract {
   const today = todayInMadrid(base);
 
-  // dd/mm/yyyy ou dd/mm
   const dmy = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/);
   if (dmy) {
     const dd = parseInt(dmy[1], 10);
@@ -181,7 +165,6 @@ function extractFecha(text: string, base: Date): FechaExtract {
     if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
       let yy = dmy[3] ? parseInt(dmy[3], 10) : today.y;
       if (yy < 100) yy += 2000;
-      // Se data já passou e ano não foi explícito, soma 1
       if (!dmy[3]) {
         const cand = new Date(Date.UTC(yy, mm - 1, dd));
         const todayDt = new Date(Date.UTC(today.y, today.m - 1, today.d));
@@ -191,20 +174,16 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
-  // pasado mañana
   if (/\bpasado\s+manana\b/.test(text) || /\baftertomorrow\b/.test(text)) {
     return { ymd: addDays(today.y, today.m, today.d, 2), hadExplicit: true, mentionedWeekend: false };
   }
 
-  // hoy / today
   if (/\b(hoy|today|hoje)\b/.test(text)) {
     return { ymd: { y: today.y, m: today.m, d: today.d }, hadExplicit: true, mentionedWeekend: false };
   }
 
-  // dia da semana (lunes, martes, ...)
   for (const [word, dow] of Object.entries(DOW_MAP)) {
-    const re = new RegExp(`\\b${word}\\b`);
-    if (re.test(text)) {
+    if (new RegExp(`\\b${word}\\b`).test(text)) {
       return {
         ymd: nextWeekday(today.y, today.m, today.d, dow),
         hadExplicit: true,
@@ -213,12 +192,9 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
-  // mañana (sem ser "pasado mañana" já testado, e desambigua de período do dia)
-  // Só conta como "amanhã" se vier sem indicação de período (já tratada em extractHora).
   if (/\bmanana\b/.test(text) && !/\b(por la|de la|en la)\s+(tarde|noche|manana)\b/.test(text)) {
     return { ymd: addDays(today.y, today.m, today.d, 1), hadExplicit: true, mentionedWeekend: false };
   }
-  // "mañana por la tarde/noche" → +1 dia
   if (/\bmanana\s+(por|de|en)\s+la\s+(tarde|noche|manana)\b/.test(text)) {
     return { ymd: addDays(today.y, today.m, today.d, 1), hadExplicit: true, mentionedWeekend: false };
   }
@@ -230,13 +206,8 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
   const raw = (rawInput || '').toString();
   const text = normalize(raw);
 
-  // Defaults
-  const today = todayInMadrid(base);
-  const fallback = nextBusinessDay(today.y, today.m, today.d, false);
-  const fallbackFecha = ymdToString(fallback.y, fallback.m, fallback.d);
-
   if (!text) {
-    return { fecha: fallbackFecha, hora: HORA_DEFAULT, confidence: 'low', rawInput: raw };
+    return { fecha: null, hora: null, confidence: 'pending', rawInput: raw };
   }
 
   const horaResult = extractHora(text);
@@ -245,33 +216,45 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
   let fechaYMD = fechaResult.ymd;
   let hora = horaResult.hora;
 
-  // Default de data: próximo dia útil
-  if (!fechaYMD) {
-    fechaYMD = fallback;
-  } else if (isWeekend(fechaYMD.y, fechaYMD.m, fechaYMD.d) && !fechaResult.mentionedWeekend) {
-    // Se caiu fim de semana sem menção explícita, empurra
+  // Empurra fim de semana fora de menção explícita SOMENTE quando temos hora real
+  if (fechaYMD && hora && isWeekend(fechaYMD.y, fechaYMD.m, fechaYMD.d) && !fechaResult.mentionedWeekend) {
     fechaYMD = nextBusinessDay(fechaYMD.y, fechaYMD.m, fechaYMD.d, false);
   }
 
-  // Default de hora
-  if (!hora) hora = HORA_DEFAULT;
-
-  // Garante > now() + 2h (em UTC, comparação simples)
-  const candidate = new Date(`${ymdToString(fechaYMD.y, fechaYMD.m, fechaYMD.d)}T${hora}+01:00`);
-  const minimum = new Date(base.getTime() + 2 * 60 * 60 * 1000);
-  if (candidate.getTime() < minimum.getTime()) {
-    const pushed = nextBusinessDay(today.y, today.m, today.d, false);
-    fechaYMD = pushed;
-    hora = HORA_DEFAULT;
+  // Sem data nem hora → totalmente a definir
+  if (!fechaYMD && !hora) {
+    return { fecha: null, hora: null, confidence: 'pending', rawInput: raw };
   }
 
-  // Confidence
-  let confidence: 'high' | 'medium' | 'low' = 'low';
-  if (fechaResult.hadExplicit && horaResult.hadExplicit) confidence = 'high';
-  else if (fechaResult.hadExplicit || horaResult.hadExplicit || horaResult.hadPeriod) confidence = 'medium';
+  // Tem data mas não tem hora → pending_time (a definir hora)
+  if (fechaYMD && !hora) {
+    return {
+      fecha: ymdToString(fechaYMD.y, fechaYMD.m, fechaYMD.d),
+      hora: null,
+      confidence: 'pending_time',
+      rawInput: raw,
+    };
+  }
+
+  // Tem hora mas não tem data → assume próximo dia útil para a hora
+  if (!fechaYMD && hora) {
+    const today = todayInMadrid(base);
+    fechaYMD = nextBusinessDay(today.y, today.m, today.d, true);
+  }
+
+  // Aqui temos ambos. Garante buffer de 2h.
+  const candidate = new Date(`${ymdToString(fechaYMD!.y, fechaYMD!.m, fechaYMD!.d)}T${hora}+01:00`);
+  const minimum = new Date(base.getTime() + 2 * 60 * 60 * 1000);
+  if (candidate.getTime() < minimum.getTime()) {
+    const today = todayInMadrid(base);
+    fechaYMD = nextBusinessDay(today.y, today.m, today.d, false);
+  }
+
+  const confidence: ReunionConfidence =
+    fechaResult.hadExplicit && horaResult.hadExplicit ? 'high' : 'medium';
 
   return {
-    fecha: ymdToString(fechaYMD.y, fechaYMD.m, fechaYMD.d),
+    fecha: ymdToString(fechaYMD!.y, fechaYMD!.m, fechaYMD!.d),
     hora,
     confidence,
     rawInput: raw,
