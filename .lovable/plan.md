@@ -1,49 +1,63 @@
+# Relatório de Análise de Leads — 01/06/2026 a 22/06/2026
+
 ## Objetivo
+Entregar um **relatório estático** (artefato baixável, não nova página no app) com a análise pedida dos 1.465 leads do período (106 qualificados + 1.359 descualificados), para guiar campanhas e processos do próximo mês.
 
-Voltar ao modelo "a definir" para horários vagos: quando o lead responde só com franja (`mañana`/`tarde`/`noche`), só com dia da semana (`lunes`), ou expressões totalmente vagas (`cualquier día`, `qualquier`), enviamos ao Bitrix **apenas a data** (sem hora atribuída automaticamente) e **não criamos recordatórios** até o agente confirmar a hora real no CRM.
+## Formato de entrega
+Dois arquivos em `/mnt/documents/`:
+1. **`relatorio_leads_jun2026.pdf`** — relatório executivo com gráficos e leituras (principal).
+2. **`relatorio_leads_jun2026.xlsx`** — planilha com as tabelas cruas (qualificados, descualificados, contagens por motivo, por região, por faixa etária, etc.) para o time poder filtrar.
 
-## Mudanças
+Sem alterações na UI do app — é uma análise pontual.
 
-### 1. `supabase/functions/_shared/parseReunionDateTime.ts`
-Ajustar a lógica de parsing:
+## Fonte de dados
+Tabela `public.leads`, filtro `created_at >= 2026-06-01 AND created_at < 2026-06-23`.
 
-- **Mantém:** detecção de data (hoje/mañana/pasado mañana/dia da semana/data explícita).
-- **Mantém:** parsing de hora quando vem explícita (`16h`, `a las 18`, `lunes 10:30`, etc.).
-- **Remove:** mapeamento automático `mañana→10h`, `tarde→15h`, `noche→19h`.
-- **Novo comportamento quando NÃO há hora explícita:**
-  - Retorna `reunion_date` (só data, formato `YYYY-MM-DD`) + `reunion_time = null`.
-  - `reunion_datetime = null` (não monta timestamp).
-  - `reunion_confidence = 'pending_time'` (novo valor além de high/medium/low).
-  - `reunion_status = 'a_definir'`.
-- **Vagueza total** (`cualquier día`, `qualquier`, vazio): `reunion_date = null`, `reunion_time = null`, `reunion_status = 'a_definir'`, `reunion_confidence = 'pending'`. **Não** cai mais no default "próximo dia útil 10h".
-- Buffer de 2h e push para dia útil só se aplicam quando há datetime completo.
+- **Qualificados** = `stage = 'nuevo_lead'` (passaram pela qualificação automática Meta Ads, 106 leads).
+- **Descualificados** = `stage = 'descualificados'` (1.359 leads).
 
-### 2. `supabase/functions/_shared/bitrixPayload.ts`
-- Quando `reunion_datetime` é `null` mas `reunion_date` existe → enviar campo de data isolado (sem hora) ao Bitrix, e incluir flag `reunion_a_definir: true`.
-- Quando ambos são `null` → não enviar campo de data; enviar `reunion_a_definir: true` e `reunion_notas_originais` com o texto cru recebido para o agente ver.
+Os campos do formulário Meta Ads não vêm em colunas dedicadas — vêm dentro de `notas` em formato `Chave: valor` (uma linha por campo). O motivo de descualificação também está em `notas` na linha `Qualificação automática: NO CUALIFICADO - <motivo>`. Vou parsear esse texto com regex por linha.
 
-### 3. `supabase/functions/meta-lead-webhook/index.ts`
-- Passar `reunion_status` e `reunion_confidence` adiante.
-- Continuar gravando `reunion_datetime` apenas quando o parser devolver timestamp completo (caso contrário fica `null` no banco).
+Campos a extrair de `notas`:
+- Motivo de descualificação
+- Edad
+- Preferência de chamada (mañana/tarde/mediodía/noche/não especificada)
+- Habitaciones
+- Antigüedad laboral
+- DNI/NIE
+- Zona / Ciudad detectada
+- Ahorros para impuestos
+- Vivienda seleccionada
+- Plan combinado (€/mes)
+- Precio máx. recomendado
 
-### 4. Recordatórios — `sync_lead_reunion_recordatorios` (trigger)
-Já cancela pendentes e só agenda quando `reunion_datetime IS NOT NULL`. Como o parser passará a deixar `reunion_datetime = null` nesses casos, o comportamento desejado ("não criar recordatórios até confirmar") sai de graça, **sem migração nova**. Quando o agente editar a hora no CRM e popular `reunion_datetime`, o trigger agenda 24h/1h automaticamente.
+Mais colunas diretas: `ciudad_interes`, `zona_interes`, `valor_inmueble_deseado`, `source`, `created_at`.
 
-### 5. Testes — `parseReunionDateTime_test.ts`
-Atualizar casos:
-- `"mañana"` → date = amanhã, time = null, status = `a_definir`.
-- `"mañana por la tarde"` → idem (sem 15h automático).
-- `"lunes"` → date = próxima segunda, time = null, status = `a_definir`.
-- `"lunes a las 16h"` → datetime completo (caso "happy" continua funcionando).
-- `"cualquier día"` → date null, status = `a_definir`.
+## Conteúdo do relatório
+
+1. **Resumo executivo** — totais, taxa de qualificação (~7,2%), volume diário, fonte.
+2. **Motivos de descualificação (%)** — ranking dos motivos (ex.: ahorros insuficientes, antigüedad laboral, deuda ≥30%, edad, ingresos, contrato temporal) com barras horizontais.
+3. **Perfil dos qualificados (% por campo)** — distribuição de idade (faixas 25-34/35-44/45-54/55-70), antiguidade, habitaciones, DNI vs NIE, faixa de ahorros, preferência de horário de chamada, faixa de precio máx. recomendado.
+4. **Perfil dos descualificados (% por campo)** — mesmas distribuições, lado a lado para comparação.
+5. **Pontos em comum — qualificados** — top combinações (ex.: "35-44 anos + más de 1 año + DNI + ahorros ≥5k").
+6. **Pontos em comum — descualificados** — top combinações + correlação motivo×perfil.
+7. **Regiões mais buscadas — qualificados** — top 15 cidades/zonas normalizadas (lowercase + trim).
+8. **Regiões mais buscadas — descualificados** — top 15 + comunidade autônoma quando deducível.
+9. **Insights acionáveis** — 5–8 bullets para campanhas (ex.: "70% dos descualificados por ahorros → criar funil educativo", "qualificados concentram-se em Madrid/Valencia → reforçar criativos regionais").
+
+## Detalhes técnicos
+
+1. Consulta única `SELECT id, stage, ciudad_interes, zona_interes, valor_inmueble_deseado, created_at, notas FROM leads WHERE created_at >= '2026-06-01' AND created_at < '2026-06-23'` via `supabase--read_query` (paginar se necessário — são ~1.500 linhas, cabe num call).
+2. Script Python local (`/tmp/`) com pandas:
+   - Parse de `notas` linha-a-linha em dict, extrai motivo de descualificação com regex `NO CUALIFICADO - (.+)`.
+   - Normaliza região (lowercase, sem acento, mapeia "Madrid"/"madrid centro"/"zona madrid" para "Madrid").
+   - Gera gráficos com matplotlib (barras horizontais, sem cores neon, paleta sóbria).
+3. Monta PDF com `reportlab` ou `matplotlib backend_pdf` (capa + seções + gráficos embutidos).
+4. Monta XLSX seguindo skill xlsx (formatação coerente, abas: `resumo`, `qualificados`, `descualificados`, `motivos`, `regioes_q`, `regioes_d`, `perfil_comparado`).
+5. Validação visual: converter cada página do PDF em imagem e inspecionar antes de entregar.
+6. Emite `<presentation-artifact>` para ambos os arquivos.
 
 ## Fora de escopo
-
-- Sem mudanças na tabela `lead_reuniones_recordatorios` nem no cron.
-- Sem mudanças no CRM/UI (o agente já edita `reunion_datetime` manualmente; o trigger faz o resto).
-- Sem mexer em outros parsers, hooks ou na lógica de assignment.
-
-## Riscos
-
-- Leads antigos com `reunion_datetime` setado pelo parser anterior continuam com hora "fake". Se quiseres limpar histórico, posso adicionar uma migração one-shot — me confirma antes.
-- Bitrix precisa aceitar payload sem hora; vou enviar só a data (string ISO `YYYY-MM-DD`) + flag, mantendo o nome de campo atual para não quebrar o mapeamento existente.
+- Nada de alteração em código do app, edge functions, schema ou políticas.
+- Nada de nova rota/página de relatório no portal (é artefato pontual). Se quiser virar página recorrente depois, é outro pedido.
+- Não envia o relatório por email — fica disponível para download na conversa.
