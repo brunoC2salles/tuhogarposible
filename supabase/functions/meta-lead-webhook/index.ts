@@ -927,7 +927,8 @@ function calcularSimulacionPersonal(ingresos: number, deudas: number) {
  */
 function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: number) {
   const PCT_FINANCIACION = 0.90;
-  const CAP_MONTO_1_TITULAR = 180000;
+  // Tope alineado con simulador (2+ titulares). Antes 180.000 €.
+  const CAP_MONTO_1_TITULAR = 210000;
   const MIN_MONTO = 70000;
   const MIN_CAPACIDAD_MES = 350;
 
@@ -980,8 +981,11 @@ function calcularPrecioMaximoInmuebleMeta(params: {
 }) {
   const ahorros = Math.max(params.ahorros || 0, 0);
   const tasaITP = getITPPorCCAA(params.comunidad);
-  const cpMax = (CP_TOPE + ahorros) / 2;
-  const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
+  // P1: ahorros + crédito personal (15k) deben cubrir entrada (10%) + ITP (CCAA).
+  // Reemplaza el "/2" arbitrario por una base económica clara.
+  const denomP1 = tasaITP + 0.10;
+  const cpMax = CP_TOPE + ahorros;
+  const precioMaxP1 = denomP1 > 0 ? Math.round(cpMax / denomP1) : 0;
 
   const pct = (params.pct_financiacion || 90) / 100;
   const precioMaxP2 = pct > 0 ? Math.round((params.monto_max_financiable || 0) / pct) : 0;
