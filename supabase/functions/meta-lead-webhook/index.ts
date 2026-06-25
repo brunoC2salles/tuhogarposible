@@ -927,7 +927,8 @@ function calcularSimulacionPersonal(ingresos: number, deudas: number) {
  */
 function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: number) {
   const PCT_FINANCIACION = 0.90;
-  const CAP_MONTO_1_TITULAR = 180000;
+  // Tope alineado con simulador (2+ titulares). Antes 180.000 €.
+  const CAP_MONTO_1_TITULAR = 210000;
   const MIN_MONTO = 70000;
   const MIN_CAPACIDAD_MES = 350;
 
