@@ -47,3 +47,14 @@ Regras do simulador hipotecário em `src/lib/simuladorUtils.ts` (função `calcu
 
 ## Webhook Meta Ads
 No `meta-lead-webhook` aplica-se apenas o **piso absoluto de 5.000€** porque o lead não traz precio do imóvel confirmado. A regra dinâmica só corre quando o cliente preenche o simulador completo.
+
+### Cap monto_max_financiable (webhook) — 2026-06-25
+`CAP_MONTO_1_TITULAR = 210000€` (antes 180.000€). Alinhado com o tope de 2+ titulares do simulador, evita que `P2 = monto_max / 0,9` fique "congelado" em 200.000€ para perfis com ingressos altos.
+
+### Fórmula Precio Máximo Inmueble (Meta) — 2026-06-25
+`calcularPrecioMaximoInmuebleMeta` em `meta-lead-webhook/index.ts`:
+- **P1 (ahorros + CP)** = `(15.000 + ahorros) / (ITP_CCAA + 0,10)` — assume entrada 10% + ITP por CCAA. Substitui a fórmula antiga `(15k + ahorros)/2/ITP` que não tinha base económica.
+- **P2 (ingressos)** = `monto_max_financiable / pct_financiacion` (com cap 210k acima).
+- **Recomendado** = `MIN(P1, P2)`.
+- Mantém os **15.000€ de crédito personal** (CP_TOPE) como apoio à entrada/ITP.
+
