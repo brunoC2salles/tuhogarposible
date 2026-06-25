@@ -6,13 +6,16 @@ type: feature
 
 Reglas de cualificación automática aplicadas en `supabase/functions/meta-lead-webhook/index.ts` (función `qualificarLead`):
 
-1. Edad: rechazo si < 25 o > 70.
-2. Tipo de contrato: rechazo si es "temporal" / "becario" / "sin contrato".
-3. Ingresos mínimos: rechazo si < 1.200 €/mes (después de normalizar rangos).
-4. Antigüedad laboral: rechazo si < 6 meses.
-5. Deudas: rechazo si la cuota mensual de deudas ≥ 30% de los ingresos.
-6. **Ahorros para impuestos** (endurecido 2025-04): el lead se considera CUALIFICADO si:
-   - (a) responde afirmativamente en `tiene_ahorros_impuestos` con **`si`, `sí`, `yes` o derivados claros** (`sí tengo`, `si tengo ahorros`, `yes tengo`, `dispongo`, `cuento`, `afirmativo`, etc.; excluye `no`, `sin`, `nada`, `0`), **O**
+1. Antigüedad laboral: rechazo si < 1 año o contrato precario (fijo_discontinuo, temporal, obra y servicio, prácticas, formación, interinidad, eventual).
+2. Tiene NIE/DNI: rechazo si negativo.
+3. No en fichero de morosidad (ASNEF/RAI/impagos).
+4. **Edad ≤ 60** (rechazo si >60). Actualizado 2026-06-25.
+5. **Ingresos mínimos ≥ 1.200 €/mes** (después de normalizar rangos Meta). Actualizado 2026-06-25.
+6. Deudas: rechazo si la cuota mensual de deudas ≥ 30% de los ingresos.
+7. **Ahorros para impuestos** (Actualizado 2026-06-25): el lead se considera CUALIFICADO si:
+   - (a) responde afirmativamente en `tiene_ahorros_impuestos` con **`si`, `sí`, `yes` o derivados claros**, **O**
+   - (b) declara un `monto_ahorros >= 1.000€`.
+   - Se rechaza si NO cumple ninguna de las dos.
    - (b) declara un `monto_ahorros >= 5.000€`.
    - Se rechaza si NO cumple ninguna de las dos. Razón: "Ahorros insuficientes (mínimo 5000€ o respuesta afirmativa "sí")".
    - El valor `montoAhorros` validado aquí es el MISMO que entra en `calcularPrecioMaximoInmuebleMeta` (P1) para el cálculo del Precio Máximo de Inmueble. Logs explícitos en el edge function permiten rastrear la coherencia.
