@@ -803,14 +803,14 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
     }
   }
   
-  // Critério 4: Edad >= 55
-  if (edadParsed && edadParsed >= 55) {
-    return { cualificado: false, razon_no_cualificado: 'Edad superior a 54 años' };
+  // Critério 4: Edad <= 60 (acepta 18-60 inclusive, rechaza si >60)
+  if (edadParsed && edadParsed > 60) {
+    return { cualificado: false, razon_no_cualificado: 'Edad superior a 60 años' };
   }
   
-  // Critério 5: Ingresos >= 1300€
-  if (ingresos < 1300) {
-    return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1300€)' };
+  // Critério 5: Ingresos >= 1200€
+  if (ingresos < 1200) {
+    return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1200€)' };
   }
   
   // Critério 6: Deudas < 30% de ingresos
@@ -822,8 +822,8 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   
   // Critério 7: Ahorros para impuestos.
   // Cualifica si responde afirmativamente con "si/sí/yes" y derivados,
-  // o si declara monto_ahorros >= 5.000€.
-  const AHORROS_MINIMO = 5000;
+  // o si declara monto_ahorros >= 1.000€.
+  const AHORROS_MINIMO = 1000;
   const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
