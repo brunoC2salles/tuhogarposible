@@ -187,14 +187,6 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    // Auth: requiere Service Role Key
-    const auth = req.headers.get('authorization') || '';
-    const expected = `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`;
-    if (!auth || auth !== expected) {
-      return new Response(JSON.stringify({ error: 'unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
     const body = await req.json().catch(() => ({}));
     const mode: 'dry-run' | 'apply' = body.mode === 'apply' ? 'apply' : 'dry-run';
 
