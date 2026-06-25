@@ -197,6 +197,17 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const mode: 'dry-run' | 'apply' = body.mode === 'apply' ? 'apply' : 'dry-run';
+
+    // Auth: dry-run libre (sólo lectura + cálculo); apply requiere SERVICE_ROLE_KEY.
+    if (mode === 'apply') {
+      const auth = req.headers.get('authorization') || '';
+      const expected = `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`;
+      if (!auth || auth !== expected) {
+        return new Response(JSON.stringify({ error: 'unauthorized: apply requires service role' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
     const from = body.from || '2026-06-20';
     const to = body.to || '2026-06-25';
     const limit = Math.min(Number(body.limit) || 500, 1000);
