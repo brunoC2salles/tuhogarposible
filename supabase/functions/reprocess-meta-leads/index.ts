@@ -336,9 +336,11 @@ Deno.serve(async (req) => {
           }
           applied++;
           row.applied = true;
-        } else {
+        } else if (body.refresh_descualificados === true) {
           // Solo refresca precio recalculado, sin reenviar
           await supabase.from('leads').update({ simulador_hipotecario_data: newSim }).eq('id', lead.id);
+          row.applied = false;
+        } else {
           row.applied = false;
         }
       }
