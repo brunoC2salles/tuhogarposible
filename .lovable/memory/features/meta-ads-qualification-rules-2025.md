@@ -12,12 +12,10 @@ Reglas de cualificación automática aplicadas en `supabase/functions/meta-lead-
 4. **Edad ≤ 60** (rechazo si >60). Actualizado 2026-06-25.
 5. **Ingresos mínimos ≥ 1.200 €/mes** (después de normalizar rangos Meta). Actualizado 2026-06-25.
 6. Deudas: rechazo si la cuota mensual de deudas ≥ 30% de los ingresos.
-7. **Ahorros para impuestos** (Actualizado 2026-06-25): el lead se considera CUALIFICADO si:
+7. **Ahorros para impuestos** (Actualizado 2026-07-02): el lead se considera CUALIFICADO si:
    - (a) responde afirmativamente en `tiene_ahorros_impuestos` con **`si`, `sí`, `yes` o derivados claros**, **O**
-   - (b) declara un `monto_ahorros >= 1.000€`.
-   - Se rechaza si NO cumple ninguna de las dos.
-   - (b) declara un `monto_ahorros >= 5.000€`.
-   - Se rechaza si NO cumple ninguna de las dos. Razón: "Ahorros insuficientes (mínimo 5000€ o respuesta afirmativa "sí")".
+   - (b) declara un `monto_ahorros >= 2.500€`.
+   - Se rechaza si NO cumple ninguna de las dos. Razón: "Ahorros insuficientes (mínimo 2500€ o respuesta afirmativa "sí")".
    - El valor `montoAhorros` validado aquí es el MISMO que entra en `calcularPrecioMaximoInmuebleMeta` (P1) para el cálculo del Precio Máximo de Inmueble. Logs explícitos en el edge function permiten rastrear la coherencia.
    - La regla dinámica completa (valor inmueble × % ITP CCAA) sigue aplicándose en el simulador hipotecario (`src/lib/simuladorUtils.ts`) cuando el cliente introduce el precio real del inmueble.
 
