@@ -823,7 +823,7 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   // Critério 7: Ahorros para impuestos.
   // Cualifica si responde afirmativamente con "si/sí/yes" y derivados,
   // o si declara monto_ahorros >= 1.000€.
-  const AHORROS_MINIMO = 1000;
+  const AHORROS_MINIMO = 2500;
   const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
