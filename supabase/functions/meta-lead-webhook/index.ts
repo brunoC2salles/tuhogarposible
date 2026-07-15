@@ -1089,6 +1089,61 @@ Deno.serve(async (req) => {
       );
     }
 
+    // =====================================================================
+    // DEDUP Tally ↔ Meta Ads (janela de 48h por telefone/email)
+    // =====================================================================
+    const DEDUP_WINDOW_HOURS = 48;
+    const normalizePhone = (s: unknown): string => {
+      const digits = String(s ?? '').replace(/\D+/g, '');
+      const noCc = digits.startsWith('34') && digits.length > 9 ? digits.slice(digits.length - 9) : digits;
+      return noCc.slice(-9);
+    };
+    const incomingPhoneNorm = normalizePhone(data.telefono);
+    const incomingEmailNorm = String(data.email || '').trim().toLowerCase();
+    const sinceIso = new Date(Date.now() - DEDUP_WINDOW_HOURS * 3600 * 1000).toISOString();
+    try {
+      const { data: recentLeads } = await supabase
+        .from('leads')
+        .select('id, telefono, email, stage, source, notas, created_at')
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const match = (recentLeads || []).find((l: any) => {
+        const phoneMatch = incomingPhoneNorm && normalizePhone(l.telefono) === incomingPhoneNorm;
+        const emailMatch = incomingEmailNorm && String(l.email || '').trim().toLowerCase() === incomingEmailNorm;
+        return phoneMatch || emailMatch;
+      });
+
+      if (match) {
+        const reason = incomingPhoneNorm && normalizePhone(match.telefono) === incomingPhoneNorm
+          ? 'phone_match'
+          : 'email_match';
+        const origen = data.source_origin === 'tally' ? 'tally'
+                    : data.source_origin === 'tally_housage' ? 'tally_housage'
+                    : 'meta_ads';
+        const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+        const dedupNote = `[Duplicado ignorado ${stamp} | origen: ${origen} | motivo: ${reason}] — mismo teléfono/email recibido nuevamente dentro de ${DEDUP_WINDOW_HOURS}h.`;
+        const notasActualizadas = [match.notas, dedupNote].filter(Boolean).join('\n');
+        await supabase.from('leads').update({ notas: notasActualizadas }).eq('id', match.id);
+        console.log(`[meta-lead-webhook][dedup] match ${reason} lead_id=${match.id} existing_source=${match.source}`);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            duplicated: true,
+            reason,
+            existing_lead_id: match.id,
+            existing_source: match.source,
+            existing_stage: match.stage,
+            message: `Lead duplicado detectado (${reason}) dentro de ${DEDUP_WINDOW_HOURS}h. Não foi criado novo lead nem enviado ao Bitrix.`,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (dedupErr) {
+      console.error('[meta-lead-webhook][dedup] erro na verificação, seguindo fluxo normal:', dedupErr);
+    }
+
     // 1. Parsear ingresos e dívidas (CORREÇÃO: usa parseDeudas para converter "148,€" → 148)
     const ingresos = parseIngresos(data.rango_ingresos);
     const deudas = parseDeudas(data.deudas_mensuales);
