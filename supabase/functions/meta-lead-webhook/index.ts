@@ -1324,7 +1324,12 @@ Deno.serve(async (req) => {
     const marketInfo = ciudadParaValidar ? getProvinceMarketPrice(ciudadParaValidar) : null;
 
     const isTallyHousage = data.source_origin === 'tally_housage';
-    const sourcePrefix = isTallyHousage ? '[Tally Housage]' : 'Lead do Meta Ads.';
+    const isTally = data.source_origin === 'tally';
+    const sourcePrefix = isTallyHousage
+      ? '[Tally Housage]'
+      : isTally
+        ? '[Tally]'
+        : 'Lead do Meta Ads.';
 
     // Montar notas com informações de qualificação
     const notasLead = [
