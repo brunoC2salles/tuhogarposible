@@ -5,7 +5,7 @@ export type LeadStage =
   | 'subida_expediente_bancos' 
   | 'descualificados';
 
-export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads';
+export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads' | 'tally';
 
 export interface SimuladorPersonalData {
   montoSolicitado: number;
