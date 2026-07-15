@@ -1237,7 +1237,12 @@ export type Database = {
     }
     Enums: {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
-      lead_source: "formulario_web" | "manual" | "tidycal_webhook" | "meta_ads"
+      lead_source:
+        | "formulario_web"
+        | "manual"
+        | "tidycal_webhook"
+        | "meta_ads"
+        | "tally"
       lead_stage:
         | "lead_cualificado"
         | "mensaje_whatsapp"
@@ -1403,7 +1408,13 @@ export const Constants = {
   public: {
     Enums: {
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
-      lead_source: ["formulario_web", "manual", "tidycal_webhook", "meta_ads"],
+      lead_source: [
+        "formulario_web",
+        "manual",
+        "tidycal_webhook",
+        "meta_ads",
+        "tally",
+      ],
       lead_stage: [
         "lead_cualificado",
         "mensaje_whatsapp",

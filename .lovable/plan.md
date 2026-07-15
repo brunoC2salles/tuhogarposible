@@ -1,66 +1,106 @@
-## Cambios en reglas de cualificación (`meta-lead-webhook/index.ts` → `qualificarLead`)
+## Objetivo
 
+1. Identificar de forma inequívoca no pipeline de qualificação quando um lead vem do **Tally** (vs Meta Ads).
+2. Evitar que o **mesmo lead** (mesmo telefone/email) seja enviado ao Bitrix duas vezes num curto intervalo quando preenche Tally **e** o formulário do Meta.
 
-| Regla            | Antes           | Después                                     |
-| ---------------- | --------------- | ------------------------------------------- |
-| Edad             | rechaza si ≥55  | rechaza si **>60** (acepta 18–60 inclusive) |
-| Ingresos mínimos | <1.300 €/mes    | **<1.200 €/mes**                            |
-| Ahorros mínimos  | "sí" o ≥5.000 € | "sí" o **≥1.000 €**                         |
+Sem alterar o cenário do Make além de adicionar um campo no JSON do HTTP.
 
+---
 
-Resto de reglas **sin cambios**: antigüedad ≥1 año (con lista de contratos precarios), NIE/DNI, morosidad, deuda <30% ingresos.
+## Parte 1 — Marcar leads como "tally"
 
-El tiempo de financiación, para calcular la hipoteca, deve ser siempre la diferencia de (75 - edad)
+### 1.1 No Make (HTTP → `/functions/v1/meta-lead-webhook`)
 
-Actualizar `.lovable/memory/features/meta-ads-qualification-rules-2025.md` para reflejar los nuevos umbrales.
+Adicionar **um único campo** no JSON:
 
-## Cálculo precio máximo de vivienda (verificación)
+```json
+"source_origin": "tally"
+```
 
-Mantener la fórmula ya aplicada el 25/06:
+Isto reaproveita a chave `source_origin` que o webhook já entende (hoje só reconhece `tally_housage`).
 
-- **P1 (ahorros + CP)** = `(15.000 + ahorros) / (ITP_CCAA + 0,10)`
-- **P2 (ingresos)** = `monto_max_financiable / 0,90`, con `CAP_MONTO_1_TITULAR = 210.000€`
-- **Precio recomendado** = `MIN(P1, P2)`
+### 1.2 No `meta-lead-webhook/index.ts`
 
-Verificación a ejecutar antes del reprocesamiento:
+- Detectar `source_origin === 'tally'` (além do já existente `tally_housage`).
+- Ao inserir o lead:
+  - `source: 'tally'` (novo valor do enum).
+  - `notas` começa com `[Tally]` em vez de `Lead do Meta Ads.`
+- No payload devolvido ao Make/Bitrix, incluir `lead_source: 'tally' | 'meta_ads' | 'tally_housage'` para que o node de Bitrix possa preencher a campo "Origen".
 
-- Test interno con 5 perfiles sintéticos (ahorros bajos/altos × ingresos bajos/altos × CCAA con ITP min/max) y comprobar monotonía: a mayor ahorros → P1 ≥; a mayor ingresos → P2 ≥; recomendado nunca decrece al mejorar un input.
-- Si algún caso rompe la monotonía, ajustar y volver a verificar antes de reprocesar.
+### 1.3 Enum no banco
 
-## Reprocesamiento últimos 5 días (20–24/06/2026)
+Adicionar `'tally'` ao enum `lead_source` (Supabase). Migração:
 
-Nueva edge function `**reprocess-meta-leads**` (one-shot, dos modos):
+```sql
+ALTER TYPE lead_source ADD VALUE IF NOT EXISTS 'tally';
+```
 
-1. `**mode=dry-run**` (default): lee leads con `stage='descualificado'` y `source='meta_ads'` creados entre 2026-06-20 y 2026-06-24, recalcula `qualificarLead` con los nuevos umbrales y `calcularPrecioMaximoInmuebleMeta`, y devuelve JSON con: total, ahora cualifican, siguen descualificados, desglose por nuevo motivo, lista (id, teléfono, motivo previo, edad, ingresos, ahorros, antigüedad, comunidad, precio recomendado nuevo).
-2. `**mode=apply**` (requiere confirmación tuya tras revisar el dry-run): para los que ahora cualifican:
-  - Mueve `stage` a `nuevo_lead`.
-  - Asigna agente vía round-robin existente (`get-next-agent`).
-  - Actualiza `precio_max_recomendado` y campos relacionados.
-  - Llama `make-webhook-proxy` con el payload Bitrix (mismo formato que el webhook normal).
-  - Registra en `webhook_logs`.
-   Para los que siguen descualificados: sólo actualiza el `precio_max_recomendado` (no se reenvía nada a Bitrix).
+E atualizar `src/types/crm.ts` (`LeadSource`) e o filtro de origem no CRM (se existir badge).
 
-Idempotencia: marca cada lead reprocesado con un flag en `webhook_logs` (`type='reprocess_2026-06-20_24'`) para no reenviar dos veces si se vuelve a llamar.
+---
 
-Seguridad: function con `verify_jwt = false` pero protegida por un header `X-Reprocess-Token` comparado contra un secret nuevo `REPROCESS_TOKEN` (te lo pediré al pasar a build).
+## Parte 2 — Deduplicação Tally ↔ Meta Ads
 
-## Archivos a tocar
+### 2.1 Regra
 
-- `supabase/functions/meta-lead-webhook/index.ts` — umbrales edad/ingresos/ahorros en `qualificarLead`.
-- `supabase/functions/reprocess-meta-leads/index.ts` — **nuevo**, modo dry-run / apply.
-- `.lovable/memory/features/meta-ads-qualification-rules-2025.md` — documentar nuevos umbrales.
+Antes de inserir um lead novo no `meta-lead-webhook`, procurar em `leads`:
 
-## Lo que NO se toca
+- `telefono` normalizado igual (só dígitos, últimos 9) **OU** `email` igual (case-insensitive)
+- `created_at >= now() - interval '48 hours'`
 
-- Fórmula P1/P2 ni cap 210k (ya ajustados el 25/06, sólo se verifican).
-- `simuladorUtils.ts` y reglas del simulador web.
-- Parsers (`parseEdad`, `parseIngresos`, `parseAhorros`, `parseAntiguedad`, `parseDeudas`).
-- Resto de reglas de cualificación (antigüedad, NIE, morosidad, deuda).
-- UI, kanban, otros webhooks.
+Se encontrar match:
 
-## Flujo de ejecución (tras aprobar este plan)
+1. **Não** cria novo lead.
+2. **Não** dispara webhook Bitrix (retorna `duplicated: true`, `existing_lead_id`).
+3. Anexa uma linha nas `notas` do lead existente:  
+   `[Duplicado ignorado 2026-07-15 08:20 | origen: tally] — mesmo teléfono/email recibido nuevamente.`
+4. Se o lead existente estava em `descualificados` e o novo cumpre qualificação, **promove** para `nuevo_lead` e dispara o webhook Bitrix uma única vez (evita perder um lead bom que primeiro chegou "ruim").
+5. Resposta HTTP 200 (para o Make não marcar erro) com `duplicated: true`.
 
-1. Aplico cambios de umbrales + creo `reprocess-meta-leads` + añado secret `REPROCESS_TOKEN`.
-2. Corro la **verificación de monotonía** del precio máximo y te muestro la tabla.
-3. Corro `**dry-run**` sobre 20–24/06 y te enseño cuántos pasan a cualificados, con desglose.
-4. **Sólo con tu OK explícito** corro `apply` y se reenvía a Bitrix.
+### 2.2 Janela configurável
+
+Constante no topo do webhook:
+
+```ts
+const DEDUP_WINDOW_HOURS = 48;
+```
+
+Fácil de ajustar se detectarmos casos legítimos (ex.: mesmo email em famílias).
+
+### 2.3 Normalização de telefone
+
+Helper `normalizePhone(x)` que:
+- remove tudo que não é dígito;
+- descarta prefixo `34` de Espanha;
+- compara pelos últimos 9 dígitos.
+
+Isto neutraliza variações `+34 612…`, `0034612…`, `612 34 56 78`.
+
+### 2.4 Índice de apoio
+
+Migração:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_leads_telefono_created ON public.leads (telefono, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_leads_email_created ON public.leads (lower(email), created_at DESC);
+```
+
+---
+
+## Parte 3 — Observabilidade
+
+- Log estruturado `[meta-lead-webhook][dedup] match phone/email lead_id=…` para conseguirmos auditar depois.
+- Contador simples: incluir na resposta `{ duplicated: true, reason: 'phone_match' | 'email_match', existing_lead_id, existing_source }`.
+
+---
+
+## Ficheiros a alterar
+
+- `supabase/functions/meta-lead-webhook/index.ts` — reconhecer `source_origin='tally'`, dedup, resposta.
+- `supabase/functions/tally-housage-webhook/index.ts` — passa também a mandar `source_origin: 'tally_housage'` (já manda) — nenhuma mudança funcional, só garantir que a dedup se aplica igual.
+- `src/types/crm.ts` — adicionar `'tally'` a `LeadSource`.
+- Migração SQL — extender enum + índices.
+
+## O que o utilizador tem de fazer no Make
+
+Apenas adicionar `"source_origin": "tally"` no corpo JSON do módulo HTTP do cenário do Tally. Nada mais.
