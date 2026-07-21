@@ -410,7 +410,7 @@ const AdminSettings = () => {
                 variant="outline" 
                 onClick={testSecondaryQualifiedWebhook} 
                 disabled={!localSecondaryQualifiedUrl.trim()}
-                title="Envía el payload completo del último lead cualificado al webhook secundario"
+                title="Envía el payload completo del último lead cualificado al webhook WhatsApp"
               >
                 <TestTube className="h-4 w-4 mr-2" />
                 Probar con último lead cualificado
