@@ -69,6 +69,33 @@ export const useAdminSettings = () => {
     }
   };
 
+  const fetchSecondaryQualifiedUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_secondary_qualified_url')
+        .single();
+      if (!error && data) setSecondaryQualifiedUrl(data.value || '');
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching secondary qualified URL:', err);
+    }
+  };
+
+  const fetchSecondaryLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('webhook_logs')
+        .select('*')
+        .ilike('webhook_url', '%(secondary_qualified)%')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (!error) setSecondaryLogs((data || []) as WebhookLog[]);
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching secondary logs:', err);
+    }
+  };
+
   const fetchWebhookLogs = async () => {
     try {
       const { data, error } = await supabase
