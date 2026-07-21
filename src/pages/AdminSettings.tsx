@@ -363,36 +363,37 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Webhook Secundario — Leads Cualificados (fan-out) */}
+        {/* Webhook WhatsApp — Leads Cualificados (fan-out) */}
         <Card>
           <CardHeader>
-            <CardTitle>Webhook Secundario — Datos de Leads Cualificados</CardTitle>
+            <CardTitle>Webhook WhatsApp — Datos de Leads Cualificados</CardTitle>
             <CardDescription>
-              Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado a una URL adicional
-              (recordatorios, CRMs externos, automatizaciones). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
+              Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado al servicio de recordatorios por WhatsApp
+              (u otra automatización externa). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                Método: <code>POST</code> · Content-Type: <code>application/json</code>. Ver especificación del payload debajo del formulario.
+                Método: <code>POST</code> · Content-Type: <code>application/json</code> · Header <code>Authorization: Bearer &lt;WHATSAPP_WEBHOOK_BEARER_TOKEN&gt;</code> (configurado como secret). Ver especificación del payload debajo del formulario.
               </AlertDescription>
             </Alert>
 
             <div className="space-y-2">
-              <Label htmlFor="webhook-secondary-url">URL del Webhook Secundario</Label>
+              <Label htmlFor="webhook-secondary-url">URL del Webhook WhatsApp</Label>
               <Input
                 id="webhook-secondary-url"
                 type="url"
-                placeholder="https://lead-reminder.vercel.app/api/webhooks/crm"
+                placeholder="https://lead-reminder.vercel.app/api/jobs/send-pending-messages"
                 value={localSecondaryQualifiedUrl}
                 onChange={(e) => setLocalSecondaryQualifiedUrl(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Deje vacío para desactivar el envío secundario.
+                Deje vacío para desactivar el envío. Token Bearer gestionado vía secret <code>WHATSAPP_WEBHOOK_BEARER_TOKEN</code>.
               </p>
             </div>
+
 
             <div className="flex gap-2">
               <Button 
@@ -409,7 +410,7 @@ const AdminSettings = () => {
                 variant="outline" 
                 onClick={testSecondaryQualifiedWebhook} 
                 disabled={!localSecondaryQualifiedUrl.trim()}
-                title="Envía el payload completo del último lead cualificado al webhook secundario"
+                title="Envía el payload completo del último lead cualificado al webhook WhatsApp"
               >
                 <TestTube className="h-4 w-4 mr-2" />
                 Probar con último lead cualificado

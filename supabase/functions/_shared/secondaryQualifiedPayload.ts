@@ -85,9 +85,13 @@ export async function dispatchSecondaryQualified(
 
     const payload = buildSecondaryQualifiedPayload(input);
 
+    const bearer = Deno.env.get('WHATSAPP_WEBHOOK_BEARER_TOKEN');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
 

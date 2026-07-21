@@ -199,7 +199,7 @@ export const useAdminSettings = () => {
         );
       if (error) throw error;
       setSecondaryQualifiedUrl(url);
-      toast.success('URL del webhook secundario guardada');
+      toast.success('URL del webhook WhatsApp guardada');
       return true;
     } catch (err: any) {
       console.error('[AdminSettings] Error saving secondary URL:', err);
