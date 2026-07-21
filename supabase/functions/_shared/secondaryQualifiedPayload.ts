@@ -22,13 +22,24 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
       : null);
 
   return {
+    // Campos requeridos por el receptor (CRM appointment schema)
+    externalId: String(lead.id),
+    customerName: lead.nombre_completo ?? '',
+    customerPhone: lead.telefono ?? '',
+    customerEmail: lead.email ?? null,
+    agentEmail: agente?.email ?? '',
+    agentName: agente?.nombre ?? null,
+    agentPhone: agente?.telefono ?? null,
+    scheduledAt: reunionDatetimeIso,
+    timezone: lead.zona_horaria_reunion ?? 'Europe/Madrid',
+    appointmentPending: !lead.hora_reunion,
+
+    // Metadata / contexto adicional
     event: 'lead.qualified',
     sent_at: new Date().toISOString(),
     source,
 
-    lead: {
-      ...lead,
-    },
+    lead: { ...lead },
 
     agente: agente
       ? {
@@ -62,6 +73,7 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
     documento_link: documentoLink ?? null,
   };
 }
+
 
 /**
  * Dispatch helper: envia o payload e registra em `webhook_logs`.
