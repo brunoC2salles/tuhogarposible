@@ -1600,7 +1600,21 @@ Deno.serve(async (req) => {
           .eq('id', leadId)
           .single();
 
-        const beworLink = tokenDocLink || null;
+        // Buscar link público do Bewor (se houver token ativo)
+        let beworLink: string | null = null;
+        try {
+          const { data: tokRow } = await supabase
+            .from('lead_document_tokens')
+            .select('token')
+            .eq('lead_id', leadId)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (tokRow?.token) {
+            beworLink = `https://tuhogarposible.lovable.app/documentos/${tokRow.token}`;
+          }
+        } catch {}
 
         const secondaryResult = await dispatchSecondaryQualified(supabase, {
           lead: fullLead || {
@@ -1610,7 +1624,7 @@ Deno.serve(async (req) => {
             email: data.email,
           },
           agente: agenteAsignado,
-          source: sourceOrigin === 'tally' ? 'tally' : 'meta_ads',
+          source: data.source_origin === 'tally' ? 'tally' : 'meta_ads',
           documentoLink: beworLink,
           extra: {
             region_detectada: region,
