@@ -75,6 +75,10 @@ const AdminSettings = () => {
   }, [inmovillaUrl]);
 
   useEffect(() => {
+    if (secondaryQualifiedUrl && !localSecondaryQualifiedUrl) setLocalSecondaryQualifiedUrl(secondaryQualifiedUrl);
+  }, [secondaryQualifiedUrl]);
+
+  useEffect(() => {
     fetchScrapingStats();
   }, []);
 
