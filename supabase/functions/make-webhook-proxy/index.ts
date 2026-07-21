@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildBitrixPayloadFromLead, extractFromNotes } from '../_shared/bitrixPayload.ts';
+import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -360,6 +361,69 @@ Deno.serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ============================================
+    // ACTION: test_secondary_qualified_last_lead
+    // Dispara o webhook secundário com o último lead cualificado real.
+    // ============================================
+    if (action === 'test_secondary_qualified_last_lead') {
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*')
+        .neq('stage', 'no_cualificado')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (leadError || !lead) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No qualified leads found in CRM' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      let agente: any = null;
+      if (lead.agente_asignado_id) {
+        const { data: ag } = await supabase
+          .from('profiles')
+          .select('id, nombre, email, telefono, tidycal_url')
+          .eq('id', lead.agente_asignado_id)
+          .single();
+        agente = ag;
+      }
+
+      const { data: tokRow } = await supabase
+        .from('lead_document_tokens')
+        .select('token')
+        .eq('lead_id', lead.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const beworLink = tokRow?.token
+        ? `https://tuhogarposible.lovable.app/documentos/${tokRow.token}`
+        : null;
+
+      const result = await dispatchSecondaryQualified(supabase, {
+        lead,
+        agente,
+        source: 'test',
+        documentoLink: beworLink,
+        extra: { test: true },
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: result.sent,
+          http_status: result.status ?? 0,
+          lead_name: lead.nombre_completo,
+          error: result.error || null,
+          message: result.sent ? 'Payload secundário enviado con éxito' : `Falló: ${result.error || 'unknown'}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
 
     // ============================================
     // ACTION: send_lead_assignment

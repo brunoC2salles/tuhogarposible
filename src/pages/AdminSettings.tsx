@@ -25,24 +25,31 @@ const AdminSettings = () => {
   const { 
     webhookUrl, 
     metaBitrixWebhookUrl,
+    secondaryQualifiedUrl,
     inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
+    savingSecondary,
     savingInmovilla,
     webhookLogs, 
     metaBitrixLogs,
+    secondaryLogs,
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
+    saveSecondaryQualifiedUrl,
     saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
+    testSecondaryQualifiedWebhook,
     replayQualifiedSince,
     refreshLogs,
-    refreshMetaBitrixLogs
+    refreshMetaBitrixLogs,
+    refreshSecondaryLogs
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
+  const [localSecondaryQualifiedUrl, setLocalSecondaryQualifiedUrl] = useState('');
   const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
@@ -66,6 +73,10 @@ const AdminSettings = () => {
   useEffect(() => {
     if (inmovillaUrl && !localInmovillaUrl) setLocalInmovillaUrl(inmovillaUrl);
   }, [inmovillaUrl]);
+
+  useEffect(() => {
+    if (secondaryQualifiedUrl && !localSecondaryQualifiedUrl) setLocalSecondaryQualifiedUrl(secondaryQualifiedUrl);
+  }, [secondaryQualifiedUrl]);
 
   useEffect(() => {
     fetchScrapingStats();
@@ -351,6 +362,152 @@ const AdminSettings = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Webhook Secundario — Leads Cualificados (fan-out) */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Webhook Secundario — Datos de Leads Cualificados</CardTitle>
+            <CardDescription>
+              Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado a una URL adicional
+              (recordatorios, CRMs externos, automatizaciones). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Método: <code>POST</code> · Content-Type: <code>application/json</code>. Ver especificación del payload debajo del formulario.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhook-secondary-url">URL del Webhook Secundario</Label>
+              <Input
+                id="webhook-secondary-url"
+                type="url"
+                placeholder="https://lead-reminder.vercel.app/api/webhooks/crm"
+                value={localSecondaryQualifiedUrl}
+                onChange={(e) => setLocalSecondaryQualifiedUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deje vacío para desactivar el envío secundario.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={async () => {
+                  const success = await saveSecondaryQualifiedUrl(localSecondaryQualifiedUrl);
+                  if (success) refreshSecondaryLogs();
+                }} 
+                disabled={savingSecondary}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingSecondary ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={testSecondaryQualifiedWebhook} 
+                disabled={!localSecondaryQualifiedUrl.trim()}
+                title="Envía el payload completo del último lead cualificado al webhook secundario"
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Probar con último lead cualificado
+              </Button>
+            </div>
+
+            {/* Especificación */}
+            <details className="border rounded-md p-3 bg-muted/30">
+              <summary className="cursor-pointer text-sm font-medium">
+                📋 Especificación del payload (para el equipo que reciba los datos)
+              </summary>
+              <div className="mt-3 space-y-2 text-xs">
+                <p><strong>Endpoint:</strong> el que configures arriba · <strong>Método:</strong> POST · <strong>Content-Type:</strong> application/json</p>
+                <p><strong>Cuándo se dispara:</strong> cada vez que un lead entra al sistema y pasa las reglas de cualificación (Meta Ads, Tally, manual).</p>
+                <p><strong>Respuesta esperada:</strong> HTTP 2xx. Cualquier otro código se registra como error en <code>webhook_logs</code>. Sin reintentos automáticos.</p>
+                <p><strong>Idempotencia:</strong> el campo <code>lead.id</code> (UUID) es único. Usarlo como clave para deduplicar.</p>
+                <pre className="bg-background border rounded p-3 overflow-x-auto text-[11px] leading-tight">{`{
+  "event": "lead.qualified",
+  "sent_at": "2026-07-21T12:00:00.000Z",   // ISO 8601 UTC
+  "source": "meta_ads" | "tally" | "manual",
+
+  "lead": {
+    "id": "uuid",                          // clave única para idempotencia
+    "nombre_completo": "string",
+    "telefono": "+34XXXXXXXXX",
+    "email": "string",
+    "ciudad_interes": "string | null",
+    "zona_interes": "string | null",
+    "valor_inmueble_deseado": number | null,
+    "stage": "nuevo_lead" | ...,
+    "notas": "string | null",
+    "agente_asignado_id": "uuid | null",
+    "source": "meta_ads" | "tally" | ...,
+    "created_at": "ISO 8601",
+    "updated_at": "ISO 8601"
+    // + resto de columnas de la tabla leads
+  },
+
+  "agente": {                              // agente asignado (null si no hay)
+    "id": "uuid",
+    "nombre": "string",
+    "email": "string",
+    "telefono": "string | null",
+    "tidycal_url": "string | null"
+  } | null,
+
+  "simulador_personal": { ... } | null,    // datos del simulador de crédito personal
+  "simulador_hipotecario": { ... } | null, // datos del simulador hipotecario
+
+  "reunion": {
+    "fecha": "YYYY-MM-DD" | null,
+    "hora": "HH:mm" | null,
+    "hora_texto": "string | null",         // texto original ("mañana por la tarde")
+    "zona_horaria": "Europe/Madrid",
+    "datetime_iso": "YYYY-MM-DDTHH:mm:ss" | null,
+    "confidence": "exact" | "pending_time" | null,
+    "a_definir": boolean                   // true = requiere confirmación manual
+  },
+
+  "cualificacion": {
+    "cualificado": true,
+    "region_detectada": "string | null",
+    "edad": "string | null"
+  },
+
+  "documento_link": "https://tuhogarposible.lovable.app/documentos/{token}" | null
+}`}</pre>
+                <p className="pt-2"><strong>Diagnóstico:</strong> revisa el historial abajo, o filtra <code>webhook_logs</code> por <code>webhook_url LIKE '%(secondary_qualified)%'</code>.</p>
+              </div>
+            </details>
+
+            {/* Status */}
+            <div className="flex gap-4 pt-4 border-t">
+              <div>
+                <p className="text-sm font-medium">Envíos Hoy</p>
+                <p className="text-2xl font-bold">
+                  {secondaryLogs.filter(log => {
+                    const logDate = new Date(log.created_at);
+                    const today = new Date();
+                    return logDate.toDateString() === today.toDateString();
+                  }).length}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Con Errores</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold">
+                    {secondaryLogs.filter(log => log.status === 'error').length}
+                  </p>
+                  {secondaryLogs.filter(log => log.status === 'error').length > 0 && (
+                    <Badge variant="destructive">Revisar</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
 
         {/* Reenviar leads qualificados */}
         <Card>

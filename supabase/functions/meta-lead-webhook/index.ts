@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
 import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead } from '../_shared/bitrixPayload.ts';
+import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 
 const corsHeaders = {
@@ -1588,7 +1589,54 @@ Deno.serve(async (req) => {
           error_message: webhookErr.message || 'Erro desconhecido'
         });
       }
+
+      // 9.b Fan-out para webhook secundário (recordatorios / automações externas).
+      // Envia o payload completo do lead + agente + simuladores + reunião.
+      // Não bloqueia o fluxo principal — falhas apenas ficam em webhook_logs.
+      try {
+        const { data: fullLead } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('id', leadId)
+          .single();
+
+        // Buscar link público do Bewor (se houver token ativo)
+        let beworLink: string | null = null;
+        try {
+          const { data: tokRow } = await supabase
+            .from('lead_document_tokens')
+            .select('token')
+            .eq('lead_id', leadId)
+            .gt('expires_at', new Date().toISOString())
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (tokRow?.token) {
+            beworLink = `https://tuhogarposible.lovable.app/documentos/${tokRow.token}`;
+          }
+        } catch {}
+
+        const secondaryResult = await dispatchSecondaryQualified(supabase, {
+          lead: fullLead || {
+            id: leadId,
+            nombre_completo: data.nombre,
+            telefono: data.telefono,
+            email: data.email,
+          },
+          agente: agenteAsignado,
+          source: data.source_origin === 'tally' ? 'tally' : 'meta_ads',
+          documentoLink: beworLink,
+          extra: {
+            region_detectada: region,
+            edad: edadParsed || null,
+          },
+        });
+        console.log('[meta-lead-webhook] Webhook secundário:', secondaryResult);
+      } catch (secondaryErr) {
+        console.error('[meta-lead-webhook] Erro no fan-out secundário:', secondaryErr);
+      }
     }
+
 
     console.log('[meta-lead-webhook] Resposta final:', JSON.stringify(response));
 
