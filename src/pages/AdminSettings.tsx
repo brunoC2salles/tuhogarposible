@@ -25,24 +25,31 @@ const AdminSettings = () => {
   const { 
     webhookUrl, 
     metaBitrixWebhookUrl,
+    secondaryQualifiedUrl,
     inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
+    savingSecondary,
     savingInmovilla,
     webhookLogs, 
     metaBitrixLogs,
+    secondaryLogs,
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
+    saveSecondaryQualifiedUrl,
     saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
+    testSecondaryQualifiedWebhook,
     replayQualifiedSince,
     refreshLogs,
-    refreshMetaBitrixLogs
+    refreshMetaBitrixLogs,
+    refreshSecondaryLogs
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
+  const [localSecondaryQualifiedUrl, setLocalSecondaryQualifiedUrl] = useState('');
   const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
