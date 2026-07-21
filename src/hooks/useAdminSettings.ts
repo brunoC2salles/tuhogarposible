@@ -188,6 +188,28 @@ export const useAdminSettings = () => {
     }
   };
 
+  const saveSecondaryQualifiedUrl = async (url: string) => {
+    try {
+      setSavingSecondary(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { key: 'webhook_secondary_qualified_url', value: url, description: 'URL secundario para reenviar todos los datos de leads cualificados a una automatización externa' },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setSecondaryQualifiedUrl(url);
+      toast.success('URL del webhook secundario guardada');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving secondary URL:', err);
+      toast.error('Error al guardar configuración');
+      return false;
+    } finally {
+      setSavingSecondary(false);
+    }
+  };
+
   const testWebhook = async (_url: string) => {
     try {
       toast.info('Enviando test via Edge Function...');
@@ -222,6 +244,27 @@ export const useAdminSettings = () => {
     }
   };
 
+  const testSecondaryQualifiedWebhook = async () => {
+    try {
+      toast.info('Enviando test via Edge Function...');
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'test_secondary_qualified_last_lead' }
+      });
+      if (error) { toast.error('Error al conectar con Edge Function'); return false; }
+      if (data?.success) {
+        toast.success(`✅ Webhook secundario enviado! Lead: "${data.lead_name}" | HTTP ${data.http_status}`);
+        fetchSecondaryLogs();
+        return true;
+      }
+      toast.error(`❌ Error: ${data?.error || data?.message || 'Unknown error'}`);
+      return false;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error testing secondary webhook:', err);
+      toast.error('Error al probar webhook');
+      return false;
+    }
+  };
+
   const replayQualifiedSince = async (sinceIso: string) => {
     try {
       toast.info('Reenviando leads qualificados...');
@@ -233,6 +276,7 @@ export const useAdminSettings = () => {
         toast.success(`Total ${data.total} · Enviados ${data.sent_ok} · Já enviados ${data.skipped_already_sent} · Falhas ${data.sent_failed}`);
         fetchWebhookLogs();
         fetchMetaBitrixLogs();
+        fetchSecondaryLogs();
         return data;
       }
       toast.error(`Error: ${data?.error || 'desconocido'}`);
@@ -250,25 +294,33 @@ export const useAdminSettings = () => {
     fetchMetaBitrixWebhookUrl();
     fetchMetaBitrixLogs();
     fetchInmovillaUrl();
+    fetchSecondaryQualifiedUrl();
+    fetchSecondaryLogs();
   }, []);
 
   return {
     webhookUrl,
     metaBitrixWebhookUrl,
+    secondaryQualifiedUrl,
     inmovillaUrl,
     loading,
     saving,
     savingMetaBitrix,
+    savingSecondary,
     savingInmovilla,
     webhookLogs,
     metaBitrixLogs,
+    secondaryLogs,
     saveWebhookUrl,
     saveMetaBitrixWebhookUrl,
+    saveSecondaryQualifiedUrl,
     saveInmovillaUrl,
     testWebhook,
     testMetaBitrixWebhook,
+    testSecondaryQualifiedWebhook,
     replayQualifiedSince,
     refreshLogs: fetchWebhookLogs,
     refreshMetaBitrixLogs: fetchMetaBitrixLogs,
+    refreshSecondaryLogs: fetchSecondaryLogs,
   };
 };
