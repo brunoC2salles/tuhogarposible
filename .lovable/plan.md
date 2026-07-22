@@ -1,88 +1,57 @@
-
 ## Objetivo
 
-Na página **Admin > Ajustes**, adicionar duas capacidades:
+Melhorar o relatório PDF em `src/lib/leadsReportGenerator.ts` para incluir dados ricos de cualificação e desqualificação, e corrigir divergências nos números.
 
-1. Um **switch para habilitar/desabilitar** o envio do webhook WhatsApp (o secundário).
-2. Um **botão para gerar o relatório de qualificação de leads** (mesmo formato dos relatórios semanais que venho entregando), com preset de "últimos 7 días" e opção de escolher un período customizado.
+## Problemas detectados
 
-Sem tocar em nenhuma lógica fora desses dois pontos.
+1. **Todos os desqualificados caem em "Edad fuera de rango (>60)"** — o regex `/edad/i` captura o campo `Edad: 43` que existe em TODAS as notas. O motivo real está em `"NO CUALIFICADO - <razão>"` na 2ª linha das notas.
+2. **Números divergem da base**: PDF mostra 514 total / 73 cual / 441 desc no período 16–22/07; a DB tem **523 / 74 / 449**. Causa: janela UTC `+2 dias` insuficiente + `fetchAllPaginated` com `pageSize=1000` deixa gap. Preciso ampliar janela UTC (start-1 dia, end+2 dias) para garantir cobertura de todos os dias de calendário Madrid.
+3. **"Envíos exitosos al Bitrix" (74) > cualificados (73)** — o count de `webhook_logs` usa a mesma janela UTC ampla e conta reprocessamentos. Devo filtrar apenas por dias de calendário Madrid do `created_at` do log e usar `count(distinct lead_id via payload)` se possível, ou apenas explicar como envios brutos.
 
----
+## Mudanças no gerador (`src/lib/leadsReportGenerator.ts`)
 
-## 1. Toggle do Webhook WhatsApp
+### Parser de notas (nova função `parseNotas`)
+Extrai dos campos estruturados presentes em toda nota de Meta Ads:
+- `NO CUALIFICADO - <motivo>` → motivo canônico
+- `Edad: NN` → número
+- `Zona: <texto>` e `Ciudad detectada: <texto>` → cidade normalizada (prioriza "Ciudad detectada")
+- `Antigüedad: <valor>` → categoria
+- `DNI/NIE: dni|nie`
+- `Ahorros para impuestos: <texto>` → parseado a número quando possível
+- `Habitaciones`, `Vivienda seleccionada`, `Plan combinado`, `Precio máx. inmueble recomendado`
 
-### Comportamento
-- Nova chave em `admin_settings`: `webhook_secondary_qualified_enabled` (valor `"true"` / `"false"`, default `"true"` para não mudar o comportamento atual).
-- Quando `false`: `dispatchSecondaryQualified` retorna imediatamente `{ sent: false, error: 'disabled' }` **sem** fazer POST e **sem** gravar em `webhook_logs` (skip silencioso, conforme escolhido).
-- Bitrix e resto do fluxo não são afetados.
+Adicionalmente, extrair **ingresos mensuales** parseando o próprio texto das notas onde aparecem (quando a nota original do Meta preserva o campo) — se não estiver disponível de forma confiável, marcar "sin dato" em vez de inventar.
 
-### UI (`src/pages/AdminSettings.tsx`)
-- Adicionar um `Switch` (shadcn) ao lado do título da seção "Webhook WhatsApp".
-- Label: "Envio activo" / "Envio pausado".
-- Ao alternar, salva na tabela `admin_settings` via hook.
+### Novas seções no PDF (em espanhol)
 
-### Hook (`src/hooks/useAdminSettings.ts`)
-- Novo estado `secondaryEnabled: boolean` + `setSecondaryEnabled(enabled: boolean)` que faz upsert em `admin_settings`.
-- Fetch inicial junto com os outros settings.
+1. **Resumen ejecutivo** (mantém, corrigindo Bitrix com nota explicativa).
+2. **Leads por día** (mantém).
+3. **Leads por fuente** (mantém).
+4. **NOVO — Motivos de descualificación** (corrigido): usa `NO CUALIFICADO - X` das notas. Categorias esperadas: antigüedad laboral, ahorros insuficientes, edad >60, ingresos <1.200€, deudas, DNI/NIE, contrato precário, duplicado, otros.
+5. **NOVO — Top ciudades / zonas** (Top 15): conteo total, cualificados, descualificados por cidade (usando `Ciudad detectada` > `Zona` > `ciudad_interes`).
+6. **NOVO — Distribución por edad** (buckets: <25, 25-34, 35-44, 45-54, 55-60, >60): total, cualificados, descualificados.
+7. **NOVO — Distribución por antigüedad laboral** (indefinido/más de 1 año, menos de 1 año, temporal/fijo discontinuo, autónomo, otros): total + cual/desc.
+8. **NOVO — Distribución por ahorros declarados** (buckets: 0€, 1-999€, 1.000-2.499€, 2.500-4.999€, ≥5.000€, sin dato).
+9. **NOVO — DNI vs NIE** (total + cual/desc).
+10. **Metodología** (mantém, mais nota explicando que "envíos al Bitrix" pode incluir reprocessos).
 
-### Edge function
-- `supabase/functions/_shared/secondaryQualifiedPayload.ts`: antes de ler a URL, ler a flag; se desabilitado, `return { sent: false, error: 'disabled' }`.
+### Correções de cálculo
 
----
+- Ampliar janela UTC do fetch para `start - 1 dia` até `end + 2 dias` para eliminar gap de 9 leads.
+- Bitrix count: filtrar `webhook_logs` por `(created_at AT TIME ZONE 'Europe/Madrid')::date` no cliente após fetch (usar `fetchAllPaginated` de logs no período), e reportar como "envíos exitosos (incluye reintentos y reprocesos)".
+- Validar após a mudança que o total do PDF bate com a DB (523/74/449 no período 16–22/07).
 
-## 2. Botão "Gerar informe semanal"
+## Arquivos alterados
 
-### UI (nova seção em `AdminSettings.tsx`, acima ou abaixo das seções de webhook)
-- Título: **Informe de cualificación de leads**.
-- Dois modos:
-  - Botão primário: **"Generar informe (últimos 7 días)"**.
-  - Bloco secundário: dois `DatePicker` (Fecha inicio / Fecha fin) + botão **"Generar informe personalizado"**.
-- Ao clicar, chama uma nova edge function `generate-leads-report` passando `{ start_date, end_date }` (YYYY-MM-DD, Europe/Madrid).
-- A resposta é um PDF (base64 ou binário) — o front converte para Blob e dispara download.
-- Toast de progresso/erro.
+- `src/lib/leadsReportGenerator.ts` — parser, novas seções, correção de janela e Bitrix.
 
-### Edge function: `supabase/functions/generate-leads-report/index.ts` (nova)
-- Auth: requer JWT de admin (usa `has_role`).
-- Recebe `start_date` e `end_date` (fallback: últimos 7 dias em Europe/Madrid).
-- Query única em `leads` filtrando por `(created_at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ...` (respeita regra de calendário Madrid da memory).
-- Métricas calculadas:
-  - Total de leads no período, por dia.
-  - Cualificados vs descualificados (por stage: cualificado = `stage != 'descualificados'`).
-  - Breakdown por `source` (meta_ads, tally, manual).
-  - Top motivos de descualificação (parseando `notas` — mesmos padrões que uso nos relatórios manuais: edad, ingresos, ahorros, antigüedad, contrato, deudas).
-  - Cruzamento com `webhook_logs` (status='success' filtrando pelo webhook Bitrix) — quantos cualificados chegaram efetivamente ao Bitrix.
-- Gera PDF em espanhol usando `jspdf` (mesma lib já em uso no projeto para `invoicePdfGenerator`).
-- Retorna `{ pdf_base64, filename }`.
+## Fora de escopo
 
-### Formato do PDF (espanhol, minimalista, azul primário)
-1. Título + período coberto.
-2. Resumen ejecutivo (total, cualificados, descualificados, tasa, enviados a Bitrix).
-3. Tabla por día (fecha | total | cualificados | descualificados).
-4. Tabla por fuente (meta_ads / tally / manual).
-5. Top motivos de descualificación con conteos.
-6. Nota de metodología (días de calendario Europe/Madrid).
+- Não mudar a UI de `AdminSettings.tsx` (o botão continua igual).
+- Não mudar `meta-lead-webhook` nem lógica de qualificação.
+- Não criar edge function nova.
 
----
+## Dúvidas
 
-## Migração de dados (não schema)
-
-Uma única inserção em `admin_settings` para criar a chave `webhook_secondary_qualified_enabled = 'true'` se não existir (via ferramenta insert, não migration).
-
----
-
-## Detalhes técnicos
-
-- **Arquivos novos:**
-  - `supabase/functions/generate-leads-report/index.ts`
-- **Arquivos alterados:**
-  - `src/pages/AdminSettings.tsx` (nova seção relatório + switch webhook)
-  - `src/hooks/useAdminSettings.ts` (estado do enabled + toggle)
-  - `supabase/functions/_shared/secondaryQualifiedPayload.ts` (checa flag)
-- **Sem mudanças** em: fluxo Meta/Tally, Bitrix, qualificação, tabela `leads`.
-
----
-
-## Perguntas que ficaram
-
-Nenhuma — todas resolvidas nas respostas anteriores. Prossigo assim que aprovado.
+1. Confirma que quer **manter o PDF client-side** (jsPDF) ou prefere migrar para edge function? Recomendo manter — simpler e já funciona.
+2. Sobre ingresos mensuales: as notas atuais **não guardam o campo "Ingresos: X€"** de forma consistente (aparece "Plan combinado" com cuota, não com ingresos brutos). Posso: (a) adicionar bucket de ingresos só quando encontrado no texto, (b) começar a persistir ingresos numa coluna dedicada nos próximos leads (mudança maior), ou (c) omitir a seção de ingresos e deixar clara a limitação. Qual prefere?
