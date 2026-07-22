@@ -15,6 +15,8 @@ export const useAdminSettings = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [metaBitrixWebhookUrl, setMetaBitrixWebhookUrl] = useState('');
   const [secondaryQualifiedUrl, setSecondaryQualifiedUrl] = useState('');
+  const [secondaryEnabled, setSecondaryEnabled] = useState(true);
+  const [savingSecondaryEnabled, setSavingSecondaryEnabled] = useState(false);
   const [inmovillaUrl, setInmovillaUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -79,6 +81,44 @@ export const useAdminSettings = () => {
       if (!error && data) setSecondaryQualifiedUrl(data.value || '');
     } catch (err: any) {
       console.error('[AdminSettings] Error fetching secondary qualified URL:', err);
+    }
+  };
+
+  const fetchSecondaryEnabled = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_secondary_qualified_enabled')
+        .maybeSingle();
+      if (!error) {
+        const val = (data?.value ?? 'true').toString().toLowerCase();
+        setSecondaryEnabled(val !== 'false');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching secondary enabled flag:', err);
+    }
+  };
+
+  const saveSecondaryEnabled = async (enabled: boolean) => {
+    try {
+      setSavingSecondaryEnabled(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { key: 'webhook_secondary_qualified_enabled', value: enabled ? 'true' : 'false', description: 'Enable/disable dispatch of qualified leads to the WhatsApp webhook' },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setSecondaryEnabled(enabled);
+      toast.success(enabled ? 'Envío WhatsApp activado' : 'Envío WhatsApp pausado');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving secondary enabled:', err);
+      toast.error('Error al guardar el estado');
+      return false;
+    } finally {
+      setSavingSecondaryEnabled(false);
     }
   };
 
@@ -295,6 +335,7 @@ export const useAdminSettings = () => {
     fetchMetaBitrixLogs();
     fetchInmovillaUrl();
     fetchSecondaryQualifiedUrl();
+    fetchSecondaryEnabled();
     fetchSecondaryLogs();
   }, []);
 
@@ -302,6 +343,8 @@ export const useAdminSettings = () => {
     webhookUrl,
     metaBitrixWebhookUrl,
     secondaryQualifiedUrl,
+    secondaryEnabled,
+    savingSecondaryEnabled,
     inmovillaUrl,
     loading,
     saving,
@@ -314,6 +357,7 @@ export const useAdminSettings = () => {
     saveWebhookUrl,
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
+    saveSecondaryEnabled,
     saveInmovillaUrl,
     testWebhook,
     testMetaBitrixWebhook,

@@ -84,6 +84,18 @@ export async function dispatchSecondaryQualified(
   input: SecondaryPayloadInput
 ): Promise<{ sent: boolean; status?: number; error?: string }> {
   try {
+    // Check enabled flag first — skip silently if disabled
+    const { data: enabledSetting } = await supabase
+      .from('admin_settings')
+      .select('value')
+      .eq('key', 'webhook_secondary_qualified_enabled')
+      .maybeSingle();
+
+    const enabled = (enabledSetting?.value ?? 'true').toString().toLowerCase() !== 'false';
+    if (!enabled) {
+      return { sent: false, error: 'disabled' };
+    }
+
     const { data: setting } = await supabase
       .from('admin_settings')
       .select('value')

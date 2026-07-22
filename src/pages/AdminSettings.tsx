@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, FileText } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
+import { generateLeadsReport, defaultLast7Days } from '@/lib/leadsReportGenerator';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
@@ -26,6 +28,8 @@ const AdminSettings = () => {
     webhookUrl, 
     metaBitrixWebhookUrl,
     secondaryQualifiedUrl,
+    secondaryEnabled,
+    savingSecondaryEnabled,
     inmovillaUrl,
     loading, 
     saving, 
@@ -38,6 +42,7 @@ const AdminSettings = () => {
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
+    saveSecondaryEnabled,
     saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
@@ -55,6 +60,10 @@ const AdminSettings = () => {
   const [exporting, setExporting] = useState(false);
   const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
   const [replaying, setReplaying] = useState(false);
+  const defaults = defaultLast7Days();
+  const [reportStart, setReportStart] = useState(defaults.start);
+  const [reportEnd, setReportEnd] = useState(defaults.end);
+  const [generatingReport, setGeneratingReport] = useState(false);
   
   const [scrapingStats, setScrapingStats] = useState({
     total: 0, pending: 0, completed: 0, failed: 0, progress: 0
@@ -87,6 +96,41 @@ const AdminSettings = () => {
     const sinceIso = new Date(replaySince).toISOString();
     await replayQualifiedSince(sinceIso);
     setReplaying(false);
+  };
+
+  const handleGenerateReport = async (mode: 'last7' | 'custom') => {
+    let start = reportStart;
+    let end = reportEnd;
+    if (mode === 'last7') {
+      const d = defaultLast7Days();
+      start = d.start;
+      end = d.end;
+      setReportStart(d.start);
+      setReportEnd(d.end);
+    }
+    if (!start || !end || start > end) {
+      toast.error('Rango de fechas inválido');
+      return;
+    }
+    try {
+      setGeneratingReport(true);
+      toast.info('Generando informe...');
+      const { filename, blob } = await generateLeadsReport(start, end);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Informe generado');
+    } catch (err: any) {
+      console.error('[Report] Error:', err);
+      toast.error('Error al generar el informe');
+    } finally {
+      setGeneratingReport(false);
+    }
   };
 
   const fetchScrapingStats = async () => {
@@ -209,6 +253,62 @@ const AdminSettings = () => {
           <h1 className="text-3xl font-bold">Configuraciones del Sistema</h1>
           <p className="text-muted-foreground mt-1">Gestión de integraciones y exportaciones</p>
         </div>
+
+        {/* Informe de cualificación de leads */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Informe de cualificación de leads
+            </CardTitle>
+            <CardDescription>
+              Genera un PDF en español con métricas de cualificación por día, fuente y motivos de descualificación.
+              Los cortes se calculan por días de calendario en zona <code>Europe/Madrid</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleGenerateReport('last7')} disabled={generatingReport}>
+                <FileText className="h-4 w-4 mr-2" />
+                {generatingReport ? 'Generando...' : 'Generar informe (últimos 7 días)'}
+              </Button>
+            </div>
+
+            <div className="pt-3 border-t space-y-3">
+              <p className="text-sm font-medium">Período personalizado</p>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor="report-start" className="text-xs">Fecha inicio</Label>
+                  <Input
+                    id="report-start"
+                    type="date"
+                    value={reportStart}
+                    onChange={(e) => setReportStart(e.target.value)}
+                    className="w-[170px]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="report-end" className="text-xs">Fecha fin</Label>
+                  <Input
+                    id="report-end"
+                    type="date"
+                    value={reportEnd}
+                    onChange={(e) => setReportEnd(e.target.value)}
+                    className="w-[170px]"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handleGenerateReport('custom')}
+                  disabled={generatingReport}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar informe personalizado
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Integração Make.com - Leads Qualificados */}
         <Card>
@@ -366,11 +466,26 @@ const AdminSettings = () => {
         {/* Webhook WhatsApp — Leads Cualificados (fan-out) */}
         <Card>
           <CardHeader>
-            <CardTitle>Webhook WhatsApp — Datos de Leads Cualificados</CardTitle>
-            <CardDescription>
-              Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado al servicio de recordatorios por WhatsApp
-              (u otra automatización externa). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
-            </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Webhook WhatsApp — Datos de Leads Cualificados</CardTitle>
+                <CardDescription>
+                  Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado al servicio de recordatorios por WhatsApp
+                  (u otra automatización externa). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 pt-1">
+                <Switch
+                  checked={secondaryEnabled}
+                  disabled={savingSecondaryEnabled}
+                  onCheckedChange={(v) => saveSecondaryEnabled(v)}
+                  aria-label="Activar envío WhatsApp"
+                />
+                <span className="text-sm font-medium">
+                  {secondaryEnabled ? 'Envío activo' : 'Envío pausado'}
+                </span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
