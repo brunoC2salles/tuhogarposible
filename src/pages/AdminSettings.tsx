@@ -410,11 +410,26 @@ const AdminSettings = () => {
         {/* Webhook WhatsApp — Leads Cualificados (fan-out) */}
         <Card>
           <CardHeader>
-            <CardTitle>Webhook WhatsApp — Datos de Leads Cualificados</CardTitle>
-            <CardDescription>
-              Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado al servicio de recordatorios por WhatsApp
-              (u otra automatización externa). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
-            </CardDescription>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Webhook WhatsApp — Datos de Leads Cualificados</CardTitle>
+                <CardDescription>
+                  Envía automáticamente el <strong>payload completo</strong> de cada lead cualificado al servicio de recordatorios por WhatsApp
+                  (u otra automatización externa). Se dispara <em>en paralelo</em> al webhook Bitrix, sin bloquearlo.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 pt-1">
+                <Switch
+                  checked={secondaryEnabled}
+                  disabled={savingSecondaryEnabled}
+                  onCheckedChange={(v) => saveSecondaryEnabled(v)}
+                  aria-label="Activar envío WhatsApp"
+                />
+                <span className="text-sm font-medium">
+                  {secondaryEnabled ? 'Envío activo' : 'Envío pausado'}
+                </span>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
