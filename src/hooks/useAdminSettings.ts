@@ -15,6 +15,8 @@ export const useAdminSettings = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [metaBitrixWebhookUrl, setMetaBitrixWebhookUrl] = useState('');
   const [secondaryQualifiedUrl, setSecondaryQualifiedUrl] = useState('');
+  const [secondaryEnabled, setSecondaryEnabled] = useState(true);
+  const [savingSecondaryEnabled, setSavingSecondaryEnabled] = useState(false);
   const [inmovillaUrl, setInmovillaUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
