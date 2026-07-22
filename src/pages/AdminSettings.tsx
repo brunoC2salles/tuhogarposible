@@ -254,6 +254,62 @@ const AdminSettings = () => {
           <p className="text-muted-foreground mt-1">Gestión de integraciones y exportaciones</p>
         </div>
 
+        {/* Informe de cualificación de leads */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Informe de cualificación de leads
+            </CardTitle>
+            <CardDescription>
+              Genera un PDF en español con métricas de cualificación por día, fuente y motivos de descualificación.
+              Los cortes se calculan por días de calendario en zona <code>Europe/Madrid</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => handleGenerateReport('last7')} disabled={generatingReport}>
+                <FileText className="h-4 w-4 mr-2" />
+                {generatingReport ? 'Generando...' : 'Generar informe (últimos 7 días)'}
+              </Button>
+            </div>
+
+            <div className="pt-3 border-t space-y-3">
+              <p className="text-sm font-medium">Período personalizado</p>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor="report-start" className="text-xs">Fecha inicio</Label>
+                  <Input
+                    id="report-start"
+                    type="date"
+                    value={reportStart}
+                    onChange={(e) => setReportStart(e.target.value)}
+                    className="w-[170px]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="report-end" className="text-xs">Fecha fin</Label>
+                  <Input
+                    id="report-end"
+                    type="date"
+                    value={reportEnd}
+                    onChange={(e) => setReportEnd(e.target.value)}
+                    className="w-[170px]"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => handleGenerateReport('custom')}
+                  disabled={generatingReport}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Generar informe personalizado
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Integração Make.com - Leads Qualificados */}
         <Card>
           <CardHeader>
