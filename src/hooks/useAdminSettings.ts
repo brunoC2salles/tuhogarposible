@@ -84,6 +84,44 @@ export const useAdminSettings = () => {
     }
   };
 
+  const fetchSecondaryEnabled = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_secondary_qualified_enabled')
+        .maybeSingle();
+      if (!error) {
+        const val = (data?.value ?? 'true').toString().toLowerCase();
+        setSecondaryEnabled(val !== 'false');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching secondary enabled flag:', err);
+    }
+  };
+
+  const saveSecondaryEnabled = async (enabled: boolean) => {
+    try {
+      setSavingSecondaryEnabled(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { key: 'webhook_secondary_qualified_enabled', value: enabled ? 'true' : 'false', description: 'Enable/disable dispatch of qualified leads to the WhatsApp webhook' },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setSecondaryEnabled(enabled);
+      toast.success(enabled ? 'Envío WhatsApp activado' : 'Envío WhatsApp pausado');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving secondary enabled:', err);
+      toast.error('Error al guardar el estado');
+      return false;
+    } finally {
+      setSavingSecondaryEnabled(false);
+    }
+  };
+
   const fetchSecondaryLogs = async () => {
     try {
       const { data, error } = await supabase
