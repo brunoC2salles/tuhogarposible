@@ -28,6 +28,8 @@ const AdminSettings = () => {
     webhookUrl, 
     metaBitrixWebhookUrl,
     secondaryQualifiedUrl,
+    secondaryEnabled,
+    savingSecondaryEnabled,
     inmovillaUrl,
     loading, 
     saving, 
@@ -40,6 +42,7 @@ const AdminSettings = () => {
     saveWebhookUrl, 
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
+    saveSecondaryEnabled,
     saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
@@ -57,6 +60,10 @@ const AdminSettings = () => {
   const [exporting, setExporting] = useState(false);
   const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
   const [replaying, setReplaying] = useState(false);
+  const defaults = defaultLast7Days();
+  const [reportStart, setReportStart] = useState(defaults.start);
+  const [reportEnd, setReportEnd] = useState(defaults.end);
+  const [generatingReport, setGeneratingReport] = useState(false);
   
   const [scrapingStats, setScrapingStats] = useState({
     total: 0, pending: 0, completed: 0, failed: 0, progress: 0
