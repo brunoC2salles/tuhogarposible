@@ -335,6 +335,7 @@ export const useAdminSettings = () => {
     fetchMetaBitrixLogs();
     fetchInmovillaUrl();
     fetchSecondaryQualifiedUrl();
+    fetchSecondaryEnabled();
     fetchSecondaryLogs();
   }, []);
 
@@ -342,6 +343,8 @@ export const useAdminSettings = () => {
     webhookUrl,
     metaBitrixWebhookUrl,
     secondaryQualifiedUrl,
+    secondaryEnabled,
+    savingSecondaryEnabled,
     inmovillaUrl,
     loading,
     saving,
@@ -354,6 +357,7 @@ export const useAdminSettings = () => {
     saveWebhookUrl,
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
+    saveSecondaryEnabled,
     saveInmovillaUrl,
     testWebhook,
     testMetaBitrixWebhook,
