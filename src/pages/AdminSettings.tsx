@@ -7,10 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, FileText } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
+import { generateLeadsReport, defaultLast7Days } from '@/lib/leadsReportGenerator';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import {
