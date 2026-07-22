@@ -98,6 +98,41 @@ const AdminSettings = () => {
     setReplaying(false);
   };
 
+  const handleGenerateReport = async (mode: 'last7' | 'custom') => {
+    let start = reportStart;
+    let end = reportEnd;
+    if (mode === 'last7') {
+      const d = defaultLast7Days();
+      start = d.start;
+      end = d.end;
+      setReportStart(d.start);
+      setReportEnd(d.end);
+    }
+    if (!start || !end || start > end) {
+      toast.error('Rango de fechas inválido');
+      return;
+    }
+    try {
+      setGeneratingReport(true);
+      toast.info('Generando informe...');
+      const { filename, blob } = await generateLeadsReport(start, end);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Informe generado');
+    } catch (err: any) {
+      console.error('[Report] Error:', err);
+      toast.error('Error al generar el informe');
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
   const fetchScrapingStats = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('scraping-status');
