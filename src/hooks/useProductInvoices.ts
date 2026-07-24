@@ -128,7 +128,7 @@ export const useProductInvoices = () => {
       // Get invoice details first
       const { data: invoice, error: fetchError } = await supabase
         .from('product_invoices')
-        .select('*, profiles!product_invoices_agent_id_fkey(comision_porcentaje)')
+        .select('*')
         .eq('id', id)
         .single();
       
