@@ -216,8 +216,9 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
   let fechaYMD = fechaResult.ymd;
   let hora = horaResult.hora;
 
-  // Empurra fim de semana fora de menção explícita SOMENTE quando temos hora real
-  if (fechaYMD && hora && isWeekend(fechaYMD.y, fechaYMD.m, fechaYMD.d) && !fechaResult.mentionedWeekend) {
+  // Fim de semana (sábado/domingo) SEMPRE é empurrado para o próximo dia útil,
+  // mesmo quando o lead menciona explicitamente. Preservamos o horário.
+  if (fechaYMD && isWeekend(fechaYMD.y, fechaYMD.m, fechaYMD.d)) {
     fechaYMD = nextBusinessDay(fechaYMD.y, fechaYMD.m, fechaYMD.d, false);
   }
 
