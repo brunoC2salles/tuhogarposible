@@ -1215,10 +1215,8 @@ Deno.serve(async (req) => {
     } else if (qualificacao.cualificado) {
       try {
         const { data: agenteData, error: agenteError } = await supabase.functions.invoke('get-next-agent', {
-          body: { 
-            region: region,
-            considerarTurno: true,
-            turnoOverride: turnoPreferido
+          body: {
+            reunion_datetime: (data as any).reunion_datetime || null,
           }
         });
         
