@@ -10,7 +10,7 @@ export interface Profile {
   telefono?: string;
   role: 'admin' | 'agente' | 'supervisor';
   activo: boolean;
-  comision_porcentaje?: number;
+  
   created_at: string;
   updated_at: string;
 }
