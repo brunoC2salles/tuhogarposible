@@ -149,35 +149,6 @@ export default function AgenteDetails() {
                 <p className="font-medium">{agent.telefono}</p>
               </div>
             )}
-            {agent.tidycal_url && (
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Tidycal
-                </p>
-                <a 
-                  href={agent.tidycal_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Ver calendario
-                </a>
-              </div>
-            )}
-            {agent.region_round_robin && agent.region_round_robin.length > 0 && (
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  Regiones Round Robin
-                </p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {agent.region_round_robin.map(r => (
-                    <Badge key={r} variant="outline" className="text-xs">{r}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
