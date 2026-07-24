@@ -19,8 +19,6 @@ interface Agent {
   nombre: string;
   email: string;
   telefono: string | null;
-  region_round_robin: string[] | null;
-  tidycal_url: string | null;
   created_at: string;
   activo: boolean;
 }
