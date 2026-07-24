@@ -150,7 +150,7 @@ export const useProductInvoices = () => {
       // Create variable costs for agent commission (if agent assigned)
       // NOTE: Bruno's commission is now calculated monthly on total billing, not per invoice
       if (invoice.agent_id) {
-        const agentCommissionPercent = (invoice.profiles as any)?.comision_porcentaje || 0;
+        const agentCommissionPercent = 0;
         const agentCommission = invoice.total * (agentCommissionPercent / 100);
         
         if (agentCommission > 0) {
