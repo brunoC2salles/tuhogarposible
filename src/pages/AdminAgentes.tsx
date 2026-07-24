@@ -11,67 +11,51 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Edit, UserCheck, UserX, Trash2 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { COMUNIDADES_AUTONOMAS } from "@/lib/comunidadesAutonomas";
+import { Edit, UserCheck, UserX, Trash2, Clock } from "lucide-react";
+import { AgentAvailabilityEditor } from "@/components/agents/AgentAvailabilityEditor";
 
 interface Agent {
   id: string;
   nombre: string;
   email: string;
-  telefono?: string;
-  dni_nie?: string;
-  tidycal_url?: string;
-  region_round_robin?: string[];
+  telefono?: string | null;
   activo: boolean;
-  comision_porcentaje?: number;
-  disponibilidad?: string[];
 }
 
-const TURNOS_DISPONIBILIDAD = [
-  { value: 'mañana', label: 'Mañana (08:00-14:00)' },
-  { value: 'tarde', label: 'Tarde (14:00-20:00)' },
-  { value: 'noche', label: 'Noche (20:00-08:00)' },
-];
-
 export default function AdminAgentes() {
-  console.log('[AdminAgentes] Component rendering');
   const [agents, setAgents] = useState<Agent[]>([]);
   const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [regionFilter, setRegionFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  
-  const [editModal, setEditModal] = useState<{
-    open: boolean;
-    agent: Agent | null;
-  }>({ open: false, agent: null });
+
+  const [editModal, setEditModal] = useState<{ open: boolean; agent: Agent | null }>({
+    open: false,
+    agent: null,
+  });
+  const [availabilityModal, setAvailabilityModal] = useState<{ open: boolean; agent: Agent | null }>({
+    open: false,
+    agent: null,
+  });
 
   const [editFormData, setEditFormData] = useState({
     nombre: "",
     telefono: "",
-    dni_nie: "",
-    tidycal_url: "",
-    region_round_robin: [] as string[],
     activo: true,
-    comision_porcentaje: 0,
-    disponibilidad: ['mañana', 'tarde', 'noche'] as string[],
   });
 
   const fetchAgents = async () => {
-    console.log('[AdminAgentes] Fetching agents...');
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, dni_nie, tidycal_url, region_round_robin, activo, role, comision_porcentaje, disponibilidad")
+        .select("id, nombre, email, telefono, activo, role")
         .eq("role", "agente")
         .order("nombre");
 
       if (error) throw error;
-      console.log('[AdminAgentes] Agents fetched successfully:', data?.length || 0);
-      setAgents(data || []);
-      setFilteredAgents(data || []);
+      const list = (data || []) as Agent[];
+      setAgents(list);
+      setFilteredAgents(list);
     } catch (error: any) {
       console.error("[AdminAgentes] Error fetching agents:", error);
       toast.error("Error al cargar agentes");
@@ -86,76 +70,44 @@ export default function AdminAgentes() {
 
   useEffect(() => {
     let filtered = agents;
-
     if (searchTerm) {
       filtered = filtered.filter(
         (a) =>
           a.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          a.email.toLowerCase().includes(searchTerm.toLowerCase())
+          a.email.toLowerCase().includes(searchTerm.toLowerCase()),
       );
     }
-
-    // Filter by region (checks if agent has that region in their array)
-    if (regionFilter !== "all") {
-      filtered = filtered.filter((a) => a.region_round_robin?.includes(regionFilter));
-    }
-
     if (statusFilter !== "all") {
       filtered = filtered.filter((a) => a.activo === (statusFilter === "active"));
     }
-
     setFilteredAgents(filtered);
-  }, [searchTerm, regionFilter, statusFilter, agents]);
+  }, [searchTerm, statusFilter, agents]);
 
   const handleEdit = (agent: Agent) => {
     setEditFormData({
       nombre: agent.nombre,
       telefono: agent.telefono || "",
-      dni_nie: agent.dni_nie || "",
-      tidycal_url: agent.tidycal_url || "",
-      region_round_robin: agent.region_round_robin || [],
       activo: agent.activo,
-      comision_porcentaje: agent.comision_porcentaje || 0,
-      disponibilidad: agent.disponibilidad || ['mañana', 'tarde', 'noche'],
     });
     setEditModal({ open: true, agent });
   };
 
   const handleSaveEdit = async () => {
     if (!editModal.agent) return;
-
     if (!editFormData.nombre.trim()) {
       toast.error("El nombre es obligatorio");
       return;
     }
-
-    if (!editFormData.dni_nie.trim()) {
-      toast.error("El DNI/NIE es obligatorio");
-      return;
-    }
-
-    if (editFormData.tidycal_url && !editFormData.tidycal_url.startsWith("https://tidycal.com/")) {
-      toast.error("La URL de Tidycal debe comenzar con https://tidycal.com/");
-      return;
-    }
-
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
           nombre: editFormData.nombre.trim(),
           telefono: editFormData.telefono.trim() || null,
-          dni_nie: editFormData.dni_nie.trim(),
-          tidycal_url: editFormData.tidycal_url.trim() || null,
-          region_round_robin: editFormData.region_round_robin.length > 0 ? editFormData.region_round_robin : null,
           activo: editFormData.activo,
-          comision_porcentaje: editFormData.comision_porcentaje,
-          disponibilidad: editFormData.disponibilidad,
         })
         .eq("id", editModal.agent.id);
-
       if (error) throw error;
-
       toast.success("Agente actualizado correctamente");
       setEditModal({ open: false, agent: null });
       fetchAgents();
@@ -171,9 +123,7 @@ export default function AdminAgentes() {
         .from("profiles")
         .update({ activo: !agent.activo })
         .eq("id", agent.id);
-
       if (error) throw error;
-
       toast.success(`Agente ${!agent.activo ? "activado" : "desactivado"} correctamente`);
       fetchAgents();
     } catch (error: any) {
@@ -185,43 +135,21 @@ export default function AdminAgentes() {
   const deleteAgent = async (agent: Agent) => {
     const confirmed = confirm(
       `⚠️ ATENCIÓN: Esta acción es IRREVERSIBLE.\n\n` +
-      `¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE al agente ${agent.nombre}?\n\n` +
-      `Los leads asignados a este agente se mantendrán en el sistema pero quedarán sin agente asignado.\n\n` +
-      `Esta acción NO se puede deshacer.`
+        `¿Eliminar permanentemente al agente ${agent.nombre}?`,
     );
-
     if (!confirmed) return;
 
     try {
-      const { error: rolesError } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", agent.id);
-
+      const { error: rolesError } = await supabase.from("user_roles").delete().eq("user_id", agent.id);
       if (rolesError) throw rolesError;
-
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", agent.id);
-
+      const { error: profileError } = await supabase.from("profiles").delete().eq("id", agent.id);
       if (profileError) throw profileError;
-
-      toast.success(`Agente ${agent.nombre} eliminado permanentemente. Sus leads se mantuvieron sin agente asignado.`);
+      toast.success(`Agente ${agent.nombre} eliminado permanentemente.`);
       fetchAgents();
     } catch (error: any) {
       console.error("Error deleting agent:", error);
       toast.error(`Error al eliminar agente: ${error.message}`);
     }
-  };
-
-  const toggleEditRegion = (region: string) => {
-    setEditFormData(prev => ({
-      ...prev,
-      region_round_robin: prev.region_round_robin.includes(region)
-        ? prev.region_round_robin.filter(r => r !== region)
-        : [...prev.region_round_robin, region]
-    }));
   };
 
   if (isLoading) {
@@ -234,20 +162,19 @@ export default function AdminAgentes() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Gestión de Agentes</h1>
           <p className="text-muted-foreground mt-1">
-            Administra los agentes y su configuración de Round-Robin
+            Administra los agentes y su disponibilidad horaria semanal
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">Gestión de Agentes</CardTitle>
+            <CardTitle className="text-2xl">Agentes</CardTitle>
             <CardDescription>
-              Administra los agentes y su configuración de Round-Robin
+              Todos los agentes atienden todas las regiones. La asignación de leads se hace por disponibilidad horaria.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Filtros */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <Label>Buscar</Label>
                 <Input
@@ -255,20 +182,6 @@ export default function AdminAgentes() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-              </div>
-              <div>
-                <Label>Región</Label>
-                <Select value={regionFilter} onValueChange={setRegionFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas</SelectItem>
-                    {COMUNIDADES_AUTONOMAS.map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <div>
                 <Label>Estado</Label>
@@ -285,7 +198,6 @@ export default function AdminAgentes() {
               </div>
             </div>
 
-            {/* Tabela */}
             <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
@@ -293,11 +205,6 @@ export default function AdminAgentes() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Teléfono</TableHead>
-                    <TableHead>DNI/NIE</TableHead>
-                    <TableHead>URL Tidycal</TableHead>
-                    <TableHead>Regiones</TableHead>
-                    <TableHead>Disponibilidad</TableHead>
-                    <TableHead>Comisión %</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
@@ -309,53 +216,20 @@ export default function AdminAgentes() {
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
                       <TableCell>
-                        {agent.dni_nie || <span className="text-orange-500 font-medium">⚠️ Sin DNI/NIE</span>}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">
-                        {agent.tidycal_url ? (
-                          <a
-                            href={agent.tidycal_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {agent.tidycal_url}
-                          </a>
-                        ) : (
-                          <span className="text-muted-foreground">Sin configurar</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {agent.region_round_robin && agent.region_round_robin.length > 0 ? (
-                          <Badge variant="outline">{agent.region_round_robin.length} regiones</Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {agent.disponibilidad && agent.disponibilidad.length > 0 ? (
-                            agent.disponibilidad.map((turno) => (
-                              <Badge key={turno} variant="outline" className="text-xs">
-                                {turno === 'mañana' ? '☀️' : turno === 'tarde' ? '🌤️' : '🌙'}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground text-xs">Sin horario</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{agent.comision_porcentaje || 0}%</Badge>
-                      </TableCell>
-                      <TableCell>
                         <Badge variant={agent.activo ? "default" : "secondary"}>
                           {agent.activo ? "Activo" : "Inactivo"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setAvailabilityModal({ open: true, agent })}
+                            title="Gestionar disponibilidad"
+                          >
+                            <Clock className="h-4 w-4" />
+                          </Button>
                           <Button size="sm" variant="outline" onClick={() => handleEdit(agent)}>
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -366,12 +240,7 @@ export default function AdminAgentes() {
                           >
                             {agent.activo ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteAgent(agent)}
-                            title="Eliminar agente permanentemente"
-                          >
+                          <Button size="sm" variant="destructive" onClick={() => deleteAgent(agent)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -380,7 +249,7 @@ export default function AdminAgentes() {
                   ))}
                   {filteredAgents.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                         No se encontraron agentes
                       </TableCell>
                     </TableRow>
@@ -391,15 +260,17 @@ export default function AdminAgentes() {
           </CardContent>
         </Card>
 
-        {/* Modal de edição */}
         <Dialog open={editModal.open} onOpenChange={(open) => setEditModal({ ...editModal, open })}>
-          <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Editar Agente</DialogTitle>
             </DialogHeader>
-            <form 
-              id="edit-form" 
-              onSubmit={(e) => { e.preventDefault(); handleSaveEdit(); }} 
+            <form
+              id="edit-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveEdit();
+              }}
               className="space-y-4 py-4"
             >
               <div className="space-y-2">
@@ -410,12 +281,10 @@ export default function AdminAgentes() {
                   onChange={(e) => setEditFormData({ ...editFormData, nombre: e.target.value })}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input value={editModal.agent?.email || ""} disabled className="bg-gray-100" />
               </div>
-
               <div className="space-y-2">
                 <Label htmlFor="edit-telefono">Teléfono</Label>
                 <Input
@@ -424,105 +293,6 @@ export default function AdminAgentes() {
                   onChange={(e) => setEditFormData({ ...editFormData, telefono: e.target.value })}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-dni">DNI/NIE *</Label>
-                <Input
-                  id="edit-dni"
-                  value={editFormData.dni_nie}
-                  onChange={(e) => setEditFormData({ ...editFormData, dni_nie: e.target.value })}
-                  placeholder="12345678X"
-                />
-                <p className="text-xs text-muted-foreground">⚠️ El DNI/NIE es obligatorio para generar contratos</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-tidycal">URL Tidycal</Label>
-                <Input
-                  id="edit-tidycal"
-                  value={editFormData.tidycal_url}
-                  onChange={(e) => setEditFormData({ ...editFormData, tidycal_url: e.target.value })}
-                  placeholder="https://tidycal.com/..."
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Regiones Round-Robin</Label>
-                  <div className="flex gap-2">
-                    <Button type="button" variant="outline" size="sm" onClick={() => setEditFormData(prev => ({ ...prev, region_round_robin: [...COMUNIDADES_AUTONOMAS] }))}>Todas</Button>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setEditFormData(prev => ({ ...prev, region_round_robin: [] }))}>Ninguna</Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-1 max-h-48 overflow-y-auto border rounded-lg p-2">
-                  {COMUNIDADES_AUTONOMAS.map((region) => (
-                    <div key={region} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`edit-region-${region}`}
-                        checked={editFormData.region_round_robin.includes(region)}
-                        onCheckedChange={() => toggleEditRegion(region)}
-                      />
-                      <Label htmlFor={`edit-region-${region}`} className="font-normal text-xs cursor-pointer">
-                        {region}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {editFormData.region_round_robin.length} regiones seleccionadas
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Disponibilidad (Turnos)</Label>
-                <div className="flex flex-wrap gap-4">
-                  {TURNOS_DISPONIBILIDAD.map((turno) => (
-                    <div key={turno.value} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`turno-${turno.value}`}
-                        checked={editFormData.disponibilidad.includes(turno.value)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setEditFormData({
-                              ...editFormData,
-                              disponibilidad: [...editFormData.disponibilidad, turno.value]
-                            });
-                          } else {
-                            setEditFormData({
-                              ...editFormData,
-                              disponibilidad: editFormData.disponibilidad.filter(t => t !== turno.value)
-                            });
-                          }
-                        }}
-                      />
-                      <Label htmlFor={`turno-${turno.value}`} className="font-normal text-sm">
-                        {turno.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Horarios en que el agente puede recibir leads del Round-Robin
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="edit-comision">Porcentaje de Comisión (%)</Label>
-                <Input
-                  id="edit-comision"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  value={editFormData.comision_porcentaje}
-                  onChange={(e) => setEditFormData({ ...editFormData, comision_porcentaje: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Porcentaje que el agente recibe del total facturado (0-100)
-                </p>
-              </div>
-
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="edit-activo"
@@ -533,17 +303,27 @@ export default function AdminAgentes() {
               </div>
             </form>
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setEditModal({ open: false, agent: null })}
-              >
+              <Button type="button" variant="outline" onClick={() => setEditModal({ open: false, agent: null })}>
                 Cancelar
               </Button>
               <Button type="submit" form="edit-form">
                 Guardar Cambios
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={availabilityModal.open}
+          onOpenChange={(open) => setAvailabilityModal({ ...availabilityModal, open })}
+        >
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Disponibilidad — {availabilityModal.agent?.nombre}</DialogTitle>
+            </DialogHeader>
+            {availabilityModal.agent && (
+              <AgentAvailabilityEditor agentId={availabilityModal.agent.id} />
+            )}
           </DialogContent>
         </Dialog>
       </div>
