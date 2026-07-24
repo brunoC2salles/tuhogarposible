@@ -94,6 +94,44 @@ export type Database = {
           },
         ]
       }
+      agent_availability: {
+        Row: {
+          agent_id: string
+          created_at: string
+          end_time: string
+          id: string
+          start_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          end_time: string
+          id?: string
+          start_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          start_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_availability_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_variable_costs: {
         Row: {
           agent_id: string
@@ -1070,47 +1108,32 @@ export type Database = {
       profiles: {
         Row: {
           activo: boolean
-          comision_porcentaje: number
           created_at: string
-          disponibilidad: string[] | null
-          dni_nie: string | null
           email: string
           id: string
           nombre: string
-          region_round_robin: string[] | null
           role: Database["public"]["Enums"]["user_role"]
           telefono: string | null
-          tidycal_url: string | null
           updated_at: string
         }
         Insert: {
           activo?: boolean
-          comision_porcentaje?: number
           created_at?: string
-          disponibilidad?: string[] | null
-          dni_nie?: string | null
           email: string
           id: string
           nombre: string
-          region_round_robin?: string[] | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
-          tidycal_url?: string | null
           updated_at?: string
         }
         Update: {
           activo?: boolean
-          comision_porcentaje?: number
           created_at?: string
-          disponibilidad?: string[] | null
-          dni_nie?: string | null
           email?: string
           id?: string
           nombre?: string
-          region_round_robin?: string[] | null
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
-          tidycal_url?: string | null
           updated_at?: string
         }
         Relationships: []

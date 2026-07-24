@@ -23,7 +23,7 @@ const SupervisorFinanceiro = () => {
   // Calcular totais
   const totalPaidInvoices = myPaidInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
   const totalFaturacoes = myFaturacoes.reduce((sum, fat) => sum + fat.valor, 0);
-  const totalComissoes = totalPaidInvoices * ((profile?.comision_porcentaje || 0) / 100);
+  const totalComissoes = 0;
   
   // Saldo mensal previsto (baseado em custos variáveis pendentes do mês atual)
   const saldoMensual = calculateMonthlyBalance();
@@ -72,7 +72,7 @@ const SupervisorFinanceiro = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Mi Comisión ({profile?.comision_porcentaje}%)</CardTitle>
+              <CardTitle className="text-sm font-medium">Mi Comisión</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>

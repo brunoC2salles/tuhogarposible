@@ -488,7 +488,7 @@ const ControleFinanceiro = () => {
                           (inv) => inv.agent_id === agente.id && (inv.status === 'pagada' || inv.paid_at)
                         );
                         const totalFacturado = agenteInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
-                        const comisionPercentage = agente.comision_porcentaje || 0;
+                        const comisionPercentage = 0;
                         const comisionAgente = totalFacturado * (comisionPercentage / 100);
                         const receitaEmpresa = totalFacturado - comisionAgente;
 

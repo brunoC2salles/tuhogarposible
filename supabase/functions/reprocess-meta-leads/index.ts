@@ -289,7 +289,7 @@ Deno.serve(async (req) => {
               body: { region: null, considerarTurno: false },
             });
             const a = agentRes?.data;
-            if (a?.agent_id) agente = { id: a.agent_id, nombre: a.nombre, email: a.email, telefono: a.telefono, tidycal_url: a.tidycal_url };
+            if (a?.agent_id) agente = { id: a.agent_id, nombre: a.nombre, email: a.email, telefono: a.telefono };
           } catch (e) { console.warn('[reprocess] get-next-agent failed:', e); }
 
           // Update DB: mover a nuevo_lead, asignar agente, actualizar sim

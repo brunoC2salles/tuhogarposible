@@ -19,8 +19,6 @@ interface Agent {
   nombre: string;
   email: string;
   telefono: string | null;
-  region_round_robin: string[] | null;
-  tidycal_url: string | null;
   created_at: string;
   activo: boolean;
 }
@@ -125,9 +123,6 @@ export default function AgenteDetails() {
             <Badge variant={agent.activo ? "default" : "secondary"} className="text-xs">
               {agent.activo ? 'Activo' : 'Inactivo'}
             </Badge>
-            {agent.region_round_robin && agent.region_round_robin.length > 0 && (
-              <Badge variant="outline" className="text-xs">{agent.region_round_robin.length} regiones</Badge>
-            )}
           </div>
         </div>
       </div>
@@ -152,35 +147,6 @@ export default function AgenteDetails() {
                   Teléfono
                 </p>
                 <p className="font-medium">{agent.telefono}</p>
-              </div>
-            )}
-            {agent.tidycal_url && (
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
-                  Tidycal
-                </p>
-                <a 
-                  href={agent.tidycal_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Ver calendario
-                </a>
-              </div>
-            )}
-            {agent.region_round_robin && agent.region_round_robin.length > 0 && (
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  Regiones Round Robin
-                </p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {agent.region_round_robin.map(r => (
-                    <Badge key={r} variant="outline" className="text-xs">{r}</Badge>
-                  ))}
-                </div>
               </div>
             )}
           </CardContent>
