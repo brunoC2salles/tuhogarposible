@@ -1460,7 +1460,7 @@ Deno.serve(async (req) => {
         nombre: agenteAsignado.nombre,
         email: agenteAsignado.email,
         telefono: agenteAsignado.telefono || null,
-        tidycal_url: agenteAsignado.tidycal_url || null
+        tidycal_url: null
       } : null,
       
       simulacion_personal: simulacionPersonal,
