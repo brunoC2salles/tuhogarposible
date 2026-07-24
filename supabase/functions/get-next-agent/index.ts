@@ -125,6 +125,37 @@ Deno.serve(async (req) => {
           }
         }
       }
+
+      // 2b. Excluir agentes que ya tienen un lead exactamente en ese reunion_datetime
+      try {
+        const target = new Date(reunion_datetime);
+        if (!isNaN(target.getTime())) {
+          // Ventana de ±1 minuto para absorber ms/precisión
+          const from = new Date(target.getTime() - 60 * 1000).toISOString();
+          const to = new Date(target.getTime() + 60 * 1000).toISOString();
+          const { data: conflictLeads, error: conflictErr } = await supabaseAdmin
+            .from('leads')
+            .select('agente_asignado_id, reunion_datetime')
+            .not('agente_asignado_id', 'is', null)
+            .gte('reunion_datetime', from)
+            .lte('reunion_datetime', to);
+
+          if (conflictErr) {
+            console.error('[Round-Robin] Error comprobando conflictos:', conflictErr);
+          } else if (conflictLeads && conflictLeads.length > 0) {
+            const busy = new Set(conflictLeads.map((l: any) => l.agente_asignado_id));
+            const free = candidates.filter((a) => !busy.has(a.id));
+            console.log(`[Round-Robin] ocupados=${busy.size} libres=${free.length}/${candidates.length}`);
+            if (free.length > 0) {
+              candidates = free;
+            } else {
+              console.warn('[Round-Robin] Todos ocupados en ese slot; se mantiene pool para no fallar la asignación.');
+            }
+          }
+        }
+      } catch (e) {
+        console.error('[Round-Robin] Excepción comprobando conflictos:', e);
+      }
     }
 
     // 3. Round-robin global
