@@ -23,7 +23,7 @@ const SupervisorFinanceiro = () => {
   // Calcular totais
   const totalPaidInvoices = myPaidInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
   const totalFaturacoes = myFaturacoes.reduce((sum, fat) => sum + fat.valor, 0);
-  const totalComissoes = totalPaidInvoices * ((profile?.comision_porcentaje || 0) / 100);
+  const totalComissoes = 0;
   
   // Saldo mensal previsto (baseado em custos variáveis pendentes do mês atual)
   const saldoMensual = calculateMonthlyBalance();
