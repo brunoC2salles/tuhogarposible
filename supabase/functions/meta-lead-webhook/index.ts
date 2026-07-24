@@ -1232,31 +1232,25 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] Exceção ao buscar agente:', err);
       }
 
-      // FALLBACK DIRETO: Se get-next-agent falhou, buscar agente diretamente
+      // FALLBACK DIRETO: Se get-next-agent falhou, buscar qualquer agente ativo
       if (!agenteAsignado) {
         console.warn('[meta-lead-webhook] get-next-agent falhou, usando fallback direto');
         try {
           const { data: fallbackAgents } = await supabase
             .from('profiles')
-            .select('id, nombre, email, telefono, tidycal_url, region_round_robin')
+            .select('id, nombre, email, telefono')
             .eq('activo', true)
+            .eq('role', 'agente')
             .neq('id', HOUSAGE_AGENT_ID)
-            .not('region_round_robin', 'is', null)
             .order('nombre');
 
           if (fallbackAgents && fallbackAgents.length > 0) {
-            // Sort by number of regions (most coverage first)
-            const sorted = fallbackAgents
-              .filter(a => Array.isArray(a.region_round_robin) && a.region_round_robin.length > 0)
-              .sort((a, b) => (b.region_round_robin?.length || 0) - (a.region_round_robin?.length || 0));
-
-            const chosen = sorted[0] || fallbackAgents[0];
+            const chosen = fallbackAgents[0];
             agenteAsignado = {
               id: chosen.id,
               nombre: chosen.nombre,
               email: chosen.email,
               telefono: chosen.telefono,
-              tidycal_url: chosen.tidycal_url
             };
             console.log('[meta-lead-webhook] Fallback direto asignado:', agenteAsignado.nombre);
           }
