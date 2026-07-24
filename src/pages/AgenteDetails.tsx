@@ -123,9 +123,6 @@ export default function AgenteDetails() {
             <Badge variant={agent.activo ? "default" : "secondary"} className="text-xs">
               {agent.activo ? 'Activo' : 'Inactivo'}
             </Badge>
-            {agent.region_round_robin && agent.region_round_robin.length > 0 && (
-              <Badge variant="outline" className="text-xs">{agent.region_round_robin.length} regiones</Badge>
-            )}
           </div>
         </div>
       </div>
