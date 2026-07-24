@@ -1,57 +1,76 @@
-## Objetivo
 
-Melhorar o relatório PDF em `src/lib/leadsReportGenerator.ts` para incluir dados ricos de cualificação e desqualificação, e corrigir divergências nos números.
+# Plan: nueva disponibilidad tipo Calendly + limpieza de campos
 
-## Problemas detectados
+## 1. Base de datos (una migración)
 
-1. **Todos os desqualificados caem em "Edad fuera de rango (>60)"** — o regex `/edad/i` captura o campo `Edad: 43` que existe em TODAS as notas. O motivo real está em `"NO CUALIFICADO - <razão>"` na 2ª linha das notas.
-2. **Números divergem da base**: PDF mostra 514 total / 73 cual / 441 desc no período 16–22/07; a DB tem **523 / 74 / 449**. Causa: janela UTC `+2 dias` insuficiente + `fetchAllPaginated` com `pageSize=1000` deixa gap. Preciso ampliar janela UTC (start-1 dia, end+2 dias) para garantir cobertura de todos os dias de calendário Madrid.
-3. **"Envíos exitosos al Bitrix" (74) > cualificados (73)** — o count de `webhook_logs` usa a mesma janela UTC ampla e conta reprocessamentos. Devo filtrar apenas por dias de calendário Madrid do `created_at` do log e usar `count(distinct lead_id via payload)` se possível, ou apenas explicar como envios brutos.
+**Eliminar columnas de `profiles`:**
+- `tidycal_url`, `dni_nie`, `comision_porcentaje`, `region_round_robin`, `disponibilidad` (turnos viejos)
 
-## Mudanças no gerador (`src/lib/leadsReportGenerator.ts`)
+**Nueva tabla `agent_availability`:**
+- `id`, `agent_id` (FK profiles), `weekday` (0-6, 0=lunes), `start_time` (time), `end_time` (time), `created_at`, `updated_at`
+- Índice por `agent_id`
+- Permite múltiples filas por día → mismo agente puede tener Lunes 09:00-13:00 y Lunes 18:00-20:00
+- RLS: agente ve/edita las suyas; admin ve/edita todas
+- GRANTs correspondientes
 
-### Parser de notas (nova função `parseNotas`)
-Extrai dos campos estruturados presentes em toda nota de Meta Ads:
-- `NO CUALIFICADO - <motivo>` → motivo canônico
-- `Edad: NN` → número
-- `Zona: <texto>` e `Ciudad detectada: <texto>` → cidade normalizada (prioriza "Ciudad detectada")
-- `Antigüedad: <valor>` → categoria
-- `DNI/NIE: dni|nie`
-- `Ahorros para impuestos: <texto>` → parseado a número quando possível
-- `Habitaciones`, `Vivienda seleccionada`, `Plan combinado`, `Precio máx. inmueble recomendado`
+**Limpieza:**
+- Vaciar `agent_assignment_tracking` y renombrar semánticamente: ahora solo existe una única fila con `region='global'` (no dropeamos la tabla para preservar el patrón round-robin actual)
+- Drop de columnas relacionadas con `comision_porcentaje` en `agent_variable_costs` **NO** se toca (es un campo de coste por factura, no del perfil)
 
-Adicionalmente, extrair **ingresos mensuales** parseando o próprio texto das notas onde aparecem (quando a nota original do Meta preserva o campo) — se não estiver disponível de forma confiável, marcar "sin dato" em vez de inventar.
+## 2. Edge function `get-next-agent`
 
-### Novas seções no PDF (em espanhol)
+Reescribir la lógica:
 
-1. **Resumen ejecutivo** (mantém, corrigindo Bitrix com nota explicativa).
-2. **Leads por día** (mantém).
-3. **Leads por fuente** (mantém).
-4. **NOVO — Motivos de descualificación** (corrigido): usa `NO CUALIFICADO - X` das notas. Categorias esperadas: antigüedad laboral, ahorros insuficientes, edad >60, ingresos <1.200€, deudas, DNI/NIE, contrato precário, duplicado, otros.
-5. **NOVO — Top ciudades / zonas** (Top 15): conteo total, cualificados, descualificados por cidade (usando `Ciudad detectada` > `Zona` > `ciudad_interes`).
-6. **NOVO — Distribución por edad** (buckets: <25, 25-34, 35-44, 45-54, 55-60, >60): total, cualificados, descualificados.
-7. **NOVO — Distribución por antigüedad laboral** (indefinido/más de 1 año, menos de 1 año, temporal/fijo discontinuo, autónomo, otros): total + cual/desc.
-8. **NOVO — Distribución por ahorros declarados** (buckets: 0€, 1-999€, 1.000-2.499€, 2.500-4.999€, ≥5.000€, sin dato).
-9. **NOVO — DNI vs NIE** (total + cual/desc).
-10. **Metodología** (mantém, mais nota explicando que "envíos al Bitrix" pode incluir reprocessos).
+1. Recibe `{ reunion_datetime: ISO | null }` en vez de `region`/`turnoOverride`
+2. Convertir `reunion_datetime` a Europe/Madrid → obtener `weekday` + `hh:mm`
+3. Traer todos los agentes activos (excepto Housage)
+4. **Caso A — reunión concreta:** filtrar agentes con franja que cubra ese día+hora. Si hay ≥1, round-robin normal entre ellos
+5. **Caso B — reunión concreta pero nadie disponible exactamente:** para cada agente calcular "distancia mínima" entre sus franjas y el horario pedido; ordenar por distancia ascendente y aplicar round-robin sobre el grupo con la distancia más cercana (empatados)
+6. **Caso C — `reunion_datetime` null (a definir):** round-robin global entre todos los agentes activos, ignorando disponibilidad
+7. Tracking sigue en `agent_assignment_tracking` con `region='global'` (un único cursor)
 
-### Correções de cálculo
+## 3. UI Agent — `src/pages/AgentSettings.tsx`
 
-- Ampliar janela UTC do fetch para `start - 1 dia` até `end + 2 dias` para eliminar gap de 9 leads.
-- Bitrix count: filtrar `webhook_logs` por `(created_at AT TIME ZONE 'Europe/Madrid')::date` no cliente após fetch (usar `fetchAllPaginated` de logs no período), e reportar como "envíos exitosos (incluye reintentos y reprocesos)".
-- Validar após a mudança que o total do PDF bate com a DB (523/74/449 no período 16–22/07).
+Rehacer el formulario:
+- Quitar: campos Tidycal, regiones (bloque completo), turnos viejos
+- Mantener: nombre, teléfono
+- Añadir: grid semanal (Lun-Dom) con lista de franjas por día
+  - Botón "+ Añadir franja" por día → inputs `start` / `end` (type=time) + botón eliminar
+  - Guardado atómico: `DELETE all my rows` + `INSERT` nuevas dentro de una llamada
+- Validación cliente: `end > start`, sin solapamientos en el mismo día
 
-## Arquivos alterados
+## 4. UI Admin — `src/pages/AdminAgentes.tsx` y `AgenteDetails.tsx`
 
-- `src/lib/leadsReportGenerator.ts` — parser, novas seções, correção de janela e Bitrix.
+- Quitar columnas/campos Tidycal, DNI, comisión, regiones y turnos
+- Añadir sección "Disponibilidad" (solo lectura resumida en lista; misma UI de edición en detalle si el admin edita)
+- Ajustar hook `useAgentes.ts`: quitar `dni_nie`, `comision_porcentaje` del select
 
-## Fora de escopo
+## 5. Ajustes en flujos que leen esos campos
 
-- Não mudar a UI de `AdminSettings.tsx` (o botão continua igual).
-- Não mudar `meta-lead-webhook` nem lógica de qualificação.
-- Não criar edge function nova.
+- `AuthContext.tsx`: quitar referencias a los 5 campos
+- `useProductInvoices.ts`, `ControleFinanceiro.tsx`, `SupervisorFinanceiro.tsx`: usan `comision_porcentaje` para cálculos de facturas → **CONFIRMAR con el usuario antes de tocar** (ver "Duda abierta")
+- `bitrixPayload.ts`, `secondaryQualifiedPayload.ts`, `meta-lead-webhook`, `reprocess-meta-leads`, `make-webhook-proxy`: eliminar `tidycal_url` del payload del agente; la llamada a `get-next-agent` pasa a enviar `reunion_datetime` en lugar de `region`/`turnoOverride`
+- `useLeadDocumentChecklist.ts`: uso probablemente colisión de nombre `disponibilidad` — verificar y no tocar si no aplica
 
-## Dúvidas
+## 6. Regenerar types y probar
 
-1. Confirma que quer **manter o PDF client-side** (jsPDF) ou prefere migrar para edge function? Recomendo manter — simpler e já funciona.
-2. Sobre ingresos mensuales: as notas atuais **não guardam o campo "Ingresos: X€"** de forma consistente (aparece "Plan combinado" com cuota, não com ingresos brutos). Posso: (a) adicionar bucket de ingresos só quando encontrado no texto, (b) começar a persistir ingresos numa coluna dedicada nos próximos leads (mudança maior), ou (c) omitir a seção de ingresos e deixar clara a limitação. Qual prefere?
+- Types se regeneran solos tras migración
+- Verificar TypeScript build limpio
+- Probar en preview: agente crea franjas, admin ve, se dispara lead simulado
+
+---
+
+## Duda abierta — necesito confirmar antes de implementar
+
+Los campos `dni_nie` y `comision_porcentaje` de `profiles` **se usan actualmente** en el módulo de facturación:
+- `useProductInvoices.ts` y `ControleFinanceiro.tsx` calculan comisiones del agente con `comision_porcentaje`
+- Facturas PDF pueden mostrar el DNI del agente
+
+**¿Confirmas que quieres eliminarlos igualmente?** Si sí, el cálculo de comisiones pasaría a usar un valor fijo (¿cuál?) o desaparecería. Prefiero preguntar antes que romper la facturación.
+
+## Archivos técnicos afectados
+
+- Migración: `supabase/migrations/<timestamp>_agent_availability.sql`
+- Edge functions: `get-next-agent`, `meta-lead-webhook`, `reprocess-meta-leads`, `make-webhook-proxy`, `_shared/bitrixPayload.ts`, `_shared/secondaryQualifiedPayload.ts`
+- Frontend: `AgentSettings.tsx`, `AdminAgentes.tsx`, `AgenteDetails.tsx`, `AuthContext.tsx`, `useAgentes.ts`
+- Nuevo hook: `useAgentAvailability.ts`
