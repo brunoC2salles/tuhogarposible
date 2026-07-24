@@ -47,7 +47,7 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
           nombre: agente.nombre ?? null,
           email: agente.email ?? null,
           telefono: agente.telefono ?? null,
-          tidycal_url: agente.tidycal_url ?? null,
+
         }
       : null,
 

@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
       if (submission.agente_asignado_id) {
         const { data: ag } = await supabase
           .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
+          .select('id, nombre, email, telefono')
           .eq('id', submission.agente_asignado_id)
           .single();
         agente = ag;
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
         agente_nombre: agente?.nombre || 'Sin asignar',
         agente_email: agente?.email || '',
         agente_telefono: agente?.telefono || '',
-        agente_tidycal: agente?.tidycal_url || '',
+        agente_tidycal: '',
         
         // Simulation data (personal)
         sim_personal_monto: (submission.simulador_personal_data as any)?.montoSolicitado || 0,
@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
       if (lead.agente_asignado_id) {
         const { data: ag } = await supabase
           .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
+          .select('id, nombre, email, telefono')
           .eq('id', lead.agente_asignado_id)
           .single();
         agente = ag;
@@ -386,7 +386,7 @@ Deno.serve(async (req) => {
       if (lead.agente_asignado_id) {
         const { data: ag } = await supabase
           .from('profiles')
-          .select('id, nombre, email, telefono, tidycal_url')
+          .select('id, nombre, email, telefono')
           .eq('id', lead.agente_asignado_id)
           .single();
         agente = ag;
@@ -472,7 +472,7 @@ Deno.serve(async (req) => {
       // Get agent data
       const { data: agente, error: agenteError } = await supabase
         .from('profiles')
-        .select('id, nombre, email, telefono, tidycal_url')
+        .select('id, nombre, email, telefono')
         .eq('id', agente_id)
         .single();
 
@@ -604,7 +604,7 @@ Deno.serve(async (req) => {
         if (lead.agente_asignado_id) {
           const { data: ag } = await supabase
             .from('profiles')
-            .select('id, nombre, email, telefono, tidycal_url')
+            .select('id, nombre, email, telefono')
             .eq('id', lead.agente_asignado_id)
             .single();
           agente = ag;
