@@ -1199,7 +1199,7 @@ Deno.serve(async (req) => {
       console.log('[meta-lead-webhook] force_agent_id presente, pulando round-robin:', data.force_agent_id);
       const { data: forcedAgent, error: forcedErr } = await supabase
         .from('profiles')
-        .select('id, nombre, email, telefono, tidycal_url, region_round_robin')
+        .select('id, nombre, email, telefono')
         .eq('id', data.force_agent_id)
         .maybeSingle();
 
