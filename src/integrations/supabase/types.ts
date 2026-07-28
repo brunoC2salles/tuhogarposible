@@ -847,6 +847,60 @@ export type Database = {
           },
         ]
       }
+      lead_visits: {
+        Row: {
+          agente_id: string
+          created_at: string
+          fecha_visita: string
+          id: string
+          lead_id: string
+          notas: string | null
+          product_urls: string[]
+          reserva_url: string | null
+          tiene_reserva: boolean
+          updated_at: string
+        }
+        Insert: {
+          agente_id: string
+          created_at?: string
+          fecha_visita: string
+          id?: string
+          lead_id: string
+          notas?: string | null
+          product_urls?: string[]
+          reserva_url?: string | null
+          tiene_reserva?: boolean
+          updated_at?: string
+        }
+        Update: {
+          agente_id?: string
+          created_at?: string
+          fecha_visita?: string
+          id?: string
+          lead_id?: string
+          notas?: string | null
+          product_urls?: string[]
+          reserva_url?: string | null
+          tiene_reserva?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_visits_agente_id_fkey"
+            columns: ["agente_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_visits_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           agente_asignado_id: string | null
