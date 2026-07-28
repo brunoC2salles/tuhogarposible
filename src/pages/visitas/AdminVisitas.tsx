@@ -38,7 +38,7 @@ const AdminVisitas = () => {
 
   const weeklyChart = useMemo(() => {
     const map = new Map<string, { week: string; total: number; reservas: number }>();
-    visits.forEach(v => {
+    filteredVisits.forEach(v => {
       const w = startOfWeek(new Date(v.fecha_visita), { weekStartsOn: 1 });
       const key = format(w, 'yyyy-MM-dd');
       const label = format(w, "d MMM", { locale: es });
@@ -51,22 +51,22 @@ const AdminVisitas = () => {
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-12)
       .map(([, v]) => v);
-  }, [visits]);
+  }, [filteredVisits]);
 
   const topAgents = useMemo(() => {
     const map = new Map<string, number>();
-    visits.forEach(v => {
+    filteredVisits.forEach(v => {
       if (v.agente_nombre) map.set(v.agente_nombre, (map.get(v.agente_nombre) || 0) + 1);
     });
     return Array.from(map.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }));
-  }, [visits]);
+  }, [filteredVisits]);
 
   const exportCSV = () => {
     const headers = ['Fecha', 'Lead', 'Agente', 'URLs', 'Reserva', 'URL reservada', 'Notas'];
-    const rows = visits.map(v => [
+    const rows = filteredVisits.map(v => [
       format(new Date(v.fecha_visita), 'yyyy-MM-dd HH:mm'),
       v.lead_nombre || '',
       v.agente_nombre || '',
