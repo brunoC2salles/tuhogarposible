@@ -11,12 +11,27 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAgentes } from '@/hooks/useAgentes';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const AdminVisitas = () => {
   const { isAdmin } = useAuth();
   const { visits, loading, createVisit, updateVisit, deleteVisit } = useLeadVisits({ scope: 'all' });
+  const { agentes, loading: loadingAgentes } = useAgentes();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<LeadVisit | null>(null);
+  const [agenteId, setAgenteId] = useState<string>('all');
+
+  const filteredVisits = useMemo(() => {
+    if (agenteId === 'all') return visits;
+    return visits.filter(v => v.agente_id === agenteId);
+  }, [visits, agenteId]);
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (v: LeadVisit) => { setEditing(v); setModalOpen(true); };
