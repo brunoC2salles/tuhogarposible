@@ -165,8 +165,8 @@ const AdminVisitas = () => {
         <CardHeader><CardTitle className="text-base">Todas las visitas</CardTitle></CardHeader>
         <CardContent>
           <VisitsList
-            visits={visits}
-            loading={loading}
+            visits={filteredVisits}
+            loading={loading || loadingAgentes}
             onEdit={openEdit}
             onDelete={deleteVisit}
             showAgent
