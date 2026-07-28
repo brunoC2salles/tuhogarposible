@@ -26,6 +26,8 @@ import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
+import AgenteVisitas from "./pages/visitas/AgenteVisitas";
+import AdminVisitas from "./pages/visitas/AdminVisitas";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +156,22 @@ const App = () => (
                   <SupervisorFinanceiro />
                 </ProtectedRoute>
               } 
+            />
+            <Route
+              path="/agente/visitas"
+              element={
+                <ProtectedRoute>
+                  <AgenteVisitas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/visitas"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
+                  <AdminVisitas />
+                </ProtectedRoute>
+              }
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
