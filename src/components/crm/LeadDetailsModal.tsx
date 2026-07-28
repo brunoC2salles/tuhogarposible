@@ -28,6 +28,7 @@ import { LeadServicesComponent } from '@/components/crm/LeadServices';
 import { DocumentPreviewModal } from '@/components/crm/DocumentPreviewModal';
 import { useAgentes } from '@/hooks/useAgentes';
 import { useLeads } from '@/hooks/useLeads';
+import { LeadVisitsTab } from './LeadVisitsTab';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -488,6 +489,10 @@ export const LeadDetailsModal = ({
 
         <TabsContent value="comentarios" className="space-y-4">
           <LeadComments leadId={lead.id} />
+        </TabsContent>
+
+        <TabsContent value="visitas" className="space-y-4">
+          <LeadVisitsTab leadId={lead.id} leadNombre={lead.nombre_completo} />
         </TabsContent>
 
         <TabsContent value="documentos" className="space-y-4">
