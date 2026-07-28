@@ -20,6 +20,7 @@ import {
   FileCheck,
   Building2,
   LayoutDashboard,
+  CalendarDays,
 } from 'lucide-react';
 
 const menuItems = [
@@ -29,6 +30,7 @@ const menuItems = [
       { title: 'Página Inicial', url: '/', icon: Home },
       { title: 'Panel Admin', url: '/admin', icon: LayoutDashboard },
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
+      { title: 'Visitas', url: '/admin/visitas', icon: CalendarDays },
       { title: 'Dashboard Analítico', url: '/admin/dashboard', icon: BarChart3 },
     ],
   },
