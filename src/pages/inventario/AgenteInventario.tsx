@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InmovillaCasafariSection } from "@/components/inventario/InmovillaCasafariSection";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, LogOut, Building2, Landmark, Globe, ExternalLink } from "lucide-react";
+import { ArrowLeft, LogOut, Building2, Landmark, Globe, ExternalLink, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
@@ -43,6 +43,12 @@ const AgenteInventario = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <Link to="/agente/visitas">
+                <Button variant="outline" size="sm">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Visitas
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Cerrar Sesión
