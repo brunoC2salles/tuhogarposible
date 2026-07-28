@@ -104,7 +104,22 @@ const AdminVisitas = () => {
         </div>
       </div>
 
-      <VisitStats visits={visits} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filtrar por agente:</span>
+        <Select value={agenteId} onValueChange={setAgenteId} disabled={loadingAgentes}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue placeholder="Todos los agentes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los agentes</SelectItem>
+            {agentes.map(a => (
+              <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <VisitStats visits={filteredVisits} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
