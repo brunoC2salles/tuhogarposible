@@ -11,7 +11,7 @@ import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
 import { Lead } from '@/types/crm';
-import { Plus, ArrowLeft, Users, Building, LogOut, Settings } from 'lucide-react';
+import { Plus, ArrowLeft, Users, Building, LogOut, Settings, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -108,6 +108,10 @@ const AgenteCRM = () => {
               <Button variant="outline" size="sm" onClick={() => navigate('/agente/settings')}>
                 <Settings className="h-4 w-4 sm:mr-2" />
                 <span className="hidden sm:inline">Mi Perfil</span>
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => navigate('/agente/visitas')}>
+                <CalendarDays className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Visitas</span>
               </Button>
               <Button variant="outline" size="sm" onClick={() => navigate('/inventario/agente')}>
                 <Building className="h-4 w-4 sm:mr-2" />
