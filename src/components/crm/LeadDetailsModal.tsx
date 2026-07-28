@@ -184,6 +184,7 @@ export const LeadDetailsModal = ({
           <TabsTrigger value="documentos" className="text-xs sm:text-sm">Docs ({documents.length})</TabsTrigger>
           <TabsTrigger value="bewor" className="text-xs sm:text-sm">Análisis</TabsTrigger>
           <TabsTrigger value="comentarios" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
+          <TabsTrigger value="visitas" className="text-xs sm:text-sm">Visitas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">
