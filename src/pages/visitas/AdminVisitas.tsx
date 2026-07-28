@@ -11,19 +11,34 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { format, startOfWeek } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAgentes } from '@/hooks/useAgentes';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const AdminVisitas = () => {
   const { isAdmin } = useAuth();
   const { visits, loading, createVisit, updateVisit, deleteVisit } = useLeadVisits({ scope: 'all' });
+  const { agentes, loading: loadingAgentes } = useAgentes();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<LeadVisit | null>(null);
+  const [agenteId, setAgenteId] = useState<string>('all');
+
+  const filteredVisits = useMemo(() => {
+    if (agenteId === 'all') return visits;
+    return visits.filter(v => v.agente_id === agenteId);
+  }, [visits, agenteId]);
 
   const openCreate = () => { setEditing(null); setModalOpen(true); };
   const openEdit = (v: LeadVisit) => { setEditing(v); setModalOpen(true); };
 
   const weeklyChart = useMemo(() => {
     const map = new Map<string, { week: string; total: number; reservas: number }>();
-    visits.forEach(v => {
+    filteredVisits.forEach(v => {
       const w = startOfWeek(new Date(v.fecha_visita), { weekStartsOn: 1 });
       const key = format(w, 'yyyy-MM-dd');
       const label = format(w, "d MMM", { locale: es });
@@ -36,22 +51,22 @@ const AdminVisitas = () => {
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-12)
       .map(([, v]) => v);
-  }, [visits]);
+  }, [filteredVisits]);
 
   const topAgents = useMemo(() => {
     const map = new Map<string, number>();
-    visits.forEach(v => {
+    filteredVisits.forEach(v => {
       if (v.agente_nombre) map.set(v.agente_nombre, (map.get(v.agente_nombre) || 0) + 1);
     });
     return Array.from(map.entries())
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([name, count]) => ({ name, count }));
-  }, [visits]);
+  }, [filteredVisits]);
 
   const exportCSV = () => {
     const headers = ['Fecha', 'Lead', 'Agente', 'URLs', 'Reserva', 'URL reservada', 'Notas'];
-    const rows = visits.map(v => [
+    const rows = filteredVisits.map(v => [
       format(new Date(v.fecha_visita), 'yyyy-MM-dd HH:mm'),
       v.lead_nombre || '',
       v.agente_nombre || '',
@@ -89,7 +104,22 @@ const AdminVisitas = () => {
         </div>
       </div>
 
-      <VisitStats visits={visits} />
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm text-muted-foreground">Filtrar por agente:</span>
+        <Select value={agenteId} onValueChange={setAgenteId} disabled={loadingAgentes}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue placeholder="Todos los agentes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos los agentes</SelectItem>
+            {agentes.map(a => (
+              <SelectItem key={a.id} value={a.id}>{a.nombre}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <VisitStats visits={filteredVisits} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
@@ -135,8 +165,8 @@ const AdminVisitas = () => {
         <CardHeader><CardTitle className="text-base">Todas las visitas</CardTitle></CardHeader>
         <CardContent>
           <VisitsList
-            visits={visits}
-            loading={loading}
+            visits={filteredVisits}
+            loading={loading || loadingAgentes}
             onEdit={openEdit}
             onDelete={deleteVisit}
             showAgent
