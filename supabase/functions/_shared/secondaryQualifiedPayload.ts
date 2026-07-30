@@ -24,6 +24,9 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
       : null);
 
   return {
+    // Identificação da organização no receptor
+    organizationId: ORGANIZATION_ID,
+
     // Campos requeridos por el receptor (CRM appointment schema)
     externalId: String(lead.id),
     customerName: lead.nombre_completo ?? '',
