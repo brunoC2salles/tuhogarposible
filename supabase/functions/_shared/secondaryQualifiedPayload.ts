@@ -4,6 +4,8 @@
 // na página de Configuraciones (Admin > Ajustes > Webhook Secundario).
 // ============================================================================
 
+const ORGANIZATION_ID = '66d5a3b0-d797-4b8f-ad98-95b75849f799';
+
 export interface SecondaryPayloadInput {
   lead: Record<string, any>;          // linha crua da tabela `leads`
   agente?: Record<string, any> | null; // perfil do agente atribuído
