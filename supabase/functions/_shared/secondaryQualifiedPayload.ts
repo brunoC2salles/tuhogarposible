@@ -89,6 +89,12 @@ export async function dispatchSecondaryQualified(
   input: SecondaryPayloadInput
 ): Promise<{ sent: boolean; status?: number; error?: string }> {
   try {
+    // GUARD: apenas leads cualificados
+    if (!isLeadQualifiedForBitrix(input.lead)) {
+      console.log('[secondaryQualified] BLOQUEADO: lead no cualificado', input.lead?.id, input.lead?.stage);
+      return { sent: false, error: 'lead_no_cualificado' };
+    }
+
     // Check enabled flag first — skip silently if disabled
     const { data: enabledSetting } = await supabase
       .from('admin_settings')
