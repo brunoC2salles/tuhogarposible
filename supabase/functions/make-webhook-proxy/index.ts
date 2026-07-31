@@ -595,6 +595,12 @@ Deno.serve(async (req) => {
       };
 
       for (const lead of leads || []) {
+        // GUARD: nunca enviar lead descualificado
+        if (!isLeadQualifiedForBitrix(lead)) {
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'no_cualificado' });
+          continue;
+        }
+
         // Verifica se já existe envio bem-sucedido para este lead_id
         const { data: prior } = await supabase
           .from('webhook_logs')
