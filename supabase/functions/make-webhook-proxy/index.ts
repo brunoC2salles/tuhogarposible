@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'no_cualificado')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
