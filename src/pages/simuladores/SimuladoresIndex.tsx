@@ -17,6 +17,7 @@ import { calcularSimulacionHipoteca } from "@/lib/simuladorUtils";
 import { ResultadosCombinados } from "@/components/simuladores/ResultadosCombinados";
 import { toast } from "sonner";
 import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
 import { cn } from "@/lib/utils";
 
 const SimuladoresIndex = () => {
@@ -125,12 +126,15 @@ const SimuladoresIndex = () => {
               <Logo size="sm" />
               <span className="text-base sm:text-lg md:text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
-            <Link to="/">
-              <Button variant="outline" size="sm">
-                <Home className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm">Volver al Inicio</span>
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link to="/">
+                <Button variant="outline" size="sm">
+                  <Home className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="text-xs sm:text-sm">Volver al Inicio</span>
+                </Button>
+              </Link>
+              <AuthButton />
+            </div>
           </div>
         </div>
       </header>

@@ -1,10 +1,12 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Logo from '@/components/Logo';
+import AuthButton from '@/components/AuthButton';
 import { SimuladorCreditoHipotecario } from '@/components/simuladores/SimuladorCreditoHipotecario';
 
 const SimuladorHipotecarioPage = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const leadNombre = searchParams.get('leadNombre');
 
@@ -18,12 +20,13 @@ const SimuladorHipotecarioPage = () => {
               <Logo size="sm" />
               <span className="text-xl font-semibold">Tu Hogar Posible</span>
             </Link>
-            <Link to="/simuladores">
-              <Button variant="outline" size="sm">
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => navigate(-1)}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Volver a los Simuladores
+                Volver
               </Button>
-            </Link>
+              <AuthButton />
+            </div>
           </div>
         </div>
       </header>
