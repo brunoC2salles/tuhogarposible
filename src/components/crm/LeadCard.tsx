@@ -255,9 +255,23 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
         </div>
 
 
-        <div className="text-xs text-muted-foreground pt-1">
-          {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleResendBitrix(); }}
+          disabled={resending}
+          className="w-full text-xs h-7"
+          title="Reenviar este lead al Bitrix"
+        >
+          <Send className="h-3 w-3 mr-1" />
+          {resending ? 'Reenviando...' : 'Reenviar a Bitrix'}
+        </Button>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+          <Clock className="h-3 w-3 flex-shrink-0" />
+          <span>Llegada: {format(new Date(lead.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}</span>
         </div>
+
 
         {lead.agente_nombre && (
           <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground pt-2 border-t mt-2">
