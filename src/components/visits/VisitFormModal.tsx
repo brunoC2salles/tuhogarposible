@@ -176,31 +176,34 @@ export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, pre
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0 pointer-events-auto" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar por nombre..." value={leadSearch} onValueChange={setLeadSearch} />
+                  <Command shouldFilter={false}>
+                    <CommandInput placeholder="Buscar por nombre, teléfono o email..." value={leadSearch} onValueChange={setLeadSearch} />
                     <CommandList>
-                      <CommandEmpty>Sin resultados</CommandEmpty>
+                      <CommandEmpty>{searching ? 'Buscando...' : 'Sin resultados'}</CommandEmpty>
                       <CommandGroup>
-                        {leadOptions
-                          .filter(l => l.nombre_completo.toLowerCase().includes(leadSearch.toLowerCase()))
-                          .slice(0, 50)
-                          .map(l => (
-                            <CommandItem
-                              key={l.id}
-                              value={l.nombre_completo}
-                              onSelect={() => {
-                                setLeadId(l.id);
-                                setLeadLabel(l.nombre_completo);
-                                setLeadSearchOpen(false);
-                              }}
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', leadId === l.id ? 'opacity-100' : 'opacity-0')} />
-                              {l.nombre_completo}
-                            </CommandItem>
-                          ))}
+                        {leadOptions.map(l => (
+                          <CommandItem
+                            key={l.id}
+                            value={l.id}
+                            onSelect={() => {
+                              setLeadId(l.id);
+                              setLeadLabel(l.nombre_completo);
+                              setLeadSearchOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4 shrink-0', leadId === l.id ? 'opacity-100' : 'opacity-0')} />
+                            <div className="min-w-0">
+                              <p className="truncate">{l.nombre_completo}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {[l.telefono, l.stage].filter(Boolean).join(' · ')}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
+
                 </PopoverContent>
               </Popover>
             )}
