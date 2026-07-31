@@ -1550,33 +1550,33 @@ Deno.serve(async (req) => {
           // GUARD final: só enviar se o payload marca cualificado
           if (bitrixPayload.cualificado !== 'true' || !isLeadQualifiedForBitrix(leadShape)) {
             console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead no cualificado', leadId);
-            throw new Error('skip_no_cualificado');
+          } else {
+            // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
+            const webhookResponse = await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bitrixPayload)
+            });
+
+            // Registrar log com corpo da resposta em caso de erro
+            const logStatus = webhookResponse.ok ? 'success' : 'error';
+            let errorMessage: string | null = null;
+            if (!webhookResponse.ok) {
+              let respBody = '';
+              try { respBody = (await webhookResponse.text()).substring(0, 500); } catch {}
+              errorMessage = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText} | body: ${respBody}`;
+            }
+
+            await supabase.from('webhook_logs').insert({
+              webhook_url: webhookUrl + ' (meta_bitrix)',
+              status: logStatus,
+              error_message: errorMessage,
+              payload: bitrixPayload
+            });
+
+            console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
           }
 
-          // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
-          const webhookResponse = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bitrixPayload)
-          });
-
-          // Registrar log com corpo da resposta em caso de erro
-          const logStatus = webhookResponse.ok ? 'success' : 'error';
-          let errorMessage: string | null = null;
-          if (!webhookResponse.ok) {
-            let respBody = '';
-            try { respBody = (await webhookResponse.text()).substring(0, 500); } catch {}
-            errorMessage = `HTTP ${webhookResponse.status}: ${webhookResponse.statusText} | body: ${respBody}`;
-          }
-
-          await supabase.from('webhook_logs').insert({
-            webhook_url: webhookUrl + ' (meta_bitrix)',
-            status: logStatus,
-            error_message: errorMessage,
-            payload: bitrixPayload
-          });
-
-          console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
         } else {
           console.log('[meta-lead-webhook] URL do webhook Bitrix24 não configurada');
         }
