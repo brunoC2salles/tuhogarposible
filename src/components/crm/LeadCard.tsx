@@ -24,6 +24,26 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swiping, setSwiping] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [resending, setResending] = useState(false);
+
+  const handleResendBitrix = async () => {
+    try {
+      setResending(true);
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'resend_lead_to_bitrix', lead_id: lead.id },
+      });
+      if (error) throw error;
+      if (data?.success) toast.success(`Lead reenviado al Bitrix (HTTP ${data.http_status})`);
+      else toast.error(data?.error || 'No se pudo reenviar el lead');
+    } catch (err: any) {
+      console.error('[LeadCard] resend bitrix error:', err);
+      toast.error('Error al reenviar al Bitrix');
+    } finally {
+      setResending(false);
+    }
+  };
+
+
 
 
 
