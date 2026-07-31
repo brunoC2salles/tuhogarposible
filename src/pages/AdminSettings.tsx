@@ -4,11 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, FileText } from 'lucide-react';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
@@ -30,12 +29,10 @@ const AdminSettings = () => {
     secondaryQualifiedUrl,
     secondaryEnabled,
     savingSecondaryEnabled,
-    inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
     savingSecondary,
-    savingInmovilla,
     webhookLogs, 
     metaBitrixLogs,
     secondaryLogs,
@@ -43,7 +40,6 @@ const AdminSettings = () => {
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
     saveSecondaryEnabled,
-    saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
     testSecondaryQualifiedWebhook,
@@ -55,7 +51,6 @@ const AdminSettings = () => {
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localSecondaryQualifiedUrl, setLocalSecondaryQualifiedUrl] = useState('');
-  const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
@@ -64,12 +59,6 @@ const AdminSettings = () => {
   const [reportStart, setReportStart] = useState(defaults.start);
   const [reportEnd, setReportEnd] = useState(defaults.end);
   const [generatingReport, setGeneratingReport] = useState(false);
-  
-  const [scrapingStats, setScrapingStats] = useState({
-    total: 0, pending: 0, completed: 0, failed: 0, progress: 0
-  });
-  const [scrapingProcessing, setScrapingProcessing] = useState(false);
-  const [scrapingMessage, setScrapingMessage] = useState('');
 
   useEffect(() => {
     if (webhookUrl && !localWebhookUrl) setLocalWebhookUrl(webhookUrl);
@@ -80,16 +69,8 @@ const AdminSettings = () => {
   }, [metaBitrixWebhookUrl]);
 
   useEffect(() => {
-    if (inmovillaUrl && !localInmovillaUrl) setLocalInmovillaUrl(inmovillaUrl);
-  }, [inmovillaUrl]);
-
-  useEffect(() => {
     if (secondaryQualifiedUrl && !localSecondaryQualifiedUrl) setLocalSecondaryQualifiedUrl(secondaryQualifiedUrl);
   }, [secondaryQualifiedUrl]);
-
-  useEffect(() => {
-    fetchScrapingStats();
-  }, []);
 
   const handleReplay = async () => {
     setReplaying(true);
@@ -97,6 +78,7 @@ const AdminSettings = () => {
     await replayQualifiedSince(sinceIso);
     setReplaying(false);
   };
+
 
   const handleGenerateReport = async (mode: 'last7' | 'custom') => {
     let start = reportStart;
