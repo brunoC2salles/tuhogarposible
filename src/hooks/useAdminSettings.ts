@@ -17,12 +17,10 @@ export const useAdminSettings = () => {
   const [secondaryQualifiedUrl, setSecondaryQualifiedUrl] = useState('');
   const [secondaryEnabled, setSecondaryEnabled] = useState(true);
   const [savingSecondaryEnabled, setSavingSecondaryEnabled] = useState(false);
-  const [inmovillaUrl, setInmovillaUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMetaBitrix, setSavingMetaBitrix] = useState(false);
   const [savingSecondary, setSavingSecondary] = useState(false);
-  const [savingInmovilla, setSavingInmovilla] = useState(false);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [metaBitrixLogs, setMetaBitrixLogs] = useState<WebhookLog[]>([]);
   const [secondaryLogs, setSecondaryLogs] = useState<WebhookLog[]>([]);
@@ -55,19 +53,6 @@ export const useAdminSettings = () => {
       if (!error && data) setMetaBitrixWebhookUrl(data.value || '');
     } catch (err: any) {
       console.error('[AdminSettings] Error fetching Meta Bitrix webhook URL:', err);
-    }
-  };
-
-  const fetchInmovillaUrl = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('admin_settings')
-        .select('value')
-        .eq('key', 'inmovilla_iframe_url')
-        .single();
-      if (!error && data) setInmovillaUrl(data.value || '');
-    } catch (err: any) {
-      console.error('[AdminSettings] Error fetching Inmovilla URL:', err);
     }
   };
 
@@ -206,28 +191,6 @@ export const useAdminSettings = () => {
     }
   };
 
-  const saveInmovillaUrl = async (url: string) => {
-    try {
-      setSavingInmovilla(true);
-      const { error } = await supabase
-        .from('admin_settings')
-        .upsert(
-          { key: 'inmovilla_iframe_url', value: url, description: 'URL do iframe do Inmovilla para visualização na página inicial' },
-          { onConflict: 'key' }
-        );
-      if (error) throw error;
-      setInmovillaUrl(url);
-      toast.success('URL del widget Inmovilla guardada');
-      return true;
-    } catch (err: any) {
-      console.error('[AdminSettings] Error saving Inmovilla URL:', err);
-      toast.error('Error al guardar configuración');
-      return false;
-    } finally {
-      setSavingInmovilla(false);
-    }
-  };
-
   const saveSecondaryQualifiedUrl = async (url: string) => {
     try {
       setSavingSecondary(true);
@@ -333,7 +296,6 @@ export const useAdminSettings = () => {
     fetchWebhookLogs();
     fetchMetaBitrixWebhookUrl();
     fetchMetaBitrixLogs();
-    fetchInmovillaUrl();
     fetchSecondaryQualifiedUrl();
     fetchSecondaryEnabled();
     fetchSecondaryLogs();
@@ -345,12 +307,10 @@ export const useAdminSettings = () => {
     secondaryQualifiedUrl,
     secondaryEnabled,
     savingSecondaryEnabled,
-    inmovillaUrl,
     loading,
     saving,
     savingMetaBitrix,
     savingSecondary,
-    savingInmovilla,
     webhookLogs,
     metaBitrixLogs,
     secondaryLogs,
@@ -358,7 +318,6 @@ export const useAdminSettings = () => {
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
     saveSecondaryEnabled,
-    saveInmovillaUrl,
     testWebhook,
     testMetaBitrixWebhook,
     testSecondaryQualifiedWebhook,
