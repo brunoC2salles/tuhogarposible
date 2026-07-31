@@ -108,7 +108,8 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
     agentPhone: agente?.telefono ?? null,
     scheduledAt: reunionDatetimeIso,
     timezone: lead.zona_horaria_reunion ?? 'Europe/Madrid',
-    appointmentPending: !lead.hora_reunion,
+    appointmentPending: fallbackUsed,
+
 
     // Metadata / contexto adicional
     event: 'lead.qualified',
