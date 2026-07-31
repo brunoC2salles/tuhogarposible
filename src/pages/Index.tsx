@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Calculator, GraduationCap, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
+
 
 const Index = () => {
   const cards = [
