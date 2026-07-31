@@ -208,6 +208,64 @@ const AdminVisitas = () => {
       </div>
 
       <Card>
+        <CardHeader><CardTitle className="text-base">Leads con visitas por agente</CardTitle></CardHeader>
+        <CardContent>
+          {leadsByAgent.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Sin datos</p>
+          ) : (
+            <div className="space-y-6">
+              {leadsByAgent.map(a => (
+                <div key={a.agente} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">{a.agente}</h3>
+                    <span className="text-xs text-muted-foreground">{a.leads.length} lead(s)</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground border-b">
+                          <th className="py-2 pr-3 font-medium">Lead</th>
+                          <th className="py-2 pr-3 font-medium">Visitas</th>
+                          <th className="py-2 pr-3 font-medium">Reservas</th>
+                          <th className="py-2 pr-3 font-medium">Última visita</th>
+                          <th className="py-2 font-medium">Productos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {a.leads.map(l => (
+                          <tr key={a.agente + l.lead + l.ultima} className="border-b last:border-0">
+                            <td className="py-2 pr-3">{l.lead}</td>
+                            <td className="py-2 pr-3">{l.total}</td>
+                            <td className="py-2 pr-3">{l.reservas}</td>
+                            <td className="py-2 pr-3 whitespace-nowrap">
+                              {format(new Date(l.ultima), "d MMM yyyy · HH:mm", { locale: es })}
+                            </td>
+                            <td className="py-2">
+                              <div className="flex flex-col gap-0.5 max-w-[320px]">
+                                {l.urls.slice(0, 3).map((u, i) => (
+                                  <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="text-primary text-xs truncate hover:underline">
+                                    {u}
+                                  </a>
+                                ))}
+                                {l.urls.length > 3 && (
+                                  <span className="text-xs text-muted-foreground">+{l.urls.length - 3} más</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+
+      <Card>
         <CardHeader><CardTitle className="text-base">Todas las visitas</CardTitle></CardHeader>
         <CardContent>
           <VisitsList
