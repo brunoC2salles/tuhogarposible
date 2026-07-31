@@ -13,7 +13,7 @@
 //     limit?: number (default 500) }
 // ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildBitrixPayloadFromLead } from '../_shared/bitrixPayload.ts';
+import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
