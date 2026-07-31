@@ -697,40 +697,8 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Inmovilla Widget URL */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Widget Inmovilla</CardTitle>
-            <CardDescription>
-              Configure la URL del iframe de Inmovilla para mostrar en la página inicial
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="inmovilla-url">URL del Iframe Inmovilla</Label>
-              <Input
-                id="inmovilla-url"
-                type="url"
-                placeholder="https://crm.inmovilla.com/panel/..."
-                value={localInmovillaUrl}
-                onChange={(e) => setLocalInmovillaUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Esta URL se mostrará como un iframe en la página de inicio para los agentes
-              </p>
-            </div>
 
-            <Button 
-              onClick={async () => {
-                await saveInmovillaUrl(localInmovillaUrl);
-              }} 
-              disabled={savingInmovilla}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingInmovilla ? 'Guardando...' : 'Guardar'}
-            </Button>
-          </CardContent>
-        </Card>
+
 
         {/* Exportação CSV */}
         <Card>
