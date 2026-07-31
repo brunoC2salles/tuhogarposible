@@ -56,10 +56,8 @@ const AgenteInventario = () => {
                 </Button>
               </Link>
 
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
+              <AuthButton />
+
             </div>
           </div>
         </div>
