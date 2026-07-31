@@ -222,10 +222,19 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
     fechaYMD = nextBusinessDay(fechaYMD.y, fechaYMD.m, fechaYMD.d, false);
   }
 
-  // Sem data nem hora → totalmente a definir
+  // Sem data nem hora (ex.: "cuando gusten", "cualquier hora") →
+  // agenda no próximo dia útil às 11:00 (Madrid).
   if (!fechaYMD && !hora) {
-    return { fecha: null, hora: null, confidence: 'pending', rawInput: raw };
+    const today = todayInMadrid(base);
+    const fallback = nextBusinessDay(today.y, today.m, today.d, false);
+    return {
+      fecha: ymdToString(fallback.y, fallback.m, fallback.d),
+      hora: '11:00:00',
+      confidence: 'medium',
+      rawInput: raw,
+    };
   }
+
 
   // Tem data mas não tem hora → pending_time (a definir hora)
   if (fechaYMD && !hora) {
