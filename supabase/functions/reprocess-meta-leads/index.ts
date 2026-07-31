@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
           }).eq('id', lead.id);
 
           // Enviar a Bitrix
-          if (webhookUrl) {
+          if (webhookUrl && q.cualificado && isLeadQualifiedForBitrix({ stage: 'nuevo_lead' })) {
             const leadShape = { ...lead, simulador_hipotecario_data: newSim, stage: 'nuevo_lead' };
             const payload = buildBitrixPayloadFromLead({
               lead: leadShape, agente, recomendaciones: [],
