@@ -27,7 +27,13 @@ interface Props {
 interface LeadOption {
   id: string;
   nombre_completo: string;
+  telefono?: string | null;
+  stage?: string | null;
 }
+
+const normalize = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 
 export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, presetLeadName }: Props) => {
   const { user, isAdmin, profile } = useAuth();
