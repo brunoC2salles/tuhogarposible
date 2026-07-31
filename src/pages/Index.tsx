@@ -3,6 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Calculator, GraduationCap, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
+
 
 const Index = () => {
   const cards = [
@@ -45,10 +47,15 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
-        <div className="flex justify-center">
+        <div className="container mx-auto px-4 py-2 flex items-center justify-between gap-2">
+          <div className="w-[120px]" />
           <Logo size="lg" className="border-0" />
+          <div className="w-[120px] flex justify-end">
+            <AuthButton />
+          </div>
         </div>
       </header>
+
 
       <main className="container mx-auto px-2 sm:px-4 py-8 sm:py-12">
         <div className="text-center mb-8 sm:mb-12 animate-fade-in px-2">

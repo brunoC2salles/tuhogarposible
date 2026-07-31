@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { LogOut } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import Logo from '@/components/Logo';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -31,6 +32,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background px-4">
             <SidebarTrigger />
             <Separator orientation="vertical" className="h-6" />
+            <Logo size="sm" />
             
             {/* Spacer */}
             <div className="flex-1" />

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Plus, Video, FileText, ArrowLeft } from "lucide-react";
+import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,17 +81,19 @@ const AcademiaAgentes = () => {
           <Button 
             variant="outline" 
             size="icon"
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
+          <Logo size="sm" />
           <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-1 sm:mb-2">Academia de Agentes</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
               Recursos de capacitación y documentación para el equipo
             </p>
           </div>
+          <AuthButton />
         </div>
 
         <Tabs defaultValue="videos" className="w-full">
