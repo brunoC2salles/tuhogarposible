@@ -735,62 +735,8 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Scraping de Imagens */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Scraping de Imágenes</CardTitle>
-            <CardDescription>
-              Procesar imágenes de los productos en lote desde las URLs externas
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Estatísticas */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{scrapingStats.total}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-orange-600">{scrapingStats.pending}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Completados</p>
-                <p className="text-2xl font-bold text-green-600">{scrapingStats.completed}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Errores</p>
-                <p className="text-2xl font-bold text-red-600">{scrapingStats.failed}</p>
-              </div>
-            </div>
 
-            {/* Progresso */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progreso</span>
-                <span>{scrapingStats.progress}%</span>
-              </div>
-              <Progress value={scrapingStats.progress} />
-            </div>
 
-            {/* Botão de Processamento */}
-            <Button 
-              onClick={handleProcessBatch} 
-              disabled={scrapingProcessing || scrapingStats.pending === 0}
-            >
-              <ImageIcon className="h-4 w-4 mr-2" />
-              {scrapingProcessing ? 'Procesando...' : 'Procesar Lote (50 productos)'}
-            </Button>
-
-            {/* Mensagem de status */}
-            {scrapingMessage && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{scrapingMessage}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
 
       </div>
     </AdminLayout>
