@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import Logo from '@/components/Logo';
+import AuthButton from '@/components/AuthButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Download } from 'lucide-react';
@@ -134,11 +136,14 @@ const AdminVisitas = () => {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+        <div className="flex items-center gap-3">
+          <Logo size="sm" />
+          <div>
           <h1 className="text-2xl md:text-3xl font-bold">Visitas de Leads</h1>
           <p className="text-sm text-muted-foreground">Tracking global de visitas y reservas</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button variant="outline" onClick={exportCSV}>
             <Download className="h-4 w-4 mr-2" /> Exportar CSV
           </Button>
@@ -147,6 +152,7 @@ const AdminVisitas = () => {
               <Plus className="h-4 w-4 mr-2" /> Registrar Visita
             </Button>
           )}
+          <AuthButton />
         </div>
       </div>
 
