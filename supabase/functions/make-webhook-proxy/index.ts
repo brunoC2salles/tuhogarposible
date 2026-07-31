@@ -469,6 +469,16 @@ Deno.serve(async (req) => {
         );
       }
 
+      // GUARD: nunca enviar lead descualificado ao Bitrix
+      if (!isLeadQualifiedForBitrix(lead)) {
+        console.log(`[make-webhook-proxy] BLOQUEADO envio Bitrix: lead ${lead.id} stage=${lead.stage}`);
+        return new Response(
+          JSON.stringify({ success: false, skipped: true, reason: 'lead_no_cualificado', stage: lead.stage }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+
       // Get agent data
       const { data: agente, error: agenteError } = await supabase
         .from('profiles')
