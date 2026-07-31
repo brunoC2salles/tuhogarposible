@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InmovillaCasafariSection } from "@/components/inventario/InmovillaCasafariSection";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft, LogOut, Building2, Landmark, Globe, ExternalLink, MapPin } from "lucide-react";
+import { ArrowLeft, LogOut, Building2, Landmark, Globe, ExternalLink, MapPin, UserCog } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
@@ -49,6 +49,13 @@ const AgenteInventario = () => {
                   Visitas
                 </Button>
               </Link>
+              <Link to="/agente/settings">
+                <Button variant="outline" size="sm">
+                  <UserCog className="w-4 h-4 mr-2" />
+                  Mi Perfil y Disponibilidad
+                </Button>
+              </Link>
+
               <Button variant="outline" size="sm" onClick={signOut}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Cerrar Sesión
