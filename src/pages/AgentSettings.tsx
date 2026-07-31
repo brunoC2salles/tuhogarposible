@@ -8,6 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
+import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
 import { useNavigate } from "react-router-dom";
 import { AgentAvailabilityEditor } from "@/components/agents/AgentAvailabilityEditor";
 
@@ -84,10 +86,16 @@ export default function AgentSettings() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-sky-blue-light p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => navigate("/inventario/agente")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver al Portal
-        </Button>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" onClick={() => navigate(-1)}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Volver
+            </Button>
+            <Logo size="sm" />
+          </div>
+          <AuthButton />
+        </div>
 
         <Card>
           <CardHeader>
