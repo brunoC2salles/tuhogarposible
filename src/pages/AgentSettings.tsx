@@ -117,6 +117,16 @@ export default function AgentSettings() {
                 placeholder="+34 600 000 000"
               />
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="pr-4">
+                <Label htmlFor="activo" className="text-base">Disponible para recibir leads</Label>
+                <p className="text-sm text-muted-foreground">
+                  Si lo desactivas, el reparto automático (round-robin) dejará de asignarte leads nuevos.
+                </p>
+              </div>
+              <Switch id="activo" checked={activo} disabled={savingActivo} onCheckedChange={handleToggleActivo} />
+            </div>
+
             <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Guardando..." : "Guardar Cambios"}
