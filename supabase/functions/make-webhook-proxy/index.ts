@@ -294,11 +294,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last QUALIFIED lead (excluding no_cualificado)
+      // Get last QUALIFIED lead (exclui descualificados e no_cualificado)
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'no_cualificado')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
