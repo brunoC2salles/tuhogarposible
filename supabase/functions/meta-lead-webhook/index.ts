@@ -1547,6 +1547,12 @@ Deno.serve(async (req) => {
           // Override edad com valor parseado (mais confiável que regex em notas)
           bitrixPayload.lead_edad = edadParsed || bitrixPayload.lead_edad || '';
 
+          // GUARD final: só enviar se o payload marca cualificado
+          if (bitrixPayload.cualificado !== 'true' || !isLeadQualifiedForBitrix(leadShape)) {
+            console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead no cualificado', leadId);
+            throw new Error('skip_no_cualificado');
+          }
+
           // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
           const webhookResponse = await fetch(webhookUrl, {
             method: 'POST',
