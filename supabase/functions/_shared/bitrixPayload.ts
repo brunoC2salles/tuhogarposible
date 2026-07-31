@@ -8,6 +8,19 @@ export const CP_TOPE = 15000;
 export const CP_TAE = 0.08;
 export const CP_PLAZO_MESES = 84;
 
+/** Stages que NUNCA podem ser enviados ao Bitrix. */
+export const NON_QUALIFIED_STAGES = ['descualificados', 'no_cualificado'];
+
+/**
+ * Guard único: só leads cualificados podem ir ao Bitrix.
+ * Qualquer envio deve passar por aqui antes do fetch.
+ */
+export function isLeadQualifiedForBitrix(lead: any): boolean {
+  if (!lead) return false;
+  return !NON_QUALIFIED_STAGES.includes(String(lead.stage || ''));
+}
+
+
 /**
  * Normaliza o crédito personal de QUALQUER lead (mesmo antigos com 36k salvos).
  * Garante: monto ≤ 15.000€ e cuota recalculada (84m, 8% TAE).
