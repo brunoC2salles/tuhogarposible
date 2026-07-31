@@ -64,6 +64,35 @@ const AdminVisitas = () => {
       .map(([name, count]) => ({ name, count }));
   }, [filteredVisits]);
 
+  // Leads con visitas agrupados por agente
+  const leadsByAgent = useMemo(() => {
+    const agents = new Map<string, { agente: string; leads: Map<string, { lead: string; total: number; reservas: number; ultima: string; urls: string[] }> }>();
+    filteredVisits.forEach(v => {
+      const aKey = v.agente_nombre || 'Sin agente';
+      if (!agents.has(aKey)) agents.set(aKey, { agente: aKey, leads: new Map() });
+      const bucket = agents.get(aKey)!;
+      const lKey = v.lead_id;
+      const entry = bucket.leads.get(lKey) || {
+        lead: v.lead_nombre || 'Lead',
+        total: 0,
+        reservas: 0,
+        ultima: v.fecha_visita,
+        urls: [] as string[],
+      };
+      entry.total += 1;
+      if (v.tiene_reserva) entry.reservas += 1;
+      if (new Date(v.fecha_visita) > new Date(entry.ultima)) entry.ultima = v.fecha_visita;
+      v.product_urls.forEach(u => { if (!entry.urls.includes(u)) entry.urls.push(u); });
+      bucket.leads.set(lKey, entry);
+    });
+    return Array.from(agents.values())
+      .map(a => ({
+        agente: a.agente,
+        leads: Array.from(a.leads.values()).sort((x, y) => +new Date(y.ultima) - +new Date(x.ultima)),
+      }))
+      .sort((a, b) => b.leads.length - a.leads.length);
+  }, [filteredVisits]);
+
   const exportCSV = () => {
     const headers = ['Fecha', 'Lead', 'Agente', 'URLs', 'Reserva', 'URL reservada', 'Notas'];
     const rows = filteredVisits.map(v => [
@@ -75,7 +104,23 @@ const AdminVisitas = () => {
       v.reserva_url || '',
       (v.notas || '').replace(/\n/g, ' '),
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    const summaryHeaders = ['Agente', 'Lead', 'Nº visitas', 'Reservas', 'Última visita'];
+    const summaryRows: string[][] = [];
+    leadsByAgent.forEach(a => {
+      a.leads.forEach(l => {
+        summaryRows.push([
+          a.agente,
+          l.lead,
+          String(l.total),
+          String(l.reservas),
+          format(new Date(l.ultima), 'yyyy-MM-dd HH:mm'),
+        ]);
+      });
+    });
+
+    const all = [headers, ...rows, [], ['RESUMEN POR AGENTE Y LEAD'], summaryHeaders, ...summaryRows];
+    const csv = all.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -84,6 +129,7 @@ const AdminVisitas = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
