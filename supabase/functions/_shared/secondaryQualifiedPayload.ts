@@ -4,6 +4,8 @@
 // na página de Configuraciones (Admin > Ajustes > Webhook Secundario).
 // ============================================================================
 
+import { isLeadQualifiedForBitrix } from './bitrixPayload.ts';
+
 const ORGANIZATION_ID = '66d5a3b0-d797-4b8f-ad98-95b75849f799';
 
 export interface SecondaryPayloadInput {
@@ -89,6 +91,12 @@ export async function dispatchSecondaryQualified(
   input: SecondaryPayloadInput
 ): Promise<{ sent: boolean; status?: number; error?: string }> {
   try {
+    // GUARD: apenas leads cualificados
+    if (!isLeadQualifiedForBitrix(input.lead)) {
+      console.log('[secondaryQualified] BLOQUEADO: lead no cualificado', input.lead?.id, input.lead?.stage);
+      return { sent: false, error: 'lead_no_cualificado' };
+    }
+
     // Check enabled flag first — skip silently if disabled
     const { data: enabledSetting } = await supabase
       .from('admin_settings')

@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildBitrixPayloadFromLead, extractFromNotes } from '../_shared/bitrixPayload.ts';
+import { buildBitrixPayloadFromLead, extractFromNotes, isLeadQualifiedForBitrix, NON_QUALIFIED_STAGES } from '../_shared/bitrixPayload.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 
 const corsHeaders = {
@@ -294,11 +294,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get last QUALIFIED lead (excluding no_cualificado)
+      // Get last QUALIFIED lead (exclui descualificados e no_cualificado)
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'no_cualificado')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -370,7 +370,7 @@ Deno.serve(async (req) => {
       const { data: lead, error: leadError } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'no_cualificado')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -469,6 +469,16 @@ Deno.serve(async (req) => {
         );
       }
 
+      // GUARD: nunca enviar lead descualificado ao Bitrix
+      if (!isLeadQualifiedForBitrix(lead)) {
+        console.log(`[make-webhook-proxy] BLOQUEADO envio Bitrix: lead ${lead.id} stage=${lead.stage}`);
+        return new Response(
+          JSON.stringify({ success: false, skipped: true, reason: 'lead_no_cualificado', stage: lead.stage }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+
       // Get agent data
       const { data: agente, error: agenteError } = await supabase
         .from('profiles')
@@ -565,7 +575,7 @@ Deno.serve(async (req) => {
       const { data: leads, error: leadsErr } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'descualificados')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .gte('created_at', since)
         .order('created_at', { ascending: true });
 
@@ -585,6 +595,12 @@ Deno.serve(async (req) => {
       };
 
       for (const lead of leads || []) {
+        // GUARD: nunca enviar lead descualificado
+        if (!isLeadQualifiedForBitrix(lead)) {
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'no_cualificado' });
+          continue;
+        }
+
         // Verifica se já existe envio bem-sucedido para este lead_id
         const { data: prior } = await supabase
           .from('webhook_logs')

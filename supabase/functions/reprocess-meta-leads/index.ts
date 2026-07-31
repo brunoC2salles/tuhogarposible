@@ -13,7 +13,7 @@
 //     limit?: number (default 500) }
 // ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { buildBitrixPayloadFromLead } from '../_shared/bitrixPayload.ts';
+import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
           }).eq('id', lead.id);
 
           // Enviar a Bitrix
-          if (webhookUrl) {
+          if (webhookUrl && q.cualificado && isLeadQualifiedForBitrix({ stage: 'nuevo_lead' })) {
             const leadShape = { ...lead, simulador_hipotecario_data: newSim, stage: 'nuevo_lead' };
             const payload = buildBitrixPayloadFromLead({
               lead: leadShape, agente, recomendaciones: [],
