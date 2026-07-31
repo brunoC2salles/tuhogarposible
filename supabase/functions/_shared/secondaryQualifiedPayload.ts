@@ -16,14 +16,83 @@ export interface SecondaryPayloadInput {
   extra?: Record<string, any>;         // metadados adicionais (região, edad, etc.)
 }
 
+/** Offset de Europe/Madrid (em minutos) para um instante UTC. */
+function madridOffsetMinutes(utcMs: number): number {
+  const d = new Date(utcMs);
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+  });
+  const p: Record<string, string> = {};
+  for (const part of fmt.formatToParts(d)) p[part.type] = part.value;
+  const asUtc = Date.UTC(
+    Number(p.year), Number(p.month) - 1, Number(p.day),
+    Number(p.hour) % 24, Number(p.minute), Number(p.second),
+  );
+  return (asUtc - utcMs) / 60000;
+}
+
+/** Converte data (YYYY-MM-DD) + hora local de Madrid em ISO UTC válido. */
+function madridToIso(fecha: string, hora: string): string | null {
+  const [y, m, d] = fecha.split('-').map(Number);
+  const [hh, mm, ss] = hora.split(':').map(Number);
+  if (!y || !m || !d || Number.isNaN(hh)) return null;
+  let guess = Date.UTC(y, m - 1, d, hh, mm || 0, ss || 0);
+  for (let i = 0; i < 2; i++) {
+    const off = madridOffsetMinutes(guess);
+    guess = Date.UTC(y, m - 1, d, hh, mm || 0, ss || 0) - off * 60000;
+  }
+  const iso = new Date(guess);
+  return isNaN(iso.getTime()) ? null : iso.toISOString();
+}
+
+function nextBusinessDayAt11(base = new Date()): string {
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(base);
+  const [y, m, d] = ymd.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  do {
+    dt.setUTCDate(dt.getUTCDate() + 1);
+  } while (dt.getUTCDay() === 0 || dt.getUTCDay() === 6);
+  const fecha = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+  return madridToIso(fecha, '11:00:00') ?? new Date(base.getTime() + 24 * 3600 * 1000).toISOString();
+}
+
+/**
+ * Resolve o instante da reunião SEMPRE como ISO UTC válido e no futuro.
+ * Nunca devolve null/NaN (era a origem do famigerado 31/12/1969).
+ */
+function resolveScheduledAt(lead: Record<string, any>): { iso: string; fallbackUsed: boolean } {
+  const now = Date.now();
+  const candidates: (string | null)[] = [];
+
+  if (lead.reunion_datetime) {
+    const d = new Date(lead.reunion_datetime);
+    if (!isNaN(d.getTime())) candidates.push(d.toISOString());
+  }
+  if (lead.fecha_reunion && lead.hora_reunion) {
+    const hora = String(lead.hora_reunion).length === 5
+      ? `${lead.hora_reunion}:00`
+      : String(lead.hora_reunion);
+    candidates.push(madridToIso(String(lead.fecha_reunion), hora));
+  }
+  if (lead.fecha_reunion && !lead.hora_reunion) {
+    candidates.push(madridToIso(String(lead.fecha_reunion), '11:00:00'));
+  }
+
+  for (const c of candidates) {
+    if (c && new Date(c).getTime() > now) return { iso: c, fallbackUsed: false };
+  }
+  return { iso: nextBusinessDayAt11(new Date(now)), fallbackUsed: true };
+}
+
 export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
   const { lead, agente, source, documentoLink, extra } = input;
 
-  const reunionDatetimeIso =
-    lead.reunion_datetime ||
-    (lead.fecha_reunion && lead.hora_reunion
-      ? `${lead.fecha_reunion}T${lead.hora_reunion}:00`
-      : null);
+  const { iso: reunionDatetimeIso, fallbackUsed } = resolveScheduledAt(lead);
+
 
   return {
     // Identificação da organização no receptor
@@ -39,7 +108,8 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
     agentPhone: agente?.telefono ?? null,
     scheduledAt: reunionDatetimeIso,
     timezone: lead.zona_horaria_reunion ?? 'Europe/Madrid',
-    appointmentPending: !lead.hora_reunion,
+    appointmentPending: fallbackUsed,
+
 
     // Metadata / contexto adicional
     event: 'lead.qualified',
@@ -68,7 +138,8 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
       zona_horaria: lead.zona_horaria_reunion ?? 'Europe/Madrid',
       datetime_iso: reunionDatetimeIso,
       confidence: lead.reunion_confidence ?? null,
-      a_definir: !lead.hora_reunion,
+      a_definir: fallbackUsed,
+
     },
 
     cualificacion: {
