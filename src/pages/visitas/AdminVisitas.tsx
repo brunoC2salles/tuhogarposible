@@ -64,6 +64,35 @@ const AdminVisitas = () => {
       .map(([name, count]) => ({ name, count }));
   }, [filteredVisits]);
 
+  // Leads con visitas agrupados por agente
+  const leadsByAgent = useMemo(() => {
+    const agents = new Map<string, { agente: string; leads: Map<string, { lead: string; total: number; reservas: number; ultima: string; urls: string[] }> }>();
+    filteredVisits.forEach(v => {
+      const aKey = v.agente_nombre || 'Sin agente';
+      if (!agents.has(aKey)) agents.set(aKey, { agente: aKey, leads: new Map() });
+      const bucket = agents.get(aKey)!;
+      const lKey = v.lead_id;
+      const entry = bucket.leads.get(lKey) || {
+        lead: v.lead_nombre || 'Lead',
+        total: 0,
+        reservas: 0,
+        ultima: v.fecha_visita,
+        urls: [] as string[],
+      };
+      entry.total += 1;
+      if (v.tiene_reserva) entry.reservas += 1;
+      if (new Date(v.fecha_visita) > new Date(entry.ultima)) entry.ultima = v.fecha_visita;
+      v.product_urls.forEach(u => { if (!entry.urls.includes(u)) entry.urls.push(u); });
+      bucket.leads.set(lKey, entry);
+    });
+    return Array.from(agents.values())
+      .map(a => ({
+        agente: a.agente,
+        leads: Array.from(a.leads.values()).sort((x, y) => +new Date(y.ultima) - +new Date(x.ultima)),
+      }))
+      .sort((a, b) => b.leads.length - a.leads.length);
+  }, [filteredVisits]);
+
   const exportCSV = () => {
     const headers = ['Fecha', 'Lead', 'Agente', 'URLs', 'Reserva', 'URL reservada', 'Notas'];
     const rows = filteredVisits.map(v => [
@@ -75,7 +104,23 @@ const AdminVisitas = () => {
       v.reserva_url || '',
       (v.notas || '').replace(/\n/g, ' '),
     ]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    const summaryHeaders = ['Agente', 'Lead', 'Nº visitas', 'Reservas', 'Última visita'];
+    const summaryRows: string[][] = [];
+    leadsByAgent.forEach(a => {
+      a.leads.forEach(l => {
+        summaryRows.push([
+          a.agente,
+          l.lead,
+          String(l.total),
+          String(l.reservas),
+          format(new Date(l.ultima), 'yyyy-MM-dd HH:mm'),
+        ]);
+      });
+    });
+
+    const all = [headers, ...rows, [], ['RESUMEN POR AGENTE Y LEAD'], summaryHeaders, ...summaryRows];
+    const csv = all.map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -84,6 +129,7 @@ const AdminVisitas = () => {
     a.click();
     URL.revokeObjectURL(url);
   };
+
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
@@ -160,6 +206,64 @@ const AdminVisitas = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base">Leads con visitas por agente</CardTitle></CardHeader>
+        <CardContent>
+          {leadsByAgent.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Sin datos</p>
+          ) : (
+            <div className="space-y-6">
+              {leadsByAgent.map(a => (
+                <div key={a.agente} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold">{a.agente}</h3>
+                    <span className="text-xs text-muted-foreground">{a.leads.length} lead(s)</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-muted-foreground border-b">
+                          <th className="py-2 pr-3 font-medium">Lead</th>
+                          <th className="py-2 pr-3 font-medium">Visitas</th>
+                          <th className="py-2 pr-3 font-medium">Reservas</th>
+                          <th className="py-2 pr-3 font-medium">Última visita</th>
+                          <th className="py-2 font-medium">Productos</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {a.leads.map(l => (
+                          <tr key={a.agente + l.lead + l.ultima} className="border-b last:border-0">
+                            <td className="py-2 pr-3">{l.lead}</td>
+                            <td className="py-2 pr-3">{l.total}</td>
+                            <td className="py-2 pr-3">{l.reservas}</td>
+                            <td className="py-2 pr-3 whitespace-nowrap">
+                              {format(new Date(l.ultima), "d MMM yyyy · HH:mm", { locale: es })}
+                            </td>
+                            <td className="py-2">
+                              <div className="flex flex-col gap-0.5 max-w-[320px]">
+                                {l.urls.slice(0, 3).map((u, i) => (
+                                  <a key={i} href={u} target="_blank" rel="noopener noreferrer" className="text-primary text-xs truncate hover:underline">
+                                    {u}
+                                  </a>
+                                ))}
+                                {l.urls.length > 3 && (
+                                  <span className="text-xs text-muted-foreground">+{l.urls.length - 3} más</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader><CardTitle className="text-base">Todas las visitas</CardTitle></CardHeader>

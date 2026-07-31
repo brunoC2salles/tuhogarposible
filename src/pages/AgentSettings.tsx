@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Save } from "lucide-react";
@@ -18,6 +19,8 @@ export default function AgentSettings() {
     nombre: "",
     telefono: "",
   });
+  const [activo, setActivo] = useState(true);
+  const [savingActivo, setSavingActivo] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -28,9 +31,25 @@ export default function AgentSettings() {
         nombre: profile.nombre || "",
         telefono: profile.telefono || "",
       });
+      setActivo(profile.activo ?? true);
       setIsLoading(false);
     }
   }, [profile]);
+
+  const handleToggleActivo = async (next: boolean) => {
+    const prev = activo;
+    setActivo(next);
+    setSavingActivo(true);
+    const { error } = await supabase.from("profiles").update({ activo: next }).eq("id", user?.id);
+    setSavingActivo(false);
+    if (error) {
+      setActivo(prev);
+      toast.error("Error al actualizar tu disponibilidad");
+      return;
+    }
+    toast.success(next ? "Ahora recibirás nuevos leads" : "No recibirás nuevos leads");
+  };
+
 
   const handleSave = async () => {
     if (!formData.nombre.trim()) {
@@ -98,6 +117,16 @@ export default function AgentSettings() {
                 placeholder="+34 600 000 000"
               />
             </div>
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="pr-4">
+                <Label htmlFor="activo" className="text-base">Disponible para recibir leads</Label>
+                <p className="text-sm text-muted-foreground">
+                  Si lo desactivas, el reparto automático (round-robin) dejará de asignarte leads nuevos.
+                </p>
+              </div>
+              <Switch id="activo" checked={activo} disabled={savingActivo} onCheckedChange={handleToggleActivo} />
+            </div>
+
             <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
               <Save className="mr-2 h-4 w-4" />
               {isSaving ? "Guardando..." : "Guardar Cambios"}

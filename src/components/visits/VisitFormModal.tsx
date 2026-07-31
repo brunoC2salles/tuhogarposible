@@ -27,7 +27,13 @@ interface Props {
 interface LeadOption {
   id: string;
   nombre_completo: string;
+  telefono?: string | null;
+  stage?: string | null;
 }
+
+const normalize = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 
 export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, presetLeadName }: Props) => {
   const { user, isAdmin, profile } = useAuth();
@@ -43,6 +49,7 @@ export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, pre
   const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
   const [leadSearchOpen, setLeadSearchOpen] = useState(false);
   const [leadSearch, setLeadSearch] = useState('');
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -67,24 +74,50 @@ export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, pre
     }
   }, [open, visit, presetLeadId, presetLeadName]);
 
-  // Fetch qualified leads for search
+  // Server-side lead search (debounced, accent-insensitive)
   useEffect(() => {
     if (!open || presetLeadId) return;
-    const fetchLeads = async () => {
+    const term = leadSearch.trim();
+
+    const run = async () => {
+      setSearching(true);
+      // Replace accent-prone chars with '_' so ilike matches "Jose" and "José"
+      const loose = normalize(term).replace(/[aeiouncy]/g, '_');
+      const pattern = `%${loose}%`;
       let q = supabase
         .from('leads')
-        .select('id, nombre_completo, agente_asignado_id, stage')
+        .select('id, nombre_completo, telefono, email, agente_asignado_id, stage')
         .neq('stage', 'descualificados')
-        .order('nombre_completo', { ascending: true })
-        .limit(500);
+        .order('created_at', { ascending: false })
+        .limit(term ? 100 : 30);
+      if (term) {
+        q = q.or(
+          `nombre_completo.ilike.${pattern},telefono.ilike.%${term}%,email.ilike.%${term}%`,
+        );
+      }
       if (!isAdmin && profile?.role !== 'supervisor' && user) {
         q = q.eq('agente_asignado_id', user.id);
       }
       const { data, error } = await q;
-      if (!error && data) setLeadOptions(data as any);
+      setSearching(false);
+      if (error) return;
+      const n = normalize(term);
+      const rows = (data || []) as any[];
+      const filtered = n
+        ? rows.filter(
+            (l) =>
+              normalize(l.nombre_completo || '').includes(n) ||
+              (l.telefono || '').includes(term) ||
+              normalize(l.email || '').includes(n),
+          )
+        : rows;
+      setLeadOptions(filtered.slice(0, 30));
     };
-    fetchLeads();
-  }, [open, presetLeadId, isAdmin, profile?.role, user]);
+
+    const t = setTimeout(run, term ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [open, presetLeadId, leadSearch, isAdmin, profile?.role, user]);
+
 
   const filteredUrls = useMemo(() => urls.map(u => u.trim()).filter(Boolean), [urls]);
 
@@ -143,31 +176,34 @@ export const VisitFormModal = ({ open, onClose, onSave, visit, presetLeadId, pre
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[--radix-popover-trigger-width] p-0 pointer-events-auto" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar por nombre..." value={leadSearch} onValueChange={setLeadSearch} />
+                  <Command shouldFilter={false}>
+                    <CommandInput placeholder="Buscar por nombre, teléfono o email..." value={leadSearch} onValueChange={setLeadSearch} />
                     <CommandList>
-                      <CommandEmpty>Sin resultados</CommandEmpty>
+                      <CommandEmpty>{searching ? 'Buscando...' : 'Sin resultados'}</CommandEmpty>
                       <CommandGroup>
-                        {leadOptions
-                          .filter(l => l.nombre_completo.toLowerCase().includes(leadSearch.toLowerCase()))
-                          .slice(0, 50)
-                          .map(l => (
-                            <CommandItem
-                              key={l.id}
-                              value={l.nombre_completo}
-                              onSelect={() => {
-                                setLeadId(l.id);
-                                setLeadLabel(l.nombre_completo);
-                                setLeadSearchOpen(false);
-                              }}
-                            >
-                              <Check className={cn('mr-2 h-4 w-4', leadId === l.id ? 'opacity-100' : 'opacity-0')} />
-                              {l.nombre_completo}
-                            </CommandItem>
-                          ))}
+                        {leadOptions.map(l => (
+                          <CommandItem
+                            key={l.id}
+                            value={l.id}
+                            onSelect={() => {
+                              setLeadId(l.id);
+                              setLeadLabel(l.nombre_completo);
+                              setLeadSearchOpen(false);
+                            }}
+                          >
+                            <Check className={cn('mr-2 h-4 w-4 shrink-0', leadId === l.id ? 'opacity-100' : 'opacity-0')} />
+                            <div className="min-w-0">
+                              <p className="truncate">{l.nombre_completo}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {[l.telefono, l.stage].filter(Boolean).join(' · ')}
+                              </p>
+                            </div>
+                          </CommandItem>
+                        ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
+
                 </PopoverContent>
               </Popover>
             )}
