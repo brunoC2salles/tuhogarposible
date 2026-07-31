@@ -23,7 +23,7 @@ const corsHeaders = {
 // ---------- Reglas (espejo de meta-lead-webhook 2026-06-25) ----------
 const EDAD_MAX = 60;
 const INGRESOS_MIN = 1200;
-const AHORROS_MIN = 1000;
+const AHORROS_MIN = 5000;
 
 const CP_TOPE = 15000;
 const PCT_FINANCIACION = 0.90;
