@@ -9,6 +9,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { LogOut } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import Logo from '@/components/Logo';
+import AuthButton from '@/components/AuthButton';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -53,10 +54,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                 </div>
               </div>
 
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Salir</span>
-              </Button>
+              <AuthButton />
             </div>
           </header>
 

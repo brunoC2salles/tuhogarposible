@@ -6,6 +6,8 @@ import { ArrowLeft, LogOut, Building2, Landmark, Globe, ExternalLink, MapPin, Us
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
+import AuthButton from "@/components/AuthButton";
+
 
 const EXTERNAL_LINKS = {
   bancarios: "https://www.solvia.es/es/login-profesional",
@@ -56,10 +58,8 @@ const AgenteInventario = () => {
                 </Button>
               </Link>
 
-              <Button variant="outline" size="sm" onClick={signOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
-              </Button>
+              <AuthButton />
+
             </div>
           </div>
         </div>
