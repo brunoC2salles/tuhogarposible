@@ -138,7 +138,8 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
       zona_horaria: lead.zona_horaria_reunion ?? 'Europe/Madrid',
       datetime_iso: reunionDatetimeIso,
       confidence: lead.reunion_confidence ?? null,
-      a_definir: !lead.hora_reunion,
+      a_definir: fallbackUsed,
+
     },
 
     cualificacion: {
