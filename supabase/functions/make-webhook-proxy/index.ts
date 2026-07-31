@@ -575,7 +575,7 @@ Deno.serve(async (req) => {
       const { data: leads, error: leadsErr } = await supabase
         .from('leads')
         .select('*')
-        .neq('stage', 'descualificados')
+        .not('stage', 'in', `(${NON_QUALIFIED_STAGES.join(',')})`)
         .gte('created_at', since)
         .order('created_at', { ascending: true });
 
