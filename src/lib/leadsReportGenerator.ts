@@ -133,7 +133,7 @@ function categorizeMotivo(raw: string | null): string {
   if (!raw) return 'Sin motivo registrado';
   const s = raw.toLowerCase();
   if (s.includes('antig')) return 'Antigüedad laboral insuficiente (<1 año)';
-  if (s.includes('ahorro')) return 'Ahorros insuficientes (<2.500€)';
+  if (s.includes('ahorro')) return 'Ahorros insuficientes (<5.000€)';
   if (s.includes('morosidad') || s.includes('asnef') || s.includes('impag')) return 'Fichero de morosidad';
   if (s.includes('ingreso')) return 'Ingresos insuficientes (<1.200€)';
   if (s.includes('edad')) return 'Edad superior a 60 años';

@@ -822,22 +822,25 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   }
   
   // Critério 7: Ahorros para impuestos.
-  // Cualifica si responde afirmativamente con "si/sí/yes" y derivados,
-  // o si declara monto_ahorros >= 1.000€.
-  const AHORROS_MINIMO = 2500;
+  // Cualifica si declara monto_ahorros >= 5.000€, o si responde afirmativamente
+  // ("si/sí/yes" y derivados) SIN declarar un monto concreto por debajo del mínimo.
+  const AHORROS_MINIMO = 5000;
   const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
-  const tieneMontoSuficiente = (montoAhorros ?? 0) >= AHORROS_MINIMO;
+  const montoDeclarado = montoAhorros ?? 0;
+  const tieneMontoSuficiente = montoDeclarado >= AHORROS_MINIMO;
+  const montoDeclaradoInsuficiente = montoDeclarado > 0 && montoDeclarado < AHORROS_MINIMO;
 
   console.log('[meta-lead-webhook] Validação ahorros:', {
     respuestaAhorros,
     tieneRespuestaAfirmativa,
     montoAhorros,
     tieneMontoSuficiente,
+    montoDeclaradoInsuficiente,
     AHORROS_MINIMO,
   });
 
-  if (!tieneRespuestaAfirmativa && !tieneMontoSuficiente) {
+  if (!tieneMontoSuficiente && (montoDeclaradoInsuficiente || !tieneRespuestaAfirmativa)) {
     return {
       cualificado: false,
       razon_no_cualificado: `Ahorros insuficientes (mínimo ${AHORROS_MINIMO}€ o respuesta afirmativa "sí")`,

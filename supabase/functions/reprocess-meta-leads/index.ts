@@ -23,7 +23,7 @@ const corsHeaders = {
 // ---------- Reglas (espejo de meta-lead-webhook 2026-06-25) ----------
 const EDAD_MAX = 60;
 const INGRESOS_MIN = 1200;
-const AHORROS_MIN = 1000;
+const AHORROS_MIN = 5000;
 
 const CP_TOPE = 15000;
 const PCT_FINANCIACION = 0.90;
@@ -149,7 +149,9 @@ function recualificar(input: {
     return { cualificado: false, razon: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
   }
   // 7. Ahorros
-  const ok = isAffirmativeAhorrosResponse(input.respuestaAhorros) || (input.ahorros || 0) >= AHORROS_MIN;
+  const montoAhorros = input.ahorros || 0;
+  const ok = montoAhorros >= AHORROS_MIN
+    || (montoAhorros === 0 && isAffirmativeAhorrosResponse(input.respuestaAhorros));
   if (!ok) return { cualificado: false, razon: `Ahorros insuficientes (mínimo ${AHORROS_MIN}€ o respuesta afirmativa "sí")` };
 
   return { cualificado: true };
