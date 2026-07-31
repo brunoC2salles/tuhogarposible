@@ -4,11 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Save, TestTube, Download, AlertCircle, CheckCircle, ImageIcon, FileText } from 'lucide-react';
+import { Save, TestTube, Download, AlertCircle, CheckCircle, FileText } from 'lucide-react';
 import { useAdminSettings } from '@/hooks/useAdminSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
@@ -30,12 +29,10 @@ const AdminSettings = () => {
     secondaryQualifiedUrl,
     secondaryEnabled,
     savingSecondaryEnabled,
-    inmovillaUrl,
     loading, 
     saving, 
     savingMetaBitrix,
     savingSecondary,
-    savingInmovilla,
     webhookLogs, 
     metaBitrixLogs,
     secondaryLogs,
@@ -43,7 +40,6 @@ const AdminSettings = () => {
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
     saveSecondaryEnabled,
-    saveInmovillaUrl,
     testWebhook, 
     testMetaBitrixWebhook,
     testSecondaryQualifiedWebhook,
@@ -55,7 +51,6 @@ const AdminSettings = () => {
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localSecondaryQualifiedUrl, setLocalSecondaryQualifiedUrl] = useState('');
-  const [localInmovillaUrl, setLocalInmovillaUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
@@ -64,12 +59,6 @@ const AdminSettings = () => {
   const [reportStart, setReportStart] = useState(defaults.start);
   const [reportEnd, setReportEnd] = useState(defaults.end);
   const [generatingReport, setGeneratingReport] = useState(false);
-  
-  const [scrapingStats, setScrapingStats] = useState({
-    total: 0, pending: 0, completed: 0, failed: 0, progress: 0
-  });
-  const [scrapingProcessing, setScrapingProcessing] = useState(false);
-  const [scrapingMessage, setScrapingMessage] = useState('');
 
   useEffect(() => {
     if (webhookUrl && !localWebhookUrl) setLocalWebhookUrl(webhookUrl);
@@ -80,16 +69,8 @@ const AdminSettings = () => {
   }, [metaBitrixWebhookUrl]);
 
   useEffect(() => {
-    if (inmovillaUrl && !localInmovillaUrl) setLocalInmovillaUrl(inmovillaUrl);
-  }, [inmovillaUrl]);
-
-  useEffect(() => {
     if (secondaryQualifiedUrl && !localSecondaryQualifiedUrl) setLocalSecondaryQualifiedUrl(secondaryQualifiedUrl);
   }, [secondaryQualifiedUrl]);
-
-  useEffect(() => {
-    fetchScrapingStats();
-  }, []);
 
   const handleReplay = async () => {
     setReplaying(true);
@@ -97,6 +78,7 @@ const AdminSettings = () => {
     await replayQualifiedSince(sinceIso);
     setReplaying(false);
   };
+
 
   const handleGenerateReport = async (mode: 'last7' | 'custom') => {
     let start = reportStart;
@@ -133,37 +115,8 @@ const AdminSettings = () => {
     }
   };
 
-  const fetchScrapingStats = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('scraping-status');
-      if (data?.success) {
-        setScrapingStats(data.stats);
-      }
-    } catch (err) {
-      console.error('Error fetching scraping stats:', err);
-    }
-  };
 
-  const handleProcessBatch = async () => {
-    setScrapingProcessing(true);
-    setScrapingMessage('');
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('scrape-all-products');
-      
-      if (data?.success) {
-        toast.success(`${data.processed} productos procesados exitosamente`);
-        setScrapingMessage(data.message);
-        fetchScrapingStats();
-      } else {
-        toast.error('Error al procesar lote');
-      }
-    } catch (err) {
-      toast.error('Error al conectar con el servidor');
-    } finally {
-      setScrapingProcessing(false);
-    }
-  };
+
 
   const handleSaveWebhook = async () => {
     if (!localWebhookUrl.trim()) {
@@ -697,40 +650,8 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Inmovilla Widget URL */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Widget Inmovilla</CardTitle>
-            <CardDescription>
-              Configure la URL del iframe de Inmovilla para mostrar en la página inicial
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="inmovilla-url">URL del Iframe Inmovilla</Label>
-              <Input
-                id="inmovilla-url"
-                type="url"
-                placeholder="https://crm.inmovilla.com/panel/..."
-                value={localInmovillaUrl}
-                onChange={(e) => setLocalInmovillaUrl(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Esta URL se mostrará como un iframe en la página de inicio para los agentes
-              </p>
-            </div>
 
-            <Button 
-              onClick={async () => {
-                await saveInmovillaUrl(localInmovillaUrl);
-              }} 
-              disabled={savingInmovilla}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {savingInmovilla ? 'Guardando...' : 'Guardar'}
-            </Button>
-          </CardContent>
-        </Card>
+
 
         {/* Exportação CSV */}
         <Card>
@@ -767,62 +688,8 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Scraping de Imagens */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Scraping de Imágenes</CardTitle>
-            <CardDescription>
-              Procesar imágenes de los productos en lote desde las URLs externas
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Estatísticas */}
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Total</p>
-                <p className="text-2xl font-bold">{scrapingStats.total}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Pendientes</p>
-                <p className="text-2xl font-bold text-orange-600">{scrapingStats.pending}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Completados</p>
-                <p className="text-2xl font-bold text-green-600">{scrapingStats.completed}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Errores</p>
-                <p className="text-2xl font-bold text-red-600">{scrapingStats.failed}</p>
-              </div>
-            </div>
 
-            {/* Progresso */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progreso</span>
-                <span>{scrapingStats.progress}%</span>
-              </div>
-              <Progress value={scrapingStats.progress} />
-            </div>
 
-            {/* Botão de Processamento */}
-            <Button 
-              onClick={handleProcessBatch} 
-              disabled={scrapingProcessing || scrapingStats.pending === 0}
-            >
-              <ImageIcon className="h-4 w-4 mr-2" />
-              {scrapingProcessing ? 'Procesando...' : 'Procesar Lote (50 productos)'}
-            </Button>
-
-            {/* Mensagem de status */}
-            {scrapingMessage && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{scrapingMessage}</AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
 
       </div>
     </AdminLayout>

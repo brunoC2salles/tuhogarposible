@@ -672,6 +672,105 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ============================================
+    // ACTION: resend_lead_to_bitrix
+    // Reenvia manualmente um lead específico ao webhook Meta Ads → Bitrix
+    // ============================================
+    if (action === 'resend_lead_to_bitrix') {
+      if (!lead_id) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'lead_id é obrigatório' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: config } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_meta_bitrix_url')
+        .single();
+
+      const webhookUrl = config?.value;
+      if (!webhookUrl || !isValidWebhookUrl(webhookUrl)) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Webhook Meta/Bitrix não configurado' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*')
+        .eq('id', lead_id)
+        .single();
+
+      if (leadError || !lead) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Lead não encontrado' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!isLeadQualifiedForBitrix(lead)) {
+        return new Response(
+          JSON.stringify({ success: false, skipped: true, error: 'Lead no cualificado', stage: lead.stage }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      let agente: any = null;
+      if (lead.agente_asignado_id) {
+        const { data: a } = await supabase
+          .from('profiles')
+          .select('id, nombre, email, telefono')
+          .eq('id', lead.agente_asignado_id)
+          .maybeSingle();
+        agente = a || null;
+      }
+
+      const { data: tokenRow } = await supabase
+        .from('lead_document_tokens')
+        .select('token')
+        .eq('lead_id', lead.id)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const beworLink = tokenRow?.token
+        ? `https://tuhogarposible.lovable.app/documentos/${tokenRow.token}`
+        : '';
+
+      const payload = buildBitrixPayloadFromLead({
+        lead,
+        agente,
+        recomendaciones: [],
+        beworLink,
+        source: 'manual_resend',
+        extra: { resend: true },
+      });
+
+      const result = await sendToMake(webhookUrl, payload);
+
+      await supabase.from('webhook_logs').insert({
+        webhook_url: webhookUrl,
+        status: result.success ? 'success' : 'error',
+        error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
+        payload: payload as any,
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: result.success,
+          http_status: result.status,
+          lead_id: lead.id,
+          lead_name: lead.nombre_completo,
+          message: result.success ? 'Lead reenviado al Bitrix' : `Falló: HTTP ${result.status}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+
     return new Response(
       JSON.stringify({ success: false, error: 'Unknown action' }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

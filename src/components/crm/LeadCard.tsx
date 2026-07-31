@@ -3,10 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead } from '@/types/crm';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
 
 interface LeadCardProps {
   lead: Lead;
@@ -21,6 +24,26 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swiping, setSwiping] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const [resending, setResending] = useState(false);
+
+  const handleResendBitrix = async () => {
+    try {
+      setResending(true);
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'resend_lead_to_bitrix', lead_id: lead.id },
+      });
+      if (error) throw error;
+      if (data?.success) toast.success(`Lead reenviado al Bitrix (HTTP ${data.http_status})`);
+      else toast.error(data?.error || 'No se pudo reenviar el lead');
+    } catch (err: any) {
+      console.error('[LeadCard] resend bitrix error:', err);
+      toast.error('Error al reenviar al Bitrix');
+    } finally {
+      setResending(false);
+    }
+  };
+
+
 
 
 
@@ -232,9 +255,23 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify }
         </div>
 
 
-        <div className="text-xs text-muted-foreground pt-1">
-          {format(new Date(lead.created_at), 'dd MMM yyyy', { locale: es })}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => { e.stopPropagation(); handleResendBitrix(); }}
+          disabled={resending}
+          className="w-full text-xs h-7"
+          title="Reenviar este lead al Bitrix"
+        >
+          <Send className="h-3 w-3 mr-1" />
+          {resending ? 'Reenviando...' : 'Reenviar a Bitrix'}
+        </Button>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
+          <Clock className="h-3 w-3 flex-shrink-0" />
+          <span>Llegada: {format(new Date(lead.created_at), "dd MMM yyyy 'a las' HH:mm", { locale: es })}</span>
         </div>
+
 
         {lead.agente_nombre && (
           <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground pt-2 border-t mt-2">

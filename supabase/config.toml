@@ -6,18 +6,6 @@ verify_jwt = false
 [functions.meta-lead-webhook]
 verify_jwt = false
 
-[functions.test-scrape-images]
-verify_jwt = false
-
-[functions.scrape-product-images]
-verify_jwt = false
-
-[functions.scrape-all-products]
-verify_jwt = false
-
-[functions.scraping-status]
-verify_jwt = false
-
 [functions.make-webhook-proxy]
 verify_jwt = false
 
@@ -25,9 +13,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.disqualified-lead-webhook]
-verify_jwt = false
-
-[functions.sync-inmovilla-products]
 verify_jwt = false
 
 [functions.bewor-public-upload]
