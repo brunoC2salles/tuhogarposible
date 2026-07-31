@@ -149,7 +149,9 @@ function recualificar(input: {
     return { cualificado: false, razon: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
   }
   // 7. Ahorros
-  const ok = isAffirmativeAhorrosResponse(input.respuestaAhorros) || (input.ahorros || 0) >= AHORROS_MIN;
+  const montoAhorros = input.ahorros || 0;
+  const ok = montoAhorros >= AHORROS_MIN
+    || (montoAhorros === 0 && isAffirmativeAhorrosResponse(input.respuestaAhorros));
   if (!ok) return { cualificado: false, razon: `Ahorros insuficientes (mínimo ${AHORROS_MIN}€ o respuesta afirmativa "sí")` };
 
   return { cualificado: true };
