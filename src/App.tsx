@@ -55,7 +55,7 @@ const App = () => (
             <Route 
               path="/inventario/agente/crm"
               element={
-                <ProtectedRoute requireAdmin>
+                <ProtectedRoute allowedRoles={['agente', 'admin', 'supervisor']}>
                   <AgenteCRM />
                 </ProtectedRoute>
               } 
