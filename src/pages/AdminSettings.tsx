@@ -115,37 +115,8 @@ const AdminSettings = () => {
     }
   };
 
-  const fetchScrapingStats = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('scraping-status');
-      if (data?.success) {
-        setScrapingStats(data.stats);
-      }
-    } catch (err) {
-      console.error('Error fetching scraping stats:', err);
-    }
-  };
 
-  const handleProcessBatch = async () => {
-    setScrapingProcessing(true);
-    setScrapingMessage('');
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('scrape-all-products');
-      
-      if (data?.success) {
-        toast.success(`${data.processed} productos procesados exitosamente`);
-        setScrapingMessage(data.message);
-        fetchScrapingStats();
-      } else {
-        toast.error('Error al procesar lote');
-      }
-    } catch (err) {
-      toast.error('Error al conectar con el servidor');
-    } finally {
-      setScrapingProcessing(false);
-    }
-  };
+
 
   const handleSaveWebhook = async () => {
     if (!localWebhookUrl.trim()) {
