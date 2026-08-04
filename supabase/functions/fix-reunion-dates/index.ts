@@ -77,9 +77,34 @@ Deno.serve(async (req) => {
     const dryRun = body.dry_run !== false;
     const since = body.since ?? '2026-08-01';
 
+    // ---- SALVAGUARDAS (evitan reagendar leads históricos por error) ----
+    // 1) Nunca se puede tocar histórico: `since` no puede ser anterior a hoy - 7 días.
+    // 2) Cualquier escritura real exige `confirm: "SI"` además de dry_run:false.
     const now = new Date();
     const nowM = madridParts(now);
     const minYmd = addDaysYmd(nowM.ymd, 1); // a partir de mañana
+    const floorSince = addDaysYmd(nowM.ymd, -7);
+
+    if (since < floorSince) {
+      return new Response(
+        JSON.stringify({
+          error: 'since_too_old',
+          message: `Por seguridad, "since" no puede ser anterior a ${floorSince}. Esta función solo corrige leads recientes/futuros.`,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    if (!dryRun && body.confirm !== 'SI') {
+      return new Response(
+        JSON.stringify({
+          error: 'confirmation_required',
+          message: 'Para aplicar cambios reales envía { "dry_run": false, "confirm": "SI" }.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
 
     // ------------------------------------------------------------------
     // MODO RESTORE: devuelve a su fecha histórica los leads antiguos que
