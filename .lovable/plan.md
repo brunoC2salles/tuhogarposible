@@ -1,34 +1,50 @@
-## 1. Agente: disponibilidad y estado activo
+# Redistribución de 73 leads y reenvío a Bitrix + WhatsApp
 
-Página: **Mi Perfil** (`/agente/settings`, componente `AgentSettings.tsx`) — accesible desde el Portal del Agente. Ya contiene la tarjeta "Mi Disponibilidad" (editor tipo Calendly: días de la semana + franjas horarias, botón "Aplicar a todos", guardar).
+## Alcance confirmado
 
-Cambios:
-- Añadir en la tarjeta "Mi Perfil" un switch **"Disponible para recibir leads"** que actualiza `profiles.activo` del propio usuario (las reglas de acceso ya permiten que cada usuario edite su propio perfil).
-- Texto explicativo: si se desactiva, el reparto automático (round-robin) deja de asignarle leads nuevos.
-- Añadir un enlace/botón visible **"Mi Perfil y Disponibilidad"** en el header del Portal del Agente para que los agentes lo encuentren fácil.
+- Conjunto: leads de **Pau Samblancat (65)** y **Jordi Aranda (8)** creados entre 01/06/2026 y 31/07/2026 con ahorros >= 5.000 € = **73 leads**.
+- **16** pasan a **Gerardo Sanz**; los **57** restantes se reparten en partes iguales entre los demás agentes activos.
+- Reagendado dentro de los **próximos 10 días hábiles** (05/08 a 18/08), respetando la hora de preferencia, no la fecha antigua.
 
-Dónde mostrárselo a los agentes: Portal del Agente → botón "Mi Perfil" (arriba a la derecha) → tarjeta "Mi Disponibilidad" (horarios) y switch "Disponible para recibir leads" en la tarjeta superior.
+## Agentes elegibles para los 57
 
-## 2. Admin de visitas: filtro por agente + leads con visitas
+Reparto ~7 leads por agente:
 
-En `/admin/visitas`:
-- El filtro por agente ya existe; se mantiene y se le añade opción "Sin asignar"/limpiar.
-- Nueva sección **"Leads con visitas por agente"**: tabla agrupada que muestra, para el agente seleccionado (o para todos, agrupado por agente), cada lead con: nº de visitas, fecha de la última visita, si tiene reserva y acceso rápido a las URLs. Respeta el filtro de agente activo.
-- La exportación CSV incluirá también este resumen por lead.
+| Agente | Disponibilidad (Lun-Vie, Madrid) |
+|---|---|
+| JOSE ANTONIO | 09:00-20:00 |
+| Manuel Torrecilla | 10:00-12:00 |
+| Marie Colmenarez | 09:00-20:00 |
+| Paula Bodega Sánchez | 08:00-11:00 y 18:00-20:00 |
+| Solés Carabasa Closa | 16:00-20:00 (Mié y Jue desde 10:00) |
+| Xavier Dalmau | 09:00-18:00 |
+| Alejandro Bueno González | sin horario cargado: acepta cualquier hora |
+| Ian Queralto | sin horario cargado: acepta cualquier hora |
 
-## 3. Buscador de leads al registrar visita (corrección)
+Gerardo Sanz: Lun-Vie 10:00-18:00, recibe exactamente 16.
 
-Causa confirmada: `VisitFormModal` carga sólo **500 leads** ordenados alfabéticamente, mientras la base tiene **2.346 leads no descalificados** — todo lo que quede fuera de esos primeros 500 nombres es invisible. Además el filtrado es sólo en cliente y sensible a acentos.
+## Cómo se elige fecha y hora de cada lead
 
-Solución:
-- Buscar en el servidor: al escribir (con debounce ~250 ms) consultar `leads` con `ilike` sobre nombre, teléfono y email, limitando a 30 resultados, en lugar de precargar una lista parcial.
-- Normalizar acentos en el texto de búsqueda (coherente con el resto de la plataforma).
-- Mantener el alcance por rol: el agente ve sólo sus leads; admin/supervisor ven todos.
-- Mostrar en cada resultado nombre + teléfono + etapa, para distinguir homónimos, y estado "Escribe para buscar…" / "Sin resultados".
+1. Hora deseada = hora de `reunion_datetime` actual si existe; si no, se traduce la preferencia textual: `mañana` -> 11:00, `mediodía` -> 14:00, `tarde` -> 17:00, sin preferencia -> 11:00.
+2. Se descarta por completo la fecha antigua (incluida la fila con año 2926).
+3. Se recorren los días hábiles del 05/08 al 18/08 y se asigna el primer par (día, hora) donde:
+   - la hora cae dentro de la franja del agente para ese día de la semana;
+   - el agente no tiene ya otra reunión en ese día y hora, contando tanto las reuniones existentes en la base como las que se van creando en esta misma redistribución.
+4. Si la hora exacta no encaja en ninguna franja del agente, se desplaza a la hora válida más cercana dentro de su disponibilidad (mismo turno de mañana/tarde cuando sea posible).
+5. Si un lead no logra encajar en ningún hueco, no se toca y se reporta al final.
+
+## Ejecución
+
+1. Consulta de los 73 leads con hora deseada calculada, y de todas las reuniones ya agendadas del 05/08 al 18/08 de todos los agentes.
+2. Cálculo del reparto (16 Gerardo + 57 repartidos) y del calendario libre de solapes.
+3. Actualización en base de datos de `agente_asignado_id`, `reunion_datetime`, `fecha_reunion` y `hora_reunion` de cada lead.
+4. Reenvío de cada lead a **Bitrix** y al **webhook de WhatsApp** con los datos ya actualizados.
+5. Informe final en el chat: tabla por agente con cantidad, rango de fechas, y listado de fallos de envío si los hubiera.
 
 ## Detalles técnicos
-- `src/pages/AgentSettings.tsx`: switch de `activo` con actualización optimista y toast.
-- `src/pages/inventario/AgenteInventario.tsx`: enlace al perfil.
-- `src/components/visits/VisitFormModal.tsx`: búsqueda remota con debounce (sin límite fijo de 500).
-- `src/pages/visitas/AdminVisitas.tsx`: agrupación por agente/lead a partir de `useLeadVisits({ scope: 'all' })`.
-- Sin cambios de base de datos.
+
+- Los updates se hacen con la herramienta de datos de Supabase (`UPDATE` sobre `leads`), en lotes por agente.
+- El trigger `notify_lead_reassignment` generará notificaciones de reasignación para los agentes nuevos; `sync_lead_reunion_recordatorios` regenerará los recordatorios de 24 h y 1 h automáticamente al cambiar `reunion_datetime`.
+- La acción `resend_lead_to_bitrix` de `make-webhook-proxy` hoy solo envía a Bitrix. Se amplía para que, tras el envío a Bitrix, llame también a `dispatchSecondaryQualified` (webhook WhatsApp), y se añade una acción `resend_leads_batch` que acepta una lista de `lead_id` y devuelve el resultado por lead.
+- Se mantiene el guard `isLeadQualifiedForBitrix`: cualquier lead que no lo pase queda registrado como omitido en el informe.
+- No se modifica la lógica de round-robin de `get-next-agent`; esta redistribución es una operación puntual.
