@@ -1,21 +1,19 @@
 // ============================================================================
 // parseReunionDateTime — parser do horário livre do lead (formulário Meta Ads).
 //
-// Política (junho/2026): NÃO inventar hora quando o lead só dá franja
-// (mañana/tarde/noche), só dia da semana (lunes) ou expressão vaga
-// (cualquier día). Nestes casos retornamos `hora = null` e a reunião fica
-// como "a definir" — o agente confirma manualmente no CRM. Sem hora, nenhum
-// recordatório é agendado (o trigger só dispara quando reunion_datetime
-// está completo).
+// Política:
+//  - A DATA é extraída primeiro e o trecho correspondente é REMOVIDO do texto
+//    antes de procurar a hora (evita que "3/8" vire "03:00").
+//  - Sem hora confiável → `hora = null` (reunião "a definir"); nenhum
+//    recordatório é agendado.
+//  - Hora sempre normalizada para a franja laboral 08:00–20:00 (Madrid).
+//  - Datas absurdas (> 90 dias) são descartadas e caem no fallback.
+//  - Fim de semana empurrado para o próximo dia útil.
 //
 // Saídas:
 //   fecha:      YYYY-MM-DD | null
 //   hora:       HH:mm:ss   | null
-//   confidence:
-//     'high'         = dia e hora explícitos
-//     'medium'       = ambos extraídos, com alguma inferência
-//     'pending_time' = data ok, hora a definir
-//     'pending'      = nada extraído (vagueza total)
+//   confidence: 'high' | 'medium' | 'pending_time' | 'pending'
 // ============================================================================
 
 export type ReunionConfidence = 'high' | 'medium' | 'pending_time' | 'pending';
@@ -36,6 +34,25 @@ const DOW_MAP: Record<string, number> = {
   viernes: 5, vie: 5, sexta: 5,
   sabado: 6, sab: 6,
 };
+
+const MONTH_MAP: Record<string, number> = {
+  enero: 1, ene: 1, janeiro: 1,
+  febrero: 2, feb: 2, fevereiro: 2,
+  marzo: 3, mar: 3, marco: 3,
+  abril: 4, abr: 4,
+  mayo: 5, may: 5, maio: 5,
+  junio: 6, jun: 6, junho: 6,
+  julio: 7, jul: 7, julho: 7,
+  agosto: 8, ago: 8,
+  septiembre: 9, setiembre: 9, sep: 9, sept: 9, setembro: 9,
+  octubre: 10, oct: 10, outubro: 10,
+  noviembre: 11, nov: 11, novembro: 11,
+  diciembre: 12, dic: 12, dezembro: 12,
+};
+
+const WORK_START = 8;
+const WORK_END = 20;
+const MAX_HORIZON_DAYS = 90;
 
 function normalize(s: string): string {
   return s
@@ -96,32 +113,151 @@ function ymdToString(y: number, m: number, d: number): string {
   return `${y}-${pad(m)}-${pad(d)}`;
 }
 
+function daysBetween(a: { y: number; m: number; d: number }, b: { y: number; m: number; d: number }): number {
+  const da = Date.UTC(a.y, a.m - 1, a.d);
+  const db = Date.UTC(b.y, b.m - 1, b.d);
+  return Math.round((db - da) / 86400000);
+}
+
+function isValidDay(d: number, m: number): boolean {
+  if (m < 1 || m > 12 || d < 1) return false;
+  const maxDay = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+  return d <= maxDay;
+}
+
+// ---------------------------------------------------------------------------
+// DATA
+// ---------------------------------------------------------------------------
+
+interface FechaExtract {
+  ymd: { y: number; m: number; d: number } | null;
+  hadExplicit: boolean;
+  /** texto restante, já sem o trecho consumido pela data */
+  rest: string;
+}
+
+function resolveYear(dd: number, mm: number, yyRaw: string | undefined, today: { y: number; m: number; d: number }) {
+  let yy = yyRaw ? parseInt(yyRaw, 10) : today.y;
+  if (yyRaw && yy < 100) yy += 2000;
+  if (!yyRaw) {
+    const cand = Date.UTC(yy, mm - 1, dd);
+    const todayDt = Date.UTC(today.y, today.m - 1, today.d);
+    if (cand < todayDt) yy += 1;
+  }
+  return yy;
+}
+
+function extractFecha(text: string, base: Date): FechaExtract {
+  const today = todayInMadrid(base);
+  const strip = (m: RegExpMatchArray) =>
+    (text.slice(0, m.index!) + ' ' + text.slice(m.index! + m[0].length)).replace(/\s+/g, ' ').trim();
+
+  // 1) dd/mm[/aaaa] — também aceita espaços em volta dos separadores
+  const dmy = text.match(/\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{2,4}))?\b/);
+  if (dmy) {
+    const dd = parseInt(dmy[1], 10);
+    const mm = parseInt(dmy[2], 10);
+    if (isValidDay(dd, mm)) {
+      const yy = resolveYear(dd, mm, dmy[3], today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(dmy) };
+    }
+  }
+
+  // 2) "8 de agosto" / "8 agosto" / "agosto 8"
+  const dMonth = text.match(
+    /\b(\d{1,2})\s*(?:de\s+|del\s+)?(enero|ene|febrero|feb|marzo|marco|abril|abr|mayo|may|maio|junio|jun|junho|julio|jul|julho|agosto|ago|septiembre|setiembre|setembro|sept|sep|octubre|oct|outubro|noviembre|nov|novembro|diciembre|dic|dezembro)\b(?:\s*(?:de\s+|del\s+)?(\d{4}))?/,
+  );
+  if (dMonth) {
+    const dd = parseInt(dMonth[1], 10);
+    const mm = MONTH_MAP[dMonth[2]];
+    if (mm && isValidDay(dd, mm)) {
+      const yy = resolveYear(dd, mm, dMonth[3], today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(dMonth) };
+    }
+  }
+
+  // 2b) "10 de 09" (mês numérico escrito por extenso com "de")
+  const dNumMonth = text.match(/\b(\d{1,2})\s+de\s+(\d{1,2})\b(?:\s+de\s+(\d{4}))?/);
+  if (dNumMonth) {
+    const dd = parseInt(dNumMonth[1], 10);
+    const mm = parseInt(dNumMonth[2], 10);
+    if (isValidDay(dd, mm) && mm <= 12) {
+      const yy = resolveYear(dd, mm, dNumMonth[3], today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(dNumMonth) };
+    }
+  }
+
+  if (/\bpasado\s+manana\b/.test(text)) {
+    const m = text.match(/\bpasado\s+manana\b/)!;
+    return { ymd: addDays(today.y, today.m, today.d, 2), hadExplicit: true, rest: strip(m) };
+  }
+
+  const hoy = text.match(/\b(hoy|today|hoje)\b/);
+  if (hoy) {
+    return { ymd: { y: today.y, m: today.m, d: today.d }, hadExplicit: true, rest: strip(hoy) };
+  }
+
+  // 3) "3 8" (dia mês separados por espaço), ex.: "lunes 3 8 hra 5 pm" ou "03 08 11"
+  const pair = text.match(/\b(\d{1,2})\s+(\d{1,2})\b(?!\s*[:.])/);
+  if (pair) {
+    const dd = parseInt(pair[1], 10);
+    const mm = parseInt(pair[2], 10);
+    if (isValidDay(dd, mm) && mm <= 12 && dd >= 1) {
+      const yy = resolveYear(dd, mm, undefined, today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(pair) };
+    }
+  }
+
+  // 4) dia da semana
+  for (const [word, dow] of Object.entries(DOW_MAP)) {
+    const m = text.match(new RegExp(`\\b${word}\\b`));
+    if (m) {
+      return { ymd: nextWeekday(today.y, today.m, today.d, dow), hadExplicit: true, rest: strip(m) };
+    }
+  }
+
+  // 5) "mañana" como dia seguinte (só quando não é franja horária)
+  if (/\bmanana\b/.test(text)) {
+    const isFranja = /\b(por|de|en)\s+la\s+manana\b/.test(text);
+    if (!isFranja) {
+      const m = text.match(/\bmanana\b/)!;
+      return { ymd: addDays(today.y, today.m, today.d, 1), hadExplicit: true, rest: strip(m) };
+    }
+  }
+
+  return { ymd: null, hadExplicit: false, rest: text };
+}
+
+// ---------------------------------------------------------------------------
+// HORA
+// ---------------------------------------------------------------------------
+
 interface HoraExtract {
   hora: string | null;
-  hadPeriod: boolean;
   hadExplicit: boolean;
 }
 
 function extractHora(text: string): HoraExtract {
-  const hadMañana = /\b(manana|manha|mañana|morning)\b/.test(text);
-  const hadTarde = /\b(tarde|afternoon)\b/.test(text);
+  const hadTarde = /\b(tarde|afternoon|pm|p\.?\s?m\.?)\b/.test(text);
   const hadNoche = /\b(noche|noite|evening|night)\b/.test(text);
-  const hadPeriod = hadMañana || hadTarde || hadNoche;
+  const hadAm = /\b(am|a\.?\s?m\.?|manana|manha|morning)\b/.test(text);
 
   let h: number | null = null;
   let mm = 0;
 
-  const ampm = text.match(/(\d{1,2}):(\d{2})\s*(am|pm)/);
+  const ampm = text.match(/\b(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)\b/);
   const colon = text.match(/\b(\d{1,2}):(\d{2})\b/);
-  const hFmt = text.match(/\b(\d{1,2})\s*h(?:\s*(\d{2}))?\b/);
-  const dot = text.match(/\b(\d{1,2})\.(\d{2})\b/);
-  const onlyH = text.match(/\b(\d{1,2})\s*(?:hs?|horas?)?\b(?!\d)/);
+  const hFmt = text.match(/\b(\d{1,2})\s*h(?:s|rs?|oras?)?\b(?:\s*(\d{2}))?/);
+  const dot = text.match(/\b(\d{1,2})[.,](\d{2})\b/);
+  const lasN = text.match(/\blas\s+(\d{1,2})\b/);
+  const onlyH = text.match(/\b(\d{1,2})\b/);
 
   if (ampm) {
     h = parseInt(ampm[1], 10);
-    mm = parseInt(ampm[2], 10);
-    if (ampm[3] === 'pm' && h < 12) h += 12;
-    if (ampm[3] === 'am' && h === 12) h = 0;
+    mm = ampm[2] ? parseInt(ampm[2], 10) : 0;
+    const isPm = /p/.test(ampm[3]);
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
   } else if (colon) {
     h = parseInt(colon[1], 10);
     mm = parseInt(colon[2], 10);
@@ -131,76 +267,31 @@ function extractHora(text: string): HoraExtract {
   } else if (dot) {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
+  } else if (lasN) {
+    h = parseInt(lasN[1], 10);
   } else if (onlyH) {
     const candidate = parseInt(onlyH[1], 10);
     if (candidate >= 0 && candidate <= 23) h = candidate;
   }
 
-  if (h === null) {
-    // Política nova: franja (mañana/tarde/noche) SEM número NÃO vira hora.
-    return { hora: null, hadPeriod, hadExplicit: false };
-  }
+  if (h === null) return { hora: null, hadExplicit: false };
+  if (mm < 0 || mm > 59) mm = 0;
 
-  // Heurística: "4 de la tarde" → 16; "8 de la noche" → 20
+  // Desambiguação por franja: "4 de la tarde" → 16, "8 de la noche" → 20
   if ((hadTarde || hadNoche) && h < 12) h += 12;
-  if (h < 0 || h > 23 || mm < 0 || mm > 59) {
-    return { hora: null, hadPeriod, hadExplicit: false };
+
+  // Fora da franja laboral: tenta interpretar como tarde ("las 6" → 18:00)
+  if (h < WORK_START && !hadAm && h + 12 <= WORK_END) h += 12;
+
+  if (h < WORK_START || h > WORK_END || h > 23) {
+    return { hora: null, hadExplicit: false };
   }
-  return { hora: `${pad(h)}:${pad(mm)}:00`, hadPeriod, hadExplicit: true };
+  if (h === WORK_END) mm = 0;
+
+  return { hora: `${pad(h)}:${pad(mm)}:00`, hadExplicit: true };
 }
 
-interface FechaExtract {
-  ymd: { y: number; m: number; d: number } | null;
-  hadExplicit: boolean;
-  mentionedWeekend: boolean;
-}
-
-function extractFecha(text: string, base: Date): FechaExtract {
-  const today = todayInMadrid(base);
-
-  const dmy = text.match(/\b(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/);
-  if (dmy) {
-    const dd = parseInt(dmy[1], 10);
-    const mm = parseInt(dmy[2], 10);
-    if (dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12) {
-      let yy = dmy[3] ? parseInt(dmy[3], 10) : today.y;
-      if (yy < 100) yy += 2000;
-      if (!dmy[3]) {
-        const cand = new Date(Date.UTC(yy, mm - 1, dd));
-        const todayDt = new Date(Date.UTC(today.y, today.m - 1, today.d));
-        if (cand < todayDt) yy += 1;
-      }
-      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, mentionedWeekend: false };
-    }
-  }
-
-  if (/\bpasado\s+manana\b/.test(text) || /\baftertomorrow\b/.test(text)) {
-    return { ymd: addDays(today.y, today.m, today.d, 2), hadExplicit: true, mentionedWeekend: false };
-  }
-
-  if (/\b(hoy|today|hoje)\b/.test(text)) {
-    return { ymd: { y: today.y, m: today.m, d: today.d }, hadExplicit: true, mentionedWeekend: false };
-  }
-
-  for (const [word, dow] of Object.entries(DOW_MAP)) {
-    if (new RegExp(`\\b${word}\\b`).test(text)) {
-      return {
-        ymd: nextWeekday(today.y, today.m, today.d, dow),
-        hadExplicit: true,
-        mentionedWeekend: dow === 0 || dow === 6,
-      };
-    }
-  }
-
-  if (/\bmanana\b/.test(text) && !/\b(por la|de la|en la)\s+(tarde|noche|manana)\b/.test(text)) {
-    return { ymd: addDays(today.y, today.m, today.d, 1), hadExplicit: true, mentionedWeekend: false };
-  }
-  if (/\bmanana\s+(por|de|en)\s+la\s+(tarde|noche|manana)\b/.test(text)) {
-    return { ymd: addDays(today.y, today.m, today.d, 1), hadExplicit: true, mentionedWeekend: false };
-  }
-
-  return { ymd: null, hadExplicit: false, mentionedWeekend: false };
-}
+// ---------------------------------------------------------------------------
 
 export function parseReunionDateTime(rawInput: string, base: Date = new Date()): ParsedReunion {
   const raw = (rawInput || '').toString();
@@ -210,22 +301,26 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
     return { fecha: null, hora: null, confidence: 'pending', rawInput: raw };
   }
 
-  const horaResult = extractHora(text);
   const fechaResult = extractFecha(text, base);
+  const horaResult = extractHora(fechaResult.rest);
 
+  const today = todayInMadrid(base);
   let fechaYMD = fechaResult.ymd;
-  let hora = horaResult.hora;
+  const hora = horaResult.hora;
 
-  // Fim de semana (sábado/domingo) SEMPRE é empurrado para o próximo dia útil,
-  // mesmo quando o lead menciona explicitamente. Preservamos o horário.
+  // Descarta datas absurdas (fora do horizonte) ou já passadas
+  if (fechaYMD) {
+    const delta = daysBetween(today, fechaYMD);
+    if (delta < 0 || delta > MAX_HORIZON_DAYS) fechaYMD = null;
+  }
+
+  // Fim de semana → próximo dia útil, preservando a hora
   if (fechaYMD && isWeekend(fechaYMD.y, fechaYMD.m, fechaYMD.d)) {
     fechaYMD = nextBusinessDay(fechaYMD.y, fechaYMD.m, fechaYMD.d, false);
   }
 
-  // Sem data nem hora (ex.: "cuando gusten", "cualquier hora") →
-  // agenda no próximo dia útil às 11:00 (Madrid).
+  // Sem data nem hora → próximo dia útil às 11:00
   if (!fechaYMD && !hora) {
-    const today = todayInMadrid(base);
     const fallback = nextBusinessDay(today.y, today.m, today.d, false);
     return {
       fecha: ymdToString(fallback.y, fallback.m, fallback.d),
@@ -235,8 +330,7 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
     };
   }
 
-
-  // Tem data mas não tem hora → pending_time (a definir hora)
+  // Data sem hora → hora a definir
   if (fechaYMD && !hora) {
     return {
       fecha: ymdToString(fechaYMD.y, fechaYMD.m, fechaYMD.d),
@@ -246,18 +340,16 @@ export function parseReunionDateTime(rawInput: string, base: Date = new Date()):
     };
   }
 
-  // Tem hora mas não tem data → assume próximo dia útil para a hora
+  // Hora sem data → próximo dia útil (incluindo hoje)
   if (!fechaYMD && hora) {
-    const today = todayInMadrid(base);
     fechaYMD = nextBusinessDay(today.y, today.m, today.d, true);
   }
 
-  // Aqui temos ambos. Garante buffer de 2h.
-  const candidate = new Date(`${ymdToString(fechaYMD!.y, fechaYMD!.m, fechaYMD!.d)}T${hora}+01:00`);
+  // Buffer mínimo de 2h
+  const candidate = new Date(`${ymdToString(fechaYMD!.y, fechaYMD!.m, fechaYMD!.d)}T${hora}+02:00`);
   const minimum = new Date(base.getTime() + 2 * 60 * 60 * 1000);
   if (candidate.getTime() < minimum.getTime()) {
-    const today = todayInMadrid(base);
-    fechaYMD = nextBusinessDay(today.y, today.m, today.d, false);
+    fechaYMD = nextBusinessDay(fechaYMD!.y, fechaYMD!.m, fechaYMD!.d, false);
   }
 
   const confidence: ReunionConfidence =
