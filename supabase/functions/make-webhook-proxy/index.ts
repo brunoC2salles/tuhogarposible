@@ -673,13 +673,17 @@ Deno.serve(async (req) => {
     }
 
     // ============================================
-    // ACTION: resend_lead_to_bitrix
-    // Reenvia manualmente um lead específico ao webhook Meta Ads → Bitrix
+    // ACTION: resend_lead_to_bitrix / resend_leads_batch
+    // Reenvia manualmente lead(s) ao webhook Meta Ads → Bitrix e ao webhook de WhatsApp
     // ============================================
-    if (action === 'resend_lead_to_bitrix') {
-      if (!lead_id) {
+    if (action === 'resend_lead_to_bitrix' || action === 'resend_leads_batch') {
+      const ids: string[] = action === 'resend_leads_batch'
+        ? (Array.isArray(body.lead_ids) ? body.lead_ids : [])
+        : (lead_id ? [lead_id] : []);
+
+      if (ids.length === 0) {
         return new Response(
-          JSON.stringify({ success: false, error: 'lead_id é obrigatório' }),
+          JSON.stringify({ success: false, error: 'lead_id / lead_ids é obrigatório' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -698,77 +702,108 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { data: lead, error: leadError } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('id', lead_id)
-        .single();
+      const results: any[] = [];
 
-      if (leadError || !lead) {
-        return new Response(
-          JSON.stringify({ success: false, error: 'Lead não encontrado' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (!isLeadQualifiedForBitrix(lead)) {
-        return new Response(
-          JSON.stringify({ success: false, skipped: true, error: 'Lead no cualificado', stage: lead.stage }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      let agente: any = null;
-      if (lead.agente_asignado_id) {
-        const { data: a } = await supabase
-          .from('profiles')
-          .select('id, nombre, email, telefono')
-          .eq('id', lead.agente_asignado_id)
+      for (const id of ids) {
+        const { data: lead, error: leadError } = await supabase
+          .from('leads')
+          .select('*')
+          .eq('id', id)
           .maybeSingle();
-        agente = a || null;
-      }
 
-      const { data: tokenRow } = await supabase
-        .from('lead_document_tokens')
-        .select('token')
-        .eq('lead_id', lead.id)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const beworLink = tokenRow?.token
-        ? `https://tuhogarposible.lovable.app/documentos/${tokenRow.token}`
-        : '';
+        if (leadError || !lead) {
+          results.push({ lead_id: id, success: false, error: 'Lead não encontrado' });
+          continue;
+        }
 
-      const payload = buildBitrixPayloadFromLead({
-        lead,
-        agente,
-        recomendaciones: [],
-        beworLink,
-        source: 'manual_resend',
-        extra: { resend: true },
-      });
+        if (!isLeadQualifiedForBitrix(lead)) {
+          results.push({ lead_id: id, lead_name: lead.nombre_completo, success: false, skipped: true, error: 'Lead no cualificado', stage: lead.stage });
+          continue;
+        }
 
-      const result = await sendToMake(webhookUrl, payload);
+        let agente: any = null;
+        if (lead.agente_asignado_id) {
+          const { data: a } = await supabase
+            .from('profiles')
+            .select('id, nombre, email, telefono')
+            .eq('id', lead.agente_asignado_id)
+            .maybeSingle();
+          agente = a || null;
+        }
 
-      await supabase.from('webhook_logs').insert({
-        webhook_url: webhookUrl,
-        status: result.success ? 'success' : 'error',
-        error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
-        payload: payload as any,
-      });
+        const { data: tokenRow } = await supabase
+          .from('lead_document_tokens')
+          .select('token')
+          .eq('lead_id', lead.id)
+          .gt('expires_at', new Date().toISOString())
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        const beworLink = tokenRow?.token
+          ? `https://tuhogarposible.lovable.app/documentos/${tokenRow.token}`
+          : '';
 
-      return new Response(
-        JSON.stringify({
-          success: result.success,
-          http_status: result.status,
+        const payload = buildBitrixPayloadFromLead({
+          lead,
+          agente,
+          recomendaciones: [],
+          beworLink,
+          source: 'manual_resend',
+          extra: { resend: true },
+        });
+
+        const result = await sendToMake(webhookUrl, payload);
+
+        await supabase.from('webhook_logs').insert({
+          webhook_url: webhookUrl,
+          status: result.success ? 'success' : 'error',
+          error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
+          payload: payload as any,
+        });
+
+        // Fan-out para o webhook secundário (WhatsApp)
+        const wa = await dispatchSecondaryQualified(supabase, {
+          lead,
+          agente,
+          source: 'manual_resend',
+          documentoLink: beworLink || null,
+          extra: { resend: true },
+        });
+
+        results.push({
           lead_id: lead.id,
           lead_name: lead.nombre_completo,
-          message: result.success ? 'Lead reenviado al Bitrix' : `Falló: HTTP ${result.status}`,
+          success: result.success,
+          http_status: result.status,
+          whatsapp_sent: wa.sent,
+          whatsapp_error: wa.error ?? null,
+        });
+      }
+
+      if (action === 'resend_lead_to_bitrix') {
+        const r = results[0];
+        return new Response(
+          JSON.stringify({
+            ...r,
+            message: r.success ? 'Lead reenviado al Bitrix' : (r.error || `Falló: HTTP ${r.http_status}`),
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const okCount = results.filter((r) => r.success).length;
+      return new Response(
+        JSON.stringify({
+          success: okCount > 0,
+          total: results.length,
+          bitrix_ok: okCount,
+          whatsapp_ok: results.filter((r) => r.whatsapp_sent).length,
+          results,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
 
     return new Response(
