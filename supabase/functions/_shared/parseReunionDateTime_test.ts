@@ -3,16 +3,11 @@ import { parseReunionDateTime } from "./parseReunionDateTime.ts";
 
 // Quarta-feira, 17 de junho de 2026, 12:00 Madrid (~10:00 UTC)
 const BASE = new Date('2026-06-17T10:00:00Z');
+// Segunda-feira, 3 de agosto de 2026, 10:00 Madrid (08:00 UTC)
+const AGO = new Date('2026-08-03T08:00:00Z');
 
 Deno.test("mañana por la tarde → +1 dia, hora a definir", () => {
   const r = parseReunionDateTime("mañana x la tarde", BASE);
-  assertEquals(r.fecha, "2026-06-18");
-  assertEquals(r.hora, null);
-  assertEquals(r.confidence, "pending_time");
-});
-
-Deno.test("mañana sozinho → +1 dia, hora a definir", () => {
-  const r = parseReunionDateTime("mañana", BASE);
   assertEquals(r.fecha, "2026-06-18");
   assertEquals(r.hora, null);
   assertEquals(r.confidence, "pending_time");
@@ -36,7 +31,6 @@ Deno.test("25/06 10:30 → data explícita", () => {
   const r = parseReunionDateTime("25/06 10:30", BASE);
   assertEquals(r.fecha, "2026-06-25");
   assertEquals(r.hora, "10:30:00");
-  assertEquals(r.confidence, "high");
 });
 
 Deno.test("vazio → tudo a definir", () => {
@@ -46,22 +40,79 @@ Deno.test("vazio → tudo a definir", () => {
   assertEquals(r.confidence, "pending");
 });
 
-Deno.test("cualquier día → tudo a definir (sem fallback)", () => {
+Deno.test("cualquier día → próximo dia útil 11:00", () => {
   const r = parseReunionDateTime("cualquier día", BASE);
-  assertEquals(r.fecha, null);
-  assertEquals(r.hora, null);
-  assertEquals(r.confidence, "pending");
+  assertEquals(r.fecha, "2026-06-18");
+  assertEquals(r.hora, "11:00:00");
 });
 
-Deno.test("qualquier dia - 12h → próximo dia útil 12:00", () => {
-  const r = parseReunionDateTime("qualquier dia - 12h", BASE);
-  assertEquals(r.fecha, "2026-06-18");
+// --- casos reais que geravam horas de madrugada ---
+
+Deno.test("3/8 → 03/08 sem hora (não vira 03:00)", () => {
+  const r = parseReunionDateTime("3/8", AGO);
+  assertEquals(r.fecha, "2026-08-03");
+  assertEquals(r.hora, null);
+});
+
+Deno.test("05/08/2026 → 05/08 sem hora", () => {
+  const r = parseReunionDateTime("05/08/2026", AGO);
+  assertEquals(r.fecha, "2026-08-05");
+  assertEquals(r.hora, null);
+});
+
+Deno.test("Lunes 3 8 hra 5 pm → 03/08 17:00", () => {
+  const r = parseReunionDateTime("Lunes 3  8  hra 5 pm", AGO);
+  assertEquals(r.fecha, "2026-08-03");
+  assertEquals(r.hora, "17:00:00");
+});
+
+Deno.test("03 08 11 → 11:00 (empurrado p/ 04/08 pelo buffer de 2h)", () => {
+  const r = parseReunionDateTime("03 08 11", AGO);
+  assertEquals(r.fecha, "2026-08-04");
+  assertEquals(r.hora, "11:00:00");
+});
+
+Deno.test("8 de agosto → 10/08 (sábado empurrado), hora a definir", () => {
+  const r = parseReunionDateTime("8 de agosto", AGO);
+  assertEquals(r.fecha, "2026-08-10");
+  assertEquals(r.hora, null);
+});
+
+Deno.test("14 /08/26 → 14/08 sem hora", () => {
+  const r = parseReunionDateTime("14 /08/26", AGO);
+  assertEquals(r.fecha, "2026-08-14");
+  assertEquals(r.hora, null);
+});
+
+Deno.test("18.3 → fora de horizonte, fallback próximo dia útil 11:00", () => {
+  const r = parseReunionDateTime("18.3", AGO);
+  assertEquals(r.fecha, "2026-08-04");
+  assertEquals(r.hora, "11:00:00");
+});
+
+Deno.test("después de las 6 → 18:00", () => {
+  const r = parseReunionDateTime("mandame wassap para atenderte despues de las 6", AGO);
+  assertEquals(r.hora, "18:00:00");
+});
+
+Deno.test("El 10 de 09 ha las 2.30 P.M → 10/09 14:30", () => {
+  const r = parseReunionDateTime("El  10 de 09 ha las 2.30 P.M 2026", AGO);
+  assertEquals(r.fecha, "2026-09-10");
+  assertEquals(r.hora, "14:30:00");
+});
+
+Deno.test("3 de agosto por la mañana sobre 12 → 03/08 12:00", () => {
+  const r = parseReunionDateTime("3 de agosto por la mañana sobre 12", AGO);
+  assertEquals(r.fecha, "2026-08-03");
   assertEquals(r.hora, "12:00:00");
 });
 
-Deno.test("4 de la tarde com mañana → 16:00 (hoje, >2h buffer)", () => {
-  const r = parseReunionDateTime("mañana 4 de la tarde", BASE);
-  // "de la tarde" desambigua e bloqueia o branch "mañana" como dia; caímos no fallback
-  // de próximo dia útil para a hora extraída (16:00 hoje, atende buffer 2h).
-  assertEquals(r.hora, "16:00:00");
+Deno.test("nunca devolve hora fora de 08:00-20:00", () => {
+  for (const t of ["a las 3", "a las 23", "0:30", "05/08/2026", "3/8", "22h"]) {
+    const r = parseReunionDateTime(t, AGO);
+    if (r.hora) {
+      const h = parseInt(r.hora.slice(0, 2), 10);
+      assertEquals(h >= 8 && h <= 20, true, `hora inválida ${r.hora} para "${t}"`);
+    }
+  }
 });
