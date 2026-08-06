@@ -36,4 +36,4 @@ Tras aplicar los cambios: ejecutar los tests del parser y comprobar con una cons
 - Nuevo `_shared/resolveReunion.ts` con `madridToIso`, normalización a franja 08:00–20:00 L–V y garantía de futuro; consumido por `bitrixPayload.ts` y `secondaryQualifiedPayload.ts` (se elimina la lógica duplicada de `resolveScheduledAt`).
 - Migración para reemplazar `public.enforce_valid_reunion_datetime()` incluyendo la rama `reunion_datetime IS NULL AND fecha_reunion IS NOT NULL`.
 - Ajustes de regex en `_shared/parseReunionDateTime.ts` más casos nuevos en `parseReunionDateTime_test.ts`.
-- El backfill se ejecuta vía `fix-reunion-dates` (que ya exige `dry_run:false` + `confirm:"SI"`), ampliado para incluir leads con `reunion_datetime` nulo; primero dry-run para revisión.
+- No se ejecuta `fix-reunion-dates` ni ninguna corrección masiva de datos; sus salvaguardas se mantienen intactas.
