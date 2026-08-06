@@ -59,6 +59,8 @@ function normalize(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // "11'30" / "11´30" / "11`30" → "11:30"
+    .replace(/(\d)\s*['´`]\s*(\d{2})\b/g, '$1:$2')
     .replace(/\s+/g, ' ')
     .trim();
 }
