@@ -180,6 +180,11 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
 
   const recom = recomendaciones.slice(0, 3);
 
+  // Dia/hora definitivos da reunião (mesma fonte que o webhook de WhatsApp)
+  const reunion = resolveReunion(lead);
+
+
+
   const payload: Record<string, any> = {
     source,
     timestamp: new Date().toISOString(),
