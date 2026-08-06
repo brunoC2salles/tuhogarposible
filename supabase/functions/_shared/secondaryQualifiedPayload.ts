@@ -22,7 +22,9 @@ export interface SecondaryPayloadInput {
 export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
   const { lead, agente, source, documentoLink, extra } = input;
 
-  const { iso: reunionDatetimeIso, fallbackUsed } = resolveScheduledAt(lead);
+  const reunion = resolveReunion(lead);
+  const reunionDatetimeIso = reunion.iso;
+  const fallbackUsed = reunion.pendiente;
 
 
   return {
