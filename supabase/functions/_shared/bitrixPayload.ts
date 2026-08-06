@@ -202,19 +202,18 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     lead_disponibilidad: metaPreferencia,
     lead_documento: metaDniNie,
 
-    // ===== Agendamento de reunião (vem do formulário Meta Ads) =====
-    // Política: se o lead só deu franja/dia (sem hora), enviamos a data sem hora
-    // e marcamos `lead_reunion_a_definir: true`. O agente confirma no CRM.
-    lead_fecha_reunion: lead.fecha_reunion || '',
-    lead_hora_reunion: lead.hora_reunion || '',
+    // ===== Agendamento de reunião (resolvido por _shared/resolveReunion.ts) =====
+    // MESMO resolvedor usado pelo webhook de WhatsApp → dia/hora sempre idênticos
+    // nos dois canais, sempre em franja laboral, dia útil e no futuro (Madrid).
+    lead_fecha_reunion: reunion.fecha,
+    lead_hora_reunion: reunion.hora,
     lead_hora_reunion_texto: lead.hora_reunion_texto || '',
     lead_zona_horaria_reunion: lead.zona_horaria_reunion || 'Europe/Madrid',
-    lead_reunion_datetime: lead.reunion_datetime || '',
+    lead_reunion_datetime: reunion.iso,
     // Pré-formatado para o campo data+hora do Bitrix (YYYY-MM-DDTHH:mm:ss).
-    // Vazio quando não temos data; só-data quando não temos hora (00:00:00).
-    lead_fecha_reunion_bitrix: buildFechaReunionBitrix(lead.fecha_reunion, lead.hora_reunion),
-    // Flag para o Make: lead precisa que o agente confirme dia/hora antes do follow-up.
-    lead_reunion_a_definir: !lead.hora_reunion || !lead.fecha_reunion,
+    lead_fecha_reunion_bitrix: reunion.bitrix,
+    // Flag para o Make: a hora foi atribuída por nós, o agente deve confirmá-la.
+    lead_reunion_a_definir: reunion.pendiente,
     lead_reunion_notas_originales: lead.hora_reunion_texto || '',
     // Confiança do parser: 'high' | 'medium' | 'pending_time' | 'pending'
     lead_reunion_confidence: lead.reunion_confidence || '',
