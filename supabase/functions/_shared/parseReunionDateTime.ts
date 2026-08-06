@@ -59,6 +59,8 @@ function normalize(s: string): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    // "11'30" / "11´30" / "11`30" → "11:30"
+    .replace(/(\d)\s*['´`]\s*(\d{2})\b/g, '$1:$2')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -138,7 +140,16 @@ interface FechaExtract {
 
 function resolveYear(dd: number, mm: number, yyRaw: string | undefined, today: { y: number; m: number; d: number }) {
   let yy = yyRaw ? parseInt(yyRaw, 10) : today.y;
-  if (yyRaw && yy < 100) yy += 2000;
+  // Ano de 2 dígitos só é aceite se for plausível (>= 24). Assim "07/08-12/00"
+  // não interpreta "12" como ano 2012 — é hora, não ano.
+  if (yyRaw && yy < 100) {
+    if (yy < 24) {
+      yy = today.y;
+      yyRaw = undefined;
+    } else {
+      yy += 2000;
+    }
+  }
   if (!yyRaw) {
     const cand = Date.UTC(yy, mm - 1, dd);
     const todayDt = Date.UTC(today.y, today.m - 1, today.d);
@@ -153,7 +164,9 @@ function extractFecha(text: string, base: Date): FechaExtract {
     (text.slice(0, m.index!) + ' ' + text.slice(m.index! + m[0].length)).replace(/\s+/g, ' ').trim();
 
   // 1) dd/mm[/aaaa] — também aceita espaços em volta dos separadores
-  const dmy = text.match(/\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{2,4}))?\b/);
+  // Ano: só 4 dígitos ou 2 dígitos plausíveis (>=20). Evita ler a hora
+  // ("07/08-12/00") como se "12" fosse o ano.
+  const dmy = text.match(/\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{4}|[2-9]\d)\b)?/);
   if (dmy) {
     const dd = parseInt(dmy[1], 10);
     const mm = parseInt(dmy[2], 10);
@@ -249,6 +262,8 @@ function extractHora(text: string): HoraExtract {
   const colon = text.match(/\b(\d{1,2}):(\d{2})\b/);
   const hFmt = text.match(/\b(\d{1,2})\s*h(?:s|rs?|oras?)?\b(?:\s*(\d{2}))?/);
   const dot = text.match(/\b(\d{1,2})[.,](\d{2})\b/);
+  // "12/00" ou "12-30" usados como hora (depois de a data já ter sido retirada)
+  const slash = text.match(/\b(\d{1,2})\s*[\/\-]\s*([0-5]\d)\b/);
   const lasN = text.match(/\blas\s+(\d{1,2})\b/);
   const onlyH = text.match(/\b(\d{1,2})\b/);
 
@@ -267,6 +282,9 @@ function extractHora(text: string): HoraExtract {
   } else if (dot) {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
+  } else if (slash && parseInt(slash[1], 10) <= 23) {
+    h = parseInt(slash[1], 10);
+    mm = parseInt(slash[2], 10);
   } else if (lasN) {
     h = parseInt(lasN[1], 10);
   } else if (onlyH) {
