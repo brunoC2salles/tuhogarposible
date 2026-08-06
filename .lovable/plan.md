@@ -25,11 +25,11 @@ Ampliar `enforce_valid_reunion_datetime` para que, cuando llegue `fecha_reunion`
 **4. Correcciones del parser**
 En `parseReunionDateTime.ts`: no perder el día cuando el separador entre fecha y hora es un guion ("07/08-12/00"), aceptar minutos escritos con apóstrofo o coma ("11'30", "12,30"), evitar que un año suelto se cuele como minutos ("18 h 2026"), y tratar fechas ya pasadas del año en curso empujándolas al siguiente día hábil manteniendo la hora pedida.
 
-**5. Corrección de datos existentes**
-Backfill de los 43 leads de agosto sin `reunion_datetime` (y de cualquier lead futuro con datos incoherentes), aplicando el mismo resolvedor. No se toca nada anterior a hoy − 7 días: la salvaguarda de `fix-reunion-dates` se mantiene.
+**5. Sin tocar datos históricos y sin reenvíos**
+No se hace backfill de los 43 leads de agosto ni de ningún lead existente, y no se dispara nada a Bitrix ni a WhatsApp. Los cambios aplican solo a los leads que entren a partir de ahora (y a cualquier lead que se edite desde el CRM, gracias al trigger).
 
-**6. Verificación y reenvío**
-Consulta de control final (0 leads futuros sin instante, 0 fuera de franja, 0 en fin de semana, 0 solapes de agente, Bitrix y WhatsApp con el mismo valor). Después, reenvío a Bitrix y WhatsApp únicamente de los leads cualificados y futuros cuya fecha haya cambiado con el backfill, para que ambos sistemas queden alineados con el CRM.
+**6. Verificación**
+Tras aplicar los cambios: ejecutar los tests del parser y comprobar con una consulta de control que los leads nuevos entran con día y hora coherentes en horario de Madrid (dentro de franja, día hábil, futuro, y con Bitrix y WhatsApp mostrando el mismo valor).
 
 ## Detalles técnicos
 
