@@ -164,7 +164,9 @@ function extractFecha(text: string, base: Date): FechaExtract {
     (text.slice(0, m.index!) + ' ' + text.slice(m.index! + m[0].length)).replace(/\s+/g, ' ').trim();
 
   // 1) dd/mm[/aaaa] — também aceita espaços em volta dos separadores
-  const dmy = text.match(/\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{2,4}))?\b/);
+  // Ano: só 4 dígitos ou 2 dígitos plausíveis (>=20). Evita ler a hora
+  // ("07/08-12/00") como se "12" fosse o ano.
+  const dmy = text.match(/\b(\d{1,2})\s*[\/\-.]\s*(\d{1,2})(?:\s*[\/\-.]\s*(\d{4}|[2-9]\d)\b)?/);
   if (dmy) {
     const dd = parseInt(dmy[1], 10);
     const mm = parseInt(dmy[2], 10);
