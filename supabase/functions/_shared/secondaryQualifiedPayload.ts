@@ -5,6 +5,7 @@
 // ============================================================================
 
 import { isLeadQualifiedForBitrix } from './bitrixPayload.ts';
+import { resolveReunion } from './resolveReunion.ts';
 
 const ORGANIZATION_ID = '66d5a3b0-d797-4b8f-ad98-95b75849f799';
 
