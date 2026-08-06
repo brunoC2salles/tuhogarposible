@@ -262,6 +262,8 @@ function extractHora(text: string): HoraExtract {
   const colon = text.match(/\b(\d{1,2}):(\d{2})\b/);
   const hFmt = text.match(/\b(\d{1,2})\s*h(?:s|rs?|oras?)?\b(?:\s*(\d{2}))?/);
   const dot = text.match(/\b(\d{1,2})[.,](\d{2})\b/);
+  // "12/00" ou "12-30" usados como hora (depois de a data já ter sido retirada)
+  const slash = text.match(/\b(\d{1,2})\s*[\/\-]\s*([0-5]\d)\b/);
   const lasN = text.match(/\blas\s+(\d{1,2})\b/);
   const onlyH = text.match(/\b(\d{1,2})\b/);
 
