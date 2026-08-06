@@ -66,8 +66,8 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
     simulador_hipotecario: lead.simulador_hipotecario_data ?? null,
 
     reunion: {
-      fecha: lead.fecha_reunion ?? null,
-      hora: lead.hora_reunion ?? null,
+      fecha: reunion.fecha,
+      hora: reunion.hora,
       hora_texto: lead.hora_reunion_texto ?? null,
       zona_horaria: lead.zona_horaria_reunion ?? 'Europe/Madrid',
       datetime_iso: reunionDatetimeIso,
