@@ -4,6 +4,8 @@
 // MANTÉM EXATAMENTE os nomes de variáveis que o template Bitrix do Make espera.
 // ============================================================================
 
+import { resolveReunion } from './resolveReunion.ts';
+
 export const CP_TOPE = 15000;
 export const CP_TAE = 0.08;
 export const CP_PLAZO_MESES = 84;
