@@ -282,6 +282,9 @@ function extractHora(text: string): HoraExtract {
   } else if (dot) {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
+  } else if (slash && parseInt(slash[1], 10) <= 23) {
+    h = parseInt(slash[1], 10);
+    mm = parseInt(slash[2], 10);
   } else if (lasN) {
     h = parseInt(lasN[1], 10);
   } else if (onlyH) {
