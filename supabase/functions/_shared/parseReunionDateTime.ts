@@ -140,7 +140,16 @@ interface FechaExtract {
 
 function resolveYear(dd: number, mm: number, yyRaw: string | undefined, today: { y: number; m: number; d: number }) {
   let yy = yyRaw ? parseInt(yyRaw, 10) : today.y;
-  if (yyRaw && yy < 100) yy += 2000;
+  // Ano de 2 dígitos só é aceite se for plausível (>= 24). Assim "07/08-12/00"
+  // não interpreta "12" como ano 2012 — é hora, não ano.
+  if (yyRaw && yy < 100) {
+    if (yy < 24) {
+      yy = today.y;
+      yyRaw = undefined;
+    } else {
+      yy += 2000;
+    }
+  }
   if (!yyRaw) {
     const cand = Date.UTC(yy, mm - 1, dd);
     const todayDt = Date.UTC(today.y, today.m - 1, today.d);
