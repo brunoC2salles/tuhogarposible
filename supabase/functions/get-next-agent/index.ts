@@ -95,6 +95,57 @@ Deno.serve(async (req) => {
 
     let candidates: AgentRow[] = allAgents as AgentRow[];
 
+    // 1b. Boost manual: prioridad temporal de un agente
+    try {
+      const { data: boosts, error: boostErr } = await supabaseAdmin
+        .from('agent_assignment_boost')
+        .select('id, agent_id, remaining, expires_at')
+        .gt('remaining', 0)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (boostErr) {
+        console.error('[Boost] Error cargando boosts:', boostErr);
+      } else if (boosts && boosts.length > 0) {
+        const boost = boosts[0];
+        const boosted = (allAgents as AgentRow[]).find((a) => a.id === boost.agent_id);
+        if (boosted) {
+          const { error: decErr } = await supabaseAdmin
+            .from('agent_assignment_boost')
+            .update({ remaining: boost.remaining - 1 })
+            .eq('id', boost.id)
+            .eq('remaining', boost.remaining);
+
+          if (decErr) {
+            console.error('[Boost] Error decrementando boost:', decErr);
+          } else {
+            console.log(`[Boost] Asignando a ${boosted.nombre}, quedan ${boost.remaining - 1}`);
+            return new Response(
+              JSON.stringify({
+                agent_id: boosted.id,
+                nombre: boosted.nombre,
+                telefono: boosted.telefono,
+                email: boosted.email,
+                boosted: true,
+                agente: {
+                  id: boosted.id,
+                  nombre: boosted.nombre,
+                  email: boosted.email,
+                  telefono: boosted.telefono,
+                },
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            );
+          }
+        } else {
+          console.warn('[Boost] Agente con boost no está activo; se ignora.');
+        }
+      }
+    } catch (e) {
+      console.error('[Boost] Excepción:', e);
+    }
+
     // 2. Si tenemos reunion_datetime, filtrar por disponibilidad
     if (reunion_datetime) {
       const wm = madridWeekdayAndMinutes(reunion_datetime);
