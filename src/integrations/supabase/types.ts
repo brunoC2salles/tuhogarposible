@@ -59,6 +59,44 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_assignment_boost: {
+        Row: {
+          agent_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          remaining: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          remaining?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          remaining?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_assignment_boost_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_assignment_tracking: {
         Row: {
           created_at: string | null
