@@ -28,7 +28,7 @@ evaluada en 4 escenarios: precio_medio, -10%, -15%, -20%.
 ## Detalles técnicos
 
 - Datos de leads vía consulta SQL a `leads` (filtro `created_at >= hoy - 2 meses`, `stage = 'nuevo_lead'`), extrayendo `simulador_hipotecario_data->>'precio_maximo_inmueble'`, `zona_interes`, `ciudad_interes`, `nombre_completo`.
-- Datos de mercado desde `src/data/datos_raw.json`, filtrando `tipo_construccion_id = 99` y `clase_finca_urbana_id = 99` (medias agregadas), con `precio_medio > 0`.
+- Datos de mercado desde el JSON adjunto (`datos-2.json`, idéntico al que ya está en el proyecto), filtrando `tipo_construccion_id = 99` y `clase_finca_urbana_id = 99` (medias agregadas), con `precio_medio > 0`.
 - Emparejamiento de zona, en este orden: municipio exacto (normalizado sin acentos) → provincia → comunidad autónoma → coincidencia parcial de texto → media nacional. En cada nivel por encima del municipio se toma el mínimo `precio_medio`.
 - Se descartan del cómputo los leads sin `precio_maximo_inmueble` numérico y se reportan aparte.
 - Generación del PDF con Python + reportlab, reutilizando el estilo de informes anteriores (`/tmp/rep/gen.py`), y entrega en `/mnt/documents/`.
