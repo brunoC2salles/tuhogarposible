@@ -66,6 +66,8 @@ export type Database = {
           created_by: string | null
           expires_at: string
           id: string
+          mode: string
+          next_is_boost: boolean
           remaining: number
           updated_at: string
         }
@@ -75,6 +77,8 @@ export type Database = {
           created_by?: string | null
           expires_at: string
           id?: string
+          mode?: string
+          next_is_boost?: boolean
           remaining?: number
           updated_at?: string
         }
@@ -84,6 +88,8 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           id?: string
+          mode?: string
+          next_is_boost?: boolean
           remaining?: number
           updated_at?: string
         }

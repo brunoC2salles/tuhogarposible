@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     try {
       const { data: boosts, error: boostErr } = await supabaseAdmin
         .from('agent_assignment_boost')
-        .select('id, agent_id, remaining, expires_at')
+        .select('id, agent_id, remaining, expires_at, mode, next_is_boost')
         .gt('remaining', 0)
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
@@ -108,19 +108,40 @@ Deno.serve(async (req) => {
       if (boostErr) {
         console.error('[Boost] Error cargando boosts:', boostErr);
       } else if (boosts && boosts.length > 0) {
-        const boost = boosts[0];
+        const boost = boosts[0] as any;
         const boosted = (allAgents as AgentRow[]).find((a) => a.id === boost.agent_id);
-        if (boosted) {
-          const { error: decErr } = await supabaseAdmin
+        const isAlternate = boost.mode === 'alternate';
+
+        if (!boosted) {
+          console.warn('[Boost] Agente con boost no está activo; se ignora.');
+        } else if (isAlternate && boost.next_is_boost === false) {
+          // Turno del reparto normal: solo alternamos el turno y seguimos con round-robin
+          const { error: turnErr } = await supabaseAdmin
             .from('agent_assignment_boost')
-            .update({ remaining: boost.remaining - 1 })
+            .update({ next_is_boost: true })
+            .eq('id', boost.id)
+            .eq('next_is_boost', false);
+          if (turnErr) console.error('[Boost/alternate] Error alternando turno:', turnErr);
+          console.log('[Boost/alternate] Turno round-robin');
+        } else {
+          const updatePayload: Record<string, unknown> = { remaining: boost.remaining - 1 };
+          if (isAlternate) updatePayload.next_is_boost = false;
+
+          let dec = supabaseAdmin
+            .from('agent_assignment_boost')
+            .update(updatePayload)
             .eq('id', boost.id)
             .eq('remaining', boost.remaining);
+          if (isAlternate) dec = dec.eq('next_is_boost', true);
+
+          const { error: decErr } = await dec;
 
           if (decErr) {
             console.error('[Boost] Error decrementando boost:', decErr);
           } else {
-            console.log(`[Boost] Asignando a ${boosted.nombre}, quedan ${boost.remaining - 1}`);
+            console.log(
+              `[Boost${isAlternate ? '/alternate' : ''}] Turno agente: ${boosted.nombre}, quedan ${boost.remaining - 1}`,
+            );
             return new Response(
               JSON.stringify({
                 agent_id: boosted.id,
@@ -138,13 +159,12 @@ Deno.serve(async (req) => {
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
             );
           }
-        } else {
-          console.warn('[Boost] Agente con boost no está activo; se ignora.');
         }
       }
     } catch (e) {
       console.error('[Boost] Excepción:', e);
     }
+
 
     // 2. Si tenemos reunion_datetime, filtrar por disponibilidad
     if (reunion_datetime) {
