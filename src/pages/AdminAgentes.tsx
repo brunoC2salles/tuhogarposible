@@ -27,7 +27,9 @@ interface Agent {
 
 
 export default function AdminAgentes() {
+  const { isAdmin } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
+
   const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
