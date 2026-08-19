@@ -52,7 +52,12 @@ const MONTH_MAP: Record<string, number> = {
 
 const WORK_START = 8;
 const WORK_END = 20;
-const MAX_HORIZON_DAYS = 90;
+const MAX_HORIZON_DAYS = 180;
+
+/** Texto que indica que a hora dita pelo lead é hora canária (Madrid = +1h). */
+const CANARIAS_RE =
+  /\b(canarias|canaria|tenerife|las palmas|gran canaria|lanzarote|fuerteventura|la gomera|el hierro)\b/;
+
 
 function normalize(s: string): string {
   return s
