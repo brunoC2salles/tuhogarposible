@@ -4,7 +4,10 @@
 
 Confirmado: el detector de colisiones del panel **ya agrupa por agente**. Solo marca conflicto cuando el mismo agente tiene dos reuniones a menos de 30 minutos. Dos o más leads a la misma hora con agentes distintos no se cuentan como colisión, ni en el panel ni en el asignador (`get-next-agent` solo excluye al agente que ya está ocupado en esa franja).
 
+LLeve en consideración apenas leads cualificados para todo esto.
+
 Ajustes en la página "Reparto de Leads" para que quede explícito:
+
 - Texto de la tarjeta: "Colisiones de agenda (mismo agente)" y descripción aclarando que varios leads a la misma hora con agentes distintos son correctos.
 - Nueva línea informativa: número de franjas horarias compartidas por varios agentes, mostrada como dato normal (no como error), para ver que la simultaneidad entre agentes es habitual y sana.
 
@@ -13,6 +16,7 @@ Ajustes en la página "Reparto de Leads" para que quede explícito:
 Solo el admin puede asignar estrellas. Más estrellas = mayor prioridad en el reparto, sin dejar nunca a nadie sin leads.
 
 **Reglas acordadas**
+
 - Peso muy suave: 1★=1.00, 2★=1.10, 3★=1.20, 4★=1.30, 5★=1.40.
 - Valor por defecto: 3 estrellas para todo agente sin clasificar.
 - Mínimo garantizado por ronda: ningún agente activo puede quedar fuera; si a un agente le toca esperar demasiado, pasa al frente de la cola.
@@ -22,6 +26,7 @@ En la página de Agentes (admin): una columna con 5 estrellas clicables por agen
 
 **Cómo se reparte**
 Round-robin ponderado por créditos:
+
 1. Cada agente candidato acumula créditos proporcionales a su peso.
 2. Se elige al agente con más crédito acumulado; al recibir el lead, se le resta 1 crédito.
 3. Antes de aplicar el peso, si algún agente activo lleva más rondas sin lead que el número de agentes candidatos, se le asigna a él (mínimo garantizado).
