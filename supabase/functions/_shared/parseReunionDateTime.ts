@@ -181,6 +181,19 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
+  // 1b) Data compacta sem separadores: ddmmaaaa / ddmmaa / ddmm ("19082026")
+  const compact = text.match(/\b(\d{2})(\d{2})(\d{4}|\d{2})?\b/);
+  if (compact) {
+    const dd = parseInt(compact[1], 10);
+    const mm = parseInt(compact[2], 10);
+    if (isValidDay(dd, mm) && mm >= 1 && mm <= 12) {
+      const yy = resolveYear(dd, mm, compact[3], today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(compact) };
+    }
+  }
+
+
+
   // 2) "8 de agosto" / "8 agosto" / "agosto 8"
   const dMonth = text.match(
     /\b(\d{1,2})\s*(?:de\s+|del\s+)?(enero|ene|febrero|feb|marzo|marco|abril|abr|mayo|may|maio|junio|jun|junho|julio|jul|julho|agosto|ago|septiembre|setiembre|setembro|sept|sep|octubre|oct|outubro|noviembre|nov|novembro|diciembre|dic|dezembro)\b(?:\s*(?:de\s+|del\s+)?(\d{4}))?/,
