@@ -21,6 +21,7 @@ import {
   Building2,
   LayoutDashboard,
   CalendarDays,
+  Shuffle,
 } from 'lucide-react';
 
 const menuItems = [
