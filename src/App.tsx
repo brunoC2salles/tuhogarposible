@@ -22,6 +22,7 @@ import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
 import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
 import Dashboard from "./pages/admin/Dashboard";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
+import AsignacionesMetrics from "./pages/admin/AsignacionesMetrics";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
@@ -84,6 +85,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/asignaciones"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AsignacionesMetrics />
+                </ProtectedRoute>
+              }
+            />
+
             <Route 
               path="/agente/settings"
               element={
