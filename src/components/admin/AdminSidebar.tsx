@@ -32,6 +32,7 @@ const menuItems = [
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
       { title: 'Visitas', url: '/admin/visitas', icon: CalendarDays },
       { title: 'Dashboard Analítico', url: '/admin/dashboard', icon: BarChart3 },
+      { title: 'Reparto de Leads', url: '/admin/asignaciones', icon: Shuffle },
     ],
   },
   {
