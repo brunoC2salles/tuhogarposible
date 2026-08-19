@@ -232,31 +232,7 @@ export default function AsignacionesMetrics() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="hsl(var(--foreground))"
-                      angle={-45}
-                      textAnchor="end"
-                      height={100}
-                      interval={0}
-                      fontSize={12}
-                    />
-                    <YAxis stroke="hsl(var(--foreground))" allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        color: 'hsl(var(--popover-foreground))',
-                      }}
-                    />
-                    <ReferenceLine y={average} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
-                    <Bar dataKey="Leads" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+
 
                 <div className="overflow-x-auto">
                   <Table>
