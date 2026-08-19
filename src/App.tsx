@@ -85,6 +85,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/admin/asignaciones"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AsignacionesMetrics />
+                </ProtectedRoute>
+              }
+            />
+
             <Route 
               path="/agente/settings"
               element={
