@@ -213,16 +213,21 @@ export default function AsignacionesMetrics() {
               </Card>
             </div>
 
+            {/* Agenda tipo calendario */}
+            <AgendaCalendar />
+
             {/* Reparto por agente */}
             <Card>
               <CardHeader>
                 <CardTitle>Asignaciones por agente</CardTitle>
                 <CardDescription>
-                  Reparto de leads cualificados en la ventana seleccionada. La línea marca la media (
-                  {average.toFixed(1)}). El "esperado" tiene en cuenta la clasificación por estrellas.
+                  Reparto de leads cualificados en la ventana seleccionada. Media:{' '}
+                  {average.toFixed(1)} por agente. El "esperado" tiene en cuenta la clasificación por
+                  estrellas.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+
 
 
                 <div className="overflow-x-auto">
