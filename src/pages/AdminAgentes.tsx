@@ -117,7 +117,24 @@ export default function AdminAgentes() {
     }
   };
 
+  const updateEstrellas = async (agent: Agent, estrellas: number) => {
+    if (!isAdmin) return;
+    const prev = agents;
+    setAgents((list) => list.map((a) => (a.id === agent.id ? { ...a, estrellas } : a)));
+    setFilteredAgents((list) => list.map((a) => (a.id === agent.id ? { ...a, estrellas } : a)));
+    const { error } = await supabase.from("profiles").update({ estrellas }).eq("id", agent.id);
+    if (error) {
+      console.error("Error updating estrellas:", error);
+      toast.error("Error al guardar la clasificación");
+      setAgents(prev);
+      fetchAgents();
+      return;
+    }
+    toast.success(`${agent.nombre}: ${estrellas} ${estrellas === 1 ? "estrella" : "estrellas"}`);
+  };
+
   const toggleAgentStatus = async (agent: Agent) => {
+
     try {
       const { error } = await supabase
         .from("profiles")
