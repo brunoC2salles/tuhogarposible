@@ -13,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Edit, UserCheck, UserX, Trash2, Clock } from "lucide-react";
 import { AgentAvailabilityEditor } from "@/components/agents/AgentAvailabilityEditor";
+import { AgentStarRating } from "@/components/agents/AgentStarRating";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Agent {
   id: string;
@@ -20,10 +22,14 @@ interface Agent {
   email: string;
   telefono?: string | null;
   activo: boolean;
+  estrellas?: number;
 }
 
+
 export default function AdminAgentes() {
+  const { isAdmin } = useAuth();
   const [agents, setAgents] = useState<Agent[]>([]);
+
   const [filteredAgents, setFilteredAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -48,7 +54,7 @@ export default function AdminAgentes() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, activo, role")
+        .select("id, nombre, email, telefono, activo, role, estrellas")
         .eq("role", "agente")
         .order("nombre");
 
@@ -117,7 +123,24 @@ export default function AdminAgentes() {
     }
   };
 
+  const updateEstrellas = async (agent: Agent, estrellas: number) => {
+    if (!isAdmin) return;
+    const prev = agents;
+    setAgents((list) => list.map((a) => (a.id === agent.id ? { ...a, estrellas } : a)));
+    setFilteredAgents((list) => list.map((a) => (a.id === agent.id ? { ...a, estrellas } : a)));
+    const { error } = await supabase.from("profiles").update({ estrellas }).eq("id", agent.id);
+    if (error) {
+      console.error("Error updating estrellas:", error);
+      toast.error("Error al guardar la clasificación");
+      setAgents(prev);
+      fetchAgents();
+      return;
+    }
+    toast.success(`${agent.nombre}: ${estrellas} ${estrellas === 1 ? "estrella" : "estrellas"}`);
+  };
+
   const toggleAgentStatus = async (agent: Agent) => {
+
     try {
       const { error } = await supabase
         .from("profiles")
@@ -205,7 +228,9 @@ export default function AdminAgentes() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead>Clasificación</TableHead>
                     <TableHead>Estado</TableHead>
+
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -216,6 +241,14 @@ export default function AdminAgentes() {
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
                       <TableCell>
+                        <AgentStarRating
+                          value={agent.estrellas ?? 3}
+                          readOnly={!isAdmin}
+                          onChange={(n) => updateEstrellas(agent, n)}
+                        />
+                      </TableCell>
+                      <TableCell>
+
                         <Badge variant={agent.activo ? "default" : "secondary"}>
                           {agent.activo ? "Activo" : "Inactivo"}
                         </Badge>
@@ -249,7 +282,7 @@ export default function AdminAgentes() {
                   ))}
                   {filteredAgents.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                         No se encontraron agentes
                       </TableCell>
                     </TableRow>

@@ -31,6 +31,7 @@ import {
   MetricsWindow,
   DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
+import { AgentStarRating } from '@/components/agents/AgentStarRating';
 
 const ISSUE_LABEL: Record<DateIssueType, string> = {
   pasado: 'En el pasado',
@@ -74,6 +75,7 @@ export default function AsignacionesMetrics() {
     agentsWithoutLeads,
     collisions,
     dateIssues,
+    sharedSlots,
     rangeLabel,
     refetch,
   } = useAssignmentMetrics(window, from, to);
@@ -99,7 +101,7 @@ export default function AsignacionesMetrics() {
           <div>
             <h1 className="text-2xl font-bold">Reparto de Leads</h1>
             <p className="text-sm text-muted-foreground">
-              Auditoría del round-robin y de las fechas de llamada · {rangeLabel}
+              Auditoría del round-robin y de las fechas de llamada · solo leads cualificados · {rangeLabel}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={refetch} disabled={loading}>
@@ -190,7 +192,7 @@ export default function AsignacionesMetrics() {
                   >
                     {collisions.length}
                   </div>
-                  <p className="text-xs text-muted-foreground">Reuniones a &lt; 30 min</p>
+                  <p className="text-xs text-muted-foreground">Mismo agente a &lt; 30 min</p>
                 </CardContent>
               </Card>
               <Card>
@@ -225,7 +227,8 @@ export default function AsignacionesMetrics() {
               <CardHeader>
                 <CardTitle>Asignaciones por agente</CardTitle>
                 <CardDescription>
-                  Reparto en la ventana seleccionada. La línea marca la media ({average.toFixed(1)}).
+                  Reparto de leads cualificados en la ventana seleccionada. La línea marca la media (
+                  {average.toFixed(1)}). El "esperado" tiene en cuenta la clasificación por estrellas.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -260,7 +263,9 @@ export default function AsignacionesMetrics() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Agente</TableHead>
+                        <TableHead>Estrellas</TableHead>
                         <TableHead className="text-right">Leads</TableHead>
+                        <TableHead className="text-right">Esperado</TableHead>
                         <TableHead className="text-right">Desviación</TableHead>
                         <TableHead>Estado</TableHead>
                       </TableRow>
@@ -271,7 +276,13 @@ export default function AsignacionesMetrics() {
                         return (
                           <TableRow key={a.agentId}>
                             <TableCell className="font-medium">{a.agentName}</TableCell>
+                            <TableCell>
+                              <AgentStarRating value={a.estrellas} readOnly size={14} />
+                            </TableCell>
                             <TableCell className="text-right">{a.count}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              {a.expected.toFixed(1)}
+                            </TableCell>
                             <TableCell className="text-right">
                               {a.deviationPct > 0 ? '+' : ''}
                               {a.deviationPct.toFixed(0)}%
@@ -290,7 +301,7 @@ export default function AsignacionesMetrics() {
                       })}
                       {agentCounts.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
                             Sin datos en el período
                           </TableCell>
                         </TableRow>
@@ -311,9 +322,11 @@ export default function AsignacionesMetrics() {
             <Card>
               <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <div>
-                  <CardTitle>Colisiones de agenda</CardTitle>
+                  <CardTitle>Colisiones de agenda (mismo agente)</CardTitle>
                   <CardDescription>
-                    Mismo agente con dos reuniones a menos de 30 minutos (regla del asignador).
+                    Solo se marca conflicto cuando un mismo agente tiene dos reuniones a menos de 30
+                    minutos. Que varios leads coincidan en el mismo día y hora con agentes distintos
+                    es correcto y no cuenta como colisión.
                   </CardDescription>
                 </div>
                 <Button
@@ -339,6 +352,11 @@ export default function AsignacionesMetrics() {
                 </Button>
               </CardHeader>
               <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Franjas horarias atendidas simultáneamente por agentes distintos:{' '}
+                  <span className="font-medium text-foreground">{sharedSlots}</span> (situación
+                  normal, no es un error).
+                </p>
                 {collisions.length === 0 ? (
                   <p className="text-sm text-primary font-medium">
                     0 colisiones: ningún agente tiene dos leads solapados.

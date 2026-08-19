@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPaginated } from '@/lib/fetchAllPaginated';
+import { starWeight } from '@/components/agents/AgentStarRating';
 
 export type MetricsWindow = '24h' | '7d' | '30d' | 'custom';
 
@@ -18,12 +19,15 @@ export interface AgentRow {
   id: string;
   nombre: string;
   email: string;
+  estrellas: number;
 }
 
 export interface AgentCount {
   agentId: string;
   agentName: string;
+  estrellas: number;
   count: number;
+  expected: number;
   deviationPct: number;
 }
 
@@ -118,6 +122,7 @@ export interface UseAssignmentMetricsResult {
   agentsWithoutLeads: AgentRow[];
   collisions: Collision[];
   dateIssues: DateIssue[];
+  sharedSlots: number;
   rangeLabel: string;
   refetch: () => void;
 }
@@ -167,6 +172,7 @@ export function useAssignmentMetrics(
               .select(
                 'id, nombre_completo, agente_asignado_id, created_at, reunion_datetime, hora_reunion_texto, stage',
               )
+              .not('stage', 'in', '(no_cualificado,descualificados)')
               .gte('created_at', fromISO)
               .lt('created_at', toISO)
               .order('created_at', { ascending: false })
@@ -174,7 +180,7 @@ export function useAssignmentMetrics(
           ),
           supabase
             .from('profiles')
-            .select('id, nombre, email')
+            .select('id, nombre, email, estrellas')
             .eq('activo', true)
             .eq('role', 'agente')
             .order('nombre'),
@@ -213,16 +219,23 @@ export function useAssignmentMetrics(
     const assignedTotal = Array.from(counts.values()).reduce((a, b) => a + b, 0);
     const denom = Math.max(agents.length, counts.size, 1);
     const average = assignedTotal / denom;
-    const agentCounts: AgentCount[] = Array.from(
-      new Set([...agents.map((a) => a.id), ...counts.keys()]),
-    )
+    const starsById = new Map<string, number>();
+    agents.forEach((a) => starsById.set(a.id, a.estrellas ?? 3));
+    const ids = Array.from(new Set([...agents.map((a) => a.id), ...counts.keys()]));
+    const totalWeight = ids.reduce((sum, id) => sum + starWeight(starsById.get(id) ?? 3), 0);
+    const agentCounts: AgentCount[] = ids
       .map((id) => {
         const count = counts.get(id) ?? 0;
+        const estrellas = starsById.get(id) ?? 3;
+        const expected =
+          totalWeight > 0 ? (assignedTotal * starWeight(estrellas)) / totalWeight : 0;
         return {
           agentId: id,
           agentName: nameById.get(id) ?? 'Desconocido',
+          estrellas,
           count,
-          deviationPct: average > 0 ? ((count - average) / average) * 100 : 0,
+          expected,
+          deviationPct: expected > 0 ? ((count - expected) / expected) * 100 : 0,
         };
       })
       .sort((a, b) => b.count - a.count);
@@ -262,6 +275,22 @@ export function useAssignmentMetrics(
       }
     });
     collisions.sort((a, b) => a.diffMinutes - b.diffMinutes);
+
+    // 2b) Franjas compartidas por agentes distintos (situación NORMAL, no un error)
+    const slotAgents = new Map<string, Set<string>>();
+    leads.forEach((l) => {
+      if (!l.agente_asignado_id || !l.reunion_datetime) return;
+      const t = new Date(l.reunion_datetime).getTime();
+      if (isNaN(t)) return;
+      const slot = String(Math.floor(t / (30 * 60000)));
+      const set = slotAgents.get(slot) ?? new Set<string>();
+      set.add(l.agente_asignado_id);
+      slotAgents.set(slot, set);
+    });
+    let sharedSlots = 0;
+    slotAgents.forEach((set) => {
+      if (set.size > 1) sharedSlots += 1;
+    });
 
     // 3) Fechas problemáticas
     const nowYear = new Date().getFullYear();
@@ -327,7 +356,7 @@ export function useAssignmentMetrics(
       }
     });
 
-    return { agentCounts, average, agentsWithoutLeads, collisions, dateIssues };
+    return { agentCounts, average, agentsWithoutLeads, collisions, dateIssues, sharedSlots };
   }, [leads, agents]);
 
   const refetch = useCallback(() => setNonce((n) => n + 1), []);

@@ -1206,9 +1206,12 @@ export type Database = {
       profiles: {
         Row: {
           activo: boolean
+          assignment_credit: number
           created_at: string
           email: string
+          estrellas: number
           id: string
+          last_assigned_at: string | null
           nombre: string
           role: Database["public"]["Enums"]["user_role"]
           telefono: string | null
@@ -1216,9 +1219,12 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          assignment_credit?: number
           created_at?: string
           email: string
+          estrellas?: number
           id: string
+          last_assigned_at?: string | null
           nombre: string
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
@@ -1226,9 +1232,12 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          assignment_credit?: number
           created_at?: string
           email?: string
+          estrellas?: number
           id?: string
+          last_assigned_at?: string | null
           nombre?: string
           role?: Database["public"]["Enums"]["user_role"]
           telefono?: string | null
@@ -1354,6 +1363,10 @@ export type Database = {
           p_type: Database["public"]["Enums"]["notification_type"]
         }
         Returns: undefined
+      }
+      pick_next_agent_weighted: {
+        Args: { _candidates: string[] }
+        Returns: string
       }
     }
     Enums: {
