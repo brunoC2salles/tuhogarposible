@@ -322,8 +322,13 @@ function extractHora(text: string): HoraExtract {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
   } else if (slash && parseInt(slash[1], 10) <= 23) {
-    h = parseInt(slash[1], 10);
-    mm = parseInt(slash[2], 10);
+    const a = parseInt(slash[1], 10);
+    const b = parseInt(slash[2], 10);
+    h = a;
+    // "11/12" ou "16-18" são uma FRANJA (11h a 12h) → fica a hora de início.
+    // "12/00" ou "16/30" são hora exacta (o segundo número não pode ser hora de fim).
+    mm = b <= 23 && b > a ? 0 : b;
+
   } else if (lasN) {
     h = parseInt(lasN[1], 10);
   } else if (onlyH) {
