@@ -13,6 +13,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { Edit, UserCheck, UserX, Trash2, Clock } from "lucide-react";
 import { AgentAvailabilityEditor } from "@/components/agents/AgentAvailabilityEditor";
+import { AgentStarRating } from "@/components/agents/AgentStarRating";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Agent {
   id: string;
@@ -20,7 +22,9 @@ interface Agent {
   email: string;
   telefono?: string | null;
   activo: boolean;
+  estrellas?: number;
 }
+
 
 export default function AdminAgentes() {
   const [agents, setAgents] = useState<Agent[]>([]);
