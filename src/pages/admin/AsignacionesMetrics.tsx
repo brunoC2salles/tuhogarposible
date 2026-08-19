@@ -1,14 +1,5 @@
 import { useMemo, useState } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
+
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -32,6 +23,8 @@ import {
   DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
 import { AgentStarRating } from '@/components/agents/AgentStarRating';
+import { AgendaCalendar } from '@/components/admin/AgendaCalendar';
+
 
 const ISSUE_LABEL: Record<DateIssueType, string> = {
   pasado: 'En el pasado',
@@ -222,41 +215,22 @@ export default function AsignacionesMetrics() {
               </Card>
             </div>
 
+            {/* Agenda tipo calendario */}
+            <AgendaCalendar />
+
             {/* Reparto por agente */}
             <Card>
               <CardHeader>
                 <CardTitle>Asignaciones por agente</CardTitle>
                 <CardDescription>
-                  Reparto de leads cualificados en la ventana seleccionada. La línea marca la media (
-                  {average.toFixed(1)}). El "esperado" tiene en cuenta la clasificación por estrellas.
+                  Reparto de leads cualificados en la ventana seleccionada. Media:{' '}
+                  {average.toFixed(1)} por agente. El "esperado" tiene en cuenta la clasificación por
+                  estrellas.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <ResponsiveContainer width="100%" height={320}>
-                  <BarChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis
-                      dataKey="name"
-                      stroke="hsl(var(--foreground))"
-                      angle={-45}
-                      textAnchor="end"
-                      height={100}
-                      interval={0}
-                      fontSize={12}
-                    />
-                    <YAxis stroke="hsl(var(--foreground))" allowDecimals={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        color: 'hsl(var(--popover-foreground))',
-                      }}
-                    />
-                    <ReferenceLine y={average} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
-                    <Bar dataKey="Leads" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+
+
 
                 <div className="overflow-x-auto">
                   <Table>
