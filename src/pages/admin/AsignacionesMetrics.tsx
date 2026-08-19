@@ -218,79 +218,8 @@ export default function AsignacionesMetrics() {
             {/* Agenda tipo calendario */}
             <AgendaCalendar />
 
-            {/* Reparto por agente */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Asignaciones por agente</CardTitle>
-                <CardDescription>
-                  Reparto de leads cualificados en la ventana seleccionada. Media:{' '}
-                  {average.toFixed(1)} por agente. El "esperado" tiene en cuenta la clasificación por
-                  estrellas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-
-
-
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Agente</TableHead>
-                        <TableHead>Estrellas</TableHead>
-                        <TableHead className="text-right">Leads</TableHead>
-                        <TableHead className="text-right">Esperado</TableHead>
-                        <TableHead className="text-right">Desviación</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {agentCounts.map((a) => {
-                        const off = Math.abs(a.deviationPct) > 30;
-                        return (
-                          <TableRow key={a.agentId}>
-                            <TableCell className="font-medium">{a.agentName}</TableCell>
-                            <TableCell>
-                              <AgentStarRating value={a.estrellas} readOnly size={14} />
-                            </TableCell>
-                            <TableCell className="text-right">{a.count}</TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {a.expected.toFixed(1)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {a.deviationPct > 0 ? '+' : ''}
-                              {a.deviationPct.toFixed(0)}%
-                            </TableCell>
-                            <TableCell>
-                              {a.count === 0 ? (
-                                <Badge variant="destructive">Sin leads</Badge>
-                              ) : off ? (
-                                <Badge variant="secondary">Desbalanceado</Badge>
-                              ) : (
-                                <Badge variant="outline">Equilibrado</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {agentCounts.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
-                            Sin datos en el período
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {agentsWithoutLeads.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Agentes activos sin ningún lead: {agentsWithoutLeads.map((a) => a.nombre).join(', ')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Reparto por agente (con período propio y estrellas editables) */}
+            <AgentAssignmentTable />
 
             {/* Colisiones */}
             <Card>
