@@ -1364,6 +1364,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      pick_next_agent_weighted: {
+        Args: { _candidates: string[] }
+        Returns: string
+      }
     }
     Enums: {
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
