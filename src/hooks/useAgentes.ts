@@ -9,12 +9,13 @@ export interface AgenteProfile {
   telefono?: string;
   role: 'admin' | 'agente' | 'supervisor';
   activo: boolean;
+  estrellas?: number;
 }
 
 const fetchAgentesFromDB = async (): Promise<AgenteProfile[]> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, nombre, email, telefono, role, activo')
+    .select('id, nombre, email, telefono, role, activo, estrellas')
     .eq('activo', true)
     .order('nombre', { ascending: true });
 
