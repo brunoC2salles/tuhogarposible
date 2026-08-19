@@ -20,19 +20,9 @@ import {
   useAssignmentMetrics,
   formatMadrid,
   MetricsWindow,
-  DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
 import { AgendaCalendar } from '@/components/admin/AgendaCalendar';
 import { AgentAssignmentTable } from '@/components/admin/AgentAssignmentTable';
-
-
-const ISSUE_LABEL: Record<DateIssueType, string> = {
-  pasado: 'En el pasado',
-  anio_invalido: 'Año inválido',
-  fuera_horario: 'Fuera de horario',
-  fin_de_semana: 'Fin de semana',
-  sin_fecha: 'Sin fecha',
-};
 
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
