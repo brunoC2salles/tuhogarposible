@@ -1,27 +1,48 @@
-# Prioridad alterna de leads para Jaime Fernández (solo hoy)
+# Auditoría del round-robin y de las fechas de reunión
 
-Objetivo: hoy (18/08/2026, hora de Madrid), de cada 2 leads que entren uno va a Jaime Fernández (jfernandez@tuhogarposible.com, agente activo) y el otro al reparto normal, hasta que él reciba 3 leads. Después vuelve el round-robin habitual automáticamente.
+## Lo que verifiqué en los datos reales
 
-Resultado esperado: leads 1, 3, 5 para Jaime; leads 2, 4 para el resto. Al llegar a 3, o al pasar las 23:59 de hoy, el boost deja de aplicarse.
+**Round-robin: funciona correctamente.** Reparto de los leads asignados en los últimos 7 días:
 
-## Cómo funcionará
+| Agente | Leads |
+|---|---|
+| Alejandro Bueno, Manuel Torrecilla, Paula Bodega, Jaime Fernández, Ian Queralto, Gerardo Sanz, Oscar Tirado, Solés Carabasa, Xavier Dalmau | 4 cada uno |
+| Miki Sánchez, Marie Colmenarez | 3 cada uno |
 
-- Se reutiliza la tabla de "boost" ya existente, en modo alterno: se guarda cuántos leads le faltan (3) y si el próximo lead le toca a él o al reparto normal.
-- Cuando entra un lead:
-  - Si le toca a Jaime: se le asigna, se descuenta 1 y el turno pasa al reparto normal.
-  - Si le toca al reparto normal: se asigna por round-robin como siempre y el turno vuelve a Jaime.
-- Si Jaime deja de estar activo, el boost se ignora y todo sigue por round-robin.
+**Un lead por agente y franja: se cumple.** Buscando agentes con dos leads en el mismo `reunion_datetime` en los últimos 10 días sólo aparece 1 caso (10/08 09:00 UTC, dos leads del mismo agente), procedente de la redistribución masiva por lote de agosto, anterior al guard de colisiones. Ningún lead nuevo ha colisionado.
+
+**Las fechas sí tienen fallos.** Ejemplos reales de los últimos días:
+
+| Texto del lead | Se guardó | Debería ser |
+|---|---|---|
+| `19082026` | 20/08 11:00 (fallback) | 19/08 |
+| `24` | 20/08 11:00 (fallback) | 24/08 |
+| `15.12.2026` | 20/08 11:00 (fallback) | 15/12/2026 |
+| `21/08 11/12` | 21/08 a las 11:12 | 21/08 a las 11:00 |
+| `18/08,2026 ,12h Canarias` | 18/08 12:00 Madrid | 18/08 13:00 Madrid |
+
+El formato de salida sí es coherente: `fecha_reunion`, `hora_reunion` y `reunion_datetime` cuadran entre sí en todos los casos revisados, y `resolveReunion` entrega el mismo día/hora a Bitrix y a WhatsApp.
+
+## Correcciones propuestas al parser
+
+1. **Fechas compactas** `19082026` / `190826` / `1908`: reconocer `ddmmaaaa`, `ddmmaa` y `ddmm` cuando no hay separadores.
+2. **Sólo día del mes** (`24`, `día 24`): si el número está entre 1 y 31 y no hay ninguna otra pista de hora, tratarlo como día del mes en curso (o del siguiente si ya pasó), con `hora = null` (pendiente de confirmar), en vez de caer al fallback genérico.
+3. **Horizonte de 90 días**: ampliarlo a 180 días para no descartar peticiones legítimas a varios meses vista como `15.12.2026`.
+4. **Rangos horarios con barra** (`11/12`, `16/18`): interpretarlos como franja y quedarse con la hora de inicio, no con `hh:mm`. Se mantiene `12/00` y `16/30` como hora exacta cuando el segundo número no puede ser una hora válida de fin.
+5. **Zona horaria de Canarias**: si el texto menciona Canarias / Tenerife / Las Palmas / Gran Canaria, sumar 1 hora para convertir a hora peninsular antes de guardar.
+6. Ampliar `parseReunionDateTime_test.ts` con todos los casos de la tabla de arriba.
+
+## Refuerzo del anti-solape (opcional, incluido)
+
+El guard actual de `get-next-agent` excluye a un agente sólo si ya tiene un lead en ±1 minuto del mismo instante. Lo amplío a una ventana de **±30 minutos**, que es la duración real de una reunión, para que dos leads a las 11:00 y 11:15 no caigan en el mismo agente.
+
+## Alcance
+
+- Sólo se corrige la lógica hacia adelante. **No se reenvía nada a Bitrix ni a WhatsApp** y no se reescriben leads antiguos, salvo que lo pidas después.
 
 ## Detalles técnicos
 
-1. Migración sobre `public.agent_assignment_boost`:
-   - Eliminar boosts anteriores del mismo agente.
-   - Insertar la fila del boost: `agent_id` de Jaime (`e97d13f9-1d76-44da-9e6e-e1699110caee`), `remaining = 3`, `mode = 'alternate'`, `next_is_boost = true`, `expires_at` = hoy 23:59 Europe/Madrid.
-
-2. Edge function `get-next-agent`:
-   - El modo `alternate` ya está implementado; no requiere cambios.
-   - Logs: `[Boost/alternate] Turno agente: <nombre>, quedan N` y `[Boost/alternate] Turno round-robin`.
-
-## Fuera de alcance
-
-- No se crea interfaz de administración para gestionar boosts.
+- `supabase/functions/_shared/parseReunionDateTime.ts` (extracción de fecha/hora, `MAX_HORIZON_DAYS`, nuevo ajuste de Canarias) y su fichero de tests.
+- `supabase/functions/get-next-agent/index.ts`: ventana de conflicto de ±1 min a ±30 min.
+- Redeploy de `meta-lead-webhook`, `tally-housage-webhook`, `reprocess-meta-leads` y `get-next-agent`.
+- Sin cambios en base de datos.
