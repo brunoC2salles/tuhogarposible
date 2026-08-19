@@ -20,19 +20,9 @@ import {
   useAssignmentMetrics,
   formatMadrid,
   MetricsWindow,
-  DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
-import { AgentStarRating } from '@/components/agents/AgentStarRating';
 import { AgendaCalendar } from '@/components/admin/AgendaCalendar';
-
-
-const ISSUE_LABEL: Record<DateIssueType, string> = {
-  pasado: 'En el pasado',
-  anio_invalido: 'Año inválido',
-  fuera_horario: 'Fuera de horario',
-  fin_de_semana: 'Fin de semana',
-  sin_fecha: 'Sin fecha',
-};
+import { AgentAssignmentTable } from '@/components/admin/AgentAssignmentTable';
 
 function downloadCsv(filename: string, rows: (string | number)[][]) {
   const csv = rows
@@ -85,7 +75,7 @@ export default function AsignacionesMetrics() {
     ? Math.round(((withMeeting - dateIssues.filter((i) => i.type !== 'sin_fecha').length) / withMeeting) * 100)
     : 100;
 
-  const chartData = agentCounts.map((a) => ({ name: a.agentName, Leads: a.count }));
+  
 
   return (
     <AdminLayout>
@@ -190,17 +180,11 @@ export default function AsignacionesMetrics() {
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Fechas con incidencia</CardTitle>
+                  <CardTitle className="text-sm font-medium">Reuniones agendadas</CardTitle>
                   <CalendarClock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div
-                    className={`text-2xl font-bold ${
-                      dateIssues.length === 0 ? 'text-primary' : 'text-destructive'
-                    }`}
-                  >
-                    {dateIssues.length}
-                  </div>
+                  <div className="text-2xl font-bold">{withMeeting}</div>
                   <p className="text-xs text-muted-foreground">de {leads.length} leads</p>
                 </CardContent>
               </Card>
@@ -218,79 +202,8 @@ export default function AsignacionesMetrics() {
             {/* Agenda tipo calendario */}
             <AgendaCalendar />
 
-            {/* Reparto por agente */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Asignaciones por agente</CardTitle>
-                <CardDescription>
-                  Reparto de leads cualificados en la ventana seleccionada. Media:{' '}
-                  {average.toFixed(1)} por agente. El "esperado" tiene en cuenta la clasificación por
-                  estrellas.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-
-
-
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Agente</TableHead>
-                        <TableHead>Estrellas</TableHead>
-                        <TableHead className="text-right">Leads</TableHead>
-                        <TableHead className="text-right">Esperado</TableHead>
-                        <TableHead className="text-right">Desviación</TableHead>
-                        <TableHead>Estado</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {agentCounts.map((a) => {
-                        const off = Math.abs(a.deviationPct) > 30;
-                        return (
-                          <TableRow key={a.agentId}>
-                            <TableCell className="font-medium">{a.agentName}</TableCell>
-                            <TableCell>
-                              <AgentStarRating value={a.estrellas} readOnly size={14} />
-                            </TableCell>
-                            <TableCell className="text-right">{a.count}</TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                              {a.expected.toFixed(1)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {a.deviationPct > 0 ? '+' : ''}
-                              {a.deviationPct.toFixed(0)}%
-                            </TableCell>
-                            <TableCell>
-                              {a.count === 0 ? (
-                                <Badge variant="destructive">Sin leads</Badge>
-                              ) : off ? (
-                                <Badge variant="secondary">Desbalanceado</Badge>
-                              ) : (
-                                <Badge variant="outline">Equilibrado</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                      {agentCounts.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground">
-                            Sin datos en el período
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {agentsWithoutLeads.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Agentes activos sin ningún lead: {agentsWithoutLeads.map((a) => a.nombre).join(', ')}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            {/* Reparto por agente (con período propio y estrellas editables) */}
+            <AgentAssignmentTable />
 
             {/* Colisiones */}
             <Card>
@@ -368,92 +281,6 @@ export default function AsignacionesMetrics() {
               </CardContent>
             </Card>
 
-            {/* Fechas */}
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <div>
-                  <CardTitle>Certificación de fechas de llamada</CardTitle>
-                  <CardDescription>
-                    Reuniones en el pasado, año inválido, fin de semana, fuera de 09:00–20:00 o sin fecha.
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={dateIssues.length === 0}
-                  onClick={() =>
-                    downloadCsv('fechas_incidencias.csv', [
-                      ['Lead', 'Agente', 'Incidencia', 'Detalle', 'Reunión (Madrid)', 'Texto original', 'Creado'],
-                      ...dateIssues.map((i) => [
-                        i.lead.nombre_completo,
-                        i.agentName,
-                        ISSUE_LABEL[i.type],
-                        i.detail,
-                        formatMadrid(i.lead.reunion_datetime),
-                        i.lead.hora_reunion_texto ?? '',
-                        formatMadrid(i.lead.created_at),
-                      ]),
-                    ])
-                  }
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  CSV
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(ISSUE_LABEL) as DateIssueType[]).map((t) => {
-                    const n = dateIssues.filter((i) => i.type === t).length;
-                    return (
-                      <Badge key={t} variant={n > 0 ? 'destructive' : 'outline'}>
-                        {ISSUE_LABEL[t]}: {n}
-                      </Badge>
-                    );
-                  })}
-                </div>
-                {dateIssues.length === 0 ? (
-                  <p className="text-sm text-primary font-medium">
-                    Todas las fechas de llamada son coherentes y están en el futuro.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Lead</TableHead>
-                          <TableHead>Agente</TableHead>
-                          <TableHead>Incidencia</TableHead>
-                          <TableHead>Reunión (Madrid)</TableHead>
-                          <TableHead>Texto original</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {dateIssues.slice(0, 200).map((i) => (
-                          <TableRow key={`${i.lead.id}-${i.type}`}>
-                            <TableCell className="font-medium">{i.lead.nombre_completo}</TableCell>
-                            <TableCell>{i.agentName}</TableCell>
-                            <TableCell>
-                              <Badge variant="destructive">{ISSUE_LABEL[i.type]}</Badge>
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {formatMadrid(i.lead.reunion_datetime)}
-                            </TableCell>
-                            <TableCell className="max-w-[240px] truncate text-muted-foreground">
-                              {i.lead.hora_reunion_texto ?? '—'}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    {dateIssues.length > 200 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Mostrando 200 de {dateIssues.length}. Descarga el CSV para el detalle completo.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </>
         )}
       </div>
