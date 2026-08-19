@@ -85,7 +85,7 @@ export default function AsignacionesMetrics() {
     ? Math.round(((withMeeting - dateIssues.filter((i) => i.type !== 'sin_fecha').length) / withMeeting) * 100)
     : 100;
 
-  const chartData = agentCounts.map((a) => ({ name: a.agentName, Leads: a.count }));
+  
 
   return (
     <AdminLayout>
@@ -190,17 +190,11 @@ export default function AsignacionesMetrics() {
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Fechas con incidencia</CardTitle>
+                  <CardTitle className="text-sm font-medium">Reuniones agendadas</CardTitle>
                   <CalendarClock className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div
-                    className={`text-2xl font-bold ${
-                      dateIssues.length === 0 ? 'text-primary' : 'text-destructive'
-                    }`}
-                  >
-                    {dateIssues.length}
-                  </div>
+                  <div className="text-2xl font-bold">{withMeeting}</div>
                   <p className="text-xs text-muted-foreground">de {leads.length} leads</p>
                 </CardContent>
               </Card>
