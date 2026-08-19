@@ -23,6 +23,8 @@ import {
   DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
 import { AgentStarRating } from '@/components/agents/AgentStarRating';
+import { AgendaCalendar } from '@/components/admin/AgendaCalendar';
+
 
 const ISSUE_LABEL: Record<DateIssueType, string> = {
   pasado: 'En el pasado',
