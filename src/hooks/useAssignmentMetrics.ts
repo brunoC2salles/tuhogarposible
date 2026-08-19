@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { fetchAllPaginated } from '@/lib/fetchAllPaginated';
 import { starWeight } from '@/components/agents/AgentStarRating';
 
-export type MetricsWindow = '24h' | '7d' | '30d' | 'custom';
+export type MetricsWindow = '24h' | '7d' | '30d' | 'total' | 'custom';
 
 export interface MetricLead {
   id: string;
@@ -148,6 +148,13 @@ export function useAssignmentMetrics(
         fromISO: f.toISOString(),
         toISO: t.toISOString(),
         rangeLabel: `${customFrom} → ${customTo} (Madrid)`,
+      };
+    }
+    if (window === 'total') {
+      return {
+        fromISO: '2000-01-01T00:00:00.000Z',
+        toISO: new Date(Date.now() + 60000).toISOString(),
+        rangeLabel: 'Histórico completo',
       };
     }
     const days = window === '24h' ? 0 : window === '7d' ? 6 : 29;

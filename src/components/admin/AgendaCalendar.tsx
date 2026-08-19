@@ -163,6 +163,7 @@ export function AgendaCalendar() {
                 'id, nombre_completo, telefono, email, stage, reunion_datetime, hora_reunion_texto, agente_asignado_id, ciudad_interes, zona_interes, valor_inmueble_deseado',
               )
               .not('reunion_datetime', 'is', null)
+              .not('stage', 'in', '(no_cualificado,descualificados)')
               .gte('reunion_datetime', fromISO)
               .lt('reunion_datetime', toISO)
               .order('reunion_datetime', { ascending: true })
