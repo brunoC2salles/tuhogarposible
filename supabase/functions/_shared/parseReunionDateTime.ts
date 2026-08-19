@@ -256,7 +256,28 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
+  // 6) Só o dia do mês: "24", "dia 24". Aceita-se apenas quando é inequívoco
+  // (dito com "dia", ou número 13–31 que não pode ser uma hora).
+  const diaWord = text.match(/\bdia\s+(\d{1,2})\b/);
+  const soloNum = text.match(/^(\d{1,2})$/);
+  const diaMatch = diaWord ?? (soloNum && parseInt(soloNum[1], 10) >= 13 ? soloNum : null);
+  if (diaMatch) {
+    const dd = parseInt(diaMatch[1], 10);
+    if (dd >= 1 && dd <= 31) {
+      let mm = today.m;
+      let yy = today.y;
+      if (dd < today.d) {
+        mm += 1;
+        if (mm > 12) { mm = 1; yy += 1; }
+      }
+      if (isValidDay(dd, mm)) {
+        return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(diaMatch) };
+      }
+    }
+  }
+
   return { ymd: null, hadExplicit: false, rest: text };
+
 }
 
 // ---------------------------------------------------------------------------
