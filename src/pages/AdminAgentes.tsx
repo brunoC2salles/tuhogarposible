@@ -228,7 +228,9 @@ export default function AdminAgentes() {
                     <TableHead>Nombre</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Teléfono</TableHead>
+                    <TableHead>Clasificación</TableHead>
                     <TableHead>Estado</TableHead>
+
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
