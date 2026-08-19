@@ -7,7 +7,7 @@
 //  - Sem hora confiável → `hora = null` (reunião "a definir"); nenhum
 //    recordatório é agendado.
 //  - Hora sempre normalizada para a franja laboral 08:00–20:00 (Madrid).
-//  - Datas absurdas (> 90 dias) são descartadas e caem no fallback.
+//  - Datas absurdas (> 180 dias) são descartadas e caem no fallback.
 //  - Fim de semana empurrado para o próximo dia útil.
 //
 // Saídas:
