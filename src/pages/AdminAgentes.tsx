@@ -54,7 +54,7 @@ export default function AdminAgentes() {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nombre, email, telefono, activo, role")
+        .select("id, nombre, email, telefono, activo, role, estrellas")
         .eq("role", "agente")
         .order("nombre");
 
