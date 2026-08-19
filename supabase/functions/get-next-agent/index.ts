@@ -230,26 +230,38 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 3. Round-robin global
+    // 3. Reparto ponderado por estrellas (con mínimo garantizado por ronda)
     const trackingKey = 'global';
-    const { data: tracking, error: trackingError } = await supabaseAdmin
-      .from('agent_assignment_tracking')
-      .select('last_assigned_agent_id')
-      .eq('region', trackingKey)
-      .maybeSingle();
+    let nextAgent: AgentRow | undefined;
 
-    if (trackingError && trackingError.code !== 'PGRST116') {
-      console.error('[Round-Robin] tracking select error:', trackingError);
+    const { data: pickedId, error: pickError } = await supabaseAdmin.rpc(
+      'pick_next_agent_weighted',
+      { _candidates: candidates.map((a) => a.id) },
+    );
+
+    if (pickError) {
+      console.error('[Reparto] Error en pick_next_agent_weighted:', pickError);
+    } else if (pickedId) {
+      nextAgent = candidates.find((a) => a.id === pickedId);
     }
 
-    let nextIndex = 0;
-    if (tracking?.last_assigned_agent_id) {
-      const lastIndex = candidates.findIndex((a) => a.id === tracking.last_assigned_agent_id);
-      nextIndex = lastIndex >= 0 ? (lastIndex + 1) % candidates.length : 0;
-    }
+    if (!nextAgent) {
+      // Fallback: round-robin clásico con el cursor global
+      console.warn('[Reparto] Fallback a round-robin clásico');
+      const { data: tracking } = await supabaseAdmin
+        .from('agent_assignment_tracking')
+        .select('last_assigned_agent_id')
+        .eq('region', trackingKey)
+        .maybeSingle();
 
-    const nextAgent = candidates[nextIndex];
-    console.log(`[Round-Robin] Elegido: ${nextAgent.nombre}`);
+      let nextIndex = 0;
+      if (tracking?.last_assigned_agent_id) {
+        const lastIndex = candidates.findIndex((a) => a.id === tracking.last_assigned_agent_id);
+        nextIndex = lastIndex >= 0 ? (lastIndex + 1) % candidates.length : 0;
+      }
+      nextAgent = candidates[nextIndex];
+    }
+    console.log(`[Reparto] Elegido: ${nextAgent.nombre}`);
 
     const { error: updateError } = await supabaseAdmin
       .from('agent_assignment_tracking')
