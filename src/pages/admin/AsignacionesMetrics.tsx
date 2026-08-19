@@ -22,8 +22,8 @@ import {
   MetricsWindow,
   DateIssueType,
 } from '@/hooks/useAssignmentMetrics';
-import { AgentStarRating } from '@/components/agents/AgentStarRating';
 import { AgendaCalendar } from '@/components/admin/AgendaCalendar';
+import { AgentAssignmentTable } from '@/components/admin/AgentAssignmentTable';
 
 
 const ISSUE_LABEL: Record<DateIssueType, string> = {
