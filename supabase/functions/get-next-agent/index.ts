@@ -201,9 +201,10 @@ Deno.serve(async (req) => {
       try {
         const target = new Date(reunion_datetime);
         if (!isNaN(target.getTime())) {
-          // Ventana de ±1 minuto para absorber ms/precisión
-          const from = new Date(target.getTime() - 60 * 1000).toISOString();
-          const to = new Date(target.getTime() + 60 * 1000).toISOString();
+          // Ventana de ±30 minutos: duración real de una reunión, evita que dos
+          // leads a las 11:00 y 11:15 caigan en el mismo agente.
+          const from = new Date(target.getTime() - 30 * 60 * 1000).toISOString();
+          const to = new Date(target.getTime() + 30 * 60 * 1000).toISOString();
           const { data: conflictLeads, error: conflictErr } = await supabaseAdmin
             .from('leads')
             .select('agente_asignado_id, reunion_datetime')

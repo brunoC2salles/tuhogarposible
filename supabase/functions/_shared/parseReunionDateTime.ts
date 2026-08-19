@@ -7,7 +7,7 @@
 //  - Sem hora confiável → `hora = null` (reunião "a definir"); nenhum
 //    recordatório é agendado.
 //  - Hora sempre normalizada para a franja laboral 08:00–20:00 (Madrid).
-//  - Datas absurdas (> 90 dias) são descartadas e caem no fallback.
+//  - Datas absurdas (> 180 dias) são descartadas e caem no fallback.
 //  - Fim de semana empurrado para o próximo dia útil.
 //
 // Saídas:
@@ -52,7 +52,12 @@ const MONTH_MAP: Record<string, number> = {
 
 const WORK_START = 8;
 const WORK_END = 20;
-const MAX_HORIZON_DAYS = 90;
+const MAX_HORIZON_DAYS = 180;
+
+/** Texto que indica que a hora dita pelo lead é hora canária (Madrid = +1h). */
+const CANARIAS_RE =
+  /\b(canarias|canaria|tenerife|las palmas|gran canaria|lanzarote|fuerteventura|la gomera|el hierro)\b/;
+
 
 function normalize(s: string): string {
   return s
@@ -176,6 +181,19 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
+  // 1b) Data compacta sem separadores: ddmmaaaa / ddmmaa / ddmm ("19082026")
+  const compact = text.match(/\b(\d{2})(\d{2})(\d{4}|\d{2})?\b/);
+  if (compact) {
+    const dd = parseInt(compact[1], 10);
+    const mm = parseInt(compact[2], 10);
+    if (isValidDay(dd, mm) && mm >= 1 && mm <= 12) {
+      const yy = resolveYear(dd, mm, compact[3], today);
+      return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(compact) };
+    }
+  }
+
+
+
   // 2) "8 de agosto" / "8 agosto" / "agosto 8"
   const dMonth = text.match(
     /\b(\d{1,2})\s*(?:de\s+|del\s+)?(enero|ene|febrero|feb|marzo|marco|abril|abr|mayo|may|maio|junio|jun|junho|julio|jul|julho|agosto|ago|septiembre|setiembre|setembro|sept|sep|octubre|oct|outubro|noviembre|nov|novembro|diciembre|dic|dezembro)\b(?:\s*(?:de\s+|del\s+)?(\d{4}))?/,
@@ -238,7 +256,28 @@ function extractFecha(text: string, base: Date): FechaExtract {
     }
   }
 
+  // 6) Só o dia do mês: "24", "dia 24". Aceita-se apenas quando é inequívoco
+  // (dito com "dia", ou número 13–31 que não pode ser uma hora).
+  const diaWord = text.match(/\bdia\s+(\d{1,2})\b/);
+  const soloNum = text.match(/^(\d{1,2})$/);
+  const diaMatch = diaWord ?? (soloNum && parseInt(soloNum[1], 10) >= 13 ? soloNum : null);
+  if (diaMatch) {
+    const dd = parseInt(diaMatch[1], 10);
+    if (dd >= 1 && dd <= 31) {
+      let mm = today.m;
+      let yy = today.y;
+      if (dd < today.d) {
+        mm += 1;
+        if (mm > 12) { mm = 1; yy += 1; }
+      }
+      if (isValidDay(dd, mm)) {
+        return { ymd: { y: yy, m: mm, d: dd }, hadExplicit: true, rest: strip(diaMatch) };
+      }
+    }
+  }
+
   return { ymd: null, hadExplicit: false, rest: text };
+
 }
 
 // ---------------------------------------------------------------------------
@@ -283,8 +322,13 @@ function extractHora(text: string): HoraExtract {
     h = parseInt(dot[1], 10);
     mm = parseInt(dot[2], 10);
   } else if (slash && parseInt(slash[1], 10) <= 23) {
-    h = parseInt(slash[1], 10);
-    mm = parseInt(slash[2], 10);
+    const a = parseInt(slash[1], 10);
+    const b = parseInt(slash[2], 10);
+    h = a;
+    // "11/12" ou "16-18" são uma FRANJA (11h a 12h) → fica a hora de início.
+    // "12/00" ou "16/30" são hora exacta (o segundo número não pode ser hora de fim).
+    mm = b <= 23 && b > a ? 0 : b;
+
   } else if (lasN) {
     h = parseInt(lasN[1], 10);
   } else if (onlyH) {
@@ -301,9 +345,13 @@ function extractHora(text: string): HoraExtract {
   // Fora da franja laboral: tenta interpretar como tarde ("las 6" → 18:00)
   if (h < WORK_START && !hadAm && h + 12 <= WORK_END) h += 12;
 
+  // Hora dita em horário canário → +1h para hora peninsular (Madrid)
+  if (CANARIAS_RE.test(text)) h += 1;
+
   if (h < WORK_START || h > WORK_END || h > 23) {
     return { hora: null, hadExplicit: false };
   }
+
   if (h === WORK_END) mm = 0;
 
   return { hora: `${pad(h)}:${pad(mm)}:00`, hadExplicit: true };

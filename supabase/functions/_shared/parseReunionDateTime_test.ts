@@ -116,3 +116,41 @@ Deno.test("nunca devolve hora fora de 08:00-20:00", () => {
     }
   }
 });
+
+Deno.test("19082026 (compacto) → 19/08 sem hora", () => {
+  const r = parseReunionDateTime("19082026", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.fecha, "2026-08-19");
+});
+
+Deno.test("2408 (compacto ddmm) → 24/08", () => {
+  const r = parseReunionDateTime("2408", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.fecha, "2026-08-24");
+});
+
+Deno.test("24 (só o dia) → 24/08 sem hora", () => {
+  const r = parseReunionDateTime("24", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.fecha, "2026-08-24");
+  assertEquals(r.hora, null);
+});
+
+Deno.test("15.12.2026 → data longínqua aceite", () => {
+  const r = parseReunionDateTime("15.12.2026", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.fecha, "2026-12-15");
+});
+
+Deno.test("21/08 11/12 → franja, 11:00", () => {
+  const r = parseReunionDateTime("21/08 11/12", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.fecha, "2026-08-21");
+  assertEquals(r.hora, "11:00:00");
+});
+
+Deno.test("20/08 16/30 → hora exacta 16:30", () => {
+  const r = parseReunionDateTime("20/08 16/30", new Date("2026-08-19T06:00:00Z"));
+  assertEquals(r.hora, "16:30:00");
+});
+
+Deno.test("Canárias → +1h para hora peninsular", () => {
+  const r = parseReunionDateTime("18/08,2026 ,12h Canarias", new Date("2026-08-17T06:00:00Z"));
+  assertEquals(r.fecha, "2026-08-18");
+  assertEquals(r.hora, "13:00:00");
+});
