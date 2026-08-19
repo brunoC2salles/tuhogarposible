@@ -345,9 +345,13 @@ function extractHora(text: string): HoraExtract {
   // Fora da franja laboral: tenta interpretar como tarde ("las 6" → 18:00)
   if (h < WORK_START && !hadAm && h + 12 <= WORK_END) h += 12;
 
+  // Hora dita em horário canário → +1h para hora peninsular (Madrid)
+  if (CANARIAS_RE.test(text)) h += 1;
+
   if (h < WORK_START || h > WORK_END || h > 23) {
     return { hora: null, hadExplicit: false };
   }
+
   if (h === WORK_END) mm = 0;
 
   return { hora: `${pad(h)}:${pad(mm)}:00`, hadExplicit: true };
