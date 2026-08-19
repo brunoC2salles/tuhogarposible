@@ -241,6 +241,14 @@ export default function AdminAgentes() {
                       <TableCell>{agent.email}</TableCell>
                       <TableCell>{agent.telefono || "-"}</TableCell>
                       <TableCell>
+                        <AgentStarRating
+                          value={agent.estrellas ?? 3}
+                          readOnly={!isAdmin}
+                          onChange={(n) => updateEstrellas(agent, n)}
+                        />
+                      </TableCell>
+                      <TableCell>
+
                         <Badge variant={agent.activo ? "default" : "secondary"}>
                           {agent.activo ? "Activo" : "Inactivo"}
                         </Badge>
