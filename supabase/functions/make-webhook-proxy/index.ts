@@ -652,7 +652,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
         const beworLink = tk?.token ? `https://tuhogarposible.lovable.app/documentos/${tk.token}` : '';
 
-        const payload = buildBitrixPayloadFromLead({
+        const payloadBase = buildBitrixPayloadFromLead({
           lead,
           agente,
           recomendaciones: [],
@@ -660,6 +660,14 @@ Deno.serve(async (req) => {
           source: 'replay_qualified',
           extra: { replay: 'true', replay_since: since },
         });
+
+        const claimReplay = await claimBitrixDispatch(supabase, lead.id, agente?.id || null, 'create');
+        if (!claimReplay.allowed) {
+          summary.skipped_already_sent++;
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'already_dispatched' });
+          continue;
+        }
+        const payload = withDispatchMeta(payloadBase, lead.id, claimReplay);
 
         const result = await sendToMake(webhookUrl, payload);
 
@@ -669,6 +677,7 @@ Deno.serve(async (req) => {
           error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
           payload: payload as any,
         });
+
 
         if (result.success) {
           summary.sent_ok++;
