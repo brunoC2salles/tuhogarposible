@@ -1561,12 +1561,26 @@ Deno.serve(async (req) => {
           if (bitrixPayload.cualificado !== 'true' || !isLeadQualifiedForBitrix(leadShape)) {
             console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead no cualificado', leadId);
           } else {
+            // GUARD anti-duplicidade: um lead => uma única negociação no Bitrix
+            const claim = await claimBitrixDispatch(supabase, leadId, agenteAsignado?.id || null, 'create');
+            if (!claim.allowed) {
+              console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead já enviado', leadId, claim.reason);
+              await supabase.from('webhook_logs').insert({
+                webhook_url: webhookUrl + ' (meta_bitrix, bloqueado_duplicado)',
+                status: 'skipped',
+                error_message: `Envio duplicado bloqueado (${claim.reason})`,
+                payload: { lead_id: leadId },
+              });
+              return;
+            }
+            const payloadFinal = withDispatchMeta(bitrixPayload, leadId, claim);
             // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
             const webhookResponse = await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bitrixPayload)
+              body: JSON.stringify(payloadFinal)
             });
+
 
             // Registrar log com corpo da resposta em caso de erro
             const logStatus = webhookResponse.ok ? 'success' : 'error';
