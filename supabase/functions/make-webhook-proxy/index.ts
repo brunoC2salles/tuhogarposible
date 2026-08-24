@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildBitrixPayloadFromLead, extractFromNotes, isLeadQualifiedForBitrix, NON_QUALIFIED_STAGES } from '../_shared/bitrixPayload.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
+import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
