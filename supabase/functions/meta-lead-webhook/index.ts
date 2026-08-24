@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.ts';
 import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
+import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
+
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 
@@ -1094,9 +1096,9 @@ Deno.serve(async (req) => {
     }
 
     // =====================================================================
-    // DEDUP Tally ↔ Meta Ads (janela de 48h por telefone/email)
+    // DEDUP Tally ↔ Meta Ads (janela ampliada por telefone/email)
     // =====================================================================
-    const DEDUP_WINDOW_HOURS = 48;
+    const DEDUP_WINDOW_HOURS = 24 * 90; // 90 dias
     const normalizePhone = (s: unknown): string => {
       const digits = String(s ?? '').replace(/\D+/g, '');
       const noCc = digits.startsWith('34') && digits.length > 9 ? digits.slice(digits.length - 9) : digits;
@@ -1106,18 +1108,26 @@ Deno.serve(async (req) => {
     const incomingEmailNorm = String(data.email || '').trim().toLowerCase();
     const sinceIso = new Date(Date.now() - DEDUP_WINDOW_HOURS * 3600 * 1000).toISOString();
     try {
+      // Busca direcionada por email OU telefone (sufixo de 9 dígitos), sem depender de LIMIT
+      const orFilters = [
+        incomingEmailNorm ? `email.ilike.${incomingEmailNorm}` : null,
+        incomingPhoneNorm ? `telefono.like.%${incomingPhoneNorm}` : null,
+      ].filter(Boolean).join(',');
+
       const { data: recentLeads } = await supabase
         .from('leads')
-        .select('id, telefono, email, stage, source, notas, created_at')
+        .select('id, telefono, email, stage, source, notas, created_at, agente_asignado_id')
         .gte('created_at', sinceIso)
+        .or(orFilters || 'id.is.null')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(50);
 
       const match = (recentLeads || []).find((l: any) => {
         const phoneMatch = incomingPhoneNorm && normalizePhone(l.telefono) === incomingPhoneNorm;
         const emailMatch = incomingEmailNorm && String(l.email || '').trim().toLowerCase() === incomingEmailNorm;
         return phoneMatch || emailMatch;
       });
+
 
       if (match) {
         const reason = incomingPhoneNorm && normalizePhone(match.telefono) === incomingPhoneNorm
@@ -1127,10 +1137,10 @@ Deno.serve(async (req) => {
                     : data.source_origin === 'tally_housage' ? 'tally_housage'
                     : 'meta_ads';
         const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
-        const dedupNote = `[Duplicado ignorado ${stamp} | origen: ${origen} | motivo: ${reason}] — mismo teléfono/email recibido nuevamente dentro de ${DEDUP_WINDOW_HOURS}h.`;
+        const dedupNote = `[Duplicado ignorado ${stamp} | origen: ${origen} | motivo: ${reason}] — mismo teléfono/email recibido nuevamente dentro de ${Math.round(DEDUP_WINDOW_HOURS / 24)} días. Se mantiene el agente asignado original.`;
         const notasActualizadas = [match.notas, dedupNote].filter(Boolean).join('\n');
         await supabase.from('leads').update({ notas: notasActualizadas }).eq('id', match.id);
-        console.log(`[meta-lead-webhook][dedup] match ${reason} lead_id=${match.id} existing_source=${match.source}`);
+        console.log(`[meta-lead-webhook][dedup] match ${reason} lead_id=${match.id} existing_source=${match.source} agente=${match.agente_asignado_id}`);
         return new Response(
           JSON.stringify({
             success: true,
@@ -1139,7 +1149,9 @@ Deno.serve(async (req) => {
             existing_lead_id: match.id,
             existing_source: match.source,
             existing_stage: match.stage,
-            message: `Lead duplicado detectado (${reason}) dentro de ${DEDUP_WINDOW_HOURS}h. Não foi criado novo lead nem enviado ao Bitrix.`,
+            existing_agent_id: match.agente_asignado_id || null,
+            message: `Lead duplicado detectado (${reason}). No se creó un nuevo lead, no se reasignó agente y no se envió a Bitrix.`,
+
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -1551,12 +1563,25 @@ Deno.serve(async (req) => {
           if (bitrixPayload.cualificado !== 'true' || !isLeadQualifiedForBitrix(leadShape)) {
             console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead no cualificado', leadId);
           } else {
+            // GUARD anti-duplicidade: um lead => uma única negociação no Bitrix
+            const claim = await claimBitrixDispatch(supabase, leadId, agenteAsignado?.id || null, 'create');
+            if (!claim.allowed) {
+              console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead já enviado', leadId, claim.reason);
+              await supabase.from('webhook_logs').insert({
+                webhook_url: webhookUrl + ' (meta_bitrix, bloqueado_duplicado)',
+                status: 'error',
+                error_message: `Envio duplicado bloqueado (${claim.reason})`,
+                payload: { lead_id: leadId },
+              });
+            } else {
+            const payloadFinal = withDispatchMeta(bitrixPayload, leadId, claim);
             // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
             const webhookResponse = await fetch(webhookUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(bitrixPayload)
+              body: JSON.stringify(payloadFinal)
             });
+
 
             // Registrar log com corpo da resposta em caso de erro
             const logStatus = webhookResponse.ok ? 'success' : 'error';
@@ -1571,10 +1596,12 @@ Deno.serve(async (req) => {
               webhook_url: webhookUrl + ' (meta_bitrix)',
               status: logStatus,
               error_message: errorMessage,
-              payload: bitrixPayload
+              payload: payloadFinal
             });
 
             console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
+            }
+
           }
 
         } else {

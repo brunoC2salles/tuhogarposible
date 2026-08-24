@@ -1,6 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildBitrixPayloadFromLead, extractFromNotes, isLeadQualifiedForBitrix, NON_QUALIFIED_STAGES } from '../_shared/bitrixPayload.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
+import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -511,7 +513,7 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildBitrixPayloadFromLead({
+      const payloadBase = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
@@ -519,6 +521,10 @@ Deno.serve(async (req) => {
         source: 'manual_assignment',
         extra: { assignment_type: 'manual' },
       });
+
+      // Anti-duplicidade: reatribuição atualiza a negociação existente (dedupe_key = lead_id)
+      const claimAssign = await claimBitrixDispatch(supabase, lead.id, agente.id, 'reassign');
+      const payload = withDispatchMeta(payloadBase, lead.id, claimAssign);
 
       const result = await sendToMake(webhookUrl, payload);
 
@@ -529,6 +535,7 @@ Deno.serve(async (req) => {
         error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
         payload: payload as any,
       });
+
 
       console.log(`[make-webhook-proxy] Manual assignment webhook sent for lead ${lead.id}: ${result.success ? 'success' : 'failed'}`);
 
@@ -601,6 +608,13 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Verifica no registro de envíos se este lead já foi para o Bitrix
+        const { data: priorDispatch } = await supabase
+          .from('bitrix_dispatches')
+          .select('id')
+          .eq('lead_id', lead.id)
+          .maybeSingle();
+
         // Verifica se já existe envio bem-sucedido para este lead_id
         const { data: prior } = await supabase
           .from('webhook_logs')
@@ -609,11 +623,12 @@ Deno.serve(async (req) => {
           .filter('payload->>lead_id', 'eq', lead.id)
           .limit(1);
 
-        if (prior && prior.length > 0) {
+        if (priorDispatch || (prior && prior.length > 0)) {
           summary.skipped_already_sent++;
           summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'already_sent' });
           continue;
         }
+
 
         // Busca agente
         let agente: any = null;
@@ -637,7 +652,7 @@ Deno.serve(async (req) => {
           .maybeSingle();
         const beworLink = tk?.token ? `https://tuhogarposible.lovable.app/documentos/${tk.token}` : '';
 
-        const payload = buildBitrixPayloadFromLead({
+        const payloadBase = buildBitrixPayloadFromLead({
           lead,
           agente,
           recomendaciones: [],
@@ -645,6 +660,14 @@ Deno.serve(async (req) => {
           source: 'replay_qualified',
           extra: { replay: 'true', replay_since: since },
         });
+
+        const claimReplay = await claimBitrixDispatch(supabase, lead.id, agente?.id || null, 'create');
+        if (!claimReplay.allowed) {
+          summary.skipped_already_sent++;
+          summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'already_dispatched' });
+          continue;
+        }
+        const payload = withDispatchMeta(payloadBase, lead.id, claimReplay);
 
         const result = await sendToMake(webhookUrl, payload);
 
@@ -654,6 +677,7 @@ Deno.serve(async (req) => {
           error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
           payload: payload as any,
         });
+
 
         if (result.success) {
           summary.sent_ok++;
@@ -743,7 +767,7 @@ Deno.serve(async (req) => {
           ? `https://tuhogarposible.lovable.app/documentos/${tokenRow.token}`
           : '';
 
-        const payload = buildBitrixPayloadFromLead({
+        const payloadBase = buildBitrixPayloadFromLead({
           lead,
           agente,
           recomendaciones: [],
@@ -751,6 +775,10 @@ Deno.serve(async (req) => {
           source: 'manual_resend',
           extra: { resend: true },
         });
+
+        // Anti-duplicidade: reenvio sempre marcado como update (dedupe_key = lead_id)
+        const claimResend = await claimBitrixDispatch(supabase, lead.id, agente?.id || null, 'resend');
+        const payload = withDispatchMeta(payloadBase, lead.id, claimResend);
 
         const result = await sendToMake(webhookUrl, payload);
 
@@ -760,6 +788,7 @@ Deno.serve(async (req) => {
           error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
           payload: payload as any,
         });
+
 
         // Fan-out para o webhook secundário (WhatsApp)
         const wa = await dispatchSecondaryQualified(supabase, {

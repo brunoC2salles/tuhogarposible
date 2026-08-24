@@ -227,6 +227,57 @@ export type Database = {
           },
         ]
       }
+      bitrix_dispatches: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          first_sent_at: string
+          id: string
+          last_kind: string
+          last_sent_at: string
+          lead_id: string
+          send_count: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          first_sent_at?: string
+          id?: string
+          last_kind?: string
+          last_sent_at?: string
+          lead_id: string
+          send_count?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          first_sent_at?: string
+          id?: string
+          last_kind?: string
+          last_sent_at?: string
+          lead_id?: string
+          send_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bitrix_dispatches_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bitrix_dispatches_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       despesas_operacionais: {
         Row: {
           agente_id: string | null
