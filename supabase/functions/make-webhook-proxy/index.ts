@@ -608,6 +608,13 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // Verifica no registro de envíos se este lead já foi para o Bitrix
+        const { data: priorDispatch } = await supabase
+          .from('bitrix_dispatches')
+          .select('id')
+          .eq('lead_id', lead.id)
+          .maybeSingle();
+
         // Verifica se já existe envio bem-sucedido para este lead_id
         const { data: prior } = await supabase
           .from('webhook_logs')
@@ -616,11 +623,12 @@ Deno.serve(async (req) => {
           .filter('payload->>lead_id', 'eq', lead.id)
           .limit(1);
 
-        if (prior && prior.length > 0) {
+        if (priorDispatch || (prior && prior.length > 0)) {
           summary.skipped_already_sent++;
           summary.details.push({ lead_id: lead.id, nombre: lead.nombre_completo, status: 'skipped', reason: 'already_sent' });
           continue;
         }
+
 
         // Busca agente
         let agente: any = null;
