@@ -1135,10 +1135,10 @@ Deno.serve(async (req) => {
                     : data.source_origin === 'tally_housage' ? 'tally_housage'
                     : 'meta_ads';
         const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
-        const dedupNote = `[Duplicado ignorado ${stamp} | origen: ${origen} | motivo: ${reason}] — mismo teléfono/email recibido nuevamente dentro de ${DEDUP_WINDOW_HOURS}h.`;
+        const dedupNote = `[Duplicado ignorado ${stamp} | origen: ${origen} | motivo: ${reason}] — mismo teléfono/email recibido nuevamente dentro de ${Math.round(DEDUP_WINDOW_HOURS / 24)} días. Se mantiene el agente asignado original.`;
         const notasActualizadas = [match.notas, dedupNote].filter(Boolean).join('\n');
         await supabase.from('leads').update({ notas: notasActualizadas }).eq('id', match.id);
-        console.log(`[meta-lead-webhook][dedup] match ${reason} lead_id=${match.id} existing_source=${match.source}`);
+        console.log(`[meta-lead-webhook][dedup] match ${reason} lead_id=${match.id} existing_source=${match.source} agente=${match.agente_asignado_id}`);
         return new Response(
           JSON.stringify({
             success: true,
@@ -1147,7 +1147,9 @@ Deno.serve(async (req) => {
             existing_lead_id: match.id,
             existing_source: match.source,
             existing_stage: match.stage,
-            message: `Lead duplicado detectado (${reason}) dentro de ${DEDUP_WINDOW_HOURS}h. Não foi criado novo lead nem enviado ao Bitrix.`,
+            existing_agent_id: match.agente_asignado_id || null,
+            message: `Lead duplicado detectado (${reason}). No se creó un nuevo lead, no se reasignó agente y no se envió a Bitrix.`,
+
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
