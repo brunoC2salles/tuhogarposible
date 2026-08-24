@@ -1567,12 +1567,11 @@ Deno.serve(async (req) => {
               console.log('[meta-lead-webhook] BLOQUEADO envio Bitrix: lead já enviado', leadId, claim.reason);
               await supabase.from('webhook_logs').insert({
                 webhook_url: webhookUrl + ' (meta_bitrix, bloqueado_duplicado)',
-                status: 'skipped',
+                status: 'error',
                 error_message: `Envio duplicado bloqueado (${claim.reason})`,
                 payload: { lead_id: leadId },
               });
-              return;
-            }
+            } else {
             const payloadFinal = withDispatchMeta(bitrixPayload, leadId, claim);
             // Disparar webhook (mantém JSON, Make.com aceita ambos formatos)
             const webhookResponse = await fetch(webhookUrl, {
@@ -1595,8 +1594,10 @@ Deno.serve(async (req) => {
               webhook_url: webhookUrl + ' (meta_bitrix)',
               status: logStatus,
               error_message: errorMessage,
-              payload: bitrixPayload
+              payload: payloadFinal
             });
+            }
+
 
             console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
           }
