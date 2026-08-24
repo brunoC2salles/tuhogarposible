@@ -511,7 +511,7 @@ Deno.serve(async (req) => {
         : '';
 
       // Build unified Bitrix payload (mesmo formato do meta-lead-webhook real)
-      const payload = buildBitrixPayloadFromLead({
+      const payloadBase = buildBitrixPayloadFromLead({
         lead,
         agente,
         recomendaciones,
@@ -519,6 +519,10 @@ Deno.serve(async (req) => {
         source: 'manual_assignment',
         extra: { assignment_type: 'manual' },
       });
+
+      // Anti-duplicidade: reatribuição atualiza a negociação existente (dedupe_key = lead_id)
+      const claimAssign = await claimBitrixDispatch(supabase, lead.id, agente.id, 'reassign');
+      const payload = withDispatchMeta(payloadBase, lead.id, claimAssign);
 
       const result = await sendToMake(webhookUrl, payload);
 
@@ -529,6 +533,7 @@ Deno.serve(async (req) => {
         error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
         payload: payload as any,
       });
+
 
       console.log(`[make-webhook-proxy] Manual assignment webhook sent for lead ${lead.id}: ${result.success ? 'success' : 'failed'}`);
 
