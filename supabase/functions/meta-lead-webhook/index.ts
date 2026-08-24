@@ -1596,10 +1596,10 @@ Deno.serve(async (req) => {
               error_message: errorMessage,
               payload: payloadFinal
             });
-            }
-
 
             console.log('[meta-lead-webhook] Webhook Bitrix24 disparado:', logStatus);
+            }
+
           }
 
         } else {
