@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Upload, CheckCircle2, AlertCircle, FileText, Clock } from "lucide-react";
 import Logo from "@/components/Logo";
 import clavesImg from "@/assets/claves.png";
@@ -24,6 +25,7 @@ const PublicDocumentUpload = () => {
   const [done, setDone] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [numTitulares, setNumTitulares] = useState<1 | 2>(1);
+  const [consentimiento, setConsentimiento] = useState(false);
   const [holderScopes, setHolderScopes] = useState<string[]>([]);
   const [analysisId, setAnalysisId] = useState<string | null>(null);
   const [statusFlow, setStatusFlow] = useState<ProcessingStatus>("uploading");
@@ -487,10 +489,27 @@ const PublicDocumentUpload = () => {
                   ))}
                 </div>
 
+                <div className="flex items-start gap-3 rounded-md border border-border p-3">
+                  <Checkbox
+                    id="consentimiento"
+                    checked={consentimiento}
+                    onCheckedChange={(v) => setConsentimiento(v === true)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="consentimiento" className="text-xs leading-relaxed text-muted-foreground cursor-pointer">
+                    Consiento el tratamiento de mis datos personales y de los documentos bancarios que
+                    aporto. Declaro que estos documentos serán utilizados <strong>única y exclusivamente</strong> para
+                    el estudio de viabilidad hipotecaria, no se cederán a terceros ajenos a dicha finalidad y
+                    se conservarán únicamente durante el tiempo necesario para ese análisis. Conozco mi derecho
+                    a acceder, rectificar, suprimir, oponerme y limitar el tratamiento de mis datos, conforme
+                    al RGPD (UE) 2016/679 y a la LOPDGDD 3/2018, escribiendo a Tu Hogar Posible.
+                  </label>
+                </div>
+
                 <Button
                   className="w-full"
                   size="lg"
-                  disabled={files.length === 0 || uploading}
+                  disabled={files.length === 0 || uploading || !consentimiento}
                   onClick={handleUpload}
                 >
                   {uploading ? (
@@ -507,6 +526,7 @@ const PublicDocumentUpload = () => {
                   Tu información es tratada de forma confidencial y solo será utilizada para evaluar
                   tu viabilidad hipotecaria.
                 </p>
+
               </div>
             )}
           </CardContent>
