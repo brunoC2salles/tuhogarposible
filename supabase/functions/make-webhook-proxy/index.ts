@@ -748,7 +748,7 @@ Deno.serve(async (req) => {
           ? `https://tuhogarposible.lovable.app/documentos/${tokenRow.token}`
           : '';
 
-        const payload = buildBitrixPayloadFromLead({
+        const payloadBase = buildBitrixPayloadFromLead({
           lead,
           agente,
           recomendaciones: [],
@@ -756,6 +756,10 @@ Deno.serve(async (req) => {
           source: 'manual_resend',
           extra: { resend: true },
         });
+
+        // Anti-duplicidade: reenvio sempre marcado como update (dedupe_key = lead_id)
+        const claimResend = await claimBitrixDispatch(supabase, lead.id, agente?.id || null, 'resend');
+        const payload = withDispatchMeta(payloadBase, lead.id, claimResend);
 
         const result = await sendToMake(webhookUrl, payload);
 
@@ -765,6 +769,7 @@ Deno.serve(async (req) => {
           error_message: result.success ? null : `HTTP ${result.status}: ${result.body}`,
           payload: payload as any,
         });
+
 
         // Fan-out para o webhook secundário (WhatsApp)
         const wa = await dispatchSecondaryQualified(supabase, {
