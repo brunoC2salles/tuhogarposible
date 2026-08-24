@@ -1094,9 +1094,9 @@ Deno.serve(async (req) => {
     }
 
     // =====================================================================
-    // DEDUP Tally ↔ Meta Ads (janela de 48h por telefone/email)
+    // DEDUP Tally ↔ Meta Ads (janela ampliada por telefone/email)
     // =====================================================================
-    const DEDUP_WINDOW_HOURS = 48;
+    const DEDUP_WINDOW_HOURS = 24 * 90; // 90 dias
     const normalizePhone = (s: unknown): string => {
       const digits = String(s ?? '').replace(/\D+/g, '');
       const noCc = digits.startsWith('34') && digits.length > 9 ? digits.slice(digits.length - 9) : digits;
@@ -1106,18 +1106,26 @@ Deno.serve(async (req) => {
     const incomingEmailNorm = String(data.email || '').trim().toLowerCase();
     const sinceIso = new Date(Date.now() - DEDUP_WINDOW_HOURS * 3600 * 1000).toISOString();
     try {
+      // Busca direcionada por email OU telefone (sufixo de 9 dígitos), sem depender de LIMIT
+      const orFilters = [
+        incomingEmailNorm ? `email.ilike.${incomingEmailNorm}` : null,
+        incomingPhoneNorm ? `telefono.like.%${incomingPhoneNorm}` : null,
+      ].filter(Boolean).join(',');
+
       const { data: recentLeads } = await supabase
         .from('leads')
-        .select('id, telefono, email, stage, source, notas, created_at')
+        .select('id, telefono, email, stage, source, notas, created_at, agente_asignado_id')
         .gte('created_at', sinceIso)
+        .or(orFilters || 'id.is.null')
         .order('created_at', { ascending: false })
-        .limit(500);
+        .limit(50);
 
       const match = (recentLeads || []).find((l: any) => {
         const phoneMatch = incomingPhoneNorm && normalizePhone(l.telefono) === incomingPhoneNorm;
         const emailMatch = incomingEmailNorm && String(l.email || '').trim().toLowerCase() === incomingEmailNorm;
         return phoneMatch || emailMatch;
       });
+
 
       if (match) {
         const reason = incomingPhoneNorm && normalizePhone(match.telefono) === incomingPhoneNorm
