@@ -1412,13 +1412,22 @@ Deno.serve(async (req) => {
       precioMaxInmueble.precio_max_recomendado > 0
         ? `Precio máx. inmueble recomendado: ${precioMaxInmueble.precio_max_recomendado.toLocaleString('es-ES')}€ (P1 ahorros: ${precioMaxInmueble.precio_max_p1.toLocaleString('es-ES')}€ · P2 ingresos: ${precioMaxInmueble.precio_max_p2.toLocaleString('es-ES')}€)`
         : null,
-      marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
-      marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
+      // Referencia provincial orientativa (Catastro, tabla fija) — solo si no hay dato de zona,
+      // para no mezclar dos fuentes distintas en las notas.
+      evaluacionZona.sin_dato && marketValidation ? `Mercado (referencia provincial): ${marketValidation.mensaje}` : null,
+      evaluacionZona.sin_dato && marketInfo
+        ? `Precio medio provincia: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)`
+        : null,
       evaluacionZona.sin_dato
         ? 'Precio mínimo del área: sin dato de precio disponible'
         : `Precio mínimo del área: ${evaluacionZona.precio_minimo.toLocaleString('es-ES')}€ (${evaluacionZona.metodo}${
             evaluacionZona.distrito ? ` · ${evaluacionZona.distrito}` : ''
           }${evaluacionZona.municipio ? ` · ${evaluacionZona.municipio}` : ''})`,
+      evaluacionZona.sin_dato
+        ? null
+        : `Base del área: ${evaluacionZona.precio_base.toLocaleString('es-ES')}€ (fuente: ${evaluacionZona.fuente_precio || 'n/d'}${
+            evaluacionZona.precio_m2 ? ` · ${evaluacionZona.precio_m2.toLocaleString('es-ES')}€/m²` : ''
+          }${evaluacionZona.superficie_ref ? ` × ${Math.round(evaluacionZona.superficie_ref)} m² (${evaluacionZona.superficie_origen || 'n/d'})` : ''}) × ${evaluacionZona.margen_aplicado}`,
     ].filter(Boolean).join('\n');
     
     // Enriquecer JSONs de simulação com inputs raw + extras (para reenvio fiel pelo proxy)
