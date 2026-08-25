@@ -27,6 +27,21 @@ export interface SimuladorHipotecarioData {
   cuotaMensual: number;
   relacionCuotaIngreso: number;
   capacidadEndeudamiento: number;
+  /** Precio máximo de inmueble recomendado (leads Meta/Tally). */
+  precio_maximo_inmueble?: number;
+  /** Regla de precio mínimo por área (webhooks de entrada). */
+  zona_precio_minimo?: number;
+  zona_precio_base?: number;
+  zona_precio_metodo?: string;
+  zona_precio_sin_dato?: boolean;
+  zona_cod_muni?: string | null;
+  zona_municipio?: string | null;
+  zona_ccaa?: string | null;
+  zona_distrito?: string | null;
+  zona_precio_m2?: number | null;
+  zona_superficie_ref?: number | null;
+  zona_confianza?: string | null;
+  zona_cualificado?: boolean;
 }
 
 export interface Lead {

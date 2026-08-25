@@ -3,6 +3,7 @@ import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.
 import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
 import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
+import { evaluarPrecioMinimoZona } from '../_shared/precioMinimoZona.ts';
 
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
@@ -1186,7 +1187,7 @@ Deno.serve(async (req) => {
     });
 
     // 3. Qualificar lead (passa edad parseada e ahorros)
-    const qualificacao = qualificarLead(data, ingresos, edadParsed, montoAhorros);
+    let qualificacao = qualificarLead(data, ingresos, edadParsed, montoAhorros);
     console.log('[meta-lead-webhook] Qualificação:', qualificacao);
 
     // 3. Determinar região e turno
@@ -1194,6 +1195,36 @@ Deno.serve(async (req) => {
     const turnoPreferido = normalizarPreferenciaLlamada(data.preferencia_llamada);
     
     console.log('[meta-lead-webhook] Região:', region, 'Turno:', turnoPreferido);
+
+    // 3.1 REGRA ADICIONAL — Precio mínimo de cualificación por área
+    // Isolada das demais regras: compara o máximo financiável do lead com o
+    // preço mínimo da zona (distrito nas 10 maiores cidades, município ou média CCAA), sempre ×0,80.
+    const preSimHipoteca = calcularSimulacionHipotecaria(ingresos, deudas, edadParsed || undefined);
+    const prePrecioMax = calcularPrecioMaximoInmuebleMeta({
+      ahorros: montoAhorros,
+      comunidad: region,
+      monto_max_financiable: preSimHipoteca.monto_maximo_financiable || 0,
+      pct_financiacion: preSimHipoteca.porcentaje_financiacion || 90,
+    });
+    const superficieDeseadaLead = Number(
+      (data as any).metros_cuadrados ?? (data as any).superficie ?? (data as any).metros ?? 0
+    ) || null;
+    const evaluacionZona = evaluarPrecioMinimoZona({
+      maxFinanciable: prePrecioMax.precio_max_recomendado,
+      zonaTexto: data.zona_interes,
+      ciudadTexto: (data as any).ciudad_interes,
+      superficieDeseada: superficieDeseadaLead,
+    });
+    console.log('[meta-lead-webhook] Precio mínimo zona:', evaluacionZona);
+
+    if (qualificacao.cualificado && !evaluacionZona.cualificado) {
+      qualificacao = {
+        cualificado: false,
+        razon_no_cualificado: evaluacionZona.razon || 'Presupuesto por debajo del mínimo de la zona',
+      };
+      console.log('[meta-lead-webhook] Descualificado por precio mínimo de zona:', qualificacao.razon_no_cualificado);
+    }
+
 
     // 4. Atribuir agente — força agente se force_agent_id presente, senão round-robin
     let agenteAsignado = null;
@@ -1358,6 +1389,11 @@ Deno.serve(async (req) => {
         : null,
       marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
+      evaluacionZona.sin_dato
+        ? 'Precio mínimo del área: sin dato de precio disponible'
+        : `Precio mínimo del área: ${evaluacionZona.precio_minimo.toLocaleString('es-ES')}€ (${evaluacionZona.metodo}${
+            evaluacionZona.distrito ? ` · ${evaluacionZona.distrito}` : ''
+          }${evaluacionZona.municipio ? ` · ${evaluacionZona.municipio}` : ''})`,
     ].filter(Boolean).join('\n');
     
     // Enriquecer JSONs de simulação com inputs raw + extras (para reenvio fiel pelo proxy)
@@ -1379,6 +1415,19 @@ Deno.serve(async (req) => {
       precio_max_por_ingresos: precioMaxInmueble.precio_max_p2,
       credito_personal_maximo: precioMaxInmueble.cp_max,
       tasa_itp_aplicada: precioMaxInmueble.tasa_itp_aplicada,
+      // Regra de precio mínimo por área (isolada das demais regras)
+      zona_precio_minimo: evaluacionZona.precio_minimo,
+      zona_precio_base: evaluacionZona.precio_base,
+      zona_precio_metodo: evaluacionZona.metodo,
+      zona_precio_sin_dato: evaluacionZona.sin_dato,
+      zona_cod_muni: evaluacionZona.cod_muni,
+      zona_municipio: evaluacionZona.municipio,
+      zona_ccaa: evaluacionZona.ccaa,
+      zona_distrito: evaluacionZona.distrito,
+      zona_precio_m2: evaluacionZona.precio_m2,
+      zona_superficie_ref: evaluacionZona.superficie_ref,
+      zona_confianza: evaluacionZona.confianza,
+      zona_cualificado: evaluacionZona.cualificado,
       // Snapshot dos inputs Meta usados para reconstrução
       meta_monto_ahorros: montoAhorros,
       meta_tiene_ahorros: metaTieneAhorrosNormalizado,

@@ -382,6 +382,65 @@ export const LeadDetailsModal = ({
             </Card>
           )}
 
+          {lead.simulador_hipotecario_data?.zona_precio_metodo && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Precio mínimo del área</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4">
+                {lead.simulador_hipotecario_data.zona_precio_sin_dato ? (
+                  <div className="col-span-2 text-sm text-muted-foreground">
+                    Sin dato de precio disponible para la zona indicada.
+                  </div>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Precio mínimo (−20%)</p>
+                      <p className="font-medium text-primary">
+                        {formatCurrency(lead.simulador_hipotecario_data.zona_precio_minimo)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Máximo del lead</p>
+                      <p className="font-medium">
+                        {formatCurrency(lead.simulador_hipotecario_data.precio_maximo_inmueble)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Zona de referencia</p>
+                      <p className="font-medium">
+                        {[lead.simulador_hipotecario_data.zona_distrito, lead.simulador_hipotecario_data.zona_municipio]
+                          .filter(Boolean)
+                          .join(', ') || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Método</p>
+                      <p className="font-medium">
+                        {lead.simulador_hipotecario_data.zona_precio_metodo}
+                        {lead.simulador_hipotecario_data.zona_precio_m2
+                          ? ` · ${formatCurrency(lead.simulador_hipotecario_data.zona_precio_m2)}/m²`
+                          : ''}
+                        {lead.simulador_hipotecario_data.zona_superficie_ref
+                          ? ` · ${Math.round(Number(lead.simulador_hipotecario_data.zona_superficie_ref))} m²`
+                          : ''}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className={`text-sm font-medium ${lead.simulador_hipotecario_data.zona_cualificado === false ? 'text-destructive' : 'text-primary'}`}>
+                        {lead.simulador_hipotecario_data.zona_cualificado === false
+                          ? 'No cualificado para esta área (presupuesto por debajo del mínimo)'
+                          : 'Cualificado para esta área'}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+
+
           {!lead.simulador_personal_data && !lead.simulador_hipotecario_data && (
             <div className="text-center text-muted-foreground py-8">
               No hay datos de simuladores para este lead
