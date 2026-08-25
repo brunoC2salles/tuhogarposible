@@ -298,6 +298,7 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
       r.distrito = match.d;
       r.precio_m2 = match.m2;
       r.superficie_ref = superficieRef;
+      r.superficie_origen = superficieOrigen;
       r.confianza = match.c || null;
       return r;
     }
@@ -312,6 +313,7 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
     r.distrito = masBarato.d;
     r.precio_m2 = masBarato.m2;
     r.superficie_ref = superficieRef;
+    r.superficie_origen = superficieOrigen;
     r.confianza = masBarato.c || null;
     return r;
   }
