@@ -1389,6 +1389,11 @@ Deno.serve(async (req) => {
         : null,
       marketValidation ? `Mercado: ${marketValidation.mensaje}` : null,
       marketInfo ? `Precio medio zona: ${marketInfo.precioMedio.toLocaleString('es-ES')}€ (${marketInfo.precioM2.toLocaleString('es-ES')}€/m²)` : null,
+      evaluacionZona.sin_dato
+        ? 'Precio mínimo del área: sin dato de precio disponible'
+        : `Precio mínimo del área: ${evaluacionZona.precio_minimo.toLocaleString('es-ES')}€ (${evaluacionZona.metodo}${
+            evaluacionZona.distrito ? ` · ${evaluacionZona.distrito}` : ''
+          }${evaluacionZona.municipio ? ` · ${evaluacionZona.municipio}` : ''})`,
     ].filter(Boolean).join('\n');
     
     // Enriquecer JSONs de simulação com inputs raw + extras (para reenvio fiel pelo proxy)
