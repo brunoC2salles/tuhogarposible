@@ -1451,6 +1451,12 @@ Deno.serve(async (req) => {
       zona_distrito: evaluacionZona.distrito,
       zona_precio_m2: evaluacionZona.precio_m2,
       zona_superficie_ref: evaluacionZona.superficie_ref,
+      zona_superficie_origen: evaluacionZona.superficie_origen,
+      zona_precio_fuente: evaluacionZona.fuente_precio,
+      zona_margen_aplicado: evaluacionZona.margen_aplicado,
+      zona_max_financiable: evaluacionZona.max_financiable,
+      zona_razon: evaluacionZona.razon,
+      zona_evaluado_at: new Date().toISOString(),
       zona_confianza: evaluacionZona.confianza,
       zona_cualificado: evaluacionZona.cualificado,
       // Snapshot dos inputs Meta usados para reconstrução
