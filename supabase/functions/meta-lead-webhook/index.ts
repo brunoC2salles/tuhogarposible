@@ -3,6 +3,7 @@ import { validateBudget, getProvinceMarketPrice } from '../_shared/marketPrices.
 import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
 import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
+import { evaluarPrecioMinimoZona } from '../_shared/precioMinimoZona.ts';
 
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
