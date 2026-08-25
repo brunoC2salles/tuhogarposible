@@ -53,7 +53,7 @@ No `meta-lead-webhook` aplica-se apenas o **piso absoluto de 5.000€** porque o
 
 ### Fórmula Precio Máximo Inmueble (Meta) — 2026-06-25
 `calcularPrecioMaximoInmuebleMeta` em `meta-lead-webhook/index.ts`:
-- **P1 (ahorros + CP)** = `(15.000 + ahorros) / (ITP_CCAA + 0,10)` — assume entrada 10% + ITP por CCAA. Substitui a fórmula antiga `(15k + ahorros)/2/ITP` que não tinha base económica.
+- **P1 (ahorros)** = `CPmax / ITP_CCAA`, com `CPmax = (10.000 + ahorros) / 2`. Atualizado 2026-08-25 (antes 15.000 e denominador ITP+0,10). Descontos previstos de ITP (família numerosa −50%, menor de 35 −10%) ainda não aplicados por falta de dados no payload Meta.
 - **P2 (ingressos)** = `monto_max_financiable / pct_financiacion` (com cap 210k acima).
 - **Recomendado** = `MIN(P1, P2)`.
 - Mantém os **15.000€ de crédito personal** (CP_TOPE) como apoio à entrada/ITP.
