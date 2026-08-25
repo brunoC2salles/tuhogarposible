@@ -173,7 +173,10 @@ export function resolverMunicipio(...textos: (string | null | undefined)[]): Res
         // El resto del token (quitando el nombre del municipio) puede ser el distrito
         const resto = tok.replace(nombre, ' ').replace(/\s+/g, ' ').trim();
         const otros = tokens.filter((_, idx) => idx !== i);
-        if (resto) otros.push(resto);
+        const restoEsMismoMunicipio = resto
+          ? (_muniByName!.get(resto) || []).some((r) => r.cod_muni === row.cod_muni)
+          : false;
+        if (resto && !restoEsMismoMunicipio) otros.push(resto);
         return {
           cod_muni: row.cod_muni,
           municipio: row.name,
