@@ -1215,7 +1215,32 @@ Deno.serve(async (req) => {
       ciudadTexto: (data as any).ciudad_interes,
       superficieDeseada: superficieDeseadaLead,
     });
-    console.log('[meta-lead-webhook] Precio mínimo zona:', evaluacionZona);
+    // AUDITORÍA — trazabilidad completa del precio mínimo de zona
+    console.log('[AUDIT][precio-minimo-zona]', JSON.stringify({
+      entrada: {
+        zona_texto: data.zona_interes ?? null,
+        ciudad_texto: (data as any).ciudad_interes ?? null,
+        superficie_deseada_lead: superficieDeseadaLead,
+      },
+      resolucion: {
+        cod_muni: evaluacionZona.cod_muni,
+        municipio: evaluacionZona.municipio,
+        ccaa: evaluacionZona.ccaa,
+        distrito: evaluacionZona.distrito,
+      },
+      fuente_precio: evaluacionZona.fuente_precio,     // distrito | municipio | ccaa
+      metodo: evaluacionZona.metodo,
+      precio_m2: evaluacionZona.precio_m2,
+      superficie_ref: evaluacionZona.superficie_ref,
+      superficie_origen: evaluacionZona.superficie_origen, // lead | ciudad | municipio
+      precio_base: evaluacionZona.precio_base,
+      margen_aplicado: evaluacionZona.margen_aplicado,
+      precio_minimo_area: evaluacionZona.precio_minimo,
+      max_financiable_lead: evaluacionZona.max_financiable,
+      sin_dato: evaluacionZona.sin_dato,
+      cualificado: evaluacionZona.cualificado,
+      razon: evaluacionZona.razon,
+    }));
 
     if (qualificacao.cualificado && !evaluacionZona.cualificado) {
       qualificacao = {
