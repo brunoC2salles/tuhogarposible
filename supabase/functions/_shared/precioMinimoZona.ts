@@ -237,11 +237,20 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
 
   const finalizar = (precioBase: number, metodo: MetodoPrecioMinimo): PrecioMinimoZona => {
     if (!precioBase || precioBase <= 0) return { ...base, metodo: 'sin_dato', sin_dato: true };
+    const fuente: 'distrito' | 'municipio' | 'ccaa' | null =
+      metodo === 'distrito' || metodo === 'distrito_mas_barato'
+        ? 'distrito'
+        : metodo === 'municipio'
+          ? 'municipio'
+          : metodo === 'media_ccaa'
+            ? 'ccaa'
+            : null;
     return {
       ...base,
       precio_base: Math.round(precioBase),
       precio_minimo: Math.round(precioBase * MARGEN_SEGURIDAD),
       metodo,
+      fuente_precio: fuente,
       sin_dato: false,
     };
   };
