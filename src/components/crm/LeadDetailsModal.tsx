@@ -50,6 +50,7 @@ export const LeadDetailsModal = ({
   const { reassignLead } = useLeads();
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument, getPreviewUrl } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
+  const [auditMode, setAuditMode] = useState(false);
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
