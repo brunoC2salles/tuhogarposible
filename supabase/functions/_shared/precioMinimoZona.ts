@@ -281,6 +281,8 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
 
   const distritoTexto = normalizarZona(input.distrito);
 
+  let refDistrito: PrecioMinimoZona | null = null;
+
   if (distritoTexto) {
     // B1: distrito informado y presente en la lista de la ciudad
     const match = ciudad.distritos.find((d) => {
@@ -300,26 +302,34 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
       r.superficie_ref = superficieRef;
       r.superficie_origen = superficieOrigen;
       r.confianza = match.c || null;
-      return r;
+      refDistrito = r;
     }
-    // B2: distrito informado pero no cubierto → fallback municipio
-    return baseMunicipio();
+  } else {
+    // B3: solo ciudad → distrito más barato de la lista
+    const masBarato = [...ciudad.distritos].sort((a, b) => a.m2 - b.m2)[0];
+    if (masBarato && superficieRef > 0) {
+      const r = finalizar(masBarato.m2 * superficieRef, 'distrito_mas_barato');
+      r.distrito = masBarato.d;
+      r.precio_m2 = masBarato.m2;
+      r.superficie_ref = superficieRef;
+      r.superficie_origen = superficieOrigen;
+      r.confianza = masBarato.c || null;
+      refDistrito = r;
+    }
   }
 
-  // B3: solo ciudad → distrito más barato de la lista
-  const masBarato = [...ciudad.distritos].sort((a, b) => a.m2 - b.m2)[0];
-  if (masBarato && superficieRef > 0) {
-    const r = finalizar(masBarato.m2 * superficieRef, 'distrito_mas_barato');
-    r.distrito = masBarato.d;
-    r.precio_m2 = masBarato.m2;
-    r.superficie_ref = superficieRef;
-    r.superficie_origen = superficieOrigen;
-    r.confianza = masBarato.c || null;
-    return r;
-  }
+  const refMunicipio = baseMunicipio();
 
-  return baseMunicipio();
+  // Regla: usar SIEMPRE la referencia más barata disponible (distrito vs municipio/CCAA)
+  // para no descualificar a un lead que sí puede comprar en alguna de las dos.
+  const candidatos = [refDistrito, refMunicipio].filter(
+    (r): r is PrecioMinimoZona => !!r && !r.sin_dato && r.precio_minimo > 0,
+  );
+  if (candidatos.length === 0) return refDistrito || refMunicipio;
+
+  return candidatos.sort((a, b) => a.precio_minimo - b.precio_minimo)[0];
 }
+
 
 // ---------------------------------------------------------------------------
 // Evaluación de cualificación por precio de área
