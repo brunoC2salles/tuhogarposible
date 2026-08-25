@@ -33,6 +33,10 @@ export interface PrecioMinimoZona {
   distrito: string | null;
   precio_m2: number | null;
   superficie_ref: number | null;
+  /** Auditoría: de dónde sale la superficie usada. */
+  superficie_origen: 'lead' | 'ciudad' | 'municipio' | null;
+  /** Auditoría: nivel de la fuente del precio base. */
+  fuente_precio: 'distrito' | 'municipio' | 'ccaa' | null;
   confianza: string | null;
   margen_aplicado: number;
 }
