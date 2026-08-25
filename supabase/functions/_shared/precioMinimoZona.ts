@@ -267,10 +267,17 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   if (!ciudad) return baseMunicipio();
 
   // ---- CASO B: una de las 10 mayores ciudades
-  const superficieRef =
-    input.superficie_deseada && input.superficie_deseada > 0
-      ? input.superficie_deseada
-      : ciudad.sup || muni?.superficie || 0;
+  const superficieDeLead = !!(input.superficie_deseada && input.superficie_deseada > 0);
+  const superficieRef = superficieDeLead
+    ? (input.superficie_deseada as number)
+    : ciudad.sup || muni?.superficie || 0;
+  const superficieOrigen: 'lead' | 'ciudad' | 'municipio' | null = superficieDeLead
+    ? 'lead'
+    : ciudad.sup
+      ? 'ciudad'
+      : muni?.superficie
+        ? 'municipio'
+        : null;
 
   const distritoTexto = normalizarZona(input.distrito);
 
