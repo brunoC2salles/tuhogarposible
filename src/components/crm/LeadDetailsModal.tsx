@@ -50,6 +50,7 @@ export const LeadDetailsModal = ({
   const { reassignLead } = useLeads();
   const { documents, loading: documentsLoading, uploading, uploadDocument, downloadDocument, deleteDocument, getPreviewUrl } = useLeadDocuments(lead?.id || '');
   const { links: externalLinks, loading: linksLoading, addLink, deleteLink: deleteExternalLink } = useLeadExternalLinks(lead?.id);
+  const [auditMode, setAuditMode] = useState(false);
   const [showExternalLinkForm, setShowExternalLinkForm] = useState(false);
   const [externalLinkUrl, setExternalLinkUrl] = useState('');
   const [externalLinkTitle, setExternalLinkTitle] = useState('');
@@ -384,8 +385,15 @@ export const LeadDetailsModal = ({
 
           {lead.simulador_hipotecario_data?.zona_precio_metodo && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Precio mínimo del área</CardTitle>
+                <Button
+                  variant={auditMode ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setAuditMode((v) => !v)}
+                >
+                  {auditMode ? 'Ocultar auditoría' : 'Modo auditoría'}
+                </Button>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 {lead.simulador_hipotecario_data.zona_precio_sin_dato ? (
@@ -435,6 +443,62 @@ export const LeadDetailsModal = ({
                     </div>
                   </>
                 )}
+
+                {auditMode && (() => {
+                  const z = lead.simulador_hipotecario_data!;
+                  const fuenteLabel =
+                    z.zona_precio_fuente === 'distrito'
+                      ? 'Distrito (idealista, €/m²)'
+                      : z.zona_precio_fuente === 'municipio'
+                        ? 'Municipio (Catastro, precio medio)'
+                        : z.zona_precio_fuente === 'ccaa'
+                          ? 'Media de la CCAA (Catastro)'
+                          : 'Sin fuente de precio';
+                  const supLabel =
+                    z.zona_superficie_origen === 'lead'
+                      ? 'Informada por el lead'
+                      : z.zona_superficie_origen === 'ciudad'
+                        ? 'Media de la ciudad'
+                        : z.zona_superficie_origen === 'municipio'
+                          ? 'Media del municipio'
+                          : 'No aplicable';
+                  const rows: [string, string][] = [
+                    ['Origen del precio', fuenteLabel],
+                    ['Método interno', z.zona_precio_metodo || '—'],
+                    ['Municipio (cod_muni)', `${z.zona_municipio || '—'}${z.zona_cod_muni ? ` (${z.zona_cod_muni})` : ''}`],
+                    ['CCAA', z.zona_ccaa || '—'],
+                    ['Distrito usado', z.zona_distrito || '—'],
+                    ['Confianza del dato', z.zona_confianza || '—'],
+                    ['Precio €/m²', z.zona_precio_m2 ? formatCurrency(z.zona_precio_m2) : '—'],
+                    ['Superficie_ref', z.zona_superficie_ref ? `${Math.round(Number(z.zona_superficie_ref))} m²` : '—'],
+                    ['Origen de superficie_ref', supLabel],
+                    ['Precio base (sin margen)', z.zona_precio_base ? formatCurrency(z.zona_precio_base) : '—'],
+                    ['Margen aplicado', `×${z.zona_margen_aplicado ?? 0.8}`],
+                    ['precio_minimo_area', z.zona_precio_minimo ? formatCurrency(z.zona_precio_minimo) : '—'],
+                    ['Máximo financiable del lead', formatCurrency(z.zona_max_financiable ?? z.precio_maximo_inmueble ?? 0)],
+                    ['Resultado', z.zona_cualificado === false ? 'NO cualificado' : 'Cualificado'],
+                    ['Motivo', z.zona_razon || '—'],
+                    ['Evaluado el', z.zona_evaluado_at ? new Date(z.zona_evaluado_at).toLocaleString('es-ES') : '—'],
+                  ];
+                  return (
+                    <div className="col-span-2 rounded-md border bg-muted/40 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Auditoría del cálculo
+                      </p>
+                      <div className="space-y-1">
+                        {rows.map(([k, v]) => (
+                          <div key={k} className="flex justify-between gap-4 text-xs">
+                            <span className="text-muted-foreground">{k}</span>
+                            <span className="text-right font-mono">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Fórmula: precio_base × margen = precio_minimo_area · cualifica si máximo financiable ≥ precio_minimo_area
+                      </p>
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           )}

@@ -33,6 +33,10 @@ export interface PrecioMinimoZona {
   distrito: string | null;
   precio_m2: number | null;
   superficie_ref: number | null;
+  /** Auditoría: de dónde sale la superficie usada. */
+  superficie_origen: 'lead' | 'ciudad' | 'municipio' | null;
+  /** Auditoría: nivel de la fuente del precio base. */
+  fuente_precio: 'distrito' | 'municipio' | 'ccaa' | null;
   confianza: string | null;
   margen_aplicado: number;
 }
@@ -216,6 +220,8 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
     distrito: null,
     precio_m2: null,
     superficie_ref: null,
+    superficie_origen: null,
+    fuente_precio: null,
     confianza: null,
     margen_aplicado: MARGEN_SEGURIDAD,
   };
@@ -231,11 +237,20 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
 
   const finalizar = (precioBase: number, metodo: MetodoPrecioMinimo): PrecioMinimoZona => {
     if (!precioBase || precioBase <= 0) return { ...base, metodo: 'sin_dato', sin_dato: true };
+    const fuente: 'distrito' | 'municipio' | 'ccaa' | null =
+      metodo === 'distrito' || metodo === 'distrito_mas_barato'
+        ? 'distrito'
+        : metodo === 'municipio'
+          ? 'municipio'
+          : metodo === 'media_ccaa'
+            ? 'ccaa'
+            : null;
     return {
       ...base,
       precio_base: Math.round(precioBase),
       precio_minimo: Math.round(precioBase * MARGEN_SEGURIDAD),
       metodo,
+      fuente_precio: fuente,
       sin_dato: false,
     };
   };
@@ -252,10 +267,17 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   if (!ciudad) return baseMunicipio();
 
   // ---- CASO B: una de las 10 mayores ciudades
-  const superficieRef =
-    input.superficie_deseada && input.superficie_deseada > 0
-      ? input.superficie_deseada
-      : ciudad.sup || muni?.superficie || 0;
+  const superficieDeLead = !!(input.superficie_deseada && input.superficie_deseada > 0);
+  const superficieRef = superficieDeLead
+    ? (input.superficie_deseada as number)
+    : ciudad.sup || muni?.superficie || 0;
+  const superficieOrigen: 'lead' | 'ciudad' | 'municipio' | null = superficieDeLead
+    ? 'lead'
+    : ciudad.sup
+      ? 'ciudad'
+      : muni?.superficie
+        ? 'municipio'
+        : null;
 
   const distritoTexto = normalizarZona(input.distrito);
 
@@ -276,6 +298,7 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
       r.distrito = match.d;
       r.precio_m2 = match.m2;
       r.superficie_ref = superficieRef;
+      r.superficie_origen = superficieOrigen;
       r.confianza = match.c || null;
       return r;
     }
@@ -290,6 +313,7 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
     r.distrito = masBarato.d;
     r.precio_m2 = masBarato.m2;
     r.superficie_ref = superficieRef;
+    r.superficie_origen = superficieOrigen;
     r.confianza = masBarato.c || null;
     return r;
   }
