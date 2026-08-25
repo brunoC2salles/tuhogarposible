@@ -42,6 +42,13 @@ export interface SimuladorHipotecarioData {
   zona_superficie_ref?: number | null;
   zona_confianza?: string | null;
   zona_cualificado?: boolean;
+  /** Auditoría de la regla de precio mínimo por área. */
+  zona_superficie_origen?: 'lead' | 'ciudad' | 'municipio' | null;
+  zona_precio_fuente?: 'distrito' | 'municipio' | 'ccaa' | null;
+  zona_margen_aplicado?: number;
+  zona_max_financiable?: number;
+  zona_razon?: string | null;
+  zona_evaluado_at?: string | null;
 }
 
 export interface Lead {
