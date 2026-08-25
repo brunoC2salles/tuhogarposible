@@ -826,7 +826,7 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   // Critério 7: Ahorros para impuestos.
   // Cualifica si declara monto_ahorros >= 5.000€, o si responde afirmativamente
   // ("si/sí/yes" y derivados) SIN declarar un monto concreto por debajo del mínimo.
-  const AHORROS_MINIMO = 5000;
+  const AHORROS_MINIMO = 10000;
   const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
   const montoDeclarado = montoAhorros ?? 0;
@@ -987,11 +987,9 @@ function calcularPrecioMaximoInmuebleMeta(params: {
 }) {
   const ahorros = Math.max(params.ahorros || 0, 0);
   const tasaITP = getITPPorCCAA(params.comunidad);
-  // P1: ahorros + crédito personal (15k) deben cubrir entrada (10%) + ITP (CCAA).
-  // Reemplaza el "/2" arbitrario por una base económica clara.
-  const denomP1 = tasaITP + 0.10;
-  const cpMax = CP_TOPE + ahorros;
-  const precioMaxP1 = denomP1 > 0 ? Math.round(cpMax / denomP1) : 0;
+  // P1: CPmax = (10.000 + ahorros) / 2 → P1 = CPmax / %ITP
+  const cpMax = (10000 + ahorros) / 2;
+  const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
 
   const pct = (params.pct_financiacion || 90) / 100;
   const precioMaxP2 = pct > 0 ? Math.round((params.monto_max_financiable || 0) / pct) : 0;
