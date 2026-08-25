@@ -220,6 +220,8 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
     distrito: null,
     precio_m2: null,
     superficie_ref: null,
+    superficie_origen: null,
+    fuente_precio: null,
     confianza: null,
     margen_aplicado: MARGEN_SEGURIDAD,
   };
