@@ -385,8 +385,15 @@ export const LeadDetailsModal = ({
 
           {lead.simulador_hipotecario_data?.zona_precio_metodo && (
             <Card>
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-base">Precio mínimo del área</CardTitle>
+                <Button
+                  variant={auditMode ? 'secondary' : 'outline'}
+                  size="sm"
+                  onClick={() => setAuditMode((v) => !v)}
+                >
+                  {auditMode ? 'Ocultar auditoría' : 'Modo auditoría'}
+                </Button>
               </CardHeader>
               <CardContent className="grid grid-cols-2 gap-4">
                 {lead.simulador_hipotecario_data.zona_precio_sin_dato ? (
