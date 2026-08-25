@@ -170,7 +170,10 @@ export function resolverMunicipio(...textos: (string | null | undefined)[]): Res
       if (nombre.length < 4) continue;
       if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
         const row = [...cands].sort((a, b) => (b.precio_medio || 0) - (a.precio_medio || 0))[0];
+        // El resto del token (quitando el nombre del municipio) puede ser el distrito
+        const resto = tok.replace(nombre, ' ').replace(/\s+/g, ' ').trim();
         const otros = tokens.filter((_, idx) => idx !== i);
+        if (resto) otros.push(resto);
         return {
           cod_muni: row.cod_muni,
           municipio: row.name,
