@@ -23,7 +23,7 @@ const corsHeaders = {
 // ---------- Reglas (espejo de meta-lead-webhook 2026-06-25) ----------
 const EDAD_MAX = 60;
 const INGRESOS_MIN = 1200;
-const AHORROS_MIN = 10000;
+const AHORROS_MIN = 5000;
 
 const CP_TOPE = 15000;
 const PCT_FINANCIACION = 0.90;
@@ -101,10 +101,18 @@ function calcularHipoteca(ingresos: number, deudas: number, edad: number) {
   };
 }
 
-function calcularPrecioMaximo(ahorros: number, tasaITP: number, montoFin: number) {
+function getTasaITP(comunidad?: string | null, familiaNumerosa = false, menorDe35 = false): number {
+  let tasa = ITP_POR_CCAA[comunidad || ''] || ITP_FALLBACK;
+  if (familiaNumerosa) tasa *= 0.5;
+  if (menorDe35) tasa *= 0.9;
+  return tasa;
+}
+
+function calcularPrecioMaximo(ahorros: number, comunidad: string | null | undefined, montoFin: number, familiaNumerosa = false, menorDe35 = false) {
   const a = Math.max(ahorros || 0, 0);
-  // CPmax = (10.000 + ahorros) / 2 → P1 = CPmax / %ITP
-  const cpMax = (10000 + a) / 2;
+  const tasaITP = getTasaITP(comunidad, familiaNumerosa, menorDe35);
+  // CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
+  const cpMax = (15000 + a) / 2;
   const p1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
   const p2 = Math.round((montoFin || 0) / PCT_FINANCIACION);
   const cand = [p1, p2].filter(v => v > 0);
