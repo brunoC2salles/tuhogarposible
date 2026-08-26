@@ -51,9 +51,10 @@ No `meta-lead-webhook` aplica-se apenas o **piso absoluto de 5.000€** porque o
 ### Cap monto_max_financiable (webhook) — 2026-06-25
 `CAP_MONTO_1_TITULAR = 210000€` (antes 180.000€). Alinhado com o tope de 2+ titulares do simulador, evita que `P2 = monto_max / 0,9` fique "congelado" em 200.000€ para perfis com ingressos altos.
 
-### Fórmula Precio Máximo Inmueble (Meta) — 2026-06-25
+### Fórmula Precio Máximo Inmueble (Meta) — 2026-08-26
 `calcularPrecioMaximoInmuebleMeta` em `meta-lead-webhook/index.ts`:
-- **P1 (ahorros)** = `CPmax / ITP_CCAA`, com `CPmax = (10.000 + ahorros) / 2`. Atualizado 2026-08-25 (antes 15.000 e denominador ITP+0,10). Descontos previstos de ITP (família numerosa −50%, menor de 35 −10%) ainda não aplicados por falta de dados no payload Meta.
+- **P1 (ahorros)** = `CPmax / %ITP`, com `CPmax = (15.000 + ahorros) / 2`.
+- Aplica descuentos de ITP cuando el payload los incluye: **familia numerosa −50%**, **menor de 35 −10%**.
 - **P2 (ingressos)** = `monto_max_financiable / pct_financiacion` (com cap 210k acima).
 - **Recomendado** = `MIN(P1, P2)`.
 - Mantém os **15.000€ de crédito personal** (CP_TOPE) como apoio à entrada/ITP.
