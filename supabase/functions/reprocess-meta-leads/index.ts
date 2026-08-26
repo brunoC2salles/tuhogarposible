@@ -185,12 +185,11 @@ const ITP_POR_CCAA: Record<string, number> = {
   'Región de Murcia': 0.08, 'Navarra': 0.06, 'País Vasco': 0.04,
 };
 
-function deriveTasaITP(lead: any): number {
-  const stored = Number(lead?.simulador_hipotecario_data?.tasa_itp_aplicada);
-  if (stored > 0) return stored;
+function deriveComunidad(lead: any): string | null {
+  const stored = lead?.simulador_hipotecario_data?.comunidad_autonoma;
+  if (stored) return String(stored);
   const ciudad = (lead?.ciudad_interes || '').toLowerCase().trim();
-  const ccaa = CIUDAD_COMUNIDAD[ciudad];
-  return (ccaa && ITP_POR_CCAA[ccaa]) || 0.08;
+  return CIUDAD_COMUNIDAD[ciudad] || null;
 }
 
 Deno.serve(async (req) => {
@@ -257,9 +256,11 @@ Deno.serve(async (req) => {
 
       const q = recualificar({ edad, ingresos, deudas, ahorros, respuestaAhorros, antiguedad, prevReason });
 
-      const tasaITP = deriveTasaITP(lead);
+      const comunidad = deriveComunidad(lead);
+      const familiaNumerosa = Boolean(lead?.simulador_hipotecario_data?.familia_numerosa);
+      const menorDe35 = Boolean(lead?.simulador_hipotecario_data?.menor_de_35);
       const hip = calcularHipoteca(ingresos, deudas, edad || 35);
-      const precio = calcularPrecioMaximo(ahorros, tasaITP, hip.monto_maximo_financiable);
+      const precio = calcularPrecioMaximo(ahorros, comunidad, hip.monto_maximo_financiable, familiaNumerosa, menorDe35);
 
       if (q.cualificado) ahoraCualifican++; else { siguenDescualificados++; motivosNuevos[q.razon || 'unknown'] = (motivosNuevos[q.razon || 'unknown'] || 0) + 1; }
 
