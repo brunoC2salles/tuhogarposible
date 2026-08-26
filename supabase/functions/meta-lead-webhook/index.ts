@@ -1042,7 +1042,7 @@ Deno.serve(async (req) => {
     try {
       // Tentar parse direto
       data = await req.json();
-    } catch (parseError) {
+    } catch (parseError: any) {
       // Se falhar, provavelmente há caracteres de controle inválidos no JSON
       console.log('[meta-lead-webhook] JSON parse falhou, tentando sanitizar...', parseError);
       
@@ -1716,7 +1716,7 @@ Deno.serve(async (req) => {
         } else {
           console.log('[meta-lead-webhook] URL do webhook Bitrix24 não configurada');
         }
-      } catch (webhookErr) {
+      } catch (webhookErr: any) {
         console.error('[meta-lead-webhook] Erro ao disparar webhook Bitrix24:', webhookErr);
         
         // Registrar erro no log
@@ -1785,7 +1785,7 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('[meta-lead-webhook] Erro geral:', error);
     
     return new Response(
