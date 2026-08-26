@@ -23,7 +23,7 @@ const corsHeaders = {
 // ---------- Reglas (espejo de meta-lead-webhook 2026-06-25) ----------
 const EDAD_MAX = 60;
 const INGRESOS_MIN = 1200;
-const AHORROS_MIN = 10000;
+const AHORROS_MIN = 5000;
 
 const CP_TOPE = 15000;
 const PCT_FINANCIACION = 0.90;
@@ -101,10 +101,18 @@ function calcularHipoteca(ingresos: number, deudas: number, edad: number) {
   };
 }
 
-function calcularPrecioMaximo(ahorros: number, tasaITP: number, montoFin: number) {
+function getTasaITP(comunidad?: string | null, familiaNumerosa = false, menorDe35 = false): number {
+  let tasa = (comunidad && ITP_POR_CCAA[comunidad]) || 0.08;
+  if (familiaNumerosa) tasa *= 0.5;
+  if (menorDe35) tasa *= 0.9;
+  return tasa;
+}
+
+function calcularPrecioMaximo(ahorros: number, comunidad: string | null | undefined, montoFin: number, familiaNumerosa = false, menorDe35 = false) {
   const a = Math.max(ahorros || 0, 0);
-  // CPmax = (10.000 + ahorros) / 2 → P1 = CPmax / %ITP
-  const cpMax = (10000 + a) / 2;
+  const tasaITP = getTasaITP(comunidad, familiaNumerosa, menorDe35);
+  // CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
+  const cpMax = (15000 + a) / 2;
   const p1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
   const p2 = Math.round((montoFin || 0) / PCT_FINANCIACION);
   const cand = [p1, p2].filter(v => v > 0);
@@ -177,12 +185,11 @@ const ITP_POR_CCAA: Record<string, number> = {
   'Región de Murcia': 0.08, 'Navarra': 0.06, 'País Vasco': 0.04,
 };
 
-function deriveTasaITP(lead: any): number {
-  const stored = Number(lead?.simulador_hipotecario_data?.tasa_itp_aplicada);
-  if (stored > 0) return stored;
+function deriveComunidad(lead: any): string | null {
+  const stored = lead?.simulador_hipotecario_data?.comunidad_autonoma;
+  if (stored) return String(stored);
   const ciudad = (lead?.ciudad_interes || '').toLowerCase().trim();
-  const ccaa = CIUDAD_COMUNIDAD[ciudad];
-  return (ccaa && ITP_POR_CCAA[ccaa]) || 0.08;
+  return CIUDAD_COMUNIDAD[ciudad] || null;
 }
 
 Deno.serve(async (req) => {
@@ -249,9 +256,11 @@ Deno.serve(async (req) => {
 
       const q = recualificar({ edad, ingresos, deudas, ahorros, respuestaAhorros, antiguedad, prevReason });
 
-      const tasaITP = deriveTasaITP(lead);
+      const comunidad = deriveComunidad(lead);
+      const familiaNumerosa = Boolean(lead?.simulador_hipotecario_data?.familia_numerosa);
+      const menorDe35 = Boolean(lead?.simulador_hipotecario_data?.menor_de_35);
       const hip = calcularHipoteca(ingresos, deudas, edad || 35);
-      const precio = calcularPrecioMaximo(ahorros, tasaITP, hip.monto_maximo_financiable);
+      const precio = calcularPrecioMaximo(ahorros, comunidad, hip.monto_maximo_financiable, familiaNumerosa, menorDe35);
 
       if (q.cualificado) ahoraCualifican++; else { siguenDescualificados++; motivosNuevos[q.razon || 'unknown'] = (motivosNuevos[q.razon || 'unknown'] || 0) + 1; }
 
@@ -262,7 +271,7 @@ Deno.serve(async (req) => {
         ciudad_interes: lead.ciudad_interes,
         prev_reason: prevReason,
         edad, ingresos, deudas, ahorros, antiguedad, respuestaAhorros,
-        tasa_itp: tasaITP,
+        tasa_itp: precio.tasa_itp_aplicada,
         nuevo_monto_financiable: hip.monto_maximo_financiable,
         nuevo_precio_max_p1: precio.precio_max_p1,
         nuevo_precio_max_p2: precio.precio_max_p2,
