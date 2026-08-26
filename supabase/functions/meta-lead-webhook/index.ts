@@ -120,6 +120,9 @@ interface MetaLeadData {
   tiene_ahorros_impuestos?: string;
   monto_ahorros?: string | number;
   tiene_vivienda_seleccionada?: string;
+  // Descuentos de ITP (cuando el formulario los envíe)
+  familia_numerosa?: boolean;
+  menor_de_35?: boolean;
   // Agendamento de reunião (vindo do formulário Meta Ads via Make)
   fecha_reunion?: string;
   hora_reunion?: string;
@@ -827,7 +830,7 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   // Critério 7: Ahorros para impuestos.
   // Cualifica si declara monto_ahorros >= 5.000€, o si responde afirmativamente
   // ("si/sí/yes" y derivados) SIN declarar un monto concreto por debajo del mínimo.
-  const AHORROS_MINIMO = 10000;
+  const AHORROS_MINIMO = 5000;
   const respuestaAhorros = normalizeAhorrosResponse(data.tiene_ahorros_impuestos);
   const tieneRespuestaAfirmativa = isAffirmativeAhorrosResponse(data.tiene_ahorros_impuestos);
   const montoDeclarado = montoAhorros ?? 0;
@@ -894,6 +897,17 @@ const ITP_FALLBACK = 0.08;
 function getITPPorCCAA(comunidad?: string | null): number {
   if (!comunidad) return ITP_FALLBACK;
   return ITP_POR_CCAA[comunidad] ?? ITP_FALLBACK;
+}
+
+/**
+ * Devuelve el % ITP efectivo aplicando descuentos por familia numerosa (-50%)
+ * y menor de 35 años (-10%). Si no se reciben esos datos, se asumen false.
+ */
+function getTasaITP(comunidad?: string | null, familiaNumerosa = false, menorDe35 = false): number {
+  let tasa = getITPPorCCAA(comunidad);
+  if (familiaNumerosa) tasa *= 0.5;
+  if (menorDe35) tasa *= 0.9;
+  return tasa;
 }
 
 /**
@@ -979,17 +993,21 @@ function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: 
 
 /**
  * Precio Máximo de Inmueble Recomendado = MIN(P1, P2).
+ * P1: CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
+ * Aplica descuentos: familia numerosa -50%, menor de 35 -10%.
  */
 function calcularPrecioMaximoInmuebleMeta(params: {
   ahorros: number;
   comunidad?: string | null;
   monto_max_financiable: number;
   pct_financiacion: number;
+  familia_numerosa?: boolean;
+  menor_de_35?: boolean;
 }) {
   const ahorros = Math.max(params.ahorros || 0, 0);
-  const tasaITP = getITPPorCCAA(params.comunidad);
-  // P1: CPmax = (10.000 + ahorros) / 2 → P1 = CPmax / %ITP
-  const cpMax = (10000 + ahorros) / 2;
+  const tasaITP = getTasaITP(params.comunidad, params.familia_numerosa, params.menor_de_35);
+  // P1: CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
+  const cpMax = (15000 + ahorros) / 2;
   const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
 
   const pct = (params.pct_financiacion || 90) / 100;
@@ -1205,6 +1223,8 @@ Deno.serve(async (req) => {
       comunidad: region,
       monto_max_financiable: preSimHipoteca.monto_maximo_financiable || 0,
       pct_financiacion: preSimHipoteca.porcentaje_financiacion || 90,
+      familia_numerosa: data.familia_numerosa,
+      menor_de_35: data.menor_de_35,
     });
     const superficieDeseadaLead = Number(
       (data as any).metros_cuadrados ?? (data as any).superficie ?? (data as any).metros ?? 0
@@ -1349,6 +1369,8 @@ Deno.serve(async (req) => {
       comunidad: region, // CCAA detectada via determinarRegion
       monto_max_financiable: simulacionHipotecaria.monto_maximo_financiable || 0,
       pct_financiacion: simulacionHipotecaria.porcentaje_financiacion || 90,
+      familia_numerosa: data.familia_numerosa,
+      menor_de_35: data.menor_de_35,
     });
 
     // Plan combinado simplificado (sin fases — el CP es siempre 15k)
