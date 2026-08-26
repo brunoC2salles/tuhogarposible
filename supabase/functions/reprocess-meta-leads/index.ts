@@ -102,7 +102,7 @@ function calcularHipoteca(ingresos: number, deudas: number, edad: number) {
 }
 
 function getTasaITP(comunidad?: string | null, familiaNumerosa = false, menorDe35 = false): number {
-  let tasa = ITP_POR_CCAA[comunidad || ''] || ITP_FALLBACK;
+  let tasa = (comunidad && ITP_POR_CCAA[comunidad]) || 0.08;
   if (familiaNumerosa) tasa *= 0.5;
   if (menorDe35) tasa *= 0.9;
   return tasa;
@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
         ciudad_interes: lead.ciudad_interes,
         prev_reason: prevReason,
         edad, ingresos, deudas, ahorros, antiguedad, respuestaAhorros,
-        tasa_itp: tasaITP,
+        tasa_itp: precio.tasa_itp_aplicada,
         nuevo_monto_financiable: hip.monto_maximo_financiable,
         nuevo_precio_max_p1: precio.precio_max_p1,
         nuevo_precio_max_p2: precio.precio_max_p2,
