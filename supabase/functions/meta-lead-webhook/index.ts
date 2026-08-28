@@ -654,40 +654,38 @@ function parseAhorros(input?: string | number): number {
     return Number.isFinite(n) ? n : null;
   };
 
-  // Detectar range "A - B" (ex.: "25.000€ - 50.000€", "5000 a 10000")
-  const rangeMatch = raw.match(/([\d.,]+)\s*(?:-|–|—|a|to)\s*([\d.,]+)/);
+  // Detectar range "A - B" (ex.: "25.000€ - 50.000€", "5000 a 10000", "10 mil - 20 mil")
+  const rangeMatch = raw.match(/([\d.,]+)\s*(k|mil(?:es)?)?\s*(?:-|–|—|a|to)\s*([\d.,]+)\s*(k|mil(?:es)?)?/);
   if (rangeMatch) {
     const a = parseNumLocal(rangeMatch[1]);
-    const b = parseNumLocal(rangeMatch[2]);
+    const b = parseNumLocal(rangeMatch[3]);
     if (a != null && b != null && a > 0 && b > 0) {
       // Heurística milhares: se valor curto (1-3 dígitos sem separador) entre 5 e 100 → ×1000
-      const aRaw = rangeMatch[1].replace(/[.,]/g, '');
-      const bRaw = rangeMatch[2].replace(/[.,]/g, '');
-      const aFinal = (/^\d{1,3}$/.test(rangeMatch[1]) && a >= 5 && a <= 100) ? a * 1000 : a;
-      const bFinal = (/^\d{1,3}$/.test(rangeMatch[2]) && b >= 5 && b <= 100) ? b * 1000 : b;
-      return Math.round((aFinal + bFinal) / 2);
+      const fa = rangeMatch[2] ? 1000 : ((/^\d{1,3}$/.test(rangeMatch[1]) && a >= 5 && a <= 100) ? 1000 : 1);
+      const fb = rangeMatch[4] ? 1000 : ((/^\d{1,3}$/.test(rangeMatch[3]) && b >= 5 && b <= 100) ? 1000 : 1);
+      return Math.round((a * fa + b * fb) / 2);
     }
   }
 
   // "más/mas de N" / ">N" → 1.2x
-  const masDe = raw.match(/(?:m[aá]s de|>)\s*([\d.,]+)/);
+  const masDe = raw.match(/(?:m[aá]s de|>)\s*([\d.,]+)\s*(k|mil(?:es)?)?/);
   if (masDe) {
     const n = parseNumLocal(masDe[1]);
-    if (n != null) return Math.round(n * 1.2);
+    if (n != null) return Math.round(n * (masDe[2] ? 1000 : 1) * 1.2);
   }
 
   // "menos de N" / "<N" → 0.8x
-  const menosDe = raw.match(/(?:menos de|<)\s*([\d.,]+)/);
+  const menosDe = raw.match(/(?:menos de|<)\s*([\d.,]+)\s*(k|mil(?:es)?)?/);
   if (menosDe) {
     const n = parseNumLocal(menosDe[1]);
-    if (n != null) return Math.round(n * 0.8);
+    if (n != null) return Math.round(n * (menosDe[2] ? 1000 : 1) * 0.8);
   }
 
-  // Sufixo k/mil ("5k", "10mil", "10.5k")
-  const m = raw.match(/([0-9]+(?:[.,][0-9]+)?)(k|mil)/);
+  // Sufixo k/mil com ou sem espaço ("5k", "10 mil", "10.5k", "7 K€")
+  const m = raw.match(/([0-9]+(?:[.,][0-9]+)?)\s*(k|mil(?:es)?)\b/);
   if (m) {
     const num = parseFloat(m[1].replace(',', '.'));
-    return isNaN(num) ? 0 : Math.max(0, num * 1000);
+    return isNaN(num) ? 0 : Math.max(0, Math.round(num * 1000));
   }
 
   // Sem sufixo: pode ter separador de milhar "5.000"
@@ -702,12 +700,13 @@ function parseAhorros(input?: string | number): number {
   if (isNaN(parsed)) return 0;
 
   // Heurística Meta Ads: "5", "6", "10" → milhares
-  if (/^\d{1,3}$/.test(cleaned) && parsed >= 5 && parsed <= 100) {
+  if (/^\d{1,3}\b/.test(cleaned) && parsed >= 5 && parsed <= 100) {
     return parsed * 1000;
   }
 
   return Math.max(0, parsed);
 }
+
 
 function normalizeAhorrosResponse(input?: string | number | null): string {
   if (input === undefined || input === null) return '';
