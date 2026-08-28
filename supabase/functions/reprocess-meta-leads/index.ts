@@ -31,6 +31,24 @@ const CAP_MONTO_1_TITULAR = 210000;
 const MIN_MONTO_HIPOTECA = 70000;
 const MIN_CAPACIDAD_MES = 350;
 
+// Reparse robusto de ahorros a partir del texto original ("10 mil", "20 mil euros", "10/15 mil", "5k")
+function parseAhorrosTexto(raw?: string | null): number {
+  if (!raw) return 0;
+  const t = String(raw).toLowerCase().trim();
+  const rango = t.match(/([0-9]+(?:[.,][0-9]+)?)\s*(?:\/|-|–|a)\s*([0-9]+(?:[.,][0-9]+)?)\s*(k|mil(?:es)?)\b/);
+  if (rango) {
+    const a = parseFloat(rango[1].replace(',', '.'));
+    const b = parseFloat(rango[2].replace(',', '.'));
+    if (!isNaN(a) && !isNaN(b)) return Math.round(((a + b) / 2) * 1000);
+  }
+  const m = t.match(/([0-9]+(?:[.,][0-9]+)?)\s*(k|mil(?:es)?)\b/);
+  if (m) {
+    const n = parseFloat(m[1].replace(',', '.'));
+    if (!isNaN(n)) return Math.round(n * 1000);
+  }
+  return 0;
+}
+
 function parseAntiguedad(respuesta?: string): { suficiente: boolean; tipo_contrato?: string } {
   if (!respuesta) return { suficiente: false };
   const resp = respuesta.toLowerCase().trim().replace(/_/g, ' ');
@@ -215,13 +233,23 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data: leads, error } = await supabase
+    const ids: string[] = Array.isArray(body.ids) ? body.ids.map((x: any) => String(x)) : [];
+
+    let query = supabase
       .from('leads')
       .select('*')
-      .eq('source', 'meta_ads')
-      .eq('stage', 'descualificados')
-      .gte('created_at', from)
-      .lt('created_at', to)
+      .eq('stage', 'descualificados');
+
+    if (ids.length > 0) {
+      query = query.in('id', ids);
+    } else {
+      query = query
+        .eq('source', 'meta_ads')
+        .gte('created_at', from)
+        .lt('created_at', to);
+    }
+
+    const { data: leads, error } = await query
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -246,8 +274,12 @@ Deno.serve(async (req) => {
       const sim = (lead.simulador_hipotecario_data as any) || {};
       const ingresos = Number(sim.ingresos ?? 0);
       const deudas = Number(sim.deudas ?? 0);
-      const ahorros = Number(sim.meta_monto_ahorros ?? 0);
       const respuestaAhorros = String(sim.meta_tiene_ahorros ?? '');
+      const ahorros = Math.max(
+        Number(sim.meta_monto_ahorros ?? 0) || 0,
+        parseAhorrosTexto(respuestaAhorros),
+        parseAhorrosTexto(String(sim.meta_monto_ahorros_texto ?? '')),
+      );
       const antiguedad = String(sim.meta_antiguedad_trabajo ?? extractFromNotes(lead.notas, 'Antigüedad'));
       const edadStr = extractFromNotes(lead.notas, 'Edad');
       const edad = edadStr && /^\d+$/.test(edadStr) ? parseInt(edadStr, 10) : null;
@@ -285,6 +317,7 @@ Deno.serve(async (req) => {
         const newSim = {
           ...sim,
           ...hip,
+          meta_monto_ahorros: ahorros,
           precio_maximo_inmueble: precio.precio_max_recomendado,
           precio_max_por_ahorros: precio.precio_max_p1,
           precio_max_por_ingresos: precio.precio_max_p2,
