@@ -654,9 +654,6 @@ function parseAhorros(input?: string | number): number {
     return Number.isFinite(n) ? n : null;
   };
 
-  // Multiplicador de unidade: "10 mil", "10mil", "5 k", "5K" → ×1000
-  const unitFactor = (s: string): number => (/\s*(k|mil(?:es)?)\b/i.test(s) ? 1000 : 1);
-
   // Detectar range "A - B" (ex.: "25.000€ - 50.000€", "5000 a 10000", "10 mil - 20 mil")
   const rangeMatch = raw.match(/([\d.,]+)\s*(k|mil(?:es)?)?\s*(?:-|–|—|a|to)\s*([\d.,]+)\s*(k|mil(?:es)?)?/);
   if (rangeMatch) {
