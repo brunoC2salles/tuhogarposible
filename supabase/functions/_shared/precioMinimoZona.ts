@@ -14,6 +14,9 @@ import { ZONA_PRECIOS_DATA } from './zonaPreciosData.ts';
 /** Margen de seguridad aplicado siempre sobre el precio base (−20%). */
 export const MARGEN_SEGURIDAD = 0.80;
 
+/** Superficie de referencia (mediana de mercado) para las 10 mayores ciudades. */
+export const SUPERFICIE_CIUDAD_REF = 65;
+
 export type MetodoPrecioMinimo =
   | 'distrito'                 // B1: distrito informado y encontrado
   | 'distrito_mas_barato'      // B3: ciudad grande sin distrito informado
