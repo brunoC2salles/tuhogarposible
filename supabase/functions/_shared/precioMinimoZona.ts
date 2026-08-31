@@ -267,17 +267,16 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   if (!ciudad) return baseMunicipio();
 
   // ---- CASO B: una de las 10 mayores ciudades
+  // Superficie de referencia: mediana de mercado (65 m²) en vez de la media
+  // catastral de la ciudad (89-115 m²), que inflaba el precio mínimo.
   const superficieDeLead = !!(input.superficie_deseada && input.superficie_deseada > 0);
   const superficieRef = superficieDeLead
     ? (input.superficie_deseada as number)
-    : ciudad.sup || muni?.superficie || 0;
+    : SUPERFICIE_CIUDAD_REF;
   const superficieOrigen: 'lead' | 'ciudad' | 'municipio' | null = superficieDeLead
     ? 'lead'
-    : ciudad.sup
-      ? 'ciudad'
-      : muni?.superficie
-        ? 'municipio'
-        : null;
+    : 'ciudad';
+
 
   const distritoTexto = normalizarZona(input.distrito);
 
