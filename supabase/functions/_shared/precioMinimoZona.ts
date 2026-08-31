@@ -14,6 +14,9 @@ import { ZONA_PRECIOS_DATA } from './zonaPreciosData.ts';
 /** Margen de seguridad aplicado siempre sobre el precio base (−20%). */
 export const MARGEN_SEGURIDAD = 0.80;
 
+/** Superficie de referencia (mediana de mercado) para las 10 mayores ciudades. */
+export const SUPERFICIE_CIUDAD_REF = 65;
+
 export type MetodoPrecioMinimo =
   | 'distrito'                 // B1: distrito informado y encontrado
   | 'distrito_mas_barato'      // B3: ciudad grande sin distrito informado
@@ -267,17 +270,16 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   if (!ciudad) return baseMunicipio();
 
   // ---- CASO B: una de las 10 mayores ciudades
+  // Superficie de referencia: mediana de mercado (65 m²) en vez de la media
+  // catastral de la ciudad (89-115 m²), que inflaba el precio mínimo.
   const superficieDeLead = !!(input.superficie_deseada && input.superficie_deseada > 0);
   const superficieRef = superficieDeLead
     ? (input.superficie_deseada as number)
-    : ciudad.sup || muni?.superficie || 0;
+    : SUPERFICIE_CIUDAD_REF;
   const superficieOrigen: 'lead' | 'ciudad' | 'municipio' | null = superficieDeLead
     ? 'lead'
-    : ciudad.sup
-      ? 'ciudad'
-      : muni?.superficie
-        ? 'municipio'
-        : null;
+    : 'ciudad';
+
 
   const distritoTexto = normalizarZona(input.distrito);
 
