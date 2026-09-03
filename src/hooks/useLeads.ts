@@ -29,10 +29,17 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
 
       const isSupervisor = profile?.role === 'supervisor';
 
+      // Corte global da nova fase: só leads a partir de 01/09/2026 (Europe/Madrid)
+      const FASE_CUTOFF = '2026-09-01T00:00:00+02:00';
+
       // Calcular cutoff date para filtro de período
-      const sinceIso = periodDays != null
+      let sinceIso = periodDays != null
         ? new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000).toISOString()
         : null;
+      // Aplica o cutoff global (usa o mais restritivo dos dois)
+      if (!sinceIso || sinceIso < FASE_CUTOFF) {
+        sinceIso = FASE_CUTOFF;
+      }
 
       // Paginated fetch to overcome the 1000-row PostgREST default cap
       const data = await fetchAllPaginated<any>((from, to) => {
