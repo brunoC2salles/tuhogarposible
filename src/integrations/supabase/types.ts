@@ -1449,6 +1449,9 @@ export type Database = {
         | "subida_expediente_bancos"
         | "descualificados"
         | "precualificacion"
+        | "tasacion_prevision"
+        | "informacion_riesgos"
+        | "fein"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1621,6 +1624,9 @@ export const Constants = {
         "subida_expediente_bancos",
         "descualificados",
         "precualificacion",
+        "tasacion_prevision",
+        "informacion_riesgos",
+        "fein",
       ],
       notification_type: [
         "new_lead",
