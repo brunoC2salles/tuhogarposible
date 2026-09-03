@@ -1,8 +1,8 @@
 export type LeadStage = 
   | 'nuevo_lead' 
-  | 'preparacion_expediente' 
-  | 'precualificacion'
-  | 'subida_expediente_bancos' 
+  | 'tasacion_prevision' 
+  | 'informacion_riesgos'
+  | 'fein' 
   | 'descualificados';
 
 export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads' | 'tally';
@@ -105,17 +105,17 @@ export interface LeadFormData {
 }
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
-  nuevo_lead: 'Nuevo Leads',
-  preparacion_expediente: 'Preparación Expediente - Fresha',
-  precualificacion: 'Precualificación - Edu',
-  subida_expediente_bancos: 'Subida Expediente a Bancos - Gibobs',
-  descualificados: 'Descualificados'
+  nuevo_lead: 'Cualificado',
+  tasacion_prevision: 'Tasación/Previsión de Tasación',
+  informacion_riesgos: 'Información a riesgos',
+  fein: 'FEIN',
+  descualificados: 'Descualificado'
 };
 
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
-  'preparacion_expediente',
-  'precualificacion',
-  'subida_expediente_bancos',
+  'tasacion_prevision',
+  'informacion_riesgos',
+  'fein',
   'descualificados'
 ];
