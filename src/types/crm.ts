@@ -1,8 +1,8 @@
 export type LeadStage = 
   | 'nuevo_lead' 
-  | 'preparacion_expediente' 
-  | 'precualificacion'
-  | 'subida_expediente_bancos' 
+  | 'tasacion_prevision' 
+  | 'informacion_riesgos'
+  | 'fein' 
   | 'descualificados';
 
 export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads' | 'tally';
