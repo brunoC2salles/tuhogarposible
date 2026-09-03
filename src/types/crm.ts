@@ -1,5 +1,6 @@
 export type LeadStage = 
   | 'nuevo_lead' 
+  | 'llamada'
   | 'tasacion_prevision' 
   | 'informacion_riesgos'
   | 'fein' 
