@@ -1426,6 +1426,8 @@ Deno.serve(async (req) => {
       `Zona: ${data.zona_interes || 'não especificada'}`,
       zonaParseada.ciudad ? `Ciudad detectada: ${zonaParseada.ciudad}` : null,
       `Ahorros para impuestos: ${data.tiene_ahorros_impuestos || 'não especificado'} - ${data.monto_ahorros || '0'}€`,
+      `Ingresos mensuales: ${ingresos > 0 ? `${ingresos.toLocaleString('es-ES')}€` : 'não especificado'}${data.rango_ingresos ? ` (respuesta: ${data.rango_ingresos})` : ''}`,
+      `Deudas mensuales: ${deudas > 0 ? `${deudas.toLocaleString('es-ES')}€` : '0€ / no declaradas'}`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
       (cuotaHipoteca > 0 || cuotaPersonal > 0)
         ? `Plan combinado: ${Math.round(planPagos.pago_combinado_mensual_aprox)}€/mes (hip: ${Math.round(cuotaHipoteca)}€ + cp 15k: ${Math.round(cuotaPersonal)}€)`
