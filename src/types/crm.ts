@@ -1,5 +1,6 @@
 export type LeadStage = 
   | 'nuevo_lead' 
+  | 'llamada'
   | 'tasacion_prevision' 
   | 'informacion_riesgos'
   | 'fein' 
@@ -106,6 +107,7 @@ export interface LeadFormData {
 
 export const STAGE_LABELS: Record<LeadStage, string> = {
   nuevo_lead: 'Cualificado',
+  llamada: 'Llamada',
   tasacion_prevision: 'Tasación/Previsión de Tasación',
   informacion_riesgos: 'Información a riesgos',
   fein: 'FEIN',
@@ -114,6 +116,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
 
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
+  'llamada',
   'tasacion_prevision',
   'informacion_riesgos',
   'fein',

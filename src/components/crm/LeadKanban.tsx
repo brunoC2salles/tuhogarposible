@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
-import { Ban, Sparkles, FileText, Building2, UserCheck } from 'lucide-react';
+import { Ban, Sparkles, FileText, Building2, UserCheck, PhoneCall } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -64,6 +64,8 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return <Sparkles className="h-4 w-4" />;
+      case 'llamada':
+        return <PhoneCall className="h-4 w-4" />;
       case 'tasacion_prevision':
         return <FileText className="h-4 w-4" />;
       case 'informacion_riesgos':
@@ -87,6 +89,8 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return cn(baseStyles, 'border-primary/30 bg-primary/5');
+      case 'llamada':
+        return cn(baseStyles, 'border-purple-500/30 bg-purple-50 dark:bg-purple-950/20');
       case 'tasacion_prevision':
         return cn(baseStyles, 'border-blue-500/30 bg-blue-50 dark:bg-blue-950/20');
       case 'informacion_riesgos':
@@ -104,6 +108,8 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return 'text-primary border-primary/20';
+      case 'llamada':
+        return 'text-purple-600 dark:text-purple-400 border-purple-500/20';
       case 'tasacion_prevision':
         return 'text-blue-600 dark:text-blue-400 border-blue-500/20';
       case 'informacion_riesgos':
@@ -121,6 +127,8 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return 'bg-primary/10 text-primary';
+      case 'llamada':
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
       case 'tasacion_prevision':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
       case 'informacion_riesgos':
@@ -180,6 +188,7 @@ export const LeadKanban = ({
                   >
                     <LeadCard
                       lead={lead}
+                      onStageChange={onStageChange}
                       onViewDetails={onViewDetails}
                       onEdit={onEdit}
                       onDelete={onDelete}
