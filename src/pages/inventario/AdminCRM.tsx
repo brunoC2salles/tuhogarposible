@@ -101,7 +101,7 @@ const AdminCRM = () => {
       const created = new Date(l.created_at);
       return created.getMonth() === currentMonth && created.getFullYear() === currentYear;
     }).length;
-    const leadsConvertidos = leads.filter(l => l.stage === 'subida_expediente_bancos').length;
+    const leadsConvertidos = leads.filter(l => l.stage === 'fein').length;
     const tasaConversion = totalLeads > 0 ? ((leadsConvertidos / totalLeads) * 100).toFixed(1) : '0';
 
     return { totalLeads, leadsThisMonth, leadsConvertidos, tasaConversion };
@@ -117,9 +117,9 @@ const AdminCRM = () => {
     return agentes.map(agente => {
       const agentLeads = leads.filter(l => l.agente_asignado_id === agente.id);
       const activeLeads = agentLeads.filter(l =>
-        l.stage !== 'subida_expediente_bancos' && l.stage !== 'descualificados'
+        l.stage !== 'fein' && l.stage !== 'descualificados'
       );
-      const convertedLeads = agentLeads.filter(l => l.stage === 'subida_expediente_bancos');
+      const convertedLeads = agentLeads.filter(l => l.stage === 'fein');
 
       return {
         ...agente,

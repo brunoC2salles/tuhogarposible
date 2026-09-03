@@ -64,11 +64,11 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return <Sparkles className="h-4 w-4" />;
-      case 'preparacion_expediente':
+      case 'tasacion_prevision':
         return <FileText className="h-4 w-4" />;
-      case 'precualificacion':
+      case 'informacion_riesgos':
         return <UserCheck className="h-4 w-4" />;
-      case 'subida_expediente_bancos':
+      case 'fein':
         return <Building2 className="h-4 w-4" />;
       case 'descualificados':
         return <Ban className="h-4 w-4" />;
@@ -87,11 +87,11 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return cn(baseStyles, 'border-primary/30 bg-primary/5');
-      case 'preparacion_expediente':
+      case 'tasacion_prevision':
         return cn(baseStyles, 'border-blue-500/30 bg-blue-50 dark:bg-blue-950/20');
-      case 'precualificacion':
+      case 'informacion_riesgos':
         return cn(baseStyles, 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20');
-      case 'subida_expediente_bancos':
+      case 'fein':
         return cn(baseStyles, 'border-green-500/30 bg-green-50 dark:bg-green-950/20');
       case 'descualificados':
         return cn(baseStyles, 'border-destructive/30 bg-destructive/5');
@@ -104,11 +104,11 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return 'text-primary border-primary/20';
-      case 'preparacion_expediente':
+      case 'tasacion_prevision':
         return 'text-blue-600 dark:text-blue-400 border-blue-500/20';
-      case 'precualificacion':
+      case 'informacion_riesgos':
         return 'text-amber-600 dark:text-amber-400 border-amber-500/20';
-      case 'subida_expediente_bancos':
+      case 'fein':
         return 'text-green-600 dark:text-green-400 border-green-500/20';
       case 'descualificados':
         return 'text-destructive border-destructive/20';
@@ -121,11 +121,11 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return 'bg-primary/10 text-primary';
-      case 'preparacion_expediente':
+      case 'tasacion_prevision':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
-      case 'precualificacion':
+      case 'informacion_riesgos':
         return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
-      case 'subida_expediente_bancos':
+      case 'fein':
         return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
       case 'descualificados':
         return 'bg-destructive/10 text-destructive';
