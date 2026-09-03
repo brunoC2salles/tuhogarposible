@@ -64,6 +64,8 @@ export const LeadKanban = ({
     switch (stage) {
       case 'nuevo_lead':
         return <Sparkles className="h-4 w-4" />;
+      case 'llamada':
+        return <PhoneCall className="h-4 w-4" />;
       case 'tasacion_prevision':
         return <FileText className="h-4 w-4" />;
       case 'informacion_riesgos':
