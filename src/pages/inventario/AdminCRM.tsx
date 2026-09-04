@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, Search, Kanban } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
 import { AgentStatsModal } from '@/components/crm/AgentStatsModal';
