@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, Search, Kanban } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
 import { AgentStatsModal } from '@/components/crm/AgentStatsModal';
@@ -64,6 +64,7 @@ const AdminCRM = () => {
 
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
@@ -215,6 +216,10 @@ const AdminCRM = () => {
                   Vista Kanban — Leads
                 </CardTitle>
                 <div className="flex items-center gap-2 flex-wrap">
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear Lead
+                  </Button>
                   <Button variant="outline" size="sm" onClick={() => setAgentStatsOpen(true)}>
                     <Users className="h-4 w-4 mr-2" />
                     Ver leads por agente
@@ -305,8 +310,8 @@ const AdminCRM = () => {
       )}
 
       <CreateEditLeadModal
-        open={editingLead !== null}
-        onClose={() => setEditingLead(null)}
+        open={editingLead !== null || createOpen}
+        onClose={() => { setEditingLead(null); setCreateOpen(false); }}
         lead={editingLead}
         onSave={async (data) => {
           if (editingLead) {
@@ -315,6 +320,7 @@ const AdminCRM = () => {
             await createLead(data);
           }
           setEditingLead(null);
+          setCreateOpen(false);
         }}
       />
 
