@@ -37,9 +37,12 @@ const AgenteCRM = () => {
 
   // Filtrar leads por nombre
   const filteredLeads = useMemo(() => {
-    if (!searchQuery.trim()) return leads;
-    return leads.filter(lead => 
-      lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return leads;
+    const digits = q.replace(/\D/g, '');
+    return leads.filter(lead =>
+      lead.nombre_completo.toLowerCase().includes(q) ||
+      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
     );
   }, [leads, searchQuery]);
 
@@ -132,7 +135,7 @@ const AgenteCRM = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar por nombre..." 
+                placeholder="Buscar por nombre o teléfono..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 w-64"

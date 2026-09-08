@@ -38,9 +38,12 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
   // Filter leads by agent and search query
   const agentLeads = useMemo(() => {
     const byAgent = leads.filter(lead => lead.agente_asignado_id === agentId);
-    if (!searchQuery.trim()) return byAgent;
-    return byAgent.filter(lead => 
-      lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return byAgent;
+    const digits = q.replace(/\D/g, '');
+    return byAgent.filter(lead =>
+      lead.nombre_completo.toLowerCase().includes(q) ||
+      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
     );
   }, [leads, agentId, searchQuery]);
 

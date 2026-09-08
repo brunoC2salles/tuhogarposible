@@ -72,9 +72,12 @@ const AdminCRM = () => {
 
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
-    if (!kanbanSearch.trim()) return leads;
+    const q = kanbanSearch.trim().toLowerCase();
+    if (!q) return leads;
+    const digits = q.replace(/\D/g, '');
     return leads.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(kanbanSearch.toLowerCase())
+      lead.nombre_completo.toLowerCase().includes(q) ||
+      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
     );
   }, [leads, kanbanSearch]);
 
@@ -227,7 +230,7 @@ const AdminCRM = () => {
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar lead..."
+                      placeholder="Buscar por nombre o teléfono..."
                       value={kanbanSearch}
                       onChange={e => setKanbanSearch(e.target.value)}
                       className="pl-9"
