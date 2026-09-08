@@ -37,9 +37,12 @@ const AgenteCRM = () => {
 
   // Filtrar leads por nombre
   const filteredLeads = useMemo(() => {
-    if (!searchQuery.trim()) return leads;
-    return leads.filter(lead => 
-      lead.nombre_completo.toLowerCase().includes(searchQuery.toLowerCase())
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return leads;
+    const digits = q.replace(/\D/g, '');
+    return leads.filter(lead =>
+      lead.nombre_completo.toLowerCase().includes(q) ||
+      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
     );
   }, [leads, searchQuery]);
 

@@ -72,9 +72,12 @@ const AdminCRM = () => {
 
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
-    if (!kanbanSearch.trim()) return leads;
+    const q = kanbanSearch.trim().toLowerCase();
+    if (!q) return leads;
+    const digits = q.replace(/\D/g, '');
     return leads.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(kanbanSearch.toLowerCase())
+      lead.nombre_completo.toLowerCase().includes(q) ||
+      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
     );
   }, [leads, kanbanSearch]);
 
