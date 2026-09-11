@@ -136,6 +136,9 @@ interface MetaLeadData {
   force_agent_id?: string;
   // Marcador opcional de origem (ex: 'tally_housage')
   source_origin?: string;
+  // ID do lead gerado pelo Meta Lead Ads (leadgenId), usado para casar eventos
+  // na Conversions API do Meta (Conversion Leads / QUALITY_LEAD)
+  meta_lead_id?: string;
 }
 
 // ============= PARSER DE AGENDAMENTO DE REUNIÃO =============
@@ -1024,6 +1027,92 @@ function calcularPrecioMaximoInmuebleMeta(params: {
   };
 }
 
+// ============================================================================
+// CONVERSIONS API DO META — Conversion Leads (qualificação em tempo real)
+// Especificação oficial:
+// https://developers.facebook.com/documentation/ads-commerce/conversions-api/conversion-leads-integration/payload-specification
+// ============================================================================
+
+interface CapiResult {
+  ok: boolean;
+  status?: number;
+  body?: string;
+  error?: string;
+}
+
+/**
+ * Envia dois eventos ao dataset do Meta (Conversions API para Lead Ads):
+ *  1) "Initial Lead from Facebook" — estágio inicial (exigido pela doc do Meta)
+ *  2) "Cualificado" ou "No Cualificado" — resultado da qualificação
+ * Ambos referenciam o mesmo meta_lead_id (leadgenId) para casar com o lead original.
+ * Requer META_CAPI_DATASET_ID e META_CAPI_ACCESS_TOKEN configurados como secrets.
+ * Controlado por META_CAPI_ENABLED ('true'/'false') — permite ligar/desligar
+ * o envio a qualquer momento direto no Supabase, sem precisar de novo deploy.
+ */
+async function sendMetaConversionLeadsEvent(params: {
+  leadId: string;
+  cualificado: boolean;
+  eventTimeUnix: number;
+}): Promise<CapiResult> {
+  const enabled = (Deno.env.get('META_CAPI_ENABLED') || '').trim().toLowerCase() === 'true';
+  if (!enabled) {
+    console.log('[meta-lead-webhook][capi] Desativado (META_CAPI_ENABLED != true), pulando envio');
+    return { ok: false, error: 'disabled' };
+  }
+
+  const datasetId = Deno.env.get('META_CAPI_DATASET_ID');
+  const accessToken = Deno.env.get('META_CAPI_ACCESS_TOKEN');
+
+  if (!datasetId || !accessToken) {
+    console.warn('[meta-lead-webhook][capi] META_CAPI_DATASET_ID ou META_CAPI_ACCESS_TOKEN não configurados, pulando envio');
+    return { ok: false, error: 'missing_env' };
+  }
+  if (!params.leadId) {
+    console.warn('[meta-lead-webhook][capi] meta_lead_id ausente no payload, pulando envio à Conversions API');
+    return { ok: false, error: 'missing_lead_id' };
+  }
+
+  const stageEventName = params.cualificado ? 'Cualificado' : 'No Cualificado';
+
+  const events = [
+    {
+      event_name: 'Initial Lead from Facebook',
+      event_time: params.eventTimeUnix,
+      action_source: 'system_generated',
+      user_data: { lead_id: params.leadId },
+      custom_data: { lead_event_source: 'Tu Hogar Posible CRM', event_source: 'crm' },
+    },
+    {
+      event_name: stageEventName,
+      // +1s para preservar a ordem cronológica dos estágios
+      event_time: params.eventTimeUnix + 1,
+      action_source: 'system_generated',
+      user_data: { lead_id: params.leadId },
+      custom_data: { lead_event_source: 'Tu Hogar Posible CRM', event_source: 'crm' },
+    },
+  ];
+
+  const url = `https://graph.facebook.com/v21.0/${datasetId}/events`;
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: events, access_token: accessToken }),
+    });
+    const bodyText = await resp.text();
+    if (!resp.ok) {
+      console.error('[meta-lead-webhook][capi] Erro ao enviar evento:', resp.status, bodyText);
+      return { ok: false, status: resp.status, body: bodyText.substring(0, 500) };
+    }
+    console.log('[meta-lead-webhook][capi] Evento enviado com sucesso:', bodyText);
+    return { ok: true, status: resp.status, body: bodyText.substring(0, 500) };
+  } catch (err: any) {
+    console.error('[meta-lead-webhook][capi] Exceção ao enviar evento:', err);
+    return { ok: false, error: err.message || 'unknown_error' };
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -1267,6 +1356,30 @@ Deno.serve(async (req) => {
         razon_no_cualificado: evaluacionZona.razon || 'Presupuesto por debajo del mínimo de la zona',
       };
       console.log('[meta-lead-webhook] Descualificado por precio mínimo de zona:', qualificacao.razon_no_cualificado);
+    }
+
+    // 3.2 Conversions API do Meta — envia estágio inicial + resultado da qualificação em tempo real
+    if (data.meta_lead_id) {
+      const capiResult = await sendMetaConversionLeadsEvent({
+        leadId: data.meta_lead_id,
+        cualificado: qualificacao.cualificado,
+        eventTimeUnix: Math.floor(Date.now() / 1000),
+      });
+      console.log('[meta-lead-webhook][capi] Resultado:', capiResult);
+      if (capiResult.error !== 'disabled') {
+        try {
+          await supabase.from('webhook_logs').insert({
+            webhook_url: 'meta_conversions_api (capi_leads)',
+            status: capiResult.ok ? 'success' : 'error',
+            error_message: capiResult.ok ? null : (capiResult.error || `HTTP ${capiResult.status}: ${capiResult.body}`),
+            payload: { meta_lead_id: data.meta_lead_id, cualificado: qualificacao.cualificado },
+          });
+        } catch (logErr) {
+          console.error('[meta-lead-webhook][capi] Erro ao gravar log:', logErr);
+        }
+      }
+    } else {
+      console.warn('[meta-lead-webhook][capi] meta_lead_id não recebido no payload (verifique o node HTTP no Make)');
     }
 
 
