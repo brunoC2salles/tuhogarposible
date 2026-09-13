@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildBitrixPayloadFromLead, extractFromNotes, isLeadQualifiedForBitrix, NON_QUALIFIED_STAGES } from '../_shared/bitrixPayload.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
+import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
 
 
@@ -421,6 +422,46 @@ Deno.serve(async (req) => {
           lead_name: lead.nombre_completo,
           error: result.error || null,
           message: result.sent ? 'Payload secundário enviado con éxito' : `Falló: ${result.error || 'unknown'}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ============================================
+    // ACTION: test_disqualified_last_lead
+    // Dispara o webhook de email com o último lead DESQUALIFICADO real.
+    // ============================================
+    if (action === 'test_disqualified_last_lead') {
+      const { data: lead, error: leadError } = await supabase
+        .from('leads')
+        .select('*')
+        .in('stage', NON_QUALIFIED_STAGES)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (leadError || !lead) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No disqualified leads found in CRM' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const razon = extractFromNotes(lead.notas, 'Qualificação automática') || '';
+
+      const result = await dispatchDisqualifiedEmail(supabase, {
+        lead,
+        razonNoCualificado: razon,
+        source: 'test',
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: result.sent,
+          http_status: result.status ?? 0,
+          lead_name: lead.nombre_completo,
+          error: result.error || null,
+          message: result.sent ? 'Email de desqualificado enviado con éxito' : `Falló: ${result.error || 'unknown'}`,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
