@@ -17,6 +17,11 @@ export const useAdminSettings = () => {
   const [secondaryQualifiedUrl, setSecondaryQualifiedUrl] = useState('');
   const [secondaryEnabled, setSecondaryEnabled] = useState(true);
   const [savingSecondaryEnabled, setSavingSecondaryEnabled] = useState(false);
+  const [disqualifiedEmailUrl, setDisqualifiedEmailUrl] = useState('');
+  const [disqualifiedEmailEnabled, setDisqualifiedEmailEnabled] = useState(true);
+  const [savingDisqualifiedEmailEnabled, setSavingDisqualifiedEmailEnabled] = useState(false);
+  const [savingDisqualifiedEmail, setSavingDisqualifiedEmail] = useState(false);
+  const [disqualifiedEmailLogs, setDisqualifiedEmailLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMetaBitrix, setSavingMetaBitrix] = useState(false);
@@ -104,6 +109,114 @@ export const useAdminSettings = () => {
       return false;
     } finally {
       setSavingSecondaryEnabled(false);
+    }
+  };
+
+  const fetchDisqualifiedEmailUrl = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_disqualified_email_url')
+        .single();
+      if (!error && data) setDisqualifiedEmailUrl(data.value || '');
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching disqualified email URL:', err);
+    }
+  };
+
+  const fetchDisqualifiedEmailEnabled = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('value')
+        .eq('key', 'webhook_disqualified_email_enabled')
+        .maybeSingle();
+      if (!error) {
+        const val = (data?.value ?? 'true').toString().toLowerCase();
+        setDisqualifiedEmailEnabled(val !== 'false');
+      }
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching disqualified email enabled flag:', err);
+    }
+  };
+
+  const saveDisqualifiedEmailEnabled = async (enabled: boolean) => {
+    try {
+      setSavingDisqualifiedEmailEnabled(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { key: 'webhook_disqualified_email_enabled', value: enabled ? 'true' : 'false', description: 'Enable/disable dispatch of disqualified leads to the email webhook' },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setDisqualifiedEmailEnabled(enabled);
+      toast.success(enabled ? 'Envío de email a desqualificados activado' : 'Envío de email a desqualificados pausado');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving disqualified email enabled:', err);
+      toast.error('Error al guardar el estado');
+      return false;
+    } finally {
+      setSavingDisqualifiedEmailEnabled(false);
+    }
+  };
+
+  const saveDisqualifiedEmailUrl = async (url: string) => {
+    try {
+      setSavingDisqualifiedEmail(true);
+      const { error } = await supabase
+        .from('admin_settings')
+        .upsert(
+          { key: 'webhook_disqualified_email_url', value: url, description: 'URL del webhook Make.com para disparar el email de oferta de consultoría a leads desqualificados' },
+          { onConflict: 'key' }
+        );
+      if (error) throw error;
+      setDisqualifiedEmailUrl(url);
+      toast.success('URL del webhook de email a desqualificados guardada');
+      return true;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error saving disqualified email URL:', err);
+      toast.error('Error al guardar configuración');
+      return false;
+    } finally {
+      setSavingDisqualifiedEmail(false);
+    }
+  };
+
+  const fetchDisqualifiedEmailLogs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('webhook_logs')
+        .select('*')
+        .ilike('webhook_url', '%(disqualified_email)%')
+        .order('created_at', { ascending: false })
+        .limit(20);
+      if (!error) setDisqualifiedEmailLogs((data || []) as WebhookLog[]);
+    } catch (err: any) {
+      console.error('[AdminSettings] Error fetching disqualified email logs:', err);
+    }
+  };
+
+  const testDisqualifiedEmailWebhook = async () => {
+    try {
+      toast.info('Enviando test via Edge Function...');
+      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
+        body: { action: 'test_disqualified_last_lead' }
+      });
+      if (error) { toast.error('Error al conectar con Edge Function'); return false; }
+      if (data?.success) {
+        toast.success(`✅ Email desqualificado enviado! Lead: "${data.lead_name}" | HTTP ${data.http_status}`);
+        fetchDisqualifiedEmailLogs();
+        return true;
+      }
+      toast.error(`❌ Error: ${data?.error || data?.message || 'Unknown error'}`);
+      return false;
+    } catch (err: any) {
+      console.error('[AdminSettings] Error testing disqualified email webhook:', err);
+      toast.error('Error al probar webhook');
+      return false;
     }
   };
 
@@ -299,6 +412,9 @@ export const useAdminSettings = () => {
     fetchSecondaryQualifiedUrl();
     fetchSecondaryEnabled();
     fetchSecondaryLogs();
+    fetchDisqualifiedEmailUrl();
+    fetchDisqualifiedEmailEnabled();
+    fetchDisqualifiedEmailLogs();
   }, []);
 
   return {
@@ -307,6 +423,11 @@ export const useAdminSettings = () => {
     secondaryQualifiedUrl,
     secondaryEnabled,
     savingSecondaryEnabled,
+    disqualifiedEmailUrl,
+    disqualifiedEmailEnabled,
+    savingDisqualifiedEmailEnabled,
+    savingDisqualifiedEmail,
+    disqualifiedEmailLogs,
     loading,
     saving,
     savingMetaBitrix,
@@ -318,12 +439,16 @@ export const useAdminSettings = () => {
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
     saveSecondaryEnabled,
+    saveDisqualifiedEmailUrl,
+    saveDisqualifiedEmailEnabled,
     testWebhook,
     testMetaBitrixWebhook,
     testSecondaryQualifiedWebhook,
+    testDisqualifiedEmailWebhook,
     replayQualifiedSince,
     refreshLogs: fetchWebhookLogs,
     refreshMetaBitrixLogs: fetchMetaBitrixLogs,
     refreshSecondaryLogs: fetchSecondaryLogs,
+    refreshDisqualifiedEmailLogs: fetchDisqualifiedEmailLogs,
   };
 };
