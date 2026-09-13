@@ -6,6 +6,7 @@ import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatch
 import { evaluarPrecioMinimoZona } from '../_shared/precioMinimoZona.ts';
 
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
+import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 
 const corsHeaders = {
@@ -1470,7 +1471,7 @@ Deno.serve(async (req) => {
 
     // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
     // Importante: usa el MISMO montoAhorros validado en qualificarLead (rastreabilidad).
-    console.log('[meta-lead-webhook] Precio Máximo - input ahorros (mismo de qualificación):', {
+    console.log('[meta-lead-webhook] Precio Máximo - input ahorros (mismo de qualificação):', {
       montoAhorros,
       region,
       monto_max_financiable: simulacionHipotecaria.monto_maximo_financiable,
@@ -1670,7 +1671,28 @@ Deno.serve(async (req) => {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
     }
 
-    // 7.5. (REMOVIDO) Webhook automático de descualificados — não usamos mais
+    // 7.5. Disparar webhook de EMAIL para leads DESQUALIFICADOS (oferta de consultoría).
+    // Não bloqueia o fluxo principal — falhas apenas ficam em webhook_logs.
+    if (!qualificacao.cualificado && leadId) {
+      try {
+        const disqualifiedResult = await dispatchDisqualifiedEmail(supabase, {
+          lead: {
+            id: leadId,
+            nombre_completo: data.nombre,
+            telefono: data.telefono,
+            email: data.email,
+            ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
+            zona_interes: data.zona_interes || null,
+            created_at: new Date().toISOString(),
+          },
+          razonNoCualificado: qualificacao.razon_no_cualificado || '',
+          source: isTally ? 'tally' : isTallyHousage ? 'tally_housage' : 'meta_ads',
+        });
+        console.log('[meta-lead-webhook] Webhook email desqualificados:', disqualifiedResult);
+      } catch (disqualifiedErr) {
+        console.error('[meta-lead-webhook] Erro no disparo de email desqualificados:', disqualifiedErr);
+      }
+    }
 
     // 8. Montar resposta completa para o Make.com
     const response = {
