@@ -29,6 +29,11 @@ const AdminSettings = () => {
     secondaryQualifiedUrl,
     secondaryEnabled,
     savingSecondaryEnabled,
+    disqualifiedEmailUrl,
+    disqualifiedEmailEnabled,
+    savingDisqualifiedEmailEnabled,
+    savingDisqualifiedEmail,
+    disqualifiedEmailLogs,
     loading, 
     saving, 
     savingMetaBitrix,
@@ -40,17 +45,22 @@ const AdminSettings = () => {
     saveMetaBitrixWebhookUrl,
     saveSecondaryQualifiedUrl,
     saveSecondaryEnabled,
+    saveDisqualifiedEmailUrl,
+    saveDisqualifiedEmailEnabled,
     testWebhook, 
     testMetaBitrixWebhook,
     testSecondaryQualifiedWebhook,
+    testDisqualifiedEmailWebhook,
     replayQualifiedSince,
     refreshLogs,
     refreshMetaBitrixLogs,
-    refreshSecondaryLogs
+    refreshSecondaryLogs,
+    refreshDisqualifiedEmailLogs
   } = useAdminSettings();
   const [localWebhookUrl, setLocalWebhookUrl] = useState('');
   const [localMetaBitrixWebhookUrl, setLocalMetaBitrixWebhookUrl] = useState('');
   const [localSecondaryQualifiedUrl, setLocalSecondaryQualifiedUrl] = useState('');
+  const [localDisqualifiedEmailUrl, setLocalDisqualifiedEmailUrl] = useState('');
   const [exportFilter, setExportFilter] = useState<'all' | 'qualified'>('qualified');
   const [exporting, setExporting] = useState(false);
   const [replaySince, setReplaySince] = useState('2026-06-08T11:49');
@@ -71,6 +81,10 @@ const AdminSettings = () => {
   useEffect(() => {
     if (secondaryQualifiedUrl && !localSecondaryQualifiedUrl) setLocalSecondaryQualifiedUrl(secondaryQualifiedUrl);
   }, [secondaryQualifiedUrl]);
+
+  useEffect(() => {
+    if (disqualifiedEmailUrl && !localDisqualifiedEmailUrl) setLocalDisqualifiedEmailUrl(disqualifiedEmailUrl);
+  }, [disqualifiedEmailUrl]);
 
   const handleReplay = async () => {
     setReplaying(true);
@@ -569,6 +583,131 @@ const AdminSettings = () => {
                     {secondaryLogs.filter(log => log.status === 'error').length}
                   </p>
                   {secondaryLogs.filter(log => log.status === 'error').length > 0 && (
+                    <Badge variant="destructive">Revisar</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Webhook Email — Leads Desqualificados (oferta consultoría) */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle>Webhook Email — Leads Desqualificados</CardTitle>
+                <CardDescription>
+                  Dispara un email de oferta de consultoría cuando un lead es <strong>desqualificado</strong> automáticamente
+                  (Meta Ads / Tally). Se envía en paralelo, sin bloquear el flujo principal.
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 pt-1">
+                <Switch
+                  checked={disqualifiedEmailEnabled}
+                  disabled={savingDisqualifiedEmailEnabled}
+                  onCheckedChange={(v) => saveDisqualifiedEmailEnabled(v)}
+                  aria-label="Activar envío email desqualificados"
+                />
+                <span className="text-sm font-medium">
+                  {disqualifiedEmailEnabled ? 'Envío activo' : 'Envío pausado'}
+                </span>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Método: <code>POST</code> · Content-Type: <code>application/json</code>.
+                Cree un escenario nuevo en Make.com con un Webhook trigger + módulo Gmail.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label htmlFor="webhook-disqualified-email-url">URL del Webhook (Email Desqualificados)</Label>
+              <Input
+                id="webhook-disqualified-email-url"
+                type="url"
+                placeholder="https://hook.eu2.make.com/..."
+                value={localDisqualifiedEmailUrl}
+                onChange={(e) => setLocalDisqualifiedEmailUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deje vacío para desactivar el envío.
+              </p>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={async () => {
+                  const success = await saveDisqualifiedEmailUrl(localDisqualifiedEmailUrl);
+                  if (success) refreshDisqualifiedEmailLogs();
+                }}
+                disabled={savingDisqualifiedEmail}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {savingDisqualifiedEmail ? 'Guardando...' : 'Guardar'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={testDisqualifiedEmailWebhook}
+                disabled={!localDisqualifiedEmailUrl.trim()}
+                title="Envía el payload con el último lead desqualificado real"
+              >
+                <TestTube className="h-4 w-4 mr-2" />
+                Probar con último lead desqualificado
+              </Button>
+            </div>
+
+            <details className="border rounded-md p-3 bg-muted/30">
+              <summary className="cursor-pointer text-sm font-medium">
+                Especificación del payload
+              </summary>
+              <div className="mt-3 space-y-2 text-xs">
+                <p><strong>Cuándo se dispara:</strong> cada vez que un lead entra al sistema y NO pasa las reglas de cualificación (Meta Ads, Tally).</p>
+                <pre className="bg-background border rounded p-3 overflow-x-auto text-[11px] leading-tight">{`{
+  "event": "lead.disqualified",
+  "sent_at": "2026-09-13T12:00:00.000Z",
+  "source": "meta_ads" | "tally" | "tally_housage",
+
+  "lead": {
+    "id": "uuid",
+    "nombre_completo": "string",
+    "telefono": "+34XXXXXXXXX",
+    "email": "string",
+    "ciudad_interes": "string | null",
+    "zona_interes": "string | null",
+    "created_at": "ISO 8601"
+  },
+
+  "cualificacion": {
+    "cualificado": false,
+    "razon_no_cualificado": "string | null"
+  }
+}`}</pre>
+              </div>
+            </details>
+
+            {/* Status */}
+            <div className="flex gap-4 pt-4 border-t">
+              <div>
+                <p className="text-sm font-medium">Envíos Hoy</p>
+                <p className="text-2xl font-bold">
+                  {disqualifiedEmailLogs.filter(log => {
+                    const logDate = new Date(log.created_at);
+                    const today = new Date();
+                    return logDate.toDateString() === today.toDateString();
+                  }).length}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Con Errores</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold">
+                    {disqualifiedEmailLogs.filter(log => log.status === 'error').length}
+                  </p>
+                  {disqualifiedEmailLogs.filter(log => log.status === 'error').length > 0 && (
                     <Badge variant="destructive">Revisar</Badge>
                   )}
                 </div>
