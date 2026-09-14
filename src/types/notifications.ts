@@ -5,7 +5,8 @@ export type NotificationType =
   | 'contract_signed'
   | 'contract_generated'
   | 'candidate_stage_change'
-  | 'new_message';
+  | 'new_message'
+  | 'lead_inflow_alert';
 
 export interface Notification {
   id: string;
