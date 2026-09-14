@@ -1616,6 +1616,8 @@ Deno.serve(async (req) => {
       zona_evaluado_at: new Date().toISOString(),
       zona_confianza: evaluacionZona.confianza,
       zona_cualificado: evaluacionZona.cualificado,
+      zona_borderline: zonaBorderline,
+
       // Snapshot dos inputs Meta usados para reconstrução
       meta_monto_ahorros: montoAhorros,
       meta_tiene_ahorros: metaTieneAhorrosNormalizado,
