@@ -69,6 +69,41 @@ export async function dispatchDisqualifiedEmail(
 
     const payload = buildDisqualifiedEmailPayload(input);
 
+    // --- Guarda de idempotência: evita enviar o mesmo email 2x ---------------
+    // Se já houve um envio com sucesso para o mesmo email/telefone nas últimas
+    // 24h, não reenvia (protege contra retries da Make, duplicação de leads e
+    // chamadas concorrentes).
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const emailKey = (input.lead?.email ?? '').trim().toLowerCase();
+      const phoneDigits = String(input.lead?.telefono ?? '').replace(/\D/g, '').slice(-9);
+
+      if (emailKey || phoneDigits) {
+        const { data: recent } = await supabase
+          .from('webhook_logs')
+          .select('payload, created_at')
+          .ilike('webhook_url', '%(disqualified_email)%')
+          .eq('status', 'success')
+          .gte('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(200);
+
+        const already = (recent ?? []).some((row: any) => {
+          const l = row?.payload?.lead ?? {};
+          const e = String(l.email ?? '').trim().toLowerCase();
+          const p = String(l.telefono ?? '').replace(/\D/g, '').slice(-9);
+          return (emailKey && e === emailKey) || (phoneDigits && p === phoneDigits);
+        });
+
+        if (already) {
+          console.log('[disqualifiedEmailPayload] envio ignorado (duplicado nas últimas 24h)', emailKey || phoneDigits);
+          return { sent: false, error: 'duplicate_recent' };
+        }
+      }
+    } catch (guardErr) {
+      console.warn('[disqualifiedEmailPayload] falha na guarda de duplicados, seguindo:', guardErr);
+    }
+
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
