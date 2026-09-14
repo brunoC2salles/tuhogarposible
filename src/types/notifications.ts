@@ -5,7 +5,8 @@ export type NotificationType =
   | 'contract_signed'
   | 'contract_generated'
   | 'candidate_stage_change'
-  | 'new_message';
+  | 'new_message'
+  | 'lead_inflow_alert';
 
 export interface Notification {
   id: string;
@@ -26,5 +27,6 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
   contract_signed: 'Contrato Firmado',
   contract_generated: 'Contrato Generado',
   candidate_stage_change: 'Candidato Cambió Etapa',
-  new_message: 'Nuevo Mensaje'
+  new_message: 'Nuevo Mensaje',
+  lead_inflow_alert: 'Sin Leads Entrantes'
 };

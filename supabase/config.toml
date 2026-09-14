@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.fix-reunion-dates]
 verify_jwt = false
+
+[functions.lead-inflow-monitor]
+verify_jwt = false

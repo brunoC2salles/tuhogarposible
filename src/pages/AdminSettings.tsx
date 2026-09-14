@@ -14,6 +14,7 @@ import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { generateLeadsReport, defaultLast7Days } from '@/lib/leadsReportGenerator';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { MetaCsvImport } from '@/components/admin/MetaCsvImport';
 import {
   Select,
   SelectContent,
@@ -791,6 +792,9 @@ const AdminSettings = () => {
 
 
 
+
+        {/* Importación CSV Meta Ads */}
+        <MetaCsvImport />
 
         {/* Exportação CSV */}
         <Card>
