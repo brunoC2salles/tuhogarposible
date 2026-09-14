@@ -56,6 +56,14 @@ export async function dispatchDisqualifiedEmail(
       return { sent: false, error: 'disabled' };
     }
 
+    // Não enviar email de desqualificados para leads com mais de 65 anos.
+    const edadRaw = input.lead?.edad;
+    const edadNum = typeof edadRaw === 'number' ? edadRaw : parseInt(String(edadRaw ?? ''), 10);
+    if (edadNum && edadNum > 65) {
+      console.log('[disqualifiedEmailPayload] envio ignorado (edad > 65)', edadNum);
+      return { sent: false, error: 'age_over_65' };
+    }
+
     const { data: setting } = await supabase
       .from('admin_settings')
       .select('value')
