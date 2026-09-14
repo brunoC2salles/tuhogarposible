@@ -275,8 +275,24 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   };
 
   // ---- CASO A/B (municipio): base por precio_medio o media de la CCAA
+  // El precio_medio catastral corresponde a la superficie media del municipio
+  // (a menudo 100-180 m², chalets incluidos). Se normaliza a la superficie de
+  // referencia de mercado (65 m²) para no inflar el mínimo exigido al lead.
   const baseMunicipio = (): PrecioMinimoZona => {
-    if (muni && muni.precio_medio > 0) return finalizar(muni.precio_medio, 'municipio');
+    if (muni && muni.precio_medio > 0) {
+      const supMuni = muni.superficie > 0 ? muni.superficie : 0;
+      const supRef = input.superficie_deseada && input.superficie_deseada > 0
+        ? input.superficie_deseada
+        : SUPERFICIE_CIUDAD_REF;
+      const precio = supMuni > supRef ? (muni.precio_medio * supRef) / supMuni : muni.precio_medio;
+      const r = finalizar(precio, 'municipio');
+      if (supMuni > supRef) {
+        r.superficie_ref = supRef;
+        r.superficie_origen = input.superficie_deseada ? 'lead' : 'municipio';
+        r.precio_m2 = Math.round(muni.precio_medio / supMuni);
+      }
+      return r;
+    }
     const media = muni ? mediaCcaa(muni.cod_ccaa) : 0;
     if (media > 0) return finalizar(media, 'media_ccaa');
     return { ...base, metodo: 'sin_dato', sin_dato: true };
