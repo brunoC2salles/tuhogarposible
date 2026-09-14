@@ -1681,6 +1681,7 @@ Deno.serve(async (req) => {
             nombre_completo: data.nombre,
             telefono: data.telefono,
             email: data.email,
+            edad: edadParsed ?? null,
             ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
             zona_interes: data.zona_interes || null,
             created_at: new Date().toISOString(),
