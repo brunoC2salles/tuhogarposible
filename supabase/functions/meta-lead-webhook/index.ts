@@ -1351,13 +1351,24 @@ Deno.serve(async (req) => {
       razon: evaluacionZona.razon,
     }));
 
-    if (qualificacao.cualificado && !evaluacionZona.cualificado) {
+    // Banda de tolerancia: si el lead se queda a menos de un 10% del mínimo de la
+    // zona, NO se descarta (el precio mínimo es una estimación, no un dato exacto).
+    // Se marca como "borderline" para que el equipo lo revise.
+    const zonaBorderline = !evaluacionZona.cualificado
+      && !evaluacionZona.sin_dato
+      && evaluacionZona.precio_minimo > 0
+      && evaluacionZona.max_financiable >= evaluacionZona.precio_minimo * 0.90;
+
+    if (qualificacao.cualificado && !evaluacionZona.cualificado && !zonaBorderline) {
       qualificacao = {
         cualificado: false,
         razon_no_cualificado: evaluacionZona.razon || 'Presupuesto por debajo del mínimo de la zona',
       };
       console.log('[meta-lead-webhook] Descualificado por precio mínimo de zona:', qualificacao.razon_no_cualificado);
+    } else if (zonaBorderline) {
+      console.log('[meta-lead-webhook] Zona borderline (<10% por debajo del mínimo): se mantiene cualificado');
     }
+
 
     // 3.2 Conversions API do Meta — envia estágio inicial + resultado da qualificação em tempo real
     if (data.meta_lead_id) {
@@ -1605,6 +1616,8 @@ Deno.serve(async (req) => {
       zona_evaluado_at: new Date().toISOString(),
       zona_confianza: evaluacionZona.confianza,
       zona_cualificado: evaluacionZona.cualificado,
+      zona_borderline: zonaBorderline,
+
       // Snapshot dos inputs Meta usados para reconstrução
       meta_monto_ahorros: montoAhorros,
       meta_tiene_ahorros: metaTieneAhorrosNormalizado,

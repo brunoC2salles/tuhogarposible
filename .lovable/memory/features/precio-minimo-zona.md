@@ -20,3 +20,10 @@ Cálculo:
 6. Sem dado de município nem de CCAA → `zona_precio_sin_dato: true`, lead segue o fluxo normal, nunca fila manual.
 
 Campos gravados em `simulador_hipotecario_data`: `zona_precio_minimo`, `zona_precio_base`, `zona_precio_metodo`, `zona_precio_sin_dato`, `zona_cod_muni`, `zona_municipio`, `zona_ccaa`, `zona_distrito`, `zona_precio_m2`, `zona_superficie_ref`, `zona_confianza`, `zona_cualificado`.
+
+## Correcciones 2026-09-14
+- `resolverMunicipios()` devuelve TODOS los municipios plausibles del texto libre (exacto y, si no hay, parcial); se usa siempre la referencia MÁS BARATA. Antes solo se miraba el primero.
+- `baseMunicipio()` normaliza el `precio_medio` catastral a la superficie de referencia (65 m² o la del lead): `precio_medio * supRef / superficie_municipio`. Antes el precio del municipio iba inflado por la superficie media catastral.
+- Distrito informado que no corresponde a ningún distrito conocido → cae al distrito MÁS BARATO de la ciudad (antes quedaba sin referencia de distrito).
+- **Banda de tolerancia (meta-lead-webhook):** si `max_financiable >= precio_minimo * 0,90`, el lead NO se descarta; se marca `zona_borderline: true` en `simulador_hipotecario_data`.
+- 16 leads descartados por error entre el 06 y el 14/09/2026 fueron recualificados manualmente (nota "[14/09/2026] Recualificado").
