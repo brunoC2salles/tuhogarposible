@@ -388,15 +388,27 @@ export function evaluarPrecioMinimoZona(params: {
   superficieDeseada?: number | null;
   codMuni?: string | null;
 }): EvaluacionPrecioZona {
-  const resol = params.codMuni
-    ? { cod_muni: params.codMuni, municipio: null, cod_ccaa: null, distrito_texto: params.distritoTexto || null }
-    : resolverMunicipio(params.zonaTexto, params.ciudadTexto);
+  const resoluciones: ResolucionZona[] = params.codMuni
+    ? [{ cod_muni: params.codMuni, municipio: null, cod_ccaa: null, distrito_texto: params.distritoTexto || null }]
+    : resolverMunicipios(params.zonaTexto, params.ciudadTexto);
 
-  const precio = calcularPrecioMinimoZona({
-    cod_muni: resol.cod_muni,
-    distrito: params.distritoTexto || resol.distrito_texto,
-    superficie_deseada: params.superficieDeseada ?? null,
-  });
+  // Si el lead menciona varias zonas, vale la MÁS BARATA de todas.
+  const calculados = resoluciones.map((r) =>
+    calcularPrecioMinimoZona({
+      cod_muni: r.cod_muni,
+      distrito: params.distritoTexto || r.distrito_texto,
+      superficie_deseada: params.superficieDeseada ?? null,
+    }),
+  );
+  const validos = calculados.filter((p) => !p.sin_dato && p.precio_minimo > 0);
+  const precio = validos.length > 0
+    ? validos.sort((a, b) => a.precio_minimo - b.precio_minimo)[0]
+    : calcularPrecioMinimoZona({
+        cod_muni: resoluciones[0]?.cod_muni ?? null,
+        distrito: params.distritoTexto || resoluciones[0]?.distrito_texto || null,
+        superficie_deseada: params.superficieDeseada ?? null,
+      });
+
 
   const maxFin = Math.max(Number(params.maxFinanciable) || 0, 0);
 
