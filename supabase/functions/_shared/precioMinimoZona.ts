@@ -317,29 +317,30 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
 
   let refDistrito: PrecioMinimoZona | null = null;
 
-  if (distritoTexto) {
-    // B1: distrito informado y presente en la lista de la ciudad
-    const match = ciudad.distritos.find((d) => {
-      const n = normalizarZona(d.d);
-      if (!n) return false;
-      if (n === distritoTexto) return true;
-      if (distritoTexto.includes(n) || n.includes(distritoTexto)) return true;
-      // "Puente de Vallecas" ↔ "Vallecas": comparar por palabras significativas
-      const partes = n.split(' ').filter((p) => p.length > 3);
-      return partes.some((p) => distritoTexto.split(' ').includes(p));
-    });
+  // B1: distrito informado y presente en la lista de la ciudad
+  const match = distritoTexto
+    ? ciudad.distritos.find((d) => {
+        const n = normalizarZona(d.d);
+        if (!n) return false;
+        if (n === distritoTexto) return true;
+        if (distritoTexto.includes(n) || n.includes(distritoTexto)) return true;
+        // "Puente de Vallecas" ↔ "Vallecas": comparar por palabras significativas
+        const partes = n.split(' ').filter((p) => p.length > 3);
+        return partes.some((p) => distritoTexto.split(' ').includes(p));
+      })
+    : undefined;
 
-    if (match && superficieRef > 0) {
-      const r = finalizar(match.m2 * superficieRef, 'distrito');
-      r.distrito = match.d;
-      r.precio_m2 = match.m2;
-      r.superficie_ref = superficieRef;
-      r.superficie_origen = superficieOrigen;
-      r.confianza = match.c || null;
-      refDistrito = r;
-    }
+  if (match && superficieRef > 0) {
+    const r = finalizar(match.m2 * superficieRef, 'distrito');
+    r.distrito = match.d;
+    r.precio_m2 = match.m2;
+    r.superficie_ref = superficieRef;
+    r.superficie_origen = superficieOrigen;
+    r.confianza = match.c || null;
+    refDistrito = r;
   } else {
-    // B3: solo ciudad → distrito más barato de la lista
+    // B3: sin distrito informado, o texto que no corresponde a ningún distrito
+    // conocido ("alrededores", "o fuera", "sur") → distrito más barato de la ciudad.
     const masBarato = [...ciudad.distritos].sort((a, b) => a.m2 - b.m2)[0];
     if (masBarato && superficieRef > 0) {
       const r = finalizar(masBarato.m2 * superficieRef, 'distrito_mas_barato');
