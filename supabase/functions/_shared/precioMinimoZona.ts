@@ -138,63 +138,79 @@ export interface ResolucionZona {
  * (ej.: "Vallecas, Madrid", "València", "Alicante/Alacant", "Barcelona - Sant Andreu").
  * El matching posterior usa SIEMPRE el cod_muni devuelto.
  */
-export function resolverMunicipio(...textos: (string | null | undefined)[]): ResolucionZona {
+/**
+ * Devuelve TODOS los municipios plausibles del texto libre del lead
+ * (ej.: "Alcorcón, Leganés, Majadahonda" → los tres).
+ * El llamador se queda con la referencia MÁS BARATA.
+ */
+export function resolverMunicipios(...textos: (string | null | undefined)[]): ResolucionZona[] {
   buildIndexes();
-  const vacio: ResolucionZona = { cod_muni: null, municipio: null, cod_ccaa: null, distrito_texto: null };
 
   // Trocear todas las entradas por separadores comunes, manteniendo el orden
   const tokens: string[] = [];
   for (const t of textos) {
     if (!t) continue;
-    for (const parte of String(t).split(/[,;|\-–—>()]+/)) {
+    for (const parte of String(t).split(/[,;|\-–—>()./]+/)) {
       const norm = normalizarZona(parte);
       if (norm) tokens.push(norm);
     }
   }
-  if (tokens.length === 0) return vacio;
+  if (tokens.length === 0) return [];
 
-  // 1) Coincidencia exacta de nombre de municipio (preferimos el municipio con más peso: mayor precio_medio informado)
+  const encontrados: { idx: number; row: MuniRow }[] = [];
+
+  // 1) Coincidencia exacta de nombre de municipio
   for (let i = tokens.length - 1; i >= 0; i--) {
     const cands = _muniByName!.get(tokens[i]);
     if (cands && cands.length > 0) {
-      const row = [...cands].sort((a, b) => (b.precio_medio || 0) - (a.precio_medio || 0))[0];
-      // El resto de tokens (distintos del municipio) se consideran distrito/barrio
-      const otros = tokens.filter((_, idx) => idx !== i);
-      return {
-        cod_muni: row.cod_muni,
-        municipio: row.name,
-        cod_ccaa: row.cod_ccaa,
-        distrito_texto: otros.length > 0 ? otros.join(' ') : null,
-      };
+      const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
+      encontrados.push({ idx: i, row });
     }
   }
 
-  // 2) Coincidencia parcial: el token contiene el nombre del municipio o viceversa (solo nombres largos)
-  for (let i = tokens.length - 1; i >= 0; i--) {
-    const tok = tokens[i];
-    if (tok.length < 4) continue;
-    for (const [nombre, cands] of _muniByName!) {
-      if (nombre.length < 4) continue;
-      if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
-        const row = [...cands].sort((a, b) => (b.precio_medio || 0) - (a.precio_medio || 0))[0];
-        // El resto del token (quitando el nombre del municipio) puede ser el distrito
-        const resto = tok.replace(nombre, ' ').replace(/\s+/g, ' ').trim();
-        const otros = tokens.filter((_, idx) => idx !== i);
-        const restoEsMismoMunicipio = resto
-          ? (_muniByName!.get(resto) || []).some((r) => r.cod_muni === row.cod_muni)
-          : false;
-        if (resto && !restoEsMismoMunicipio) otros.push(resto);
-        return {
-          cod_muni: row.cod_muni,
-          municipio: row.name,
-          cod_ccaa: row.cod_ccaa,
-          distrito_texto: otros.length > 0 ? otros.join(' ') : null,
-        };
+  // 2) Coincidencia parcial (solo si no hubo ninguna exacta)
+  if (encontrados.length === 0) {
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const tok = tokens[i];
+      if (tok.length < 4) continue;
+      for (const [nombre, cands] of _muniByName!) {
+        if (nombre.length < 4) continue;
+        if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
+          const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
+          encontrados.push({ idx: i, row });
+          break;
+        }
       }
+      if (encontrados.length > 0) break;
     }
   }
 
-  return vacio;
+  if (encontrados.length === 0) return [];
+
+  const vistos = new Set<string>();
+  const out: ResolucionZona[] = [];
+  for (const { idx, row } of encontrados) {
+    if (vistos.has(row.cod_muni)) continue;
+    vistos.add(row.cod_muni);
+    const otros = tokens.filter((_, k) => k !== idx);
+    out.push({
+      cod_muni: row.cod_muni,
+      municipio: row.name,
+      cod_ccaa: row.cod_ccaa,
+      distrito_texto: otros.length > 0 ? otros.join(' ') : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Resuelve el municipio oficial a partir del texto libre del lead
+ * (ej.: "Vallecas, Madrid", "València", "Alicante/Alacant", "Barcelona - Sant Andreu").
+ * El matching posterior usa SIEMPRE el cod_muni devuelto.
+ */
+export function resolverMunicipio(...textos: (string | null | undefined)[]): ResolucionZona {
+  const todos = resolverMunicipios(...textos);
+  return todos[0] || { cod_muni: null, municipio: null, cod_ccaa: null, distrito_texto: null };
 }
 
 // ---------------------------------------------------------------------------
