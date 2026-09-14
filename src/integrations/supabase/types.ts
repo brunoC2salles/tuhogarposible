@@ -1462,6 +1462,7 @@ export type Database = {
         | "candidate_stage_change"
         | "new_message"
         | "document_analysis_completed"
+        | "lead_inflow_alert"
       tipo_inmueble:
         | "apartamento"
         | "casa"
@@ -1639,6 +1640,7 @@ export const Constants = {
         "candidate_stage_change",
         "new_message",
         "document_analysis_completed",
+        "lead_inflow_alert",
       ],
       tipo_inmueble: [
         "apartamento",
