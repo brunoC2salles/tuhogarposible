@@ -793,6 +793,9 @@ const AdminSettings = () => {
 
 
 
+        {/* Importación CSV Meta Ads */}
+        <MetaCsvImport />
+
         {/* Exportação CSV */}
         <Card>
           <CardHeader>
