@@ -138,63 +138,79 @@ export interface ResolucionZona {
  * (ej.: "Vallecas, Madrid", "València", "Alicante/Alacant", "Barcelona - Sant Andreu").
  * El matching posterior usa SIEMPRE el cod_muni devuelto.
  */
-export function resolverMunicipio(...textos: (string | null | undefined)[]): ResolucionZona {
+/**
+ * Devuelve TODOS los municipios plausibles del texto libre del lead
+ * (ej.: "Alcorcón, Leganés, Majadahonda" → los tres).
+ * El llamador se queda con la referencia MÁS BARATA.
+ */
+export function resolverMunicipios(...textos: (string | null | undefined)[]): ResolucionZona[] {
   buildIndexes();
-  const vacio: ResolucionZona = { cod_muni: null, municipio: null, cod_ccaa: null, distrito_texto: null };
 
   // Trocear todas las entradas por separadores comunes, manteniendo el orden
   const tokens: string[] = [];
   for (const t of textos) {
     if (!t) continue;
-    for (const parte of String(t).split(/[,;|\-–—>()]+/)) {
+    for (const parte of String(t).split(/[,;|\-–—>()./]+/)) {
       const norm = normalizarZona(parte);
       if (norm) tokens.push(norm);
     }
   }
-  if (tokens.length === 0) return vacio;
+  if (tokens.length === 0) return [];
 
-  // 1) Coincidencia exacta de nombre de municipio (preferimos el municipio con más peso: mayor precio_medio informado)
+  const encontrados: { idx: number; row: MuniRow }[] = [];
+
+  // 1) Coincidencia exacta de nombre de municipio
   for (let i = tokens.length - 1; i >= 0; i--) {
     const cands = _muniByName!.get(tokens[i]);
     if (cands && cands.length > 0) {
-      const row = [...cands].sort((a, b) => (b.precio_medio || 0) - (a.precio_medio || 0))[0];
-      // El resto de tokens (distintos del municipio) se consideran distrito/barrio
-      const otros = tokens.filter((_, idx) => idx !== i);
-      return {
-        cod_muni: row.cod_muni,
-        municipio: row.name,
-        cod_ccaa: row.cod_ccaa,
-        distrito_texto: otros.length > 0 ? otros.join(' ') : null,
-      };
+      const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
+      encontrados.push({ idx: i, row });
     }
   }
 
-  // 2) Coincidencia parcial: el token contiene el nombre del municipio o viceversa (solo nombres largos)
-  for (let i = tokens.length - 1; i >= 0; i--) {
-    const tok = tokens[i];
-    if (tok.length < 4) continue;
-    for (const [nombre, cands] of _muniByName!) {
-      if (nombre.length < 4) continue;
-      if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
-        const row = [...cands].sort((a, b) => (b.precio_medio || 0) - (a.precio_medio || 0))[0];
-        // El resto del token (quitando el nombre del municipio) puede ser el distrito
-        const resto = tok.replace(nombre, ' ').replace(/\s+/g, ' ').trim();
-        const otros = tokens.filter((_, idx) => idx !== i);
-        const restoEsMismoMunicipio = resto
-          ? (_muniByName!.get(resto) || []).some((r) => r.cod_muni === row.cod_muni)
-          : false;
-        if (resto && !restoEsMismoMunicipio) otros.push(resto);
-        return {
-          cod_muni: row.cod_muni,
-          municipio: row.name,
-          cod_ccaa: row.cod_ccaa,
-          distrito_texto: otros.length > 0 ? otros.join(' ') : null,
-        };
+  // 2) Coincidencia parcial (solo si no hubo ninguna exacta)
+  if (encontrados.length === 0) {
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      const tok = tokens[i];
+      if (tok.length < 4) continue;
+      for (const [nombre, cands] of _muniByName!) {
+        if (nombre.length < 4) continue;
+        if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
+          const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
+          encontrados.push({ idx: i, row });
+          break;
+        }
       }
+      if (encontrados.length > 0) break;
     }
   }
 
-  return vacio;
+  if (encontrados.length === 0) return [];
+
+  const vistos = new Set<string>();
+  const out: ResolucionZona[] = [];
+  for (const { idx, row } of encontrados) {
+    if (vistos.has(row.cod_muni)) continue;
+    vistos.add(row.cod_muni);
+    const otros = tokens.filter((_, k) => k !== idx);
+    out.push({
+      cod_muni: row.cod_muni,
+      municipio: row.name,
+      cod_ccaa: row.cod_ccaa,
+      distrito_texto: otros.length > 0 ? otros.join(' ') : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * Resuelve el municipio oficial a partir del texto libre del lead
+ * (ej.: "Vallecas, Madrid", "València", "Alicante/Alacant", "Barcelona - Sant Andreu").
+ * El matching posterior usa SIEMPRE el cod_muni devuelto.
+ */
+export function resolverMunicipio(...textos: (string | null | undefined)[]): ResolucionZona {
+  const todos = resolverMunicipios(...textos);
+  return todos[0] || { cod_muni: null, municipio: null, cod_ccaa: null, distrito_texto: null };
 }
 
 // ---------------------------------------------------------------------------
@@ -259,8 +275,24 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
   };
 
   // ---- CASO A/B (municipio): base por precio_medio o media de la CCAA
+  // El precio_medio catastral corresponde a la superficie media del municipio
+  // (a menudo 100-180 m², chalets incluidos). Se normaliza a la superficie de
+  // referencia de mercado (65 m²) para no inflar el mínimo exigido al lead.
   const baseMunicipio = (): PrecioMinimoZona => {
-    if (muni && muni.precio_medio > 0) return finalizar(muni.precio_medio, 'municipio');
+    if (muni && muni.precio_medio > 0) {
+      const supMuni = muni.superficie > 0 ? muni.superficie : 0;
+      const supRef = input.superficie_deseada && input.superficie_deseada > 0
+        ? input.superficie_deseada
+        : SUPERFICIE_CIUDAD_REF;
+      const precio = supMuni > supRef ? (muni.precio_medio * supRef) / supMuni : muni.precio_medio;
+      const r = finalizar(precio, 'municipio');
+      if (supMuni > supRef) {
+        r.superficie_ref = supRef;
+        r.superficie_origen = input.superficie_deseada ? 'lead' : 'municipio';
+        r.precio_m2 = Math.round(muni.precio_medio / supMuni);
+      }
+      return r;
+    }
     const media = muni ? mediaCcaa(muni.cod_ccaa) : 0;
     if (media > 0) return finalizar(media, 'media_ccaa');
     return { ...base, metodo: 'sin_dato', sin_dato: true };
@@ -285,29 +317,30 @@ export function calcularPrecioMinimoZona(input: PrecioMinimoInput): PrecioMinimo
 
   let refDistrito: PrecioMinimoZona | null = null;
 
-  if (distritoTexto) {
-    // B1: distrito informado y presente en la lista de la ciudad
-    const match = ciudad.distritos.find((d) => {
-      const n = normalizarZona(d.d);
-      if (!n) return false;
-      if (n === distritoTexto) return true;
-      if (distritoTexto.includes(n) || n.includes(distritoTexto)) return true;
-      // "Puente de Vallecas" ↔ "Vallecas": comparar por palabras significativas
-      const partes = n.split(' ').filter((p) => p.length > 3);
-      return partes.some((p) => distritoTexto.split(' ').includes(p));
-    });
+  // B1: distrito informado y presente en la lista de la ciudad
+  const match = distritoTexto
+    ? ciudad.distritos.find((d) => {
+        const n = normalizarZona(d.d);
+        if (!n) return false;
+        if (n === distritoTexto) return true;
+        if (distritoTexto.includes(n) || n.includes(distritoTexto)) return true;
+        // "Puente de Vallecas" ↔ "Vallecas": comparar por palabras significativas
+        const partes = n.split(' ').filter((p) => p.length > 3);
+        return partes.some((p) => distritoTexto.split(' ').includes(p));
+      })
+    : undefined;
 
-    if (match && superficieRef > 0) {
-      const r = finalizar(match.m2 * superficieRef, 'distrito');
-      r.distrito = match.d;
-      r.precio_m2 = match.m2;
-      r.superficie_ref = superficieRef;
-      r.superficie_origen = superficieOrigen;
-      r.confianza = match.c || null;
-      refDistrito = r;
-    }
+  if (match && superficieRef > 0) {
+    const r = finalizar(match.m2 * superficieRef, 'distrito');
+    r.distrito = match.d;
+    r.precio_m2 = match.m2;
+    r.superficie_ref = superficieRef;
+    r.superficie_origen = superficieOrigen;
+    r.confianza = match.c || null;
+    refDistrito = r;
   } else {
-    // B3: solo ciudad → distrito más barato de la lista
+    // B3: sin distrito informado, o texto que no corresponde a ningún distrito
+    // conocido ("alrededores", "o fuera", "sur") → distrito más barato de la ciudad.
     const masBarato = [...ciudad.distritos].sort((a, b) => a.m2 - b.m2)[0];
     if (masBarato && superficieRef > 0) {
       const r = finalizar(masBarato.m2 * superficieRef, 'distrito_mas_barato');
@@ -355,15 +388,27 @@ export function evaluarPrecioMinimoZona(params: {
   superficieDeseada?: number | null;
   codMuni?: string | null;
 }): EvaluacionPrecioZona {
-  const resol = params.codMuni
-    ? { cod_muni: params.codMuni, municipio: null, cod_ccaa: null, distrito_texto: params.distritoTexto || null }
-    : resolverMunicipio(params.zonaTexto, params.ciudadTexto);
+  const resoluciones: ResolucionZona[] = params.codMuni
+    ? [{ cod_muni: params.codMuni, municipio: null, cod_ccaa: null, distrito_texto: params.distritoTexto || null }]
+    : resolverMunicipios(params.zonaTexto, params.ciudadTexto);
 
-  const precio = calcularPrecioMinimoZona({
-    cod_muni: resol.cod_muni,
-    distrito: params.distritoTexto || resol.distrito_texto,
-    superficie_deseada: params.superficieDeseada ?? null,
-  });
+  // Si el lead menciona varias zonas, vale la MÁS BARATA de todas.
+  const calculados = resoluciones.map((r) =>
+    calcularPrecioMinimoZona({
+      cod_muni: r.cod_muni,
+      distrito: params.distritoTexto || r.distrito_texto,
+      superficie_deseada: params.superficieDeseada ?? null,
+    }),
+  );
+  const validos = calculados.filter((p) => !p.sin_dato && p.precio_minimo > 0);
+  const precio = validos.length > 0
+    ? validos.sort((a, b) => a.precio_minimo - b.precio_minimo)[0]
+    : calcularPrecioMinimoZona({
+        cod_muni: resoluciones[0]?.cod_muni ?? null,
+        distrito: params.distritoTexto || resoluciones[0]?.distrito_texto || null,
+        superficie_deseada: params.superficieDeseada ?? null,
+      });
+
 
   const maxFin = Math.max(Number(params.maxFinanciable) || 0, 0);
 
