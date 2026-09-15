@@ -4,6 +4,7 @@ export type LeadStage =
   | 'tasacion_prevision' 
   | 'informacion_riesgos'
   | 'fein' 
+  | 'llamada_consultoria'
   | 'descualificados';
 
 export type LeadSource = 'formulario_web' | 'manual' | 'tidycal_webhook' | 'meta_ads' | 'tally';
@@ -111,6 +112,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   tasacion_prevision: 'Tasación/Previsión de Tasación',
   informacion_riesgos: 'Información a riesgos',
   fein: 'FEIN',
+  llamada_consultoria: 'Llamada Consultoría',
   descualificados: 'Descualificado'
 };
 
@@ -120,5 +122,6 @@ export const STAGE_ORDER: LeadStage[] = [
   'tasacion_prevision',
   'informacion_riesgos',
   'fein',
+  'llamada_consultoria',
   'descualificados'
 ];

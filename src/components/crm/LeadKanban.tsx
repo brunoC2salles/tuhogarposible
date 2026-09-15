@@ -72,6 +72,8 @@ export const LeadKanban = ({
         return <UserCheck className="h-4 w-4" />;
       case 'fein':
         return <Building2 className="h-4 w-4" />;
+      case 'llamada_consultoria':
+        return <PhoneCall className="h-4 w-4" />;
       case 'descualificados':
         return <Ban className="h-4 w-4" />;
       default:
@@ -97,6 +99,8 @@ export const LeadKanban = ({
         return cn(baseStyles, 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20');
       case 'fein':
         return cn(baseStyles, 'border-green-500/30 bg-green-50 dark:bg-green-950/20');
+      case 'llamada_consultoria':
+        return cn(baseStyles, 'border-teal-500/30 bg-teal-50 dark:bg-teal-950/20');
       case 'descualificados':
         return cn(baseStyles, 'border-destructive/30 bg-destructive/5');
       default:
@@ -116,6 +120,8 @@ export const LeadKanban = ({
         return 'text-amber-600 dark:text-amber-400 border-amber-500/20';
       case 'fein':
         return 'text-green-600 dark:text-green-400 border-green-500/20';
+      case 'llamada_consultoria':
+        return 'text-teal-600 dark:text-teal-400 border-teal-500/20';
       case 'descualificados':
         return 'text-destructive border-destructive/20';
       default:
@@ -135,6 +141,8 @@ export const LeadKanban = ({
         return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
       case 'fein':
         return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
+      case 'llamada_consultoria':
+        return 'bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400';
       case 'descualificados':
         return 'bg-destructive/10 text-destructive';
       default:

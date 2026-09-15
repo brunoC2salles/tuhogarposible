@@ -1453,6 +1453,7 @@ export type Database = {
         | "informacion_riesgos"
         | "fein"
         | "llamada"
+        | "llamada_consultoria"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1630,6 +1631,7 @@ export const Constants = {
         "informacion_riesgos",
         "fein",
         "llamada",
+        "llamada_consultoria",
       ],
       notification_type: [
         "new_lead",
