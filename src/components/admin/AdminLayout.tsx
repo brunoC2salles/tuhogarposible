@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AdminSidebar } from './AdminSidebar';
@@ -17,6 +17,8 @@ interface AdminLayoutProps {
 
 export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isCRM = location.pathname.includes('/crm');
   const { profile, user, signOut } = useAuth();
 
   const handleLogout = async () => {
@@ -25,7 +27,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider defaultOpen={!isCRM} key={isCRM ? 'crm' : 'default'}>
       <div className="flex min-h-screen w-full">
         <AdminSidebar />
         <SidebarInset className="flex-1">
