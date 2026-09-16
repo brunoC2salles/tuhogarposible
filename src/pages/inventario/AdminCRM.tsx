@@ -102,14 +102,20 @@ const AdminCRM = () => {
 
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
+    let result = leads;
     const q = kanbanSearch.trim().toLowerCase();
-    if (!q) return leads;
-    const digits = q.replace(/\D/g, '');
-    return leads.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(q) ||
-      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-    );
-  }, [leads, kanbanSearch]);
+    if (q) {
+      const digits = q.replace(/\D/g, '');
+      result = result.filter(lead =>
+        lead.nombre_completo.toLowerCase().includes(q) ||
+        (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
+      );
+    }
+    if (callTimeFilter) {
+      result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
+    }
+    return result;
+  }, [leads, kanbanSearch, callTimeFilter]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
@@ -267,6 +273,29 @@ const AdminCRM = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Filtro por preferência de horário de llamada */}
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <span className="text-sm text-muted-foreground">Llamada:</span>
+                {(
+                  [
+                    { key: 'manana', label: 'Mañana (hasta 13h)' },
+                    { key: 'tarde', label: 'Tarde (13h–16h)' },
+                    { key: 'noche', label: 'Noche (16h–21h)' },
+                  ] as { key: CallTimeFilter; label: string }[]
+                ).map(opt => (
+                  <Button
+                    key={opt.key}
+                    size="sm"
+                    variant={callTimeFilter === opt.key ? 'default' : 'outline'}
+                    onClick={() =>
+                      setCallTimeFilter(prev => (prev === opt.key ? null : opt.key))
+                    }
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
 
               {/* Linha de filtros de carga */}
