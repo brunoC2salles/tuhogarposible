@@ -22,6 +22,35 @@ import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
 
 type PeriodOption = '30' | '90' | 'all';
+type CallTimeFilter = 'manana' | 'tarde' | 'noche';
+
+// Extrai a hora (0-23, Madrid) da preferência de chamada do lead
+const getLeadCallHour = (lead: Lead): number | null => {
+  const raw = lead.hora_reunion || lead.hora_reunion_texto || '';
+  const m = raw.match(/(\d{1,2})[:h.](\d{2})/) || raw.match(/^(\d{1,2})$/);
+  if (m) {
+    const h = parseInt(m[1], 10);
+    if (h >= 0 && h <= 23) return h;
+  }
+  if (lead.reunion_datetime) {
+    const parts = new Intl.DateTimeFormat('es-ES', {
+      timeZone: lead.zona_horaria_reunion || 'Europe/Madrid',
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(new Date(lead.reunion_datetime));
+    const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '', 10);
+    if (!isNaN(h) && h <= 23) return h;
+  }
+  return null;
+};
+
+const matchesCallTime = (lead: Lead, filter: CallTimeFilter): boolean => {
+  const h = getLeadCallHour(lead);
+  if (h === null) return false;
+  if (filter === 'manana') return h < 13;
+  if (filter === 'tarde') return h >= 13 && h < 16;
+  return h >= 16 && h < 21;
+};
 
 const STORAGE_KEY = 'admincrm.filters.v1';
 
@@ -64,6 +93,7 @@ const AdminCRM = () => {
 
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
+  const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -72,14 +102,20 @@ const AdminCRM = () => {
 
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
+    let result = leads;
     const q = kanbanSearch.trim().toLowerCase();
-    if (!q) return leads;
-    const digits = q.replace(/\D/g, '');
-    return leads.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(q) ||
-      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-    );
-  }, [leads, kanbanSearch]);
+    if (q) {
+      const digits = q.replace(/\D/g, '');
+      result = result.filter(lead =>
+        lead.nombre_completo.toLowerCase().includes(q) ||
+        (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
+      );
+    }
+    if (callTimeFilter) {
+      result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
+    }
+    return result;
+  }, [leads, kanbanSearch, callTimeFilter]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
@@ -237,6 +273,29 @@ const AdminCRM = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Filtro por preferência de horário de llamada */}
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <span className="text-sm text-muted-foreground">Llamada:</span>
+                {(
+                  [
+                    { key: 'manana', label: 'Mañana (hasta 13h)' },
+                    { key: 'tarde', label: 'Tarde (13h–16h)' },
+                    { key: 'noche', label: 'Noche (16h–21h)' },
+                  ] as { key: CallTimeFilter; label: string }[]
+                ).map(opt => (
+                  <Button
+                    key={opt.key}
+                    size="sm"
+                    variant={callTimeFilter === opt.key ? 'default' : 'outline'}
+                    onClick={() =>
+                      setCallTimeFilter(prev => (prev === opt.key ? null : opt.key))
+                    }
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
               </div>
 
               {/* Linha de filtros de carga */}
