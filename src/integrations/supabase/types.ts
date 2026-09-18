@@ -1449,6 +1449,7 @@ export type Database = {
         | "subida_expediente_bancos"
         | "descualificados"
         | "precualificacion"
+        | "buscando_vivienda"
         | "tasacion_prevision"
         | "informacion_riesgos"
         | "fein"
@@ -1627,6 +1628,7 @@ export const Constants = {
         "subida_expediente_bancos",
         "descualificados",
         "precualificacion",
+        "buscando_vivienda",
         "tasacion_prevision",
         "informacion_riesgos",
         "fein",
