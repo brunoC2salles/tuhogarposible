@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
-import { Ban, Sparkles, FileText, Building2, UserCheck, PhoneCall, HomeSearch } from 'lucide-react';
+import { Ban, Sparkles, FileText, Building2, UserCheck, PhoneCall, Home } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -67,7 +67,7 @@ export const LeadKanban = ({
       case 'llamada':
         return <PhoneCall className="h-4 w-4" />;
       case 'buscando_vivienda':
-        return <HomeSearch className="h-4 w-4" />;
+        return <Home className="h-4 w-4" />;
       case 'tasacion_prevision':
         return <FileText className="h-4 w-4" />;
       case 'informacion_riesgos':
