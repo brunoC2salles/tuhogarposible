@@ -29,6 +29,8 @@ import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
 import AgenteVisitas from "./pages/visitas/AgenteVisitas";
 import AdminVisitas from "./pages/visitas/AdminVisitas";
+import CastellonCRM from "./pages/inventario/CastellonCRM";
+import BlockAgenteRoute from "@/components/BlockAgenteRoute";
 
 const queryClient = new QueryClient();
 
