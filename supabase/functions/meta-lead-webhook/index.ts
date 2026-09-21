@@ -12,6 +12,8 @@ import { esZonaCastellon } from '../_shared/castellon.ts';
 
 // Agente exclusivo del CRM Castellón
 const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
+// Agente que recibe todos los leads cualificados que NO sean Castellón sin vivienda
+const ALBERT_AGENT_EMAIL = 'bruno@suasai.com';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -780,6 +782,23 @@ function parseEdad(data: Record<string, any>): number | null {
   return null;
 }
 
+/**
+ * Replica la misma normalización usada en src/lib/leadFilters.ts (tieneVivienda)
+ * para decidir si el lead declaró tener una vivienda ya seleccionada.
+ * Usa el campo crudo del formulario (tiene_vivienda_seleccionada), el mismo
+ * que se guarda luego en simulador_hipotecario_data.meta_vivienda_seleccionada.
+ */
+function tieneViviendaSeleccionada(data: MetaLeadData): boolean {
+  const valor = data.tiene_vivienda_seleccionada;
+  if (!valor) return false;
+  const v = String(valor)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  return v === 'si' || v === 's' || v === 'yes' || v === '1' || v === 'true' || v.startsWith('si ');
+}
+
 function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: number | null, montoAhorros?: number): QualificationResult {
   // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
   
@@ -1431,9 +1450,10 @@ Deno.serve(async (req) => {
       console.log('[meta-lead-webhook] Agente forçado:', agenteAsignado.nombre);
     } else if (
       qualificacao.cualificado &&
-      esZonaCastellon(data.zona_interes, (data as any).ciudad_interes)
+      esZonaCastellon(data.zona_interes, (data as any).ciudad_interes) &&
+      !tieneViviendaSeleccionada(data)
     ) {
-      // Leads de la provincia de Castellón van siempre al agente responsable de Castellón
+      // Leads de Castellón y alrededores SIN vivienda seleccionada van siempre al agente responsable de Castellón
       const { data: castellonAgent, error: castellonErr } = await supabase
         .from('profiles')
         .select('id, nombre, email, telefono')
@@ -1444,50 +1464,66 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] agente Castellón no encontrado:', castellonErr);
       } else {
         agenteAsignado = castellonAgent;
-        console.log('[meta-lead-webhook] Lead de Castellón asignado a:', agenteAsignado.nombre);
+        console.log('[meta-lead-webhook] Lead de Castellón (sin vivienda) asignado a:', agenteAsignado.nombre);
       }
     } else if (qualificacao.cualificado) {
-      try {
-        const { data: agenteData, error: agenteError } = await supabase.functions.invoke('get-next-agent', {
-          body: {
-            reunion_datetime: (data as any).reunion_datetime || null,
-          }
-        });
-        
-        if (agenteError) {
-          console.error('[meta-lead-webhook] Erro ao buscar agente:', agenteError);
-        } else if (agenteData?.agente) {
-          agenteAsignado = agenteData.agente;
-          console.log('[meta-lead-webhook] Agente asignado:', agenteAsignado.nombre);
-        }
-      } catch (err) {
-        console.error('[meta-lead-webhook] Exceção ao buscar agente:', err);
-      }
+      // Todos los demás leads cualificados (incluye Castellón CON vivienda seleccionada)
+      // van directamente al agente Albert Puig, sin pasar por el reparto round-robin.
+      const { data: albertAgent, error: albertErr } = await supabase
+        .from('profiles')
+        .select('id, nombre, email, telefono')
+        .eq('email', ALBERT_AGENT_EMAIL)
+        .eq('activo', true)
+        .maybeSingle();
 
-      // FALLBACK DIRETO: Se get-next-agent falhou, buscar qualquer agente ativo
-      if (!agenteAsignado) {
-        console.warn('[meta-lead-webhook] get-next-agent falhou, usando fallback direto');
+      if (!albertErr && albertAgent) {
+        agenteAsignado = albertAgent;
+        console.log('[meta-lead-webhook] Lead asignado directamente a Albert Puig:', agenteAsignado.nombre);
+      } else {
+        console.error('[meta-lead-webhook] agente Albert Puig (bruno@suasai.com) no encontrado, usando fallback round-robin:', albertErr);
+
         try {
-          const { data: fallbackAgents } = await supabase
-            .from('profiles')
-            .select('id, nombre, email, telefono')
-            .eq('activo', true)
-            .eq('role', 'agente')
-            .not('id', 'in', `(${HOUSAGE_AGENT_ID},${CASTELLON_AGENT_ID})`)
-            .order('nombre');
+          const { data: agenteData, error: agenteError } = await supabase.functions.invoke('get-next-agent', {
+            body: {
+              reunion_datetime: (data as any).reunion_datetime || null,
+            }
+          });
 
-          if (fallbackAgents && fallbackAgents.length > 0) {
-            const chosen = fallbackAgents[0];
-            agenteAsignado = {
-              id: chosen.id,
-              nombre: chosen.nombre,
-              email: chosen.email,
-              telefono: chosen.telefono,
-            };
-            console.log('[meta-lead-webhook] Fallback direto asignado:', agenteAsignado.nombre);
+          if (agenteError) {
+            console.error('[meta-lead-webhook] Erro ao buscar agente:', agenteError);
+          } else if (agenteData?.agente) {
+            agenteAsignado = agenteData.agente;
+            console.log('[meta-lead-webhook] Agente asignado (fallback round-robin):', agenteAsignado.nombre);
           }
-        } catch (fbErr) {
-          console.error('[meta-lead-webhook] Fallback direto também falhou:', fbErr);
+        } catch (err) {
+          console.error('[meta-lead-webhook] Exceção ao buscar agente:', err);
+        }
+
+        // FALLBACK DIRETO: Se get-next-agent também falhou, buscar qualquer agente ativo
+        if (!agenteAsignado) {
+          console.warn('[meta-lead-webhook] get-next-agent falhou, usando fallback direto');
+          try {
+            const { data: fallbackAgents } = await supabase
+              .from('profiles')
+              .select('id, nombre, email, telefono')
+              .eq('activo', true)
+              .eq('role', 'agente')
+              .not('id', 'in', `(${HOUSAGE_AGENT_ID},${CASTELLON_AGENT_ID})`)
+              .order('nombre');
+
+            if (fallbackAgents && fallbackAgents.length > 0) {
+              const chosen = fallbackAgents[0];
+              agenteAsignado = {
+                id: chosen.id,
+                nombre: chosen.nombre,
+                email: chosen.email,
+                telefono: chosen.telefono,
+              };
+              console.log('[meta-lead-webhook] Fallback direto asignado:', agenteAsignado.nombre);
+            }
+          } catch (fbErr) {
+            console.error('[meta-lead-webhook] Fallback direto também falhou:', fbErr);
+          }
         }
       }
     }
