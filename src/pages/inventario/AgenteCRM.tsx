@@ -42,7 +42,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
-  const [viviendaFilter, setViviendaFilter] = useState(false);
+  const [viviendaFilter, setViviendaFilter] = useState<'si' | 'no' | null>(null);
 
   // Leads del ámbito de esta vista
   const leads = useMemo(() => {
@@ -66,8 +66,10 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
     }
-    if (viviendaFilter) {
+    if (viviendaFilter === 'si') {
       result = result.filter(lead => tieneVivienda(lead));
+    } else if (viviendaFilter === 'no') {
+      result = result.filter(lead => !tieneVivienda(lead));
     }
     return result;
   }, [leads, searchQuery, callTimeFilter, viviendaFilter]);
@@ -202,10 +204,17 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
           ))}
           <Button
             size="sm"
-            variant={viviendaFilter ? 'default' : 'outline'}
-            onClick={() => setViviendaFilter(v => !v)}
+            variant={viviendaFilter === 'si' ? 'default' : 'outline'}
+            onClick={() => setViviendaFilter(prev => (prev === 'si' ? null : 'si'))}
           >
             Tiene Vivienda
+          </Button>
+          <Button
+            size="sm"
+            variant={viviendaFilter === 'no' ? 'default' : 'outline'}
+            onClick={() => setViviendaFilter(prev => (prev === 'no' ? null : 'no'))}
+          >
+            No Tiene Vivienda
           </Button>
         </div>
 
