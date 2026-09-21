@@ -283,6 +283,13 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
                     {opt.label}
                   </Button>
                 ))}
+                <Button
+                  size="sm"
+                  variant={viviendaFilter ? 'default' : 'outline'}
+                  onClick={() => setViviendaFilter(v => !v)}
+                >
+                  Tiene Vivienda
+                </Button>
               </div>
 
               {/* Linha de filtros de carga */}
