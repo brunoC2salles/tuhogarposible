@@ -20,37 +20,10 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
+import { CallTimeFilter, matchesCallTime, tieneVivienda } from '@/lib/leadFilters';
+import { esZonaCastellon } from '@/lib/castellon';
 
 type PeriodOption = '30' | '90' | 'all';
-type CallTimeFilter = 'manana' | 'tarde' | 'noche';
-
-// Extrai a hora (0-23, Madrid) da preferência de chamada do lead
-const getLeadCallHour = (lead: Lead): number | null => {
-  const raw = lead.hora_reunion || lead.hora_reunion_texto || '';
-  const m = raw.match(/(\d{1,2})[:h.](\d{2})/) || raw.match(/^(\d{1,2})$/);
-  if (m) {
-    const h = parseInt(m[1], 10);
-    if (h >= 0 && h <= 23) return h;
-  }
-  if (lead.reunion_datetime) {
-    const parts = new Intl.DateTimeFormat('es-ES', {
-      timeZone: lead.zona_horaria_reunion || 'Europe/Madrid',
-      hour: 'numeric',
-      hour12: false,
-    }).formatToParts(new Date(lead.reunion_datetime));
-    const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '', 10);
-    if (!isNaN(h) && h <= 23) return h;
-  }
-  return null;
-};
-
-const matchesCallTime = (lead: Lead, filter: CallTimeFilter): boolean => {
-  const h = getLeadCallHour(lead);
-  if (h === null) return false;
-  if (filter === 'manana') return h < 13;
-  if (filter === 'tarde') return h >= 13 && h < 16;
-  return h >= 16 && h < 21;
-};
 
 const STORAGE_KEY = 'admincrm.filters.v1';
 
@@ -68,7 +41,14 @@ const loadStoredFilters = (): { period: PeriodOption; includeDisqualified: boole
   return { period: '30', includeDisqualified: false };
 };
 
-const AdminCRM = () => {
+interface AdminCRMProps {
+  /** 'castellon' limita el kanban a leads de la provincia de Castellón */
+  scope?: 'all' | 'castellon';
+  title?: string;
+  subtitle?: string;
+}
+
+const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   // Filtros de carga (lidos do localStorage para persistir entre sessões)
   const initial = useMemo(() => loadStoredFilters(), []);
   const [period, setPeriod] = useState<PeriodOption>(initial.period);
