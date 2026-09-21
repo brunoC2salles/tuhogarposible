@@ -11,21 +11,28 @@ import { LeadDetailsModal } from '@/components/crm/LeadDetailsModal';
 
 import { SimuladoresModal } from '@/components/crm/SimuladoresModal';
 import { Lead } from '@/types/crm';
-import { Plus, ArrowLeft, Users, Building, LogOut, Settings, CalendarDays } from 'lucide-react';
+import { Plus, ArrowLeft, Users } from 'lucide-react';
 import Logo from '@/components/Logo';
 import AuthButton from '@/components/AuthButton';
 import { toast } from 'sonner';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
-import { Link } from 'react-router-dom';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { Badge } from '@/components/ui/badge';
 import StandaloneDocsButton from '@/components/crm/StandaloneDocsButton';
+import { CallTimeFilter, matchesCallTime, tieneVivienda } from '@/lib/leadFilters';
+import { esZonaCastellon } from '@/lib/castellon';
 
-const AgenteCRM = () => {
+interface AgenteCRMProps {
+  /** 'castellon' limita el kanban a leads de la provincia de Castellón */
+  scope?: 'all' | 'castellon';
+  title?: string;
+}
+
+const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
   const navigate = useNavigate();
-  const { signOut, profile } = useAuth();
-  const { leads, loading, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
+  const { profile } = useAuth();
+  const { leads: allLeads, loading, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -34,17 +41,36 @@ const AgenteCRM = () => {
   const [simuladoresLead, setSimuladoresLead] = useState<Lead | null>(null);
   const [deleteLeadId, setDeleteLeadId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
+  const [viviendaFilter, setViviendaFilter] = useState(false);
 
-  // Filtrar leads por nombre
+  // Leads del ámbito de esta vista
+  const leads = useMemo(() => {
+    if (scope === 'castellon') {
+      return allLeads.filter(lead => esZonaCastellon(lead.zona_interes, lead.ciudad_interes));
+    }
+    return allLeads;
+  }, [allLeads, scope]);
+
+  // Filtrar leads por nombre, horario de llamada y vivienda
   const filteredLeads = useMemo(() => {
+    let result = leads;
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return leads;
-    const digits = q.replace(/\D/g, '');
-    return leads.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(q) ||
-      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-    );
-  }, [leads, searchQuery]);
+    if (q) {
+      const digits = q.replace(/\D/g, '');
+      result = result.filter(lead =>
+        lead.nombre_completo.toLowerCase().includes(q) ||
+        (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
+      );
+    }
+    if (callTimeFilter) {
+      result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
+    }
+    if (viviendaFilter) {
+      result = result.filter(lead => tieneVivienda(lead));
+    }
+    return result;
+  }, [leads, searchQuery, callTimeFilter, viviendaFilter]);
 
   // Contadores
   const descualificadosCount = useMemo(() => 
@@ -88,11 +114,6 @@ const AgenteCRM = () => {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card sticky top-0 z-10">
@@ -104,25 +125,15 @@ const AgenteCRM = () => {
               </Button>
               <Logo size="sm" />
               <div className="flex-1 min-w-0">
-                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">CRM - Gestión de Leads</h1>
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">
+                  {title || 'CRM - Gestión de Leads'}
+                </h1>
                 <p className="text-xs sm:text-sm text-muted-foreground truncate">Agente: {profile?.nombre}</p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
               <NotificationBell />
-              <Button variant="outline" size="sm" onClick={() => navigate('/agente/settings')}>
-                <Settings className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Mi Perfil</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/agente/visitas')}>
-                <CalendarDays className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Visitas</span>
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate('/inventario/agente')}>
-                <Building className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Inventario</span>
-              </Button>
               <AuthButton />
             </div>
           </div>
@@ -130,7 +141,7 @@ const AgenteCRM = () => {
       </header>
 
       <main className="w-full py-4 sm:py-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -170,6 +181,34 @@ const AgenteCRM = () => {
           </div>
         </div>
 
+        {/* Filtros por preferencia de llamada y vivienda */}
+        <div className="flex items-center gap-2 flex-wrap mb-6">
+          <span className="text-sm text-muted-foreground">Llamada:</span>
+          {(
+            [
+              { key: 'manana', label: 'Mañana (hasta 13h)' },
+              { key: 'tarde', label: 'Tarde (13h–16h)' },
+              { key: 'noche', label: 'Noche (16h–21h)' },
+            ] as { key: CallTimeFilter; label: string }[]
+          ).map(opt => (
+            <Button
+              key={opt.key}
+              size="sm"
+              variant={callTimeFilter === opt.key ? 'default' : 'outline'}
+              onClick={() => setCallTimeFilter(prev => (prev === opt.key ? null : opt.key))}
+            >
+              {opt.label}
+            </Button>
+          ))}
+          <Button
+            size="sm"
+            variant={viviendaFilter ? 'default' : 'outline'}
+            onClick={() => setViviendaFilter(v => !v)}
+          >
+            Tiene Vivienda
+          </Button>
+        </div>
+
         {loading ? (
           <div className="text-center text-muted-foreground py-12">Cargando leads...</div>
         ) : leads.length === 0 ? (
@@ -186,7 +225,7 @@ const AgenteCRM = () => {
           <div className="text-center py-12">
             <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4 opacity-50" />
             <h3 className="text-lg font-semibold mb-2">No se encontraron leads</h3>
-            <p className="text-muted-foreground mb-4">No hay resultados para "{searchQuery}"</p>
+            <p className="text-muted-foreground mb-4">Prueba a cambiar la búsqueda o los filtros</p>
           </div>
         ) : (
           <LeadKanban
