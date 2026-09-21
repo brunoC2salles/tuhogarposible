@@ -74,6 +74,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
+  const [viviendaFilter, setViviendaFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -83,6 +84,9 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
     let result = leads;
+    if (scope === 'castellon') {
+      result = result.filter(lead => esZonaCastellon(lead.zona_interes, lead.ciudad_interes));
+    }
     const q = kanbanSearch.trim().toLowerCase();
     if (q) {
       const digits = q.replace(/\D/g, '');
@@ -94,8 +98,11 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
     }
+    if (viviendaFilter) {
+      result = result.filter(lead => tieneVivienda(lead));
+    }
     return result;
-  }, [leads, kanbanSearch, callTimeFilter]);
+  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, scope]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
