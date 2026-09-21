@@ -29,6 +29,8 @@ import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
 import AgenteVisitas from "./pages/visitas/AgenteVisitas";
 import AdminVisitas from "./pages/visitas/AdminVisitas";
+import CastellonCRM from "./pages/inventario/CastellonCRM";
+import BlockAgenteRoute from "@/components/BlockAgenteRoute";
 
 const queryClient = new QueryClient();
 
@@ -42,13 +44,13 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/simuladores" element={<SimuladoresIndex />} />
-            <Route path="/simuladores/credito-personal" element={<SimuladorPersonalPage />} />
-            <Route path="/simuladores/credito-hipotecario" element={<SimuladorHipotecarioPage />} />
+            <Route path="/simuladores" element={<BlockAgenteRoute><SimuladoresIndex /></BlockAgenteRoute>} />
+            <Route path="/simuladores/credito-personal" element={<BlockAgenteRoute><SimuladorPersonalPage /></BlockAgenteRoute>} />
+            <Route path="/simuladores/credito-hipotecario" element={<BlockAgenteRoute><SimuladorHipotecarioPage /></BlockAgenteRoute>} />
             <Route 
               path="/inventario/agente"
               element={
-          <ProtectedRoute allowedRoles={['agente', 'admin']}>
+          <ProtectedRoute allowedRoles={['admin']}>
             <AgenteInventario />
           </ProtectedRoute>
               } 
@@ -61,6 +63,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+            <Route
+              path="/crm/castellon"
+              element={
+                <ProtectedRoute allowedRoles={['agente', 'admin', 'supervisor']} allowCastellonAgent>
+                  <CastellonCRM />
+                </ProtectedRoute>
+              }
+            />
+
             <Route 
               path="/inventario/admin/crm"
               element={
@@ -138,7 +149,7 @@ const App = () => (
             <Route 
               path="/academia"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
                   <AcademiaAgentes />
                 </ProtectedRoute>
               } 

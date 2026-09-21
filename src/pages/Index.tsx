@@ -4,17 +4,31 @@ import { Users, Calculator, GraduationCap, Shield } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 import AuthButton from "@/components/AuthButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { CASTELLON_AGENT_EMAIL, CASTELLON_CRM_PATH } from "@/lib/castellonAgent";
 
 
 const Index = () => {
+  const { profile } = useAuth();
+  const isAgente = profile?.role === "agente";
+  const isCastellonAgent = profile?.email === CASTELLON_AGENT_EMAIL;
+
   const cards = [
+    {
+      title: "CRM",
+      description: "Gestiona tus leads en el kanban",
+      icon: Users,
+      to: isCastellonAgent ? CASTELLON_CRM_PATH : "/inventario/agente/crm",
+      cta: "Abrir el CRM",
+      show: isAgente,
+    },
     {
       title: "Portal del Agente",
       description: "Accede a Inmovilla, productos bancarios y fuera de cartera",
       icon: Users,
       to: "/inventario/agente",
       cta: "Acceder como Agente",
-      show: true,
+      show: !isAgente,
     },
     {
       title: "Academia y Documentos",
@@ -22,7 +36,7 @@ const Index = () => {
       icon: GraduationCap,
       to: "/academia",
       cta: "Acceder a la Academia",
-      show: true,
+      show: !isAgente,
     },
     {
       title: "Simulador Financiero",
@@ -30,7 +44,7 @@ const Index = () => {
       icon: Calculator,
       to: "/simuladores",
       cta: "Acceder al Simulador",
-      show: true,
+      show: !isAgente,
     },
     {
       title: "Panel de Administración",
@@ -38,7 +52,7 @@ const Index = () => {
       icon: Shield,
       to: "/admin",
       cta: "Acceder como Admin",
-      show: true,
+      show: !isAgente,
     },
   ];
 

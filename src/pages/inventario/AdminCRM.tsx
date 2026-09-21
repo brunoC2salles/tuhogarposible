@@ -20,37 +20,10 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
+import { CallTimeFilter, matchesCallTime, tieneVivienda } from '@/lib/leadFilters';
+import { esZonaCastellon } from '@/lib/castellon';
 
 type PeriodOption = '30' | '90' | 'all';
-type CallTimeFilter = 'manana' | 'tarde' | 'noche';
-
-// Extrai a hora (0-23, Madrid) da preferência de chamada do lead
-const getLeadCallHour = (lead: Lead): number | null => {
-  const raw = lead.hora_reunion || lead.hora_reunion_texto || '';
-  const m = raw.match(/(\d{1,2})[:h.](\d{2})/) || raw.match(/^(\d{1,2})$/);
-  if (m) {
-    const h = parseInt(m[1], 10);
-    if (h >= 0 && h <= 23) return h;
-  }
-  if (lead.reunion_datetime) {
-    const parts = new Intl.DateTimeFormat('es-ES', {
-      timeZone: lead.zona_horaria_reunion || 'Europe/Madrid',
-      hour: 'numeric',
-      hour12: false,
-    }).formatToParts(new Date(lead.reunion_datetime));
-    const h = parseInt(parts.find(p => p.type === 'hour')?.value ?? '', 10);
-    if (!isNaN(h) && h <= 23) return h;
-  }
-  return null;
-};
-
-const matchesCallTime = (lead: Lead, filter: CallTimeFilter): boolean => {
-  const h = getLeadCallHour(lead);
-  if (h === null) return false;
-  if (filter === 'manana') return h < 13;
-  if (filter === 'tarde') return h >= 13 && h < 16;
-  return h >= 16 && h < 21;
-};
 
 const STORAGE_KEY = 'admincrm.filters.v1';
 
@@ -68,7 +41,14 @@ const loadStoredFilters = (): { period: PeriodOption; includeDisqualified: boole
   return { period: '30', includeDisqualified: false };
 };
 
-const AdminCRM = () => {
+interface AdminCRMProps {
+  /** 'castellon' limita el kanban a leads de la provincia de Castellón */
+  scope?: 'all' | 'castellon';
+  title?: string;
+  subtitle?: string;
+}
+
+const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   // Filtros de carga (lidos do localStorage para persistir entre sessões)
   const initial = useMemo(() => loadStoredFilters(), []);
   const [period, setPeriod] = useState<PeriodOption>(initial.period);
@@ -94,6 +74,7 @@ const AdminCRM = () => {
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
+  const [viviendaFilter, setViviendaFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -103,6 +84,9 @@ const AdminCRM = () => {
   // Filtered leads for Kanban
   const filteredLeadsKanban = useMemo(() => {
     let result = leads;
+    if (scope === 'castellon') {
+      result = result.filter(lead => esZonaCastellon(lead.zona_interes, lead.ciudad_interes));
+    }
     const q = kanbanSearch.trim().toLowerCase();
     if (q) {
       const digits = q.replace(/\D/g, '');
@@ -114,8 +98,11 @@ const AdminCRM = () => {
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
     }
+    if (viviendaFilter) {
+      result = result.filter(lead => tieneVivienda(lead));
+    }
     return result;
-  }, [leads, kanbanSearch, callTimeFilter]);
+  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, scope]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
@@ -199,8 +186,8 @@ const AdminCRM = () => {
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard CRM</h1>
-            <p className="text-muted-foreground mt-1">Métricas y estadísticas de leads</p>
+            <h1 className="text-3xl font-bold">{title || 'Dashboard CRM'}</h1>
+            <p className="text-muted-foreground mt-1">{subtitle || 'Métricas y estadísticas de leads'}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportStats}>
@@ -296,6 +283,13 @@ const AdminCRM = () => {
                     {opt.label}
                   </Button>
                 ))}
+                <Button
+                  size="sm"
+                  variant={viviendaFilter ? 'default' : 'outline'}
+                  onClick={() => setViviendaFilter(v => !v)}
+                >
+                  Tiene Vivienda
+                </Button>
               </div>
 
               {/* Linha de filtros de carga */}
