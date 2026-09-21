@@ -47,6 +47,11 @@ const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles, allowCas
     return <Navigate to="/auth" replace />;
   }
 
+  // El agente de Castellón solo puede usar su CRM
+  if (!allowCastellonAgent && profile?.email === CASTELLON_AGENT_EMAIL) {
+    return <Navigate to={CASTELLON_CRM_PATH} replace />;
+  }
+
   // Check allowed roles if specified
   if (allowedRoles && profile) {
     const hasAccess = allowedRoles.includes(profile.role);
