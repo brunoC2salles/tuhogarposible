@@ -74,7 +74,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   // Kanban global state
   const [kanbanSearch, setKanbanSearch] = useState('');
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
-  const [viviendaFilter, setViviendaFilter] = useState(false);
+  const [viviendaFilter, setViviendaFilter] = useState<'si' | 'no' | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -98,8 +98,10 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
     }
-    if (viviendaFilter) {
+    if (viviendaFilter === 'si') {
       result = result.filter(lead => tieneVivienda(lead));
+    } else if (viviendaFilter === 'no') {
+      result = result.filter(lead => !tieneVivienda(lead));
     }
     return result;
   }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, scope]);
@@ -285,10 +287,17 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
                 ))}
                 <Button
                   size="sm"
-                  variant={viviendaFilter ? 'default' : 'outline'}
-                  onClick={() => setViviendaFilter(v => !v)}
+                  variant={viviendaFilter === 'si' ? 'default' : 'outline'}
+                  onClick={() => setViviendaFilter(prev => (prev === 'si' ? null : 'si'))}
                 >
                   Tiene Vivienda
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viviendaFilter === 'no' ? 'default' : 'outline'}
+                  onClick={() => setViviendaFilter(prev => (prev === 'no' ? null : 'no'))}
+                >
+                  No Tiene Vivienda
                 </Button>
               </div>
 
