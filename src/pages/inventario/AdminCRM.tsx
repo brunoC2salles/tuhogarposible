@@ -186,8 +186,8 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard CRM</h1>
-            <p className="text-muted-foreground mt-1">Métricas y estadísticas de leads</p>
+            <h1 className="text-3xl font-bold">{title || 'Dashboard CRM'}</h1>
+            <p className="text-muted-foreground mt-1">{subtitle || 'Métricas y estadísticas de leads'}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={handleExportStats}>
