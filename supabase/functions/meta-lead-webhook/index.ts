@@ -8,6 +8,10 @@ import { evaluarPrecioMinimoZona } from '../_shared/precioMinimoZona.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
+import { esZonaCastellon } from '../_shared/castellon.ts';
+
+// Agente exclusivo del CRM Castellón
+const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1469,7 +1473,7 @@ Deno.serve(async (req) => {
             .select('id, nombre, email, telefono')
             .eq('activo', true)
             .eq('role', 'agente')
-            .neq('id', HOUSAGE_AGENT_ID)
+            .not('id', 'in', `(${HOUSAGE_AGENT_ID},${CASTELLON_AGENT_ID})`)
             .order('nombre');
 
           if (fallbackAgents && fallbackAgents.length > 0) {
