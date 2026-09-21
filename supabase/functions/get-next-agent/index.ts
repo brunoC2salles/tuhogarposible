@@ -74,14 +74,15 @@ Deno.serve(async (req) => {
     console.log('[Round-Robin] reunion_datetime:', reunion_datetime || 'none');
 
     const HOUSAGE_AGENT_ID = 'fa5038e7-0e88-49c7-88ae-ac506e12340b';
+    const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
 
-    // 1. Todos los agentes activos (excluye Housage)
+    // 1. Todos los agentes activos (excluye Housage y el agente exclusivo de Castellón)
     const { data: allAgents, error: agentsError } = await supabaseAdmin
       .from('profiles')
       .select('id, nombre, email, telefono')
       .eq('activo', true)
       .eq('role', 'agente')
-      .neq('id', HOUSAGE_AGENT_ID)
+      .not('id', 'in', `(${HOUSAGE_AGENT_ID},${CASTELLON_AGENT_ID})`)
       .order('nombre');
 
     if (agentsError) throw agentsError;

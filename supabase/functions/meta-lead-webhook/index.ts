@@ -1425,6 +1425,23 @@ Deno.serve(async (req) => {
       }
       agenteAsignado = forcedAgent;
       console.log('[meta-lead-webhook] Agente forçado:', agenteAsignado.nombre);
+    } else if (
+      qualificacao.cualificado &&
+      esZonaCastellon(data.zona_interes, (data as any).ciudad_interes)
+    ) {
+      // Leads de la provincia de Castellón van siempre al agente responsable de Castellón
+      const { data: castellonAgent, error: castellonErr } = await supabase
+        .from('profiles')
+        .select('id, nombre, email, telefono')
+        .eq('id', CASTELLON_AGENT_ID)
+        .maybeSingle();
+
+      if (castellonErr || !castellonAgent) {
+        console.error('[meta-lead-webhook] agente Castellón no encontrado:', castellonErr);
+      } else {
+        agenteAsignado = castellonAgent;
+        console.log('[meta-lead-webhook] Lead de Castellón asignado a:', agenteAsignado.nombre);
+      }
     } else if (qualificacao.cualificado) {
       try {
         const { data: agenteData, error: agenteError } = await supabase.functions.invoke('get-next-agent', {
