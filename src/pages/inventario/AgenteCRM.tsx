@@ -140,7 +140,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
         </div>
       </header>
 
-      <main className="w-full py-4 sm:py-6">
+      <main className="w-full px-4 sm:px-6 py-4 sm:py-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="relative">
