@@ -4,6 +4,7 @@ import { correctEmail } from '../_shared/emailCorrection.ts';
 import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
 import { claimBitrixDispatch, withDispatchMeta } from '../_shared/bitrixDispatchGuard.ts';
 import { evaluarPrecioMinimoZona } from '../_shared/precioMinimoZona.ts';
+import { buildIdealistaUrl } from '../_shared/idealistaUrl.ts';
 
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
@@ -1656,8 +1657,21 @@ Deno.serve(async (req) => {
       deudas,
     };
 
+    // URL de búsqueda de Idealista (zona + máximo a financiar + habitaciones) para WhatsApp
+    const idealista = buildIdealistaUrl({
+      codMuni: evaluacionZona.cod_muni,
+      municipio: evaluacionZona.municipio,
+      zonaTexto: data.zona_interes,
+      ciudadTexto: (data as any).ciudad_interes,
+      montoMaxFinanciable: simulacionHipotecaria.monto_maximo_financiable || 0,
+      habitaciones: data.habitaciones,
+    });
+    console.log('[meta-lead-webhook] Idealista URL:', idealista.nivel, idealista.url);
+
     const simulacionHipotecariaEnriched = {
       ...simulacionHipotecaria,
+      idealista_url: idealista.url,
+      idealista_nivel: idealista.nivel,
       ingresos,
       deudas,
       // Campos novos calculados (Punto 1 + Punto 2) — necessários para o teste/manual

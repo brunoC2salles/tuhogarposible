@@ -260,6 +260,9 @@ export function buildBitrixPayloadFromLead(input: BitrixPayloadInput): Record<st
     sim_hipoteca_precio_max_por_ingresos: simHipoteca.precio_max_por_ingresos || 0,
     sim_hipoteca_credito_personal_max: simHipoteca.credito_personal_maximo || 0,
 
+    // ===== Idealista (búsqueda filtrada para WhatsApp) =====
+    idealista_url: simHipoteca.idealista_url || '',
+
     // ===== CRM e documentos =====
     crm_url: `https://tuhogarposible.lovable.app/agente/crm?lead=${lead.id}`,
     bewor_link_documentos: beworLink || '',
