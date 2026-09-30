@@ -198,10 +198,12 @@ export interface ResultadosSimulacionHipoteca {
 
 /**
  * Calcula el Precio Máximo de Inmueble Recomendado combinando dos topes:
- * - Punto 1 (ahorros): CPmax = (15.000 + Ahorros) / 2 ; PrecioMax_P1 = CPmax / %ITP
+ * - Punto 1 (ahorros): PrecioMax_P1 = (15.000 + Ahorros − 2.000) / (% entrada + %ITP)
  * - Punto 2 (ingresos): PrecioMax_P2 = montoMaximoFinanciable / (%financiación / 100)
  * Resultado: MIN(P1, P2)
  */
+export const GASTOS_COMPRAVENTA_P1 = 2000;
+
 export function calcularPrecioMaximoInmueble(params: {
   ahorros: number;
   comunidad: string;
@@ -219,12 +221,16 @@ export function calcularPrecioMaximoInmueble(params: {
   const { ahorros, comunidad, familiaNumerosa, menorDe35, montoMaximoFinanciable, porcentajeFinanciamiento } = params;
 
   // Punto 1 — Tope por ahorros
+  // P1 = (15.000 + Ahorros − 2.000 gastos) / (% entrada no financiada + %ITP)
+  // cpMax se mantiene con la fórmula antigua solo por compatibilidad (Bitrix).
   const cpMax = Math.max(0, (15000 + Math.max(0, ahorros)) / 2);
   const tasaAplicada = getTasaITP(comunidad, familiaNumerosa, menorDe35);
-  const precioMaxP1 = tasaAplicada > 0 ? Math.round(cpMax / tasaAplicada) : 0;
+  const pctDec = porcentajeFinanciamiento / 100;
+  const fondosP1 = Math.max(0, 15000 + Math.max(0, ahorros) - GASTOS_COMPRAVENTA_P1);
+  const denominadorP1 = (1 - pctDec) + tasaAplicada;
+  const precioMaxP1 = denominadorP1 > 0 ? Math.round(fondosP1 / denominadorP1) : 0;
 
   // Punto 2 — Tope por ingresos (hipoteca máxima reconvertida a precio del inmueble)
-  const pctDec = porcentajeFinanciamiento / 100;
   const precioMaxP2 = pctDec > 0 ? Math.round(montoMaximoFinanciable / pctDec) : 0;
 
   // Resultado final: el más restrictivo
@@ -586,11 +592,12 @@ export function calcularSimulacionHipoteca(datos: DatosSimulacionHipoteca): Resu
   const capitalPropioNecesario = entradaNecesaria + gastosImpuestos;
   
   // 10. PLAZO EFECTIVO
-  const edadMaxima = datos.numeroTitulares === '1' 
-    ? datos.edad 
-    : Math.max(datos.edad, ...(datos.titulares || []).map(t => t.edad));
-  
-  const plazoMaximoPorEdad = calcularPlazoMaximo(edadMaxima);
+  // Con varios titulares, el plazo se calcula con la edad del titular MÁS JOVEN.
+  const edadReferencia = datos.numeroTitulares === '1'
+    ? datos.edad
+    : Math.min(datos.edad, ...(datos.titulares || []).map(t => t.edad));
+
+  const plazoMaximoPorEdad = calcularPlazoMaximo(edadReferencia);
   const plazoEfectivoAnios = Math.min(datos.plazoHipotecaAnios, plazoMaximoPorEdad);
   const plazoEfectivoMeses = plazoEfectivoAnios * 12;
   

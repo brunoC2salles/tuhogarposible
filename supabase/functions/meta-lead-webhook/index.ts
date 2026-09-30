@@ -1019,9 +1019,15 @@ function calcularSimulacionHipotecaria(ingresos: number, deudas: number, edad?: 
 
 /**
  * Precio Máximo de Inmueble Recomendado = MIN(P1, P2).
- * P1: CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
- * Aplica descuentos: familia numerosa -50%, menor de 35 -10%.
+ * P1 (ahorros): fondos = 15.000 (crédito personal) + ahorros
+ *   P1 = (fondos − gastos compraventa 2.000) / (% entrada no financiada + %ITP)
+ *   → precio en el que los fondos cubren exactamente entrada + ITP + gastos (criterio Persefone).
+ * P2 (ingresos): monto_max_financiable / %financiación
+ * Aplica descuentos ITP: familia numerosa -50%, menor de 35 -10%.
+ * cp_max se mantiene con la fórmula antigua ((15.000 + ahorros) / 2) solo por compatibilidad con Bitrix.
  */
+const GASTOS_COMPRAVENTA = 2000;
+
 function calcularPrecioMaximoInmuebleMeta(params: {
   ahorros: number;
   comunidad?: string | null;
@@ -1032,11 +1038,16 @@ function calcularPrecioMaximoInmuebleMeta(params: {
 }) {
   const ahorros = Math.max(params.ahorros || 0, 0);
   const tasaITP = getTasaITP(params.comunidad, params.familia_numerosa, params.menor_de_35);
-  // P1: CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
-  const cpMax = (15000 + ahorros) / 2;
-  const precioMaxP1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
-
   const pct = (params.pct_financiacion || 90) / 100;
+
+  // P1: (15.000 + ahorros − 2.000) / (entrada + %ITP)
+  const fondos = 15000 + ahorros;
+  const denominadorP1 = (1 - pct) + tasaITP;
+  const precioMaxP1 = denominadorP1 > 0
+    ? Math.round(Math.max(fondos - GASTOS_COMPRAVENTA, 0) / denominadorP1)
+    : 0;
+  const cpMax = (15000 + ahorros) / 2;
+
   const precioMaxP2 = pct > 0 ? Math.round((params.monto_max_financiable || 0) / pct) : 0;
 
   const candidatos = [precioMaxP1, precioMaxP2].filter(v => v > 0);
@@ -1342,7 +1353,8 @@ Deno.serve(async (req) => {
       (data as any).metros_cuadrados ?? (data as any).superficie ?? (data as any).metros ?? 0
     ) || null;
     const evaluacionZona = evaluarPrecioMinimoZona({
-      maxFinanciable: prePrecioMax.precio_max_recomendado,
+      // Zona compara con P2 (tope por ingresos): la falta de ahorros no descualifica por zona.
+      maxFinanciable: prePrecioMax.precio_max_p2,
       zonaTexto: data.zona_interes,
       ciudadTexto: (data as any).ciudad_interes,
       superficieDeseada: superficieDeseadaLead,

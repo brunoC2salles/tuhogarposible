@@ -129,9 +129,11 @@ function getTasaITP(comunidad?: string | null, familiaNumerosa = false, menorDe3
 function calcularPrecioMaximo(ahorros: number, comunidad: string | null | undefined, montoFin: number, familiaNumerosa = false, menorDe35 = false) {
   const a = Math.max(ahorros || 0, 0);
   const tasaITP = getTasaITP(comunidad, familiaNumerosa, menorDe35);
-  // CPmax = (15.000 + ahorros) / 2 → P1 = CPmax / %ITP
+  // P1 = (15.000 + ahorros − 2.000 gastos) / (entrada no financiada + %ITP)
+  // cp_max se mantiene con la fórmula antigua solo por compatibilidad con Bitrix.
   const cpMax = (15000 + a) / 2;
-  const p1 = tasaITP > 0 ? Math.round(cpMax / tasaITP) : 0;
+  const denominadorP1 = (1 - PCT_FINANCIACION) + tasaITP;
+  const p1 = denominadorP1 > 0 ? Math.round(Math.max(15000 + a - 2000, 0) / denominadorP1) : 0;
   const p2 = Math.round((montoFin || 0) / PCT_FINANCIACION);
   const cand = [p1, p2].filter(v => v > 0);
   const reco = cand.length > 0 ? Math.min(...cand) : 0;

@@ -133,7 +133,7 @@ export function ResultadosSimulacionHipotecaria({
                   <p className="text-muted-foreground">Tope por ahorros (Punto 1)</p>
                   <p className="font-semibold">{formatEuro(resultados.precioMaxPorAhorros || 0)}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">
-                    CPmax {formatEuro(resultados.creditoPersonalMaximo || 0)} / {((resultados.tasaITPAplicada || 0) * 100).toFixed(1).replace('.', ',')}% ITP
+                    (Ahorros + 15.000 − 2.000 gastos) / ({(100 - resultados.porcentajeFinanciamiento).toFixed(0)}% entrada + {((resultados.tasaITPAplicada || 0) * 100).toFixed(1).replace('.', ',')}% ITP)
                   </p>
                 </div>
                 <div>
