@@ -14,6 +14,7 @@
 // ============================================================================
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { buildBitrixPayloadFromLead, isLeadQualifiedForBitrix } from '../_shared/bitrixPayload.ts';
+import { reemplazarNumerosEnTexto } from '../_shared/numeroTexto.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,7 +35,8 @@ const MIN_CAPACIDAD_MES = 350;
 // Reparse robusto de ahorros a partir del texto original ("10 mil", "20 mil euros", "10/15 mil", "5k")
 function parseAhorrosTexto(raw?: string | null): number {
   if (!raw) return 0;
-  const t = String(raw).toLowerCase().trim();
+  const convertido = reemplazarNumerosEnTexto(String(raw));
+  const t = convertido.toLowerCase().trim();
   const rango = t.match(/([0-9]+(?:[.,][0-9]+)?)\s*(?:\/|-|–|a)\s*([0-9]+(?:[.,][0-9]+)?)\s*(k|mil(?:es)?)\b/);
   if (rango) {
     const a = parseFloat(rango[1].replace(',', '.'));
@@ -45,6 +47,11 @@ function parseAhorrosTexto(raw?: string | null): number {
   if (m) {
     const n = parseFloat(m[1].replace(',', '.'));
     if (!isNaN(n)) return Math.round(n * 1000);
+  }
+  // Solo si vino escrito en letras y quedó un número puro ("Cincomil" -> "5000")
+  if (convertido !== String(raw) && /^\d+(?:\s*(?:euros?|€))?$/.test(t)) {
+    const n = parseInt(t, 10);
+    if (!isNaN(n)) return n;
   }
   return 0;
 }

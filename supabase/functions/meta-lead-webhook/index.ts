@@ -10,6 +10,7 @@ import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload
 import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 import { esZonaCastellon } from '../_shared/castellon.ts';
+import { reemplazarNumerosEnTexto } from '../_shared/numeroTexto.ts';
 
 // Agente exclusivo del CRM Castellón
 const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
@@ -515,7 +516,8 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
 function parseIngresos(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
 
-  const original = rangoIngresos.toLowerCase().trim();
+  // Números escritos en letras ("Mil euros" -> "1000 euros")
+  const original = reemplazarNumerosEnTexto(rangoIngresos).toLowerCase().trim();
 
   // Tentar match exato no map legado
   if (RANGO_INGRESOS_MAP[original]) {
@@ -620,7 +622,7 @@ function parseDeudas(deudasInput?: string | number): number {
   }
   
   // String: remover símbolos, converter vírgula decimal para ponto
-  const cleaned = String(deudasInput)
+  const cleaned = reemplazarNumerosEnTexto(String(deudasInput))
     .replace(/[€$\s]/g, '')  // Remove símbolos monetários e espaços
     .replace(',', '.');       // Vírgula decimal → ponto
   
@@ -645,7 +647,8 @@ function parseAhorros(input?: string | number): number {
   }
 
   // Normalizar string: minúsculas, sem símbolos monetários, espaços colapsados
-  const raw = String(input)
+  // Números escritos en letras ("Cincomil" -> "5000")
+  const raw = reemplazarNumerosEnTexto(String(input))
     .toLowerCase()
     .replace(/\u00a0/g, ' ')
     .replace(/[€$]/g, '')
