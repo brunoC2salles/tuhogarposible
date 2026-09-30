@@ -2,10 +2,9 @@
 // SHARED — URL de búsqueda de Idealista para el lead (WhatsApp vía Spoki/Make)
 //
 // Formato validado manualmente (2026-09-30):
-//   https://www.idealista.com/venta-viviendas/{municipio}-{provincia}/con-precio-hasta_{monto},{dormitorios}/
+//   https://www.idealista.com/venta-viviendas/{municipio}-{provincia}/con-precio-hasta_{monto}/
 //   - precio: monto_maximo_financiable (entero, sin redondear)
-//   - dormitorios: de-un-dormitorio | de-dos-dormitorios | de-tres-dormitorios |
-//                  de-cuatro-cinco-habitaciones-o-mas (se pueden combinar con coma)
+//   - dormitorios: NO se aplica desde 2026-09-30 (filtrosDormitorios queda disponible pero sin uso)
 // Municipio: {nombre INE con ambas lenguas}-{provincia} (ej. castellon-de-la-plana-castello-de-la-plana-castellon)
 // Provincia (sin municipio reconocido):
 //   - /{provincia}-provincia/ si algún municipio de la provincia tiene el mismo slug (ej. /sevilla-provincia/, /madrid-provincia/)
@@ -159,7 +158,7 @@ export function buildIdealistaUrl(params: {
   const filtros: string[] = [];
   const monto = Math.floor(Number(params.montoMaxFinanciable) || 0);
   if (monto > 0) filtros.push(`con-precio-hasta_${monto}`);
-  filtros.push(...filtrosDormitorios(params.habitaciones));
+  // Sin filtro de dormitorios (decisión 2026-09-30): solo zona + precio máximo.
 
   const url = filtros.length > 0 ? `${BASE}/${ubicacion}/${filtros.join(',')}/` : `${BASE}/${ubicacion}/`;
   return { url, nivel };
