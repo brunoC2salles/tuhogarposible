@@ -1609,6 +1609,17 @@ Deno.serve(async (req) => {
         ? '[Tally]'
         : 'Lead do Meta Ads.';
 
+    // URL de búsqueda de Idealista (zona + máximo a financiar + habitaciones) para WhatsApp
+    const idealista = buildIdealistaUrl({
+      codMuni: evaluacionZona.cod_muni,
+      municipio: evaluacionZona.municipio,
+      zonaTexto: data.zona_interes,
+      ciudadTexto: (data as any).ciudad_interes,
+      montoMaxFinanciable: simulacionHipotecaria.monto_maximo_financiable || 0,
+      habitaciones: data.habitaciones,
+    });
+    console.log('[meta-lead-webhook] Idealista URL:', idealista.nivel, idealista.url);
+
     // Montar notas com informações de qualificação
     const notasLead = [
       sourcePrefix,
@@ -1646,6 +1657,7 @@ Deno.serve(async (req) => {
         : `Base del área: ${evaluacionZona.precio_base.toLocaleString('es-ES')}€ (fuente: ${evaluacionZona.fuente_precio || 'n/d'}${
             evaluacionZona.precio_m2 ? ` · ${evaluacionZona.precio_m2.toLocaleString('es-ES')}€/m²` : ''
           }${evaluacionZona.superficie_ref ? ` × ${Math.round(evaluacionZona.superficie_ref)} m² (${evaluacionZona.superficie_origen || 'n/d'})` : ''}) × ${evaluacionZona.margen_aplicado}`,
+          idealista.url ? `Búsqueda Idealista: ${idealista.url}` : 'Búsqueda Idealista: sin zona reconocida',
     ].filter(Boolean).join('\n');
     
     // Enriquecer JSONs de simulação com inputs raw + extras (para reenvio fiel pelo proxy)
@@ -1656,17 +1668,6 @@ Deno.serve(async (req) => {
       ingresos,
       deudas,
     };
-
-    // URL de búsqueda de Idealista (zona + máximo a financiar + habitaciones) para WhatsApp
-    const idealista = buildIdealistaUrl({
-      codMuni: evaluacionZona.cod_muni,
-      municipio: evaluacionZona.municipio,
-      zonaTexto: data.zona_interes,
-      ciudadTexto: (data as any).ciudad_interes,
-      montoMaxFinanciable: simulacionHipotecaria.monto_maximo_financiable || 0,
-      habitaciones: data.habitaciones,
-    });
-    console.log('[meta-lead-webhook] Idealista URL:', idealista.nivel, idealista.url);
 
     const simulacionHipotecariaEnriched = {
       ...simulacionHipotecaria,

@@ -44,6 +44,9 @@ export function buildSecondaryQualifiedPayload(input: SecondaryPayloadInput) {
     timezone: lead.zona_horaria_reunion ?? 'Europe/Madrid',
     appointmentPending: fallbackUsed,
 
+    // Búsqueda Idealista filtrada (zona + máximo a financiar + habitaciones)
+    idealista_url: (lead.simulador_hipotecario_data as any)?.idealista_url ?? '',
+
 
     // Metadata / contexto adicional
     event: 'lead.qualified',
