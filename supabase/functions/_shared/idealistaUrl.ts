@@ -6,9 +6,11 @@
 //   - precio: monto_maximo_financiable (entero, sin redondear)
 //   - dormitorios: NO se aplica desde 2026-09-30 (filtrosDormitorios queda disponible pero sin uso)
 // Municipio: {nombre INE con ambas lenguas}-{provincia} (ej. castellon-de-la-plana-castello-de-la-plana-castellon)
-// Provincia (sin municipio reconocido):
-//   - /{provincia}-provincia/ si algún municipio de la provincia tiene el mismo slug (ej. /sevilla-provincia/, /madrid-provincia/)
-//   - /{provincia}/ en caso contrario (ej. /castellon/, capital "castellon-de-la-plana-...")
+// Sin municipio reconocido (decisión 2026-09-30):
+//   - Solo provincia → capital de la provincia (ej. "Zaragoza" → zaragoza-zaragoza).
+//   - Solo comunidad autónoma → capital de la comunidad (ej. "Aragón" → zaragoza-zaragoza,
+//     "Galicia" → santiago-de-compostela-a-coruna). Canarias (capitalidad compartida) queda sin enlace.
+//   (/{provincia}-provincia/ ya no se usa; segmentoProvincia queda disponible sin uso)
 // Excepciones verificadas en MUNICIPIO_SLUG_OVERRIDE.
 // Sin municipio ni provincia → '' (no se envía enlace).
 // ============================================================================
@@ -31,6 +33,39 @@ export const PROVINCIA_SLUG: Record<string, string> = {
   '41': 'sevilla', '42': 'soria', '43': 'tarragona', '44': 'teruel', '45': 'toledo',
   '46': 'valencia', '47': 'valladolid', '48': 'vizcaya', '49': 'zamora', '50': 'zaragoza',
   '51': 'ceuta', '52': 'melilla',
+};
+
+/** Código INE de provincia → cod_muni INE de su capital. */
+export const CAPITAL_PROVINCIA: Record<string, string> = {
+  '01': '01059', '02': '02003', '03': '03014', '04': '04013', '05': '05019', '06': '06015',
+  '07': '07040', '08': '08019', '09': '09059', '10': '10037', '11': '11012', '12': '12040',
+  '13': '13034', '14': '14021', '15': '15030', '16': '16078', '17': '17079', '18': '18087',
+  '19': '19130', '20': '20069', '21': '21041', '22': '22125', '23': '23050', '24': '24089',
+  '25': '25120', '26': '26089', '27': '27028', '28': '28079', '29': '29067', '30': '30030',
+  '31': '31201', '32': '32054', '33': '33044', '34': '34120', '35': '35016', '36': '36038',
+  '37': '37274', '38': '38038', '39': '39075', '40': '40194', '41': '41091', '42': '42173',
+  '43': '43148', '44': '44216', '45': '45168', '46': '46250', '47': '47186', '48': '48020',
+  '49': '49275', '50': '50297', '51': '51001', '52': '52001',
+};
+
+/** Comunidad autónoma en texto libre → cod_muni INE de su capital (solo si no hay provincia). */
+const CCAA_CAPITAL_ALIAS: Record<string, string> = {
+  'andalucia': '41091',
+  'aragon': '50297',
+  'principado de asturias': '33044',
+  'islas baleares': '07040', 'illes balears': '07040',
+  'cantabria': '39075',
+  'castilla y leon': '47186',
+  'castilla la mancha': '45168',
+  'cataluna': '08019', 'catalunya': '08019',
+  'comunidad valenciana': '46250', 'comunitat valenciana': '46250', 'pais valenciano': '46250',
+  'extremadura': '06083',
+  'galicia': '15078',
+  'comunidad de madrid': '28079',
+  'region de murcia': '30030',
+  'comunidad foral de navarra': '31201',
+  'pais vasco': '01059', 'euskadi': '01059',
+  'la rioja': '26089',
 };
 
 /** Nombres/variantes de provincia en texto libre → código INE (fallback sin municipio). */
@@ -128,6 +163,38 @@ function provinciaDesdeTexto(...textos: (string | null | undefined)[]): string |
   return null;
 }
 
+let _nombresMunicipio: Map<string, string> | null = null;
+
+function nombreMunicipio(codMuni: string): string | null {
+  if (!_nombresMunicipio) {
+    _nombresMunicipio = new Map();
+    for (const [cod, name] of ZONA_PRECIOS_DATA.municipios) _nombresMunicipio.set(String(cod), name);
+  }
+  return _nombresMunicipio.get(codMuni) ?? null;
+}
+
+/**
+ * Sin municipio reconocido: devuelve la capital de la provincia o, si solo hay
+ * comunidad autónoma, la capital de la comunidad. Coincidencia más larga primero
+ * ("castilla y leon" antes que "leon", "la rioja" como comunidad = provincia).
+ */
+function capitalDesdeTexto(
+  ...textos: (string | null | undefined)[]
+): { codMuni: string; nivel: 'capital_provincia' | 'capital_ccaa' } | null {
+  const candidatos: [string, string, 'capital_provincia' | 'capital_ccaa'][] = [
+    ...Object.entries(PROVINCIA_ALIAS).map(([a, cp]) => [a, CAPITAL_PROVINCIA[cp], 'capital_provincia'] as [string, string, 'capital_provincia']),
+    ...Object.entries(CCAA_CAPITAL_ALIAS).map(([a, cm]) => [a, cm, 'capital_ccaa'] as [string, string, 'capital_ccaa']),
+  ].sort((x, y) => y[0].length - x[0].length);
+  for (const t of textos) {
+    if (!t) continue;
+    const norm = normalizarZona(t);
+    for (const [alias, codMuni, nivel] of candidatos) {
+      if (codMuni && new RegExp(`(^|\\s)${alias}(\\s|$)`).test(norm)) return { codMuni, nivel };
+    }
+  }
+  return null;
+}
+
 export function buildIdealistaUrl(params: {
   codMuni?: string | null;
   municipio?: string | null;
@@ -135,9 +202,9 @@ export function buildIdealistaUrl(params: {
   ciudadTexto?: string | null;
   montoMaxFinanciable: number;
   habitaciones?: string | number | null;
-}): { url: string; nivel: 'municipio' | 'provincia' | 'sin_dato' } {
+}): { url: string; nivel: 'municipio' | 'capital_provincia' | 'capital_ccaa' | 'sin_dato' } {
   let ubicacion = '';
-  let nivel: 'municipio' | 'provincia' | 'sin_dato' = 'sin_dato';
+  let nivel: 'municipio' | 'capital_provincia' | 'capital_ccaa' | 'sin_dato' = 'sin_dato';
 
   const codProv = params.codMuni ? params.codMuni.slice(0, 2) : null;
   const provSlug = codProv ? PROVINCIA_SLUG[codProv] : null;
@@ -146,10 +213,14 @@ export function buildIdealistaUrl(params: {
     ubicacion = `${slugMunicipio(params.municipio, params.codMuni)}-${provSlug}`;
     nivel = 'municipio';
   } else {
-    const cod = provinciaDesdeTexto(params.zonaTexto, params.ciudadTexto);
-    if (cod && PROVINCIA_SLUG[cod]) {
-      ubicacion = segmentoProvincia(cod);
-      nivel = 'provincia';
+    const capital = capitalDesdeTexto(params.zonaTexto, params.ciudadTexto);
+    if (capital) {
+      const provCap = PROVINCIA_SLUG[capital.codMuni.slice(0, 2)];
+      const nombre = nombreMunicipio(capital.codMuni);
+      if (provCap && nombre) {
+        ubicacion = `${slugMunicipio(nombre, capital.codMuni)}-${provCap}`;
+        nivel = capital.nivel;
+      }
     }
   }
 
