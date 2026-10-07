@@ -1612,13 +1612,20 @@ Deno.serve(async (req) => {
         ? '[Tally]'
         : 'Lead do Meta Ads.';
 
-    // URL de búsqueda de Idealista (zona + máximo a financiar + habitaciones) para WhatsApp
+    // URL de búsqueda de Idealista para WhatsApp.
+    // El precio máximo de la búsqueda es EXACTAMENTE el mismo valor que se envía como
+    // sim_hipoteca_monto_financiable (MAX_FINANCIABLE en Spoki): precio_maximo_inmueble
+    // = MIN(P1, P2) (regla Persefone), con fallback a monto_maximo_financiable — misma
+    // lógica que _shared/bitrixPayload.ts. Decisión 2026-10-07.
     const idealista = buildIdealistaUrl({
       codMuni: evaluacionZona.cod_muni,
       municipio: evaluacionZona.municipio,
       zonaTexto: data.zona_interes,
       ciudadTexto: (data as any).ciudad_interes,
-      montoMaxFinanciable: simulacionHipotecaria.monto_maximo_financiable || 0,
+      montoMaxFinanciable:
+        Number(precioMaxInmueble.precio_max_recomendado) > 0
+          ? Number(precioMaxInmueble.precio_max_recomendado)
+          : Number(simulacionHipotecaria.monto_maximo_financiable) || 0,
       habitaciones: data.habitaciones,
     });
     console.log('[meta-lead-webhook] Idealista URL:', idealista.nivel, idealista.url);
