@@ -496,11 +496,17 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
     'san sebastián': 'País Vasco',
     'san sebastian': 'País Vasco',
     'logroño': 'La Rioja',
-    'logronyo': 'La Rioja'
+    'logronyo': 'La Rioja',
+    // Fix 2026-10-08: 'las palmas' contiene 'palma' (Baleares)
+    'las palmas': 'Canarias',
+    'gran canaria': 'Canarias'
   };
   
+  // Fix 2026-10-08: ignorar coincidencias contenidas en otra coincidencia más larga
+  // ('palma' dentro de 'las palmas'); el resto mantiene el orden original del mapa.
+  const ciudadesCoinciden = Object.keys(ciudadesMap).filter(k => resp.includes(k));
   for (const [ciudad, region] of Object.entries(ciudadesMap)) {
-    if (resp.includes(ciudad)) {
+    if (resp.includes(ciudad) && !ciudadesCoinciden.some(o => o !== ciudad && o.length > ciudad.length && o.includes(ciudad))) {
       return { 
         zona: respuesta, 
         ciudad: ciudad.charAt(0).toUpperCase() + ciudad.slice(1),
@@ -513,7 +519,24 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
   return { zona: respuesta };
 }
 
+/**
+ * Fix 2026-10-08: si la respuesta indica ingresos ANUALES ("30.000 €/año", "anual"),
+ * se divide por 12 (decisión Bruno). Si menciona mes/mensual, se trata como mensual.
+ */
 function parseIngresos(rangoIngresos?: string): number {
+  const base = parseIngresosBase(rangoIngresos);
+  if (!rangoIngresos) return base;
+  const txt = reemplazarNumerosEnTexto(rangoIngresos).toLowerCase();
+  // Guardas: "14 pagas al año" es mensual; y solo se divide si el valor leído es >= 10.000
+  // (evita convertir cifras mensuales como "2600/año ... 47.000 brutos año").
+  const esAnual = /(a[nñ]o|anual|annual|year)/.test(txt) && !/(\bmes|mensual|month|pagas)/.test(txt);
+  if (esAnual && /\d/.test(txt) && base >= 10000) {
+    return Math.round(base / 12);
+  }
+  return base;
+}
+
+function parseIngresosBase(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
 
   // Números escritos en letras ("Mil euros" -> "1000 euros")
@@ -584,8 +607,11 @@ function determinarRegion(zonaInteres?: string): string | null {
   
   const zonaNormalizada = zonaInteres.toLowerCase().trim();
   
+  // Fix 2026-10-08: ignorar coincidencias contenidas en otra coincidencia más larga
+  // ('palma' dentro de 'las palmas'); el resto mantiene el orden original del mapa.
+  const clavesCoinciden = Object.keys(CIUDADES_COMUNIDAD_MAP).filter(k => zonaNormalizada.includes(k));
   for (const [key, comunidad] of Object.entries(CIUDADES_COMUNIDAD_MAP)) {
-    if (zonaNormalizada.includes(key)) {
+    if (zonaNormalizada.includes(key) && !clavesCoinciden.some(o => o !== key && o.length > key.length && o.includes(key))) {
       return comunidad;
     }
   }
@@ -655,6 +681,13 @@ function parseAhorros(input?: string | number): number {
     .replace(/\s+/g, ' ')
     .trim();
   if (!raw) return 0;
+
+  // Fix 2026-10-08: "Sí, 5000€" -> quitar el "sí" inicial para leer el número
+  const sinAfirmacion = raw.replace(/^(s[ií]|yes|claro)(?=[\s,.:;-]|$)[\s,.:;-]*/, '').trim();
+  if (sinAfirmacion !== raw) {
+    if (!sinAfirmacion) return 0;
+    return parseAhorros(sinAfirmacion);
+  }
 
   // Helper local: parsea número respeitando separador de milhar
   const parseNumLocal = (s: string): number | null => {
