@@ -20,7 +20,7 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
-import { CallTimeFilter, matchesCallTime, tieneVivienda } from '@/lib/leadFilters';
+import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda } from '@/lib/leadFilters';
 import { esZonaCastellon } from '@/lib/castellon';
 
 type PeriodOption = '30' | '90' | 'all';
@@ -89,11 +89,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
     }
     const q = kanbanSearch.trim().toLowerCase();
     if (q) {
-      const digits = q.replace(/\D/g, '');
-      result = result.filter(lead =>
-        lead.nombre_completo.toLowerCase().includes(q) ||
-        (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-      );
+      result = result.filter(lead => matchesLeadSearch(lead, q));
     }
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
@@ -255,7 +251,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por nombre o teléfono..."
+                      placeholder="Buscar por nombre, teléfono o ciudad..."
                       value={kanbanSearch}
                       onChange={e => setKanbanSearch(e.target.value)}
                       className="pl-9"

@@ -11,6 +11,7 @@ import { SimuladoresModal } from './SimuladoresModal';
 
 import { useLeads } from '@/hooks/useLeads';
 import { Lead, LeadStage, LeadFormData } from '@/types/crm';
+import { matchesLeadSearch } from '@/lib/leadFilters';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { Search, Users, Download, Ban, CalendarDays, CalendarRange, Calendar } from 'lucide-react';
@@ -40,11 +41,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
     const byAgent = leads.filter(lead => lead.agente_asignado_id === agentId);
     const q = searchQuery.trim().toLowerCase();
     if (!q) return byAgent;
-    const digits = q.replace(/\D/g, '');
-    return byAgent.filter(lead =>
-      lead.nombre_completo.toLowerCase().includes(q) ||
-      (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-    );
+    return byAgent.filter(lead => matchesLeadSearch(lead, q));
   }, [leads, agentId, searchQuery]);
 
   // Period statistics
@@ -186,7 +183,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Buscar por nombre..." 
+                  placeholder="Buscar por nombre, teléfono o ciudad..." 
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-64"

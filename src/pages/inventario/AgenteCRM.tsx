@@ -20,7 +20,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { Badge } from '@/components/ui/badge';
 import StandaloneDocsButton from '@/components/crm/StandaloneDocsButton';
-import { CallTimeFilter, matchesCallTime, tieneVivienda } from '@/lib/leadFilters';
+import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda } from '@/lib/leadFilters';
 import { esZonaCastellon } from '@/lib/castellon';
 
 interface AgenteCRMProps {
@@ -57,11 +57,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
     let result = leads;
     const q = searchQuery.trim().toLowerCase();
     if (q) {
-      const digits = q.replace(/\D/g, '');
-      result = result.filter(lead =>
-        lead.nombre_completo.toLowerCase().includes(q) ||
-        (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
-      );
+      result = result.filter(lead => matchesLeadSearch(lead, q));
     }
     if (callTimeFilter) {
       result = result.filter(lead => matchesCallTime(lead, callTimeFilter));
@@ -148,7 +144,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar por nombre o teléfono..." 
+                placeholder="Buscar por nombre, teléfono o ciudad..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 w-64"

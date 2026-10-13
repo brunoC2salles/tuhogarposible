@@ -1,4 +1,5 @@
 import { Lead } from '@/types/crm';
+import { normalizeText } from '@/lib/textUtils';
 
 export type CallTimeFilter = 'manana' | 'tarde' | 'noche';
 
@@ -46,4 +47,20 @@ export const tieneVivienda = (lead: Lead): boolean => {
 
   const v = normalize(String(valor));
   return v === 'si' || v === 's' || v === 'yes' || v === '1' || v === 'true' || v.startsWith('si ');
+};
+
+/**
+ * Búsqueda del CRM: nombre, teléfono o ciudad/zona de interés (sin distinguir acentos).
+ * Ejemplo: "malaga" encuentra "Málaga capital".
+ */
+export const matchesLeadSearch = (lead: Lead, query: string): boolean => {
+  const q = normalizeText(query.trim());
+  if (!q) return true;
+  const digits = q.replace(/\D/g, '');
+  return (
+    normalizeText(lead.nombre_completo || '').includes(q) ||
+    normalizeText(lead.ciudad_interes || '').includes(q) ||
+    normalizeText(lead.zona_interes || '').includes(q) ||
+    (digits.length > 0 && (lead.telefono || '').replace(/\D/g, '').includes(digits))
+  );
 };
