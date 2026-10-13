@@ -8,10 +8,16 @@ export interface DisqualifiedEmailPayloadInput {
   lead: Record<string, any>;   // shape mínimo do lead recém-criado
   razonNoCualificado: string;  // motivo da desqualificação (já calculado em qualificarLead)
   source: string;              // 'meta_ads' | 'tally' | 'tally_housage' | 'test'
+  // 2026-10-13: lista completa de motivos (código + texto) y máximo a financiar
+  // (mismo valor que se envía a Spoki). Opcionales por compatibilidad.
+  razones?: { codigo: string; texto: string }[];
+  maxFinanciable?: number | null;
 }
 
 export function buildDisqualifiedEmailPayload(input: DisqualifiedEmailPayloadInput) {
   const { lead, razonNoCualificado, source } = input;
+  const razones = Array.isArray(input.razones) ? input.razones : [];
+  const maxFin = Number(input.maxFinanciable) || 0;
 
   return {
     event: 'lead.disqualified',
@@ -31,6 +37,11 @@ export function buildDisqualifiedEmailPayload(input: DisqualifiedEmailPayloadInp
     cualificacion: {
       cualificado: false,
       razon_no_cualificado: razonNoCualificado || null,
+      razones,
+      codigos: razones.map((r) => r.codigo),
+      total_razones: razones.length,
+      max_financiable: maxFin > 0 ? Math.round(maxFin) : null,
+      max_financiable_texto: maxFin > 0 ? Math.round(maxFin).toLocaleString('es-ES') : null,
     },
   };
 }
@@ -54,6 +65,12 @@ export async function dispatchDisqualifiedEmail(
     const enabled = (enabledSetting?.value ?? 'true').toString().toLowerCase() !== 'false';
     if (!enabled) {
       return { sent: false, error: 'disabled' };
+    }
+
+    // 2026-10-13 (decisión Bruno): sin DNI/NIE el lead no recibe email.
+    if ((input.razones || []).some((r) => r?.codigo === 'nie_dni')) {
+      console.log('[disqualifiedEmailPayload] envio ignorado (sin NIE/DNI)');
+      return { sent: false, error: 'nie_dni' };
     }
 
     // Não enviar email de desqualificados para leads com mais de 65 anos.
