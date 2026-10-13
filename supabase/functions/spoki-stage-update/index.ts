@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
 
   const phone = ultimos9(body?.phone);
   const origen = String(body?.origen || 'spoki').slice(0, 60);
-  if (phone.length !== 9) return json({ ok: false, error: 'telefono_invalido' }, 400);
 
   const log = async (status: string, msg: string | null, payload: Record<string, unknown>) => {
     try {
@@ -37,6 +36,13 @@ Deno.serve(async (req) => {
       });
     } catch { /* no bloquear */ }
   };
+
+  // Teléfono inválido (p. ej. "Probar conexión" de Spoki): se registra y se responde sin error
+  // para no desactivar el escenario de Make.
+  if (phone.length !== 9) {
+    await log('error', 'telefono_invalido', { phone_recibido: String(body?.phone ?? '').slice(0, 40) });
+    return json({ ok: true, updated: false, reason: 'telefono_invalido' });
+  }
 
   const { data: leads, error } = await supabase
     .from('leads')
