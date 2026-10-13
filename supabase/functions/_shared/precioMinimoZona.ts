@@ -228,7 +228,10 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
           !n ? null : t === n ? 'todo' : t.startsWith(n + ' ') ? 'inicio' : t.endsWith(' ' + n) ? 'fin' : null;
         const nombreS = sinArticulos(nombre);
         const posLit = posEn(tok, nombre);
-        const pos = posLit || (nombreS.length >= 4 ? posEn(tokS, nombreS) : null);
+        // Sin artículos: nombres de 2+ palabras en cualquier posición ("prat llobregat barcelona");
+        // de 1 palabra solo si es el trozo entero ("orotava" -> La Orotava, pero "burgo capital" no es El Burgo).
+        const posS = nombreS.length >= 4 && nombreS !== nombre ? posEn(tokS, nombreS) : null;
+        const pos = posLit || (posS && (nombreS.includes(' ') || posS === 'todo') ? posS : null);
         if (!pos) continue;
         const row = mejor(rows, nombre);
         if (row) cands.push({ nombre, clave: nombreS, row, pos, literal: !!posLit });
