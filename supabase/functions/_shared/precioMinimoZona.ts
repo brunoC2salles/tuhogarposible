@@ -163,17 +163,21 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
   }
   if (tokens.length === 0) return [];
 
-  // Fix 2026-10-13: provincias/comunidades citadas en el texto. Un municipio cuyo nombre
-  // forma parte de una de ellas sin pertenecer a ella se descarta
-  // ("la rioja" -> no es Rioja (Almería); "castilla y leon" sigue pudiendo ser León).
+  // Fix 2026-10-13: provincias/comunidades citadas en el texto.
+  //  - Un municipio cuyo nombre forma parte de una provincia/comunidad citada sin pertenecer
+  //    a ella se descarta ("la rioja" -> no es Rioja (Almería)).
+  //  - Si se cita una provincia/comunidad, se prefieren municipios de ella
+  //    ("torrent valencia" -> Torrent (Valencia), no Torrent (Girona)).
   const textoCompleto = ' ' + tokens.join(' ') + ' ';
   const regiones = regionesEnTexto(textoCompleto);
+  const enRegion = (row: MuniRow) => regiones.some((r) => r.pertenece(row));
   const valido = (row: MuniRow, nombre: string) =>
     !regiones.some((r) =>
       r.alias !== nombre && contienePalabras(r.alias, nombre) && !r.pertenece(row)
     );
   const mejor = (cands: MuniRow[], nombre: string) => {
-    const ok = cands.filter((r) => valido(r, nombre));
+    let ok = cands.filter((r) => valido(r, nombre));
+    if (regiones.length && ok.some(enRegion)) ok = ok.filter(enRegion);
     return ok.length ? [...ok].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0] : null;
   };
 
@@ -187,25 +191,35 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
     if (row) encontrados.push({ idx: i, row });
   }
 
-  // 2) Coincidencia parcial (solo si no hubo ninguna exacta).
-  // Fix 2026-10-13: antes se tomaba el primer municipio que empezaba o terminaba el texto
-  // ("ronda sant antoni barcelona" -> Ronda). Ahora gana el nombre más largo que aparece
-  // como palabras completas al inicio o al final ("huelva palos de la frontera" -> Palos de la Frontera).
+  // 2) Coincidencia parcial (solo si no hubo ninguna exacta): municipio al inicio o al final del texto.
+  // Se mantiene el orden de antes; fix 2026-10-13:
+  //  a) si se cita una provincia/comunidad, solo cuentan municipios de ella ("ronda sant antoni barcelona" -> Barcelona);
+  //  b) entre ellos, un municipio concreto gana al nombre de la propia provincia ("lorca murcia" -> Lorca);
+  //  c) en la misma posición gana el nombre más largo ("colmenar viejo" -> Colmenar Viejo, no Colmenar;
+  //     "huelva palos de la frontera" -> Palos de la Frontera, no La Frontera).
   if (encontrados.length === 0) {
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
       if (tok.length < 4) continue;
-      let best: { nombre: string; row: MuniRow } | null = null;
-      for (const [nombre, cands] of _muniByName!) {
+      let cands: { nombre: string; row: MuniRow; pos: 'todo' | 'inicio' | 'fin' }[] = [];
+      for (const [nombre, rows] of _muniByName!) {
         if (nombre.length < 4) continue;
-        if (best && nombre.length <= best.nombre.length) continue;
-        if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
-          const row = mejor(cands, nombre);
-          if (row) best = { nombre, row };
-        }
+        const pos = tok === nombre ? 'todo' : tok.startsWith(nombre + ' ') ? 'inicio' : tok.endsWith(' ' + nombre) ? 'fin' : null;
+        if (!pos) continue;
+        const row = mejor(rows, nombre);
+        if (row) cands.push({ nombre, row, pos });
       }
-      if (best) {
-        encontrados.push({ idx: i, row: best.row });
+      if (regiones.length && cands.some((c) => enRegion(c.row))) cands = cands.filter((c) => enRegion(c.row));
+      const concretos = cands.filter((c) => !regiones.some((r) => r.alias === c.nombre));
+      if (concretos.length) cands = concretos;
+      if (cands.length) {
+        let elegido = cands[0];
+        for (const c of cands) {
+          const masLargo = c.nombre.length > elegido.nombre.length && c.pos === elegido.pos &&
+            (c.pos === 'inicio' ? c.nombre.startsWith(elegido.nombre + ' ') : c.nombre.endsWith(' ' + elegido.nombre));
+          if (masLargo) elegido = c;
+        }
+        encontrados.push({ idx: i, row: elegido.row });
         break;
       }
     }
