@@ -197,6 +197,15 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
 
   const encontrados: { idx: number; row: MuniRow }[] = [];
 
+  // 0) El texto entero es un municipio con guion o barra ("Vila-Seca" -> Vila-seca, no La Seca)
+  for (const t of textos) {
+    const full = normalizarZona(t);
+    if (!full || !/[\-–—/.]/.test(String(t))) continue;
+    const cands = _muniByName!.get(full) || _muniByCompact!.get(full.replace(/\s+/g, ''));
+    const row = cands ? mejor(cands, full) : null;
+    if (row) return [{ cod_muni: row.cod_muni, municipio: row.name, cod_ccaa: row.cod_ccaa, distrito_texto: null }];
+  }
+
   // 1) Coincidencia exacta de nombre de municipio (también sin espacios: "arenas de sanpedro")
   for (let i = tokens.length - 1; i >= 0; i--) {
     const tok = tokens[i];
