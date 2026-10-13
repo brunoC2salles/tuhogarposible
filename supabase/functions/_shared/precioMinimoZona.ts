@@ -157,8 +157,12 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
   for (const t of textos) {
     if (!t) continue;
     for (const parte of String(t).split(/[,;|\-–—>()./]+/)) {
-      const norm = normalizarZona(parte);
-      if (norm) tokens.push(norm);
+      // Fix 2026-10-13: alternativas con "o"/"u"/"ou" ("tarancon o toledo") se tratan como separadas.
+      // Ningún nombre oficial de municipio contiene " o ", " u " ni " ou " en medio.
+      for (const alt of normalizarZona(parte).split(/ (?:o|u|ou) /)) {
+        const norm = alt.trim();
+        if (norm) tokens.push(norm);
+      }
     }
   }
   if (tokens.length === 0) return [];
@@ -170,14 +174,24 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
   //    ("torrent valencia" -> Torrent (Valencia), no Torrent (Girona)).
   const textoCompleto = ' ' + tokens.join(' ') + ' ';
   const regiones = regionesEnTexto(textoCompleto);
-  const enRegion = (row: MuniRow) => regiones.some((r) => r.pertenece(row));
+  // Primero la provincia/comunidad citada; si no hay, la comunidad de esa provincia
+  // ("elche valencia" -> Elche, "venta de banos burgos" -> Venta de Baños).
+  const enRegionEstricta = (row: MuniRow) => regiones.some((r) => r.pertenece(row));
+  const enRegionAmplia = (row: MuniRow) => regiones.some((r) => r.ccaa === row.cod_ccaa);
+  const filtrarRegion = <T,>(items: T[], rowOf: (x: T) => MuniRow): T[] => {
+    if (!regiones.length) return items;
+    const a = items.filter((x) => enRegionEstricta(rowOf(x)));
+    if (a.length) return a;
+    const b = items.filter((x) => enRegionAmplia(rowOf(x)));
+    return b.length ? b : items;
+  };
   const valido = (row: MuniRow, nombre: string) =>
     !regiones.some((r) =>
       r.alias !== nombre && contienePalabras(r.alias, nombre) && !r.pertenece(row)
     );
   const mejor = (cands: MuniRow[], nombre: string) => {
     let ok = cands.filter((r) => valido(r, nombre));
-    if (regiones.length && ok.some(enRegion)) ok = ok.filter(enRegion);
+    ok = filtrarRegion(ok, (r) => r);
     return ok.length ? [...ok].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0] : null;
   };
 
@@ -201,22 +215,40 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
       if (tok.length < 4) continue;
-      let cands: { nombre: string; row: MuniRow; pos: 'todo' | 'inicio' | 'fin' }[] = [];
+      // También sin artículos/preposiciones ("coria de rio" -> Coria del Río, "fuente alamo murcia" -> Fuente Álamo de Murcia)
+      const tokS = sinArticulos(tok);
+      let cands: { nombre: string; clave: string; row: MuniRow; pos: 'todo' | 'inicio' | 'fin' }[] = [];
       for (const [nombre, rows] of _muniByName!) {
         if (nombre.length < 4) continue;
-        const pos = tok === nombre ? 'todo' : tok.startsWith(nombre + ' ') ? 'inicio' : tok.endsWith(' ' + nombre) ? 'fin' : null;
+        const posEn = (t: string, n: string) =>
+          !n ? null : t === n ? 'todo' : t.startsWith(n + ' ') ? 'inicio' : t.endsWith(' ' + n) ? 'fin' : null;
+        const nombreS = sinArticulos(nombre);
+        const pos = posEn(tok, nombre) || (nombreS.length >= 4 ? posEn(tokS, nombreS) : null);
         if (!pos) continue;
         const row = mejor(rows, nombre);
-        if (row) cands.push({ nombre, row, pos });
+        if (row) cands.push({ nombre, clave: nombreS, row, pos });
       }
-      if (regiones.length && cands.some((c) => enRegion(c.row))) cands = cands.filter((c) => enRegion(c.row));
-      const concretos = cands.filter((c) => !regiones.some((r) => r.alias === c.nombre));
-      if (concretos.length) cands = concretos;
+      // Orden de preferencia: municipio concreto de la provincia citada > de su comunidad >
+      // la propia provincia/comunidad citada > cualquier municipio concreto.
+      const esRegion = (c: { nombre: string }) => regiones.some((r) => r.alias === c.nombre);
+      const concretos = cands.filter((c) => !esRegion(c));
+      if (regiones.length) {
+        const niveles = [
+          concretos.filter((c) => enRegionEstricta(c.row)),
+          concretos.filter((c) => enRegionAmplia(c.row)),
+          cands.filter((c) => esRegion(c) && enRegionEstricta(c.row)),
+          cands.filter((c) => esRegion(c) && enRegionAmplia(c.row)),
+        ];
+        cands = niveles.find((n) => n.length) || (concretos.length ? concretos : cands);
+      } else if (concretos.length) {
+        cands = concretos;
+      }
       if (cands.length) {
-        let elegido = cands[0];
+        // Coincidencia completa sin artículos ("palacios y villafranca" -> Los Palacios y Villafranca)
+        let elegido = cands.find((c) => c.pos === 'todo') || cands[0];
         for (const c of cands) {
-          const masLargo = c.nombre.length > elegido.nombre.length && c.pos === elegido.pos &&
-            (c.pos === 'inicio' ? c.nombre.startsWith(elegido.nombre + ' ') : c.nombre.endsWith(' ' + elegido.nombre));
+          const masLargo = c.clave.length > elegido.clave.length && c.pos === elegido.pos &&
+            (c.pos === 'inicio' ? c.clave.startsWith(elegido.clave + ' ') : c.clave.endsWith(' ' + elegido.clave));
           if (masLargo) elegido = c;
         }
         encontrados.push({ idx: i, row: elegido.row });
@@ -273,7 +305,23 @@ const CCAA_ALIAS_ZONA: Record<string, string> = {
   'la rioja': '17',
 };
 
-interface RegionEnTexto { alias: string; pertenece: (row: MuniRow) => boolean }
+interface RegionEnTexto { alias: string; ccaa: string; pertenece: (row: MuniRow) => boolean }
+
+/** Código de comunidad (cod_ccaa de los datos) de cada provincia INE. */
+const CCAA_DE_PROVINCIA: Record<string, string> = {
+  '04': '01', '11': '01', '14': '01', '18': '01', '21': '01', '23': '01', '29': '01', '41': '01',
+  '22': '02', '44': '02', '50': '02', '33': '03', '07': '04', '35': '05', '38': '05', '39': '06',
+  '05': '07', '09': '07', '24': '07', '34': '07', '37': '07', '40': '07', '42': '07', '47': '07', '49': '07',
+  '02': '08', '13': '08', '16': '08', '19': '08', '45': '08',
+  '08': '09', '17': '09', '25': '09', '43': '09', '03': '10', '12': '10', '46': '10',
+  '06': '11', '10': '11', '15': '12', '27': '12', '32': '12', '36': '12', '28': '13', '30': '14',
+  '31': '15', '01': '16', '20': '16', '48': '16', '26': '17', '51': '18', '52': '19',
+};
+
+const ARTICULOS = new Set(['de', 'del', 'la', 'las', 'los', 'el', 'l', 'd']);
+function sinArticulos(t: string): string {
+  return t.split(' ').filter((w) => w && !ARTICULOS.has(w)).join(' ');
+}
 
 function contienePalabras(texto: string, palabras: string): boolean {
   return (' ' + texto + ' ').includes(' ' + palabras + ' ');
@@ -282,10 +330,10 @@ function contienePalabras(texto: string, palabras: string): boolean {
 function regionesEnTexto(texto: string): RegionEnTexto[] {
   const out: RegionEnTexto[] = [];
   for (const [alias, prov] of Object.entries(PROVINCIA_ALIAS_ZONA)) {
-    if (contienePalabras(texto, alias)) out.push({ alias, pertenece: (r) => r.cod_muni.slice(0, 2) === prov });
+    if (contienePalabras(texto, alias)) out.push({ alias, ccaa: CCAA_DE_PROVINCIA[prov] || '', pertenece: (r) => r.cod_muni.slice(0, 2) === prov });
   }
   for (const [alias, ccaa] of Object.entries(CCAA_ALIAS_ZONA)) {
-    if (contienePalabras(texto, alias)) out.push({ alias, pertenece: (r) => r.cod_ccaa === ccaa });
+    if (contienePalabras(texto, alias)) out.push({ alias, ccaa, pertenece: (r) => r.cod_ccaa === ccaa });
   }
   return out;
 }
