@@ -211,22 +211,27 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
   //  b) entre ellos, un municipio concreto gana al nombre de la propia provincia ("lorca murcia" -> Lorca);
   //  c) en la misma posición gana el nombre más largo ("colmenar viejo" -> Colmenar Viejo, no Colmenar;
   //     "huelva palos de la frontera" -> Palos de la Frontera, no La Frontera).
-  if (encontrados.length === 0) {
+  // Con provincia/comunidad citada, primero se busca solo dentro de ella en todos los trozos
+  // ("palma de mallorca, arenal pueblo" -> Palma, no El Arenal de Ávila); si no hay nada, en todas.
+  const pasadas = regiones.length ? [true, false] : [false];
+  for (const soloRegion of pasadas) {
+    if (encontrados.length) break;
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
       if (tok.length < 4) continue;
       // También sin artículos/preposiciones ("coria de rio" -> Coria del Río, "fuente alamo murcia" -> Fuente Álamo de Murcia)
       const tokS = sinArticulos(tok);
-      let cands: { nombre: string; clave: string; row: MuniRow; pos: 'todo' | 'inicio' | 'fin' }[] = [];
+      let cands: { nombre: string; clave: string; row: MuniRow; pos: 'todo' | 'inicio' | 'fin'; literal: boolean }[] = [];
       for (const [nombre, rows] of _muniByName!) {
         if (nombre.length < 4) continue;
         const posEn = (t: string, n: string) =>
           !n ? null : t === n ? 'todo' : t.startsWith(n + ' ') ? 'inicio' : t.endsWith(' ' + n) ? 'fin' : null;
         const nombreS = sinArticulos(nombre);
-        const pos = posEn(tok, nombre) || (nombreS.length >= 4 ? posEn(tokS, nombreS) : null);
+        const posLit = posEn(tok, nombre);
+        const pos = posLit || (nombreS.length >= 4 ? posEn(tokS, nombreS) : null);
         if (!pos) continue;
         const row = mejor(rows, nombre);
-        if (row) cands.push({ nombre, clave: nombreS, row, pos });
+        if (row) cands.push({ nombre, clave: nombreS, row, pos, literal: !!posLit });
       }
       // Orden de preferencia: municipio concreto de la provincia citada > de su comunidad >
       // la propia provincia/comunidad citada > cualquier municipio concreto.
@@ -239,13 +244,20 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
           cands.filter((c) => esRegion(c) && enRegionEstricta(c.row)),
           cands.filter((c) => esRegion(c) && enRegionAmplia(c.row)),
         ];
-        cands = niveles.find((n) => n.length) || (concretos.length ? concretos : cands);
+        const nivel = niveles.find((n) => n.length);
+        if (soloRegion && !nivel) continue;
+        cands = nivel || (concretos.length ? concretos : cands);
       } else if (concretos.length) {
         cands = concretos;
       }
       if (cands.length) {
-        // Coincidencia completa sin artículos ("palacios y villafranca" -> Los Palacios y Villafranca)
-        let elegido = cands.find((c) => c.pos === 'todo') || cands[0];
+        // 1º coincidencia completa sin artículos ("palacios y villafranca" -> Los Palacios y Villafranca);
+        // 2º coincidencia literal antes que sin artículos ("los dolores cartagena" -> Cartagena);
+        // 3º en la misma posición, el nombre más largo.
+        const todo = cands.find((c) => c.pos === 'todo');
+        if (todo) cands = [todo];
+        else if (cands.some((c) => c.literal)) cands = cands.filter((c) => c.literal);
+        let elegido = cands[0];
         for (const c of cands) {
           const masLargo = c.clave.length > elegido.clave.length && c.pos === elegido.pos &&
             (c.pos === 'inicio' ? c.clave.startsWith(elegido.clave + ' ') : c.clave.endsWith(' ' + elegido.clave));
@@ -282,6 +294,7 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
 const PROVINCIA_ALIAS_ZONA: Record<string, string> = {
   'alava': '01', 'araba': '01', 'albacete': '02', 'alicante': '03', 'alacant': '03', 'almeria': '04',
   'avila': '05', 'badajoz': '06', 'baleares': '07', 'illes balears': '07', 'islas baleares': '07',
+  'mallorca': '07', 'menorca': '07', 'ibiza': '07', 'eivissa': '07',
   'barcelona': '08', 'burgos': '09', 'caceres': '10', 'cadiz': '11', 'castellon': '12', 'castello': '12',
   'ciudad real': '13', 'cordoba': '14', 'coruna': '15', 'a coruna': '15', 'la coruna': '15', 'cuenca': '16',
   'girona': '17', 'gerona': '17', 'granada': '18', 'guadalajara': '19', 'guipuzcoa': '20', 'gipuzkoa': '20',
