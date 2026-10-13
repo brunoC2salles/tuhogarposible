@@ -51,7 +51,7 @@ export function normalizarZona(text: string | null | undefined): string {
   if (!text) return '';
   return String(text)
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, ' ')
     .replace(/\s+/g, ' ')
@@ -90,11 +90,13 @@ interface MuniRow {
 
 let _muniByCod: Map<string, MuniRow> | null = null;
 let _muniByName: Map<string, MuniRow[]> | null = null;
+let _muniByCompact: Map<string, MuniRow[]> | null = null;
 
 function buildIndexes() {
-  if (_muniByCod && _muniByName) return;
+  if (_muniByCod && _muniByName && _muniByCompact) return;
   _muniByCod = new Map();
   _muniByName = new Map();
+  _muniByCompact = new Map();
   for (const [cod, name, name2, codCcaa, ccaa, precio, sup] of ZONA_PRECIOS_DATA.municipios) {
     const row: MuniRow = {
       cod_muni: cod,
@@ -111,6 +113,10 @@ function buildIndexes() {
       const arr = _muniByName.get(k);
       if (arr) arr.push(row);
       else _muniByName.set(k, [row]);
+      const kc = k.replace(/\s+/g, '');
+      const arc = _muniByCompact.get(kc);
+      if (arc) { if (!arc.includes(row)) arc.push(row); }
+      else _muniByCompact.set(kc, [row]);
     }
   }
 }
@@ -157,31 +163,51 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
   }
   if (tokens.length === 0) return [];
 
+  // Fix 2026-10-13: provincias/comunidades citadas en el texto. Un municipio cuyo nombre
+  // forma parte de una de ellas sin pertenecer a ella se descarta
+  // ("la rioja" -> no es Rioja (Almería); "castilla y leon" sigue pudiendo ser León).
+  const textoCompleto = ' ' + tokens.join(' ') + ' ';
+  const regiones = regionesEnTexto(textoCompleto);
+  const valido = (row: MuniRow, nombre: string) =>
+    !regiones.some((r) =>
+      r.alias !== nombre && contienePalabras(r.alias, nombre) && !r.pertenece(row)
+    );
+  const mejor = (cands: MuniRow[], nombre: string) => {
+    const ok = cands.filter((r) => valido(r, nombre));
+    return ok.length ? [...ok].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0] : null;
+  };
+
   const encontrados: { idx: number; row: MuniRow }[] = [];
 
-  // 1) Coincidencia exacta de nombre de municipio
+  // 1) Coincidencia exacta de nombre de municipio (también sin espacios: "arenas de sanpedro")
   for (let i = tokens.length - 1; i >= 0; i--) {
-    const cands = _muniByName!.get(tokens[i]);
-    if (cands && cands.length > 0) {
-      const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
-      encontrados.push({ idx: i, row });
-    }
+    const tok = tokens[i];
+    const cands = _muniByName!.get(tok) || _muniByCompact!.get(tok.replace(/\s+/g, ''));
+    const row = cands ? mejor(cands, tok) : null;
+    if (row) encontrados.push({ idx: i, row });
   }
 
-  // 2) Coincidencia parcial (solo si no hubo ninguna exacta)
+  // 2) Coincidencia parcial (solo si no hubo ninguna exacta).
+  // Fix 2026-10-13: antes se tomaba el primer municipio que empezaba o terminaba el texto
+  // ("ronda sant antoni barcelona" -> Ronda). Ahora gana el nombre más largo que aparece
+  // como palabras completas al inicio o al final ("huelva palos de la frontera" -> Palos de la Frontera).
   if (encontrados.length === 0) {
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
       if (tok.length < 4) continue;
+      let best: { nombre: string; row: MuniRow } | null = null;
       for (const [nombre, cands] of _muniByName!) {
         if (nombre.length < 4) continue;
+        if (best && nombre.length <= best.nombre.length) continue;
         if (tok === nombre || tok.startsWith(nombre + ' ') || tok.endsWith(' ' + nombre)) {
-          const row = [...cands].sort((a, b) => (a.precio_medio || 0) - (b.precio_medio || 0))[0];
-          encontrados.push({ idx: i, row });
-          break;
+          const row = mejor(cands, nombre);
+          if (row) best = { nombre, row };
         }
       }
-      if (encontrados.length > 0) break;
+      if (best) {
+        encontrados.push({ idx: i, row: best.row });
+        break;
+      }
     }
   }
 
@@ -199,6 +225,53 @@ export function resolverMunicipios(...textos: (string | null | undefined)[]): Re
       cod_ccaa: row.cod_ccaa,
       distrito_texto: otros.length > 0 ? otros.join(' ') : null,
     });
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Provincias y comunidades autónomas en texto libre (fix 2026-10-13)
+// ---------------------------------------------------------------------------
+/** Alias normalizado de provincia → código INE de provincia (2 dígitos). */
+const PROVINCIA_ALIAS_ZONA: Record<string, string> = {
+  'alava': '01', 'araba': '01', 'albacete': '02', 'alicante': '03', 'alacant': '03', 'almeria': '04',
+  'avila': '05', 'badajoz': '06', 'baleares': '07', 'illes balears': '07', 'islas baleares': '07',
+  'barcelona': '08', 'burgos': '09', 'caceres': '10', 'cadiz': '11', 'castellon': '12', 'castello': '12',
+  'ciudad real': '13', 'cordoba': '14', 'coruna': '15', 'a coruna': '15', 'la coruna': '15', 'cuenca': '16',
+  'girona': '17', 'gerona': '17', 'granada': '18', 'guadalajara': '19', 'guipuzcoa': '20', 'gipuzkoa': '20',
+  'huelva': '21', 'huesca': '22', 'jaen': '23', 'leon': '24', 'lleida': '25', 'lerida': '25',
+  'la rioja': '26', 'lugo': '27', 'madrid': '28', 'malaga': '29', 'murcia': '30',
+  'navarra': '31', 'ourense': '32', 'orense': '32', 'asturias': '33', 'palencia': '34', 'las palmas': '35',
+  'pontevedra': '36', 'salamanca': '37', 'santa cruz de tenerife': '38',
+  'cantabria': '39', 'segovia': '40', 'sevilla': '41', 'soria': '42', 'tarragona': '43', 'teruel': '44',
+  'toledo': '45', 'valencia': '46', 'valladolid': '47', 'vizcaya': '48', 'bizkaia': '48', 'zamora': '49',
+  'zaragoza': '50', 'ceuta': '51', 'melilla': '52',
+};
+
+/** Alias normalizado de comunidad autónoma → código de comunidad (mismo que cod_ccaa de los datos). */
+const CCAA_ALIAS_ZONA: Record<string, string> = {
+  'andalucia': '01', 'aragon': '02', 'asturias': '03', 'principado de asturias': '03',
+  'islas baleares': '04', 'illes balears': '04', 'canarias': '05', 'islas canarias': '05',
+  'cantabria': '06', 'castilla y leon': '07', 'castilla la mancha': '08',
+  'cataluna': '09', 'catalunya': '09', 'comunidad valenciana': '10', 'comunitat valenciana': '10',
+  'extremadura': '11', 'galicia': '12', 'comunidad de madrid': '13', 'region de murcia': '14',
+  'navarra': '15', 'comunidad foral de navarra': '15', 'pais vasco': '16', 'euskadi': '16',
+  'la rioja': '17',
+};
+
+interface RegionEnTexto { alias: string; pertenece: (row: MuniRow) => boolean }
+
+function contienePalabras(texto: string, palabras: string): boolean {
+  return (' ' + texto + ' ').includes(' ' + palabras + ' ');
+}
+
+function regionesEnTexto(texto: string): RegionEnTexto[] {
+  const out: RegionEnTexto[] = [];
+  for (const [alias, prov] of Object.entries(PROVINCIA_ALIAS_ZONA)) {
+    if (contienePalabras(texto, alias)) out.push({ alias, pertenece: (r) => r.cod_muni.slice(0, 2) === prov });
+  }
+  for (const [alias, ccaa] of Object.entries(CCAA_ALIAS_ZONA)) {
+    if (contienePalabras(texto, alias)) out.push({ alias, pertenece: (r) => r.cod_ccaa === ccaa });
   }
   return out;
 }
