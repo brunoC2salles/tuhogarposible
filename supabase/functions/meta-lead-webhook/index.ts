@@ -312,9 +312,16 @@ function buildReunionDateTime(fecha: string | null, hora: string | null, tz: str
   }
 }
 
+interface RazonNoCualificado {
+  codigo: 'antiguedad' | 'nie_dni' | 'morosidad' | 'edad' | 'ingresos' | 'deudas' | 'ahorros' | 'zona';
+  texto: string;
+}
+
 interface QualificationResult {
   cualificado: boolean;
   razon_no_cualificado?: string;
+  // 2026-10-13: todos los motivos (antes se paraba en el primero)
+  razones?: RazonNoCualificado[];
 }
 
 // ============= FUNÇÕES DE SANITIZAÇÃO =============
@@ -496,11 +503,17 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
     'san sebastián': 'País Vasco',
     'san sebastian': 'País Vasco',
     'logroño': 'La Rioja',
-    'logronyo': 'La Rioja'
+    'logronyo': 'La Rioja',
+    // Fix 2026-10-08: 'las palmas' contiene 'palma' (Baleares)
+    'las palmas': 'Canarias',
+    'gran canaria': 'Canarias'
   };
   
+  // Fix 2026-10-08: ignorar coincidencias contenidas en otra coincidencia más larga
+  // ('palma' dentro de 'las palmas'); el resto mantiene el orden original del mapa.
+  const ciudadesCoinciden = Object.keys(ciudadesMap).filter(k => resp.includes(k));
   for (const [ciudad, region] of Object.entries(ciudadesMap)) {
-    if (resp.includes(ciudad)) {
+    if (resp.includes(ciudad) && !ciudadesCoinciden.some(o => o !== ciudad && o.length > ciudad.length && o.includes(ciudad))) {
       return { 
         zona: respuesta, 
         ciudad: ciudad.charAt(0).toUpperCase() + ciudad.slice(1),
@@ -513,7 +526,24 @@ function parseZonaInteres(respuesta?: string): { zona: string; ciudad?: string; 
   return { zona: respuesta };
 }
 
+/**
+ * Fix 2026-10-08: si la respuesta indica ingresos ANUALES ("30.000 €/año", "anual"),
+ * se divide por 12 (decisión Bruno). Si menciona mes/mensual, se trata como mensual.
+ */
 function parseIngresos(rangoIngresos?: string): number {
+  const base = parseIngresosBase(rangoIngresos);
+  if (!rangoIngresos) return base;
+  const txt = reemplazarNumerosEnTexto(rangoIngresos).toLowerCase();
+  // Guardas: "14 pagas al año" es mensual; y solo se divide si el valor leído es >= 10.000
+  // (evita convertir cifras mensuales como "2600/año ... 47.000 brutos año").
+  const esAnual = /(a[nñ]o|anual|annual|year)/.test(txt) && !/(\bmes|mensual|month|pagas)/.test(txt);
+  if (esAnual && /\d/.test(txt) && base >= 10000) {
+    return Math.round(base / 12);
+  }
+  return base;
+}
+
+function parseIngresosBase(rangoIngresos?: string): number {
   if (!rangoIngresos) return 0;
 
   // Números escritos en letras ("Mil euros" -> "1000 euros")
@@ -584,8 +614,11 @@ function determinarRegion(zonaInteres?: string): string | null {
   
   const zonaNormalizada = zonaInteres.toLowerCase().trim();
   
+  // Fix 2026-10-08: ignorar coincidencias contenidas en otra coincidencia más larga
+  // ('palma' dentro de 'las palmas'); el resto mantiene el orden original del mapa.
+  const clavesCoinciden = Object.keys(CIUDADES_COMUNIDAD_MAP).filter(k => zonaNormalizada.includes(k));
   for (const [key, comunidad] of Object.entries(CIUDADES_COMUNIDAD_MAP)) {
-    if (zonaNormalizada.includes(key)) {
+    if (zonaNormalizada.includes(key) && !clavesCoinciden.some(o => o !== key && o.length > key.length && o.includes(key))) {
       return comunidad;
     }
   }
@@ -655,6 +688,13 @@ function parseAhorros(input?: string | number): number {
     .replace(/\s+/g, ' ')
     .trim();
   if (!raw) return 0;
+
+  // Fix 2026-10-08: "Sí, 5000€" -> quitar el "sí" inicial para leer el número
+  const sinAfirmacion = raw.replace(/^(s[ií]|yes|claro)(?=[\s,.:;-]|$)[\s,.:;-]*/, '').trim();
+  if (sinAfirmacion !== raw) {
+    if (!sinAfirmacion) return 0;
+    return parseAhorros(sinAfirmacion);
+  }
 
   // Helper local: parsea número respeitando separador de milhar
   const parseNumLocal = (s: string): number | null => {
@@ -804,18 +844,21 @@ function tieneViviendaSeleccionada(data: MetaLeadData): boolean {
 }
 
 function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: number | null, montoAhorros?: number): QualificationResult {
-  // Usar funções de parsing melhoradas para respostas abertas do Meta Ads
+  // 2026-10-13: se evalúan TODOS los criterios y se acumulan los motivos.
+  // El resultado (cualificado sí/no) es el mismo que antes; solo cambia que se
+  // informan todos los motivos en lugar de solo el primero.
+  const razones: RazonNoCualificado[] = [];
   
   // Critério 1: Antigüedad en trabajo >= 1 año
   const antigüedadResult = parseAntiguedad(data.antiguedad_trabajo);
   if (!antigüedadResult.suficiente) {
-    return { cualificado: false, razon_no_cualificado: 'Antigüedad laboral insuficiente (menos de 1 año)' };
+    razones.push({ codigo: 'antiguedad', texto: 'Antigüedad laboral insuficiente (menos de 1 año)' });
   }
   
   // Critério 2: Tiene NIE/DNI
   const dniResult = parseTieneDniNie(data.tiene_nie_dni);
   if (!dniResult.tiene) {
-    return { cualificado: false, razon_no_cualificado: 'No tiene NIE/DNI' };
+    razones.push({ codigo: 'nie_dni', texto: 'No tiene NIE/DNI' });
   }
   
   // Critério 3: NO está en fichero de morosidad
@@ -836,25 +879,25 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
       morosidad.includes('moroso') ||
       morosidad.includes('impago')
     ) {
-      return { cualificado: false, razon_no_cualificado: 'Está en fichero de morosidad' };
+      razones.push({ codigo: 'morosidad', texto: 'Está en fichero de morosidad' });
     }
   }
   
   // Critério 4: Edad <= 60 (acepta 18-60 inclusive, rechaza si >60)
   if (edadParsed && edadParsed > 60) {
-    return { cualificado: false, razon_no_cualificado: 'Edad superior a 60 años' };
+    razones.push({ codigo: 'edad', texto: 'Edad superior a 60 años' });
   }
   
   // Critério 5: Ingresos >= 1200€
   if (ingresos < 1200) {
-    return { cualificado: false, razon_no_cualificado: 'Ingresos insuficientes (menos de 1200€)' };
+    razones.push({ codigo: 'ingresos', texto: 'Ingresos insuficientes (menos de 1200€)' });
   }
   
   // Critério 6: Deudas < 30% de ingresos
   const deudas = data.deudas_mensuales || 0;
-  const porcentajeDeuda = (deudas / ingresos) * 100;
+  const porcentajeDeuda = ingresos > 0 ? (deudas / ingresos) * 100 : (deudas > 0 ? Infinity : 0);
   if (porcentajeDeuda >= 30) {
-    return { cualificado: false, razon_no_cualificado: 'Porcentaje de deuda muy alto (≥30% de ingresos)' };
+    razones.push({ codigo: 'deudas', texto: 'Porcentaje de deuda muy alto (≥30% de ingresos)' });
   }
   
   // Critério 7: Ahorros para impuestos.
@@ -877,13 +920,20 @@ function qualificarLead(data: MetaLeadData, ingresos: number, edadParsed?: numbe
   });
 
   if (!tieneMontoSuficiente && (montoDeclaradoInsuficiente || !tieneRespuestaAfirmativa)) {
-    return {
-      cualificado: false,
-      razon_no_cualificado: `Ahorros insuficientes (mínimo ${AHORROS_MINIMO}€ o respuesta afirmativa "sí")`,
-    };
+    razones.push({
+      codigo: 'ahorros',
+      texto: `Ahorros insuficientes (mínimo ${AHORROS_MINIMO}€ o respuesta afirmativa "sí")`,
+    });
   }
 
-  return { cualificado: true };
+  if (razones.length > 0) {
+    return {
+      cualificado: false,
+      razon_no_cualificado: razones.map(r => r.texto).join(' | '),
+      razones,
+    };
+  }
+  return { cualificado: true, razones: [] };
 }
 
 // ============================================================================
@@ -1398,10 +1448,17 @@ Deno.serve(async (req) => {
       && evaluacionZona.precio_minimo > 0
       && evaluacionZona.max_financiable >= evaluacionZona.precio_minimo * 0.90;
 
-    if (qualificacao.cualificado && !evaluacionZona.cualificado && !zonaBorderline) {
+    if (!evaluacionZona.cualificado && !zonaBorderline) {
+      // 2026-10-13: el motivo de zona se suma también cuando ya hay otros motivos.
+      const razonesPrev = qualificacao.razones || [];
+      const razonesZona = [
+        ...razonesPrev,
+        { codigo: 'zona' as const, texto: evaluacionZona.razon || 'Presupuesto por debajo del mínimo de la zona' },
+      ];
       qualificacao = {
         cualificado: false,
-        razon_no_cualificado: evaluacionZona.razon || 'Presupuesto por debajo del mínimo de la zona',
+        razon_no_cualificado: razonesZona.map(r => r.texto).join(' | '),
+        razones: razonesZona,
       };
       console.log('[meta-lead-webhook] Descualificado por precio mínimo de zona:', qualificacao.razon_no_cualificado);
     } else if (zonaBorderline) {
@@ -1794,6 +1851,12 @@ Deno.serve(async (req) => {
             created_at: new Date().toISOString(),
           },
           razonNoCualificado: qualificacao.razon_no_cualificado || '',
+          razones: qualificacao.razones || [],
+          // Mismo valor que se envía a Spoki (MAX_FINANCIABLE): MIN(P1, P2) con fallback.
+          maxFinanciable:
+            Number(precioMaxInmueble.precio_max_recomendado) > 0
+              ? Number(precioMaxInmueble.precio_max_recomendado)
+              : Number(simulacionHipotecaria.monto_maximo_financiable) || 0,
           source: isTally ? 'tally' : isTallyHousage ? 'tally_housage' : 'meta_ads',
         });
         console.log('[meta-lead-webhook] Webhook email desqualificados:', disqualifiedResult);
