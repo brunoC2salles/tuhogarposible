@@ -114,7 +114,7 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   tasacion_prevision: 'Tasación/Previsión de Tasación',
   informacion_riesgos: 'Información a riesgos',
   fein: 'FEIN',
-  llamada_consultoria: 'Llamada Consultoría',
+  llamada_consultoria: 'Avanzo con Unicaja',
   descualificados: 'Descualificado'
 };
 
