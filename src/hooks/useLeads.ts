@@ -48,6 +48,7 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
             *,
             profiles!agente_asignado_id(nombre)
           `)
+          .is('archivado_at', null)
           .order('created_at', { ascending: false })
           .range(from, to);
         if (!isAdmin && !isSupervisor) {

@@ -120,7 +120,6 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
 
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
-  'llamada',
   'buscando_vivienda',
   'tasacion_prevision',
   'informacion_riesgos',

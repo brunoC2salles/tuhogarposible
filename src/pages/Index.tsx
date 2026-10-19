@@ -1,26 +1,35 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calculator, GraduationCap, Shield } from "lucide-react";
+import { Users, Calculator, GraduationCap, Shield, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import Logo from "@/components/Logo";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/contexts/AuthContext";
-import { CASTELLON_AGENT_EMAIL, CASTELLON_CRM_PATH } from "@/lib/castellonAgent";
+import { useEmbargadosAccess } from "@/hooks/useEmbargados";
+import { EMBARGADOS_CRM_PATH } from "@/types/embargados";
 
 
 const Index = () => {
   const { profile } = useAuth();
   const isAgente = profile?.role === "agente";
-  const isCastellonAgent = profile?.email === CASTELLON_AGENT_EMAIL;
+  const embargados = useEmbargadosAccess();
 
   const cards = [
     {
       title: "CRM",
       description: "Gestiona tus leads en el kanban",
       icon: Users,
-      to: isCastellonAgent ? CASTELLON_CRM_PATH : "/inventario/agente/crm",
+      to: "/inventario/agente/crm",
       cta: "Abrir el CRM",
       show: isAgente,
+    },
+    {
+      title: "CRM Embargados",
+      description: "Leads del producto Embargados",
+      icon: MapPin,
+      to: EMBARGADOS_CRM_PATH,
+      cta: "Abrir CRM Embargados",
+      show: isAgente && embargados.allowed === true,
     },
     {
       title: "Portal del Agente",
@@ -86,7 +95,7 @@ const Index = () => {
         <div
           className={
             isAgente
-              ? "flex justify-center max-w-6xl mx-auto px-2 sm:px-4"
+              ? "flex flex-wrap justify-center gap-4 sm:gap-6 max-w-6xl mx-auto px-2 sm:px-4"
               : `grid grid-cols-1 sm:grid-cols-2 ${
                   visible.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"
                 } gap-4 sm:gap-6 max-w-6xl mx-auto px-2 sm:px-4`

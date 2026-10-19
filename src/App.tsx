@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
@@ -29,7 +29,7 @@ import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
 import AgenteVisitas from "./pages/visitas/AgenteVisitas";
 import AdminVisitas from "./pages/visitas/AdminVisitas";
-import CastellonCRM from "./pages/inventario/CastellonCRM";
+import EmbargadosCRM from "./pages/inventario/EmbargadosCRM";
 import BlockAgenteRoute from "@/components/BlockAgenteRoute";
 
 const queryClient = new QueryClient();
@@ -64,13 +64,14 @@ const App = () => (
               } 
             />
             <Route
-              path="/crm/castellon"
+              path="/crm/embargados"
               element={
-                <ProtectedRoute allowedRoles={['agente', 'admin', 'supervisor']} allowCastellonAgent>
-                  <CastellonCRM />
+                <ProtectedRoute allowedRoles={['agente', 'admin', 'supervisor']}>
+                  <EmbargadosCRM />
                 </ProtectedRoute>
               }
             />
+            <Route path="/crm/castellon" element={<Navigate to="/crm/embargados" replace />} />
 
             <Route 
               path="/inventario/admin/crm"

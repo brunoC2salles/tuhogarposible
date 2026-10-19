@@ -4,17 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LogIn, Shield, AlertTriangle } from 'lucide-react';
-import { CASTELLON_AGENT_EMAIL, CASTELLON_CRM_PATH } from '@/lib/castellonAgent';
 
 interface ProtectedRouteProps {
   children: ReactNode;
   requireAdmin?: boolean;
   allowedRoles?: ('admin' | 'agente' | 'supervisor')[];
-  /** Permite el acceso al agente exclusivo del CRM Castellón */
-  allowCastellonAgent?: boolean;
 }
 
-const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles, allowCastellonAgent = false }: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles }: ProtectedRouteProps) => {
   const { user, profile, loading, isAdmin, isAgente, isSupervisor } = useAuth();
   const [showReload, setShowReload] = useState(false);
 
@@ -45,11 +42,6 @@ const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles, allowCas
 
   if (!user) {
     return <Navigate to="/auth" replace />;
-  }
-
-  // El agente de Castellón solo puede usar su CRM
-  if (!allowCastellonAgent && profile?.email === CASTELLON_AGENT_EMAIL) {
-    return <Navigate to={CASTELLON_CRM_PATH} replace />;
   }
 
   // Check allowed roles if specified
