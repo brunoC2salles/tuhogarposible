@@ -9,12 +9,11 @@ import { buildIdealistaUrl } from '../_shared/idealistaUrl.ts';
 import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload.ts';
 import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
-import { esZonaCastellon } from '../_shared/castellon.ts';
 import { reemplazarNumerosEnTexto } from '../_shared/numeroTexto.ts';
 
-// Agente exclusivo del CRM Castellón
+// Antiguo agente del CRM Castellón (sigue excluido del reparto)
 const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
-// Agente que recibe todos los leads cualificados que NO sean Castellón sin vivienda
+// Agente que recibe todos los leads cualificados
 const ALBERT_AGENT_EMAIL = 'bruno@suasai.com';
 
 const corsHeaders = {
@@ -1521,26 +1520,8 @@ Deno.serve(async (req) => {
       }
       agenteAsignado = forcedAgent;
       console.log('[meta-lead-webhook] Agente forçado:', agenteAsignado.nombre);
-    } else if (
-      qualificacao.cualificado &&
-      esZonaCastellon(data.zona_interes, (data as any).ciudad_interes) &&
-      !tieneViviendaSeleccionada(data)
-    ) {
-      // Leads de Castellón y alrededores SIN vivienda seleccionada van siempre al agente responsable de Castellón
-      const { data: castellonAgent, error: castellonErr } = await supabase
-        .from('profiles')
-        .select('id, nombre, email, telefono')
-        .eq('id', CASTELLON_AGENT_ID)
-        .maybeSingle();
-
-      if (castellonErr || !castellonAgent) {
-        console.error('[meta-lead-webhook] agente Castellón no encontrado:', castellonErr);
-      } else {
-        agenteAsignado = castellonAgent;
-        console.log('[meta-lead-webhook] Lead de Castellón (sin vivienda) asignado a:', agenteAsignado.nombre);
-      }
     } else if (qualificacao.cualificado) {
-      // Todos los demás leads cualificados (incluye Castellón CON vivienda seleccionada)
+      // Todos los leads cualificados (incluye Castellón, desde 19/10/2026)
       // van directamente al agente Albert Puig, sin pasar por el reparto round-robin.
       const { data: albertAgent, error: albertErr } = await supabase
         .from('profiles')
