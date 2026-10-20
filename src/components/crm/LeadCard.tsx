@@ -74,61 +74,49 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
     <>
     <MandatoContratoDialog open={contratoOpen} onOpenChange={setContratoOpen} leadId={lead.id} leadNombre={lead.nombre_completo} />
     <Card className="hover:shadow-md transition-all duration-300 relative">
-      <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm sm:text-base font-semibold leading-tight">
-            {lead.nombre_completo}
-          </CardTitle>
-          <div className="flex gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-              onClick={() => onViewDetails(lead)}
-            >
-              <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8 text-primary"
-              onClick={() => setContratoOpen(true)}
-              title="Mandato de compra"
-            >
-              <FileSignature className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8"
-              onClick={() => onEdit(lead)}
-            >
-              <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
-              onClick={() => onDelete(lead.id)}
-            >
-              <Trash className="h-3 w-3 sm:h-4 sm:w-4" />
-            </Button>
+      <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 space-y-2">
+        <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words">
+          {lead.nombre_completo}
+        </CardTitle>
+        {/* Acciones en una barra propia: no compiten con el nombre por el ancho de la columna */}
+        <div className="border-t pt-1.5">
+        <div className="flex items-center gap-0.5 -mx-1.5">
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onViewDetails(lead)} title="Ver detalles">
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setContratoOpen(true)} title="Mandato de compra">
+            <FileSignature className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(lead)} title="Editar lead">
+            <Edit className="h-4 w-4" />
+          </Button>
+          <div className="ml-auto flex items-center gap-0.5">
             {onDisqualify && lead.stage !== 'descualificados' && (
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7 sm:h-8 sm:w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
+                className="h-7 w-7 text-amber-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/20"
                 onClick={() => onDisqualify(lead.id)}
                 title="Descualificar lead"
               >
-                <XCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                <XCircle className="h-4 w-4" />
               </Button>
             )}
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => onDelete(lead.id)}
+              title="Eliminar lead"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
           </div>
+        </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-2 text-xs sm:text-sm px-3 sm:px-6 pb-3 sm:pb-6">
+      <CardContent className="space-y-2 text-xs sm:text-sm px-3 sm:px-4 pb-3 sm:pb-4">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
