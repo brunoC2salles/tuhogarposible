@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { CheckCircle2, Clock, Copy, Download, FileSignature, Link2, Loader2, PenLine, RefreshCw } from 'lucide-react';
+import { CheckCircle2, Clock, Copy, Download, FileSignature, Link2, Loader2, MessageCircle, PenLine, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +22,17 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   leadId: string;
   leadNombre: string;
+  leadTelefono?: string | null;
 }
+
+// Teléfono para WhatsApp: solo dígitos, sin 00 inicial y con 34 si viene sin prefijo (9 cifras)
+const telefonoWhatsApp = (tel?: string | null) => {
+  let d = String(tel || '').replace(/\D/g, '');
+  if (d.startsWith('00')) d = d.slice(2);
+  if (d.length === 9) d = `34${d}`;
+  return d.length >= 10 ? d : null;
+};
+const fechaCorta = (iso: string) => format(new Date(iso), "d 'de' MMMM", { locale: es });
 
 const fmt = (iso: string) => format(new Date(iso), "d MMM yyyy, HH:mm", { locale: es });
 const eur = (n: number) => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(n)} €`;
@@ -36,7 +47,9 @@ const EstadoBadge = ({ c }: { c: LeadContrato }) => {
 };
 
 /** Mandato de compra: genera el enlace para el cliente y muestra el estado del contrato */
-export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre }: Props) => {
+export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, leadTelefono }: Props) => {
+  const { profile } = useAuth();
+  const telefono = telefonoWhatsApp(leadTelefono);
   const { contratos, loading, fetchContratos, crearContrato, descargar } = useLeadContratos(open ? leadId : null);
   const [honorarios, setHonorarios] = useState(String(HONORARIOS_DEFECTO));
   const [creando, setCreando] = useState(false);
@@ -51,6 +64,22 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre }
     } catch {
       toast.error('No se pudo copiar el enlace');
     }
+  };
+
+  // Mensaje según la etapa: aún sin datos -> rellenar y firmar; con datos -> solo falta firmar
+  const mensajeWhatsApp = (c: LeadContrato) => {
+    const nombre = (c.datos?.nombre || leadNombre).trim().split(/\s+/)[0];
+    const agente = profile?.nombre ? `, soy ${profile.nombre.trim().split(/\s+/)[0]} de Tu Hogar Posible` : ', te escribimos de Tu Hogar Posible';
+    const url = contratoUrl(c.token);
+    if (c.estado === 'firmando') {
+      return `Hola ${nombre}${agente}. Tu mandato de compra ya está listo con tus datos, solo falta tu firma. Puedes firmarlo online desde este enlace:\n\n${url}\n\nSi tienes cualquier duda, dímelo por aquí.`;
+    }
+    return `Hola ${nombre}${agente}. Te envío el enlace para tu mandato de compra:\n\n${url}\n\nSolo tienes que rellenar tus datos, descargar el contrato y firmarlo online. Te llevará unos minutos. El enlace es válido hasta el ${fechaCorta(c.expires_at)}.\n\nSi tienes cualquier duda, dímelo por aquí.`;
+  };
+
+  const enviarWhatsApp = (c: LeadContrato) => {
+    if (!telefono) return;
+    window.open(`https://web.whatsapp.com/send?phone=${telefono}&text=${encodeURIComponent(mensajeWhatsApp(c))}`, '_blank');
   };
 
   const generar = async () => {
@@ -125,9 +154,20 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre }
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {c.estado !== 'firmado' && !contratoExpirado(c) && (
-                    <Button size="sm" variant="outline" onClick={() => copiar(c.token)}>
-                      <Copy className="h-3.5 w-3.5 mr-1.5" />Copiar enlace
-                    </Button>
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => enviarWhatsApp(c)}
+                        disabled={!telefono}
+                        title={telefono ? 'Abrir WhatsApp Web con el mensaje preparado' : 'El lead no tiene un teléfono válido'}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5 mr-1.5" />Enviar por WhatsApp
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => copiar(c.token)}>
+                        <Copy className="h-3.5 w-3.5 mr-1.5" />Copiar enlace
+                      </Button>
+                    </>
                   )}
                   {c.firmado_path ? (
                     <Button size="sm" onClick={() => descargar(c.firmado_path!, archivo(c, true))}>

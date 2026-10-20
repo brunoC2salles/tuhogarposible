@@ -72,7 +72,7 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
 
   return (
     <>
-    <MandatoContratoDialog open={contratoOpen} onOpenChange={setContratoOpen} leadId={lead.id} leadNombre={lead.nombre_completo} />
+    <MandatoContratoDialog open={contratoOpen} onOpenChange={setContratoOpen} leadId={lead.id} leadNombre={lead.nombre_completo} leadTelefono={lead.telefono} />
     <Card className="hover:shadow-md transition-all duration-300 relative">
       <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 space-y-2">
         <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words">
