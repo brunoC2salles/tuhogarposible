@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature } from 'lucide-react';
+import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ interface LeadCardProps {
 }
 
 export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange }: LeadCardProps) => {
+  const [contratoOpen, setContratoOpen] = useState(false);
   const [resending, setResending] = useState(false);
 
   const handleResendBitrix = async () => {
@@ -69,6 +71,8 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
   const precioMaximoInmueble = (lead.simulador_hipotecario_data as any)?.precio_maximo_inmueble || null;
 
   return (
+    <>
+    <MandatoContratoDialog open={contratoOpen} onOpenChange={setContratoOpen} leadId={lead.id} leadNombre={lead.nombre_completo} />
     <Card className="hover:shadow-md transition-all duration-300 relative">
       <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6 pt-3 sm:pt-6">
         <div className="flex items-start justify-between gap-2">
@@ -83,6 +87,15 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
               onClick={() => onViewDetails(lead)}
             >
               <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 sm:h-8 sm:w-8 text-primary"
+              onClick={() => setContratoOpen(true)}
+              title="Mandato de compra"
+            >
+              <FileSignature className="h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
             <Button
               size="icon"
@@ -238,5 +251,6 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
         )}
       </CardContent>
     </Card>
+    </>
   );
 };

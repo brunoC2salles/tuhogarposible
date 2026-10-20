@@ -45,8 +45,8 @@ export function numeroALetras(n: number): string {
   if (resto) p.push(menorMil(resto));
   return p.join(" ");
 }
-const eur = (n: number) => new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2, useGrouping: true }).format(n)
-  .replace(/^(\d)(\d{3})(?!\d)/, "$1.$2"); // es-ES no agrupa 4 cifras: 6000 -> 6.000
+// de-DE agrupa también los miles de 4 cifras (6.000); es-ES escribiría 6000
+const eur = (n: number) => new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n);
 
 export function fechaLarga(d: Date): string {
   const f = new Intl.DateTimeFormat("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "numeric", year: "numeric" })

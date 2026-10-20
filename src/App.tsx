@@ -26,6 +26,7 @@ import AsignacionesMetrics from "./pages/admin/AsignacionesMetrics";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
+import ContratoMandato from "./pages/ContratoMandato";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
 import AgenteVisitas from "./pages/visitas/AgenteVisitas";
 import AdminVisitas from "./pages/visitas/AdminVisitas";
@@ -139,6 +140,7 @@ const App = () => (
               } 
             />
             <Route path="/documentos/:token" element={<PublicDocumentUpload />} />
+            <Route path="/contrato/:token" element={<ContratoMandato />} />
             <Route
               path="/admin/verificaciones-extractos"
               element={
