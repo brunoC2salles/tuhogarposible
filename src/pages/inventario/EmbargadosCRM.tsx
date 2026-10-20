@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Ban, CheckCircle2, Loader2, Phone, PhoneCall, Search, Shield, Users, Workflow, Mail, MapPin } from 'lucide-react';
+import { ArrowLeft, Ban, CheckCircle2, Loader2, Phone, PhoneCall, Plus, Search, Send, Shield, Users, Workflow, Mail, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import AuthButton from '@/components/AuthButton';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useEmbargadosAccess, useEmbargadosLeads } from '@/hooks/useEmbargados';
+import { NuevoEmbargadoModal } from '@/components/crm/NuevoEmbargadoModal';
 import {
   EMBARGADOS_STAGE_LABELS,
   EMBARGADOS_STAGE_ORDER,
@@ -53,13 +54,15 @@ const EmbargadosCRM = () => {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const access = useEmbargadosAccess();
-  const { leads, loading, changeStage, updateLead } = useEmbargadosLeads();
+  const { leads, loading, changeStage, updateLead, createLead, sendToSpoki } = useEmbargadosLeads();
   const [search, setSearch] = useState('');
   const [dragged, setDragged] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<EmbargadoStage | null>(null);
   const [selected, setSelected] = useState<EmbargadoLead | null>(null);
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
+  const [nuevoOpen, setNuevoOpen] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -161,6 +164,9 @@ const EmbargadosCRM = () => {
             <Users className="h-5 w-5" />
             <span className="text-lg font-semibold">{activos} Leads</span>
           </div>
+          <Button className="sm:ml-auto" onClick={() => setNuevoOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />Nuevo lead
+          </Button>
         </div>
 
         {loading ? (
@@ -294,7 +300,31 @@ const EmbargadosCRM = () => {
                   <p className="text-xs font-medium text-muted-foreground mb-1.5">Notas</p>
                   <Textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={4} />
                 </div>
-                <p className="text-xs text-muted-foreground">Entró el {fecha(selected.created_at)}</p>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {selected.spoki_enviado_at
+                      ? `Enviado a Spoki el ${fecha(selected.spoki_enviado_at)}`
+                      : 'Aún no enviado a Spoki'}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={enviando || !selected.telefono}
+                    onClick={async () => {
+                      if (selected.spoki_enviado_at && !window.confirm('Este lead ya se envió a Spoki. ¿Enviar de nuevo?')) return;
+                      setEnviando(true);
+                      const at = await sendToSpoki(selected.id);
+                      setEnviando(false);
+                      if (at) setSelected({ ...selected, spoki_enviado_at: at });
+                    }}
+                  >
+                    {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                    {selected.spoki_enviado_at ? 'Reenviar a Spoki' : 'Enviar a Spoki'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Entró el {fecha(selected.created_at)}{selected.source === 'manual' ? ' · Alta manual' : ''}
+                </p>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setSelected(null)}>Cerrar</Button>
                   <Button onClick={saveNotas} disabled={saving}>
@@ -306,6 +336,8 @@ const EmbargadosCRM = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <NuevoEmbargadoModal open={nuevoOpen} onOpenChange={setNuevoOpen} onCreate={createLead} />
     </div>
   );
 };
