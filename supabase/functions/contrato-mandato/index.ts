@@ -2,7 +2,7 @@
 // Página pública del mandato de compra (/contrato/:token) y webhook de Lumin Sign.
 //  GET  ?token=...                  -> estado del contrato (y sincroniza con Lumin si está pendiente de firma)
 //  POST {token,nombre,dni,domicilio,email} -> genera el PDF, lo envía a Lumin y devuelve el enlace de firma
-//  POST ?evento=lumin (cabecera X-Signature) -> webhook de Lumin: al firmarse, guarda el PDF firmado en el lead
+//  POST con cabecera X-Signature -> webhook de Lumin: al firmarse, guarda el PDF firmado en el lead
 import { generarContratoPdf } from "./contratoPdf.ts";
 import { FIRMA_ALBERT_PNG, LOGO_PNG } from "./assets.ts";
 
@@ -202,7 +202,8 @@ Deno.serve(async (req) => {
 
   try {
     // ---- Webhook Lumin ----
-    if (u.searchParams.get("evento") === "lumin") {
+    // Lumin no acepta URLs con query string: el webhook se reconoce por la cabecera X-Signature
+    if (req.method === "POST" && (u.searchParams.get("evento") === "lumin" || req.headers.has("x-signature"))) {
       const raw = await req.text();
       if (!(await hmacOk(raw, req.headers.get("x-signature") || ""))) return json({ error: "Firma no válida" }, 401);
       let ev: any = {};
