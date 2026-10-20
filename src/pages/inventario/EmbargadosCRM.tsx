@@ -119,7 +119,9 @@ const EmbargadosCRM = () => {
     if (lead && lead.stage !== stage) await changeStage(lead.id, stage);
   };
 
-  const respuestas = selected ? Object.entries(selected.respuestas || {}) : [];
+  const respuestas = selected
+    ? Object.entries(selected.respuestas || {}).filter(([k, v]) => !k.startsWith('_') && v !== '' && v != null)
+    : [];
   const activos = leads.filter((l) => l.stage !== 'descualificados').length;
 
   return (
