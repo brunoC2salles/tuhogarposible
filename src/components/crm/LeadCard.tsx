@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 
@@ -26,32 +24,10 @@ interface LeadCardProps {
 
 export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange, onToggleVisitaAgendada }: LeadCardProps) => {
   const [contratoOpen, setContratoOpen] = useState(false);
-  const [resending, setResending] = useState(false);
   const { profile } = useAuth();
   // Visita agendada: solo existe en Buscando Vivienda (la base de datos la quita al salir de la etapa)
   const enBuscandoVivienda = lead.stage === 'buscando_vivienda';
   const visitaAgendada = enBuscandoVivienda && !!lead.visita_agendada;
-
-  const handleResendBitrix = async () => {
-    try {
-      setResending(true);
-      const { data, error } = await supabase.functions.invoke('make-webhook-proxy', {
-        body: { action: 'resend_lead_to_bitrix', lead_id: lead.id },
-      });
-      if (error) throw error;
-      if (data?.success) toast.success(`Lead reenviado al Bitrix (HTTP ${data.http_status})`);
-      else toast.error(data?.error || 'No se pudo reenviar el lead');
-    } catch (err: any) {
-      console.error('[LeadCard] resend bitrix error:', err);
-      toast.error('Error al reenviar al Bitrix');
-    } finally {
-      setResending(false);
-    }
-  };
-
-
-
-
 
   const formatPhoneForWhatsApp = (phone: string) => {
     // Remove todos os caracteres não numéricos
@@ -278,20 +254,6 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
           </div>
         )}
 
-        <div className="flex flex-wrap gap-1 pt-1 sm:pt-2">
-          {lead.simulador_personal_data && (
-            <Badge variant="secondary" className="text-xs">
-              Crédito Personal
-            </Badge>
-          )}
-          {lead.simulador_hipotecario_data && (
-            <Badge variant="secondary" className="text-xs">
-              Crédito Hipotecario
-            </Badge>
-          )}
-        </div>
-
-
         {onStageChange && (
           <div className="pt-1" onPointerDown={(e) => e.stopPropagation()}>
             <Select
@@ -311,18 +273,6 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
             </Select>
           </div>
         )}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={(e) => { e.stopPropagation(); handleResendBitrix(); }}
-          disabled={resending}
-          className="w-full text-xs h-7"
-          title="Reenviar este lead al Bitrix"
-        >
-          <Send className="h-3 w-3 mr-1" />
-          {resending ? 'Reenviando...' : 'Reenviar a Bitrix'}
-        </Button>
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1">
           <Clock className="h-3 w-3 flex-shrink-0" />
