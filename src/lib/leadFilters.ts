@@ -34,6 +34,10 @@ export const matchesCallTime = (lead: Lead, filter: CallTimeFilter): boolean => 
 const normalize = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+/** true si el agente marcó visita agendada (solo cuenta en Buscando Vivienda) */
+export const tieneVisitaAgendada = (lead: Lead): boolean =>
+  !!lead.visita_agendada && lead.stage === 'buscando_vivienda';
+
 /** true si el lead declaró que ya tiene una vivienda seleccionada */
 export const tieneVivienda = (lead: Lead): boolean => {
   const hip = lead.simulador_hipotecario_data as any;

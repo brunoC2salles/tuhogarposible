@@ -29,6 +29,7 @@ import { DocumentPreviewModal } from '@/components/crm/DocumentPreviewModal';
 import { useAgentes } from '@/hooks/useAgentes';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadVisitsTab } from './LeadVisitsTab';
+import { LeadHistorial } from './LeadHistorial';
 
 interface LeadDetailsModalProps {
   open: boolean;
@@ -187,6 +188,7 @@ export const LeadDetailsModal = ({
           <TabsTrigger value="bewor" className="text-xs sm:text-sm">Análisis</TabsTrigger>
           <TabsTrigger value="comentarios" className="text-xs sm:text-sm">Comentarios</TabsTrigger>
           <TabsTrigger value="visitas" className="text-xs sm:text-sm">Visitas</TabsTrigger>
+          <TabsTrigger value="historial" className="text-xs sm:text-sm">Historial</TabsTrigger>
         </TabsList>
 
         <TabsContent value="info" className="space-y-4">
@@ -616,6 +618,10 @@ export const LeadDetailsModal = ({
 
         <TabsContent value="visitas" className="space-y-4">
           <LeadVisitsTab leadId={lead.id} leadNombre={lead.nombre_completo} />
+        </TabsContent>
+
+        <TabsContent value="historial" className="space-y-4">
+          <LeadHistorial leadId={lead.id} refreshKey={lead.updated_at} />
         </TabsContent>
 
         <TabsContent value="documentos" className="space-y-4">

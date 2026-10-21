@@ -26,7 +26,7 @@ interface AgentLeadsKanbanModalProps {
 }
 
 export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: AgentLeadsKanbanModalProps) => {
-  const { leads, updateLead, deleteLead, fetchLeads } = useLeads();
+  const { leads, updateLead, deleteLead, fetchLeads, toggleVisitaAgendada } = useLeads();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -221,6 +221,7 @@ export const AgentLeadsKanbanModal = ({ open, onClose, agentId, agentName }: Age
                 onEdit={handleEdit}
                 onDelete={handleDeleteClick}
                 onDisqualify={(leadId) => handleStageChange(leadId, 'descualificados')}
+                onToggleVisitaAgendada={toggleVisitaAgendada}
               />
             ) : searchQuery ? (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

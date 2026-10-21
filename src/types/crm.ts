@@ -86,6 +86,9 @@ export interface Lead {
   /** Vivienda > 130 % del máximo financiable (o precio ilegible): se queda en Buscando Vivienda para revisar */
   vivienda_revisar?: boolean;
   vivienda_revisar_motivo?: string | null;
+  /** Visita agendada en una vivienda (marca manual del agente en Buscando Vivienda, 21/10/2026).
+   *  Se quita automáticamente al salir de la etapa; los cambios quedan en lead_historico. */
+  visita_agendada?: boolean;
 }
 
 export interface LeadInmueble {

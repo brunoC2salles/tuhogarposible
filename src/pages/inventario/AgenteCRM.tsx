@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, Download, Ban } from 'lucide-react';
+import { Search, Download, Ban, CalendarCheck } from 'lucide-react';
 import { useLeads } from '@/hooks/useLeads';
 import { LeadKanban } from '@/components/crm/LeadKanban';
 import { CreateEditLeadModal } from '@/components/crm/CreateEditLeadModal';
@@ -20,7 +20,7 @@ import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { exportLeadsToCSV, downloadCSV } from '@/lib/csvExporter';
 import { Badge } from '@/components/ui/badge';
 import StandaloneDocsButton from '@/components/crm/StandaloneDocsButton';
-import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda } from '@/lib/leadFilters';
+import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda, tieneVisitaAgendada } from '@/lib/leadFilters';
 import { esZonaCastellon } from '@/lib/castellon';
 
 interface AgenteCRMProps {
@@ -32,7 +32,7 @@ interface AgenteCRMProps {
 const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
   const navigate = useNavigate();
   const { profile } = useAuth();
-  const { leads: allLeads, loading, updateLeadStage, updateLead, createLead, deleteLead } = useLeads();
+  const { leads: allLeads, loading, updateLeadStage, updateLead, createLead, deleteLead, toggleVisitaAgendada } = useLeads();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -43,6 +43,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
   const [viviendaFilter, setViviendaFilter] = useState<'si' | 'no' | null>(null);
+  const [visitaFilter, setVisitaFilter] = useState(false);
 
   // Leads del ámbito de esta vista
   const leads = useMemo(() => {
@@ -67,8 +68,11 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
     } else if (viviendaFilter === 'no') {
       result = result.filter(lead => !tieneVivienda(lead));
     }
+    if (visitaFilter) {
+      result = result.filter(lead => tieneVisitaAgendada(lead));
+    }
     return result;
-  }, [leads, searchQuery, callTimeFilter, viviendaFilter]);
+  }, [leads, searchQuery, callTimeFilter, viviendaFilter, visitaFilter]);
 
   // Contadores
   const descualificadosCount = useMemo(() => 
@@ -212,6 +216,14 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
           >
             No Tiene Vivienda
           </Button>
+          <Button
+            size="sm"
+            variant={visitaFilter ? 'default' : 'outline'}
+            onClick={() => setVisitaFilter(prev => !prev)}
+          >
+            <CalendarCheck className="h-4 w-4 mr-1" />
+            Visita agendada
+          </Button>
         </div>
 
         {loading ? (
@@ -240,6 +252,7 @@ const AgenteCRM = ({ scope = 'all', title }: AgenteCRMProps = {}) => {
             onEdit={setEditingLead}
             onDelete={setDeleteLeadId}
             onDisqualify={(leadId) => updateLeadStage(leadId, 'descualificados')}
+            onToggleVisitaAgendada={toggleVisitaAgendada}
           />
         )}
       </main>

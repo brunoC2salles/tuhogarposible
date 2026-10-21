@@ -8,6 +8,7 @@
 // Cualquier cambio de etapa (manual o automatico) actualiza last_stage_change_at y reinicia la cuenta.
 // Parametros: ?dry=1 (no envia ni archiva, solo informa) · ?forzar=1 (ignora la hora de Madrid).
 //   Ambos solo con la service role key (la función es pública; sin ellos solo actúa a las 13h y es idempotente).
+// Visita agendada (21/10/2026): leads con visita_agendada = true no reciben follow-ups ni se archivan.
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -84,11 +85,13 @@ Deno.serve(async (req) => {
     if (cfg.seguimiento_desde) {
       const spokiOk = !!(cfg.seguimiento_spoki_url && cfg.seguimiento_spoki_secret && cfg.seguimiento_spoki_campo_link);
       const leads = await rest(
-        `leads?select=id,nombre_completo,telefono,email,simulador_hipotecario_data,last_stage_change_at,vivienda_revisar` +
+        `leads?select=id,nombre_completo,telefono,email,simulador_hipotecario_data,last_stage_change_at,vivienda_revisar,visita_agendada` +
           `&stage=eq.buscando_vivienda&archivado_at=is.null` +
           `&last_stage_change_at=gte.${encodeURIComponent(cfg.seguimiento_desde)}`,
       );
       for (const l of leads) {
+        // Visita agendada (marca del agente): sin follow-ups ni archivo automático (decisión Bruno 21/10/2026).
+        if (l.visita_agendada) continue;
         const dias = diasEnEtapa(l.last_stage_change_at, ahora);
         if (dias >= DIAS_ARCHIVO_BUSCANDO) {
           await archivar(l.id, `buscando_vivienda_${DIAS_ARCHIVO_BUSCANDO}_dias`);

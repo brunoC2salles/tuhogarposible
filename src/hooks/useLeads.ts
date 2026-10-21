@@ -278,6 +278,25 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
     }
   };
 
+  // Visita agendada (21/10/2026): marca manual del agente/admin en Buscando Vivienda.
+  // El historial lo registra la base de datos (trigger trg_visita_agendada en leads).
+  const toggleVisitaAgendada = async (leadId: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ visita_agendada: value } as any)
+        .eq('id', leadId);
+      if (error) throw error;
+      toast.success(value ? 'Visita agendada marcada' : 'Visita agendada desmarcada');
+      await fetchLeads();
+      return true;
+    } catch (err: any) {
+      console.error('[Leads] Visita agendada error:', err);
+      toast.error('No se pudo actualizar la visita agendada');
+      return false;
+    }
+  };
+
   const reassignLead = async (leadId: string, newAgenteId: string) => {
     if (!isAdmin) {
       toast.error('Solo administradores pueden reasignar leads');
@@ -323,5 +342,6 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
     updateLeadStage,
     deleteLead,
     reassignLead,
+    toggleVisitaAgendada,
   };
 };

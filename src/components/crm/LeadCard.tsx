@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
@@ -21,12 +21,16 @@ interface LeadCardProps {
   onDelete: (leadId: string) => void;
   onDisqualify?: (leadId: string) => void;
   onStageChange?: (leadId: string, newStage: LeadStage) => void;
+  onToggleVisitaAgendada?: (leadId: string, value: boolean) => void;
 }
 
-export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange }: LeadCardProps) => {
+export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange, onToggleVisitaAgendada }: LeadCardProps) => {
   const [contratoOpen, setContratoOpen] = useState(false);
   const [resending, setResending] = useState(false);
   const { profile } = useAuth();
+  // Visita agendada: solo existe en Buscando Vivienda (la base de datos la quita al salir de la etapa)
+  const enBuscandoVivienda = lead.stage === 'buscando_vivienda';
+  const visitaAgendada = enBuscandoVivienda && !!lead.visita_agendada;
 
   const handleResendBitrix = async () => {
     try {
@@ -106,8 +110,17 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
     <MandatoContratoDialog open={contratoOpen} onOpenChange={setContratoOpen} leadId={lead.id} leadNombre={lead.nombre_completo} leadTelefono={lead.telefono} />
     <Card className="hover:shadow-md transition-all duration-300 relative">
       <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 space-y-2">
-        <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words">
-          {lead.nombre_completo}
+        <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words flex items-start gap-1.5">
+          <span className="min-w-0">{lead.nombre_completo}</span>
+          {visitaAgendada && (
+            <span
+              className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+              title="Visita agendada"
+              aria-label="Visita agendada"
+            >
+              <CalendarCheck className="h-3.5 w-3.5" />
+            </span>
+          )}
         </CardTitle>
         {/* Acciones en una barra propia: no compiten con el nombre por el ancho de la columna */}
         <div className="border-t pt-1.5">
@@ -121,6 +134,18 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(lead)} title="Editar lead">
             <Edit className="h-4 w-4" />
           </Button>
+          {onToggleVisitaAgendada && enBuscandoVivienda && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn('h-7 w-7', visitaAgendada ? 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary' : 'text-muted-foreground')}
+              onClick={(e) => { e.stopPropagation(); onToggleVisitaAgendada(lead.id, !visitaAgendada); }}
+              title={visitaAgendada ? 'Quitar visita agendada' : 'Marcar visita agendada'}
+              aria-pressed={visitaAgendada}
+            >
+              <CalendarCheck className="h-4 w-4" />
+            </Button>
+          )}
           <div className="ml-auto flex items-center gap-0.5">
             {onDisqualify && lead.stage !== 'descualificados' && (
               <Button
