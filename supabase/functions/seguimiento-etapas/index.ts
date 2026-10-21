@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
     if (cfg.seguimiento_desde) {
       const spokiOk = !!(cfg.seguimiento_spoki_url && cfg.seguimiento_spoki_secret && cfg.seguimiento_spoki_campo_link);
       const leads = await rest(
-        `leads?select=id,nombre_completo,telefono,email,simulador_hipotecario_data,last_stage_change_at` +
+        `leads?select=id,nombre_completo,telefono,email,simulador_hipotecario_data,last_stage_change_at,vivienda_revisar` +
           `&stage=eq.buscando_vivienda&archivado_at=is.null` +
           `&last_stage_change_at=gte.${encodeURIComponent(cfg.seguimiento_desde)}`,
       );
@@ -95,6 +95,9 @@ Deno.serve(async (req) => {
           archivados.push({ id: l.id, nombre: l.nombre_completo, etapa: "buscando_vivienda", dias });
           continue;
         }
+        // Leads "vivienda a revisar": sin follow-ups automáticos (decisión Bruno 21/10/2026);
+        // el agente envía el enlace de viviendas desde el card. El archivo a 90 días sí se aplica.
+        if (l.vivienda_revisar) continue;
         const entrada = l.last_stage_change_at;
         const previas: any[] = await rest(
           `lead_recomendaciones?select=id,ronda,slugs,estado&lead_id=eq.${l.id}` +

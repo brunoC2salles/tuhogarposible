@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -25,6 +26,7 @@ interface LeadCardProps {
 export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange }: LeadCardProps) => {
   const [contratoOpen, setContratoOpen] = useState(false);
   const [resending, setResending] = useState(false);
+  const { profile } = useAuth();
 
   const handleResendBitrix = async () => {
     try {
@@ -69,6 +71,35 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
 
   // Precio Máximo de Inmueble Recomendado (Punto 1 + Punto 2)
   const precioMaximoInmueble = (lead.simulador_hipotecario_data as any)?.precio_maximo_inmueble || null;
+
+  // Vivienda a revisar: enlace dinámico de viviendas recomendadas (zona + máximo financiable del lead).
+  // La página /viviendas calcula las opciones en el momento en que el cliente la abre.
+  const idealistaUrl = String((lead.simulador_hipotecario_data as any)?.idealista_url || '');
+  const linkRecomendaciones = lead.vivienda_revisar && idealistaUrl
+    ? `https://www.tuhogarposible.com/viviendas?i=${encodeURIComponent(idealistaUrl)}`
+    : null;
+
+  const copiarRecomendaciones = async () => {
+    if (!linkRecomendaciones) return;
+    try {
+      await navigator.clipboard.writeText(linkRecomendaciones);
+      toast.success('Enlace copiado');
+    } catch {
+      toast.error('No se pudo copiar el enlace');
+    }
+  };
+
+  const enviarRecomendacionesWhatsApp = () => {
+    if (!linkRecomendaciones) return;
+    let tel = String(lead.telefono || '').replace(/\D/g, '');
+    if (tel.startsWith('00')) tel = tel.slice(2);
+    if (tel.length === 9) tel = `34${tel}`;
+    if (tel.length < 10) { toast.error('El lead no tiene un teléfono válido'); return; }
+    const nombre = String(lead.nombre_completo || '').trim().split(/\s+/)[0] || '';
+    const agente = profile?.nombre ? `soy ${profile.nombre.trim().split(/\s+/)[0]} de Tu Hogar Posible` : 'te escribimos de Tu Hogar Posible';
+    const texto = `Hola ${nombre}, ${agente}. La vivienda que nos indicaste supera lo que podemos financiarte, pero hemos seleccionado estas opciones dentro de tu presupuesto: ${linkRecomendaciones}`;
+    window.open(`https://web.whatsapp.com/send?phone=${tel}&text=${encodeURIComponent(texto)}`, '_blank');
+  };
 
   return (
     <>
@@ -183,9 +214,30 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
             title={lead.vivienda_revisar_motivo || undefined}
           >
             <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold">Vivienda a revisar</p>
               {lead.vivienda_revisar_motivo && <p className="text-[11px] leading-snug">{lead.vivienda_revisar_motivo}</p>}
+              {linkRecomendaciones && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    className="h-7 px-2 text-[11px] bg-green-600 hover:bg-green-700 text-white"
+                    onClick={(e) => { e.stopPropagation(); enviarRecomendacionesWhatsApp(); }}
+                    title="Abrir WhatsApp Web con el mensaje y el enlace de viviendas recomendadas"
+                  >
+                    <MessageCircle className="h-3 w-3 mr-1" />Enviar viviendas
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-[11px] bg-white dark:bg-transparent"
+                    onClick={(e) => { e.stopPropagation(); copiarRecomendaciones(); }}
+                    title={linkRecomendaciones}
+                  >
+                    <Copy className="h-3 w-3 mr-1" />Copiar enlace
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         )}
