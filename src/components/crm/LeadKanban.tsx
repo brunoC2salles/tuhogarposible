@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { LeadCard } from './LeadCard';
 import { cn } from '@/lib/utils';
-import { Ban, Sparkles, FileText, Building2, UserCheck, PhoneCall, Home } from 'lucide-react';
+import { Ban, Sparkles, FileText, Building2, UserCheck, PhoneCall, Home, KeyRound, FolderCheck, FileSignature } from 'lucide-react';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -68,8 +68,14 @@ export const LeadKanban = ({
         return <PhoneCall className="h-4 w-4" />;
       case 'buscando_vivienda':
         return <Home className="h-4 w-4" />;
+      case 'vivienda_encontrada':
+        return <KeyRound className="h-4 w-4" />;
+      case 'documentacion_ok':
+        return <FolderCheck className="h-4 w-4" />;
       case 'tasacion_prevision':
         return <FileText className="h-4 w-4" />;
+      case 'firma_contrato':
+        return <FileSignature className="h-4 w-4" />;
       case 'informacion_riesgos':
         return <UserCheck className="h-4 w-4" />;
       case 'fein':
@@ -97,8 +103,14 @@ export const LeadKanban = ({
         return cn(baseStyles, 'border-purple-500/30 bg-purple-50 dark:bg-purple-950/20');
       case 'buscando_vivienda':
         return cn(baseStyles, 'border-indigo-500/30 bg-indigo-50 dark:bg-indigo-950/20');
+      case 'vivienda_encontrada':
+        return cn(baseStyles, 'border-sky-500/30 bg-sky-50 dark:bg-sky-950/20');
+      case 'documentacion_ok':
+        return cn(baseStyles, 'border-cyan-500/30 bg-cyan-50 dark:bg-cyan-950/20');
       case 'tasacion_prevision':
         return cn(baseStyles, 'border-blue-500/30 bg-blue-50 dark:bg-blue-950/20');
+      case 'firma_contrato':
+        return cn(baseStyles, 'border-violet-500/30 bg-violet-50 dark:bg-violet-950/20');
       case 'informacion_riesgos':
         return cn(baseStyles, 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20');
       case 'fein':
@@ -120,8 +132,14 @@ export const LeadKanban = ({
         return 'text-purple-600 dark:text-purple-400 border-purple-500/20';
       case 'buscando_vivienda':
         return 'text-indigo-600 dark:text-indigo-400 border-indigo-500/20';
+      case 'vivienda_encontrada':
+        return 'text-sky-600 dark:text-sky-400 border-sky-500/20';
+      case 'documentacion_ok':
+        return 'text-cyan-700 dark:text-cyan-400 border-cyan-500/20';
       case 'tasacion_prevision':
         return 'text-blue-600 dark:text-blue-400 border-blue-500/20';
+      case 'firma_contrato':
+        return 'text-violet-600 dark:text-violet-400 border-violet-500/20';
       case 'informacion_riesgos':
         return 'text-amber-600 dark:text-amber-400 border-amber-500/20';
       case 'fein':
@@ -143,8 +161,14 @@ export const LeadKanban = ({
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
       case 'buscando_vivienda':
         return 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400';
+      case 'vivienda_encontrada':
+        return 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400';
+      case 'documentacion_ok':
+        return 'bg-cyan-100 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-400';
       case 'tasacion_prevision':
         return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+      case 'firma_contrato':
+        return 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400';
       case 'informacion_riesgos':
         return 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400';
       case 'fein':

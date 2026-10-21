@@ -1,12 +1,13 @@
 // seguimiento-etapas (19/10/2026)
 // Se ejecuta cada hora (pg_cron) y solo actua a las 13h de Madrid.
 //  - Buscando Vivienda: follow-up por Spoki los dias 2, 4 y 6 en la etapa, con viviendas nuevas de VoxHouses
-//    (sin repetir las ya enviadas; si no hay nuevas, se envia /viviendas). Dia 10 sin cambio de etapa -> archivo oculto.
-//  - Tasacion/Prevision: mas de 15 dias sin cambio de etapa -> archivo oculto.
+//    (sin repetir las ya enviadas; si no hay nuevas, se envia /viviendas). Dia 90 sin cambio de etapa -> archivo oculto
+//    (10 dias hasta el 20/10/2026). Tasacion ya no se archiva automaticamente (decision Bruno 20/10/2026).
 // Solo cuentan los leads que entraron en la etapa despues de la fecha de activacion (admin_settings):
-//   seguimiento_desde (Buscando Vivienda) y archivo_tasacion_desde (Tasacion). Vacio = desactivado.
+//   seguimiento_desde (Buscando Vivienda). Vacio = desactivado.
 // Cualquier cambio de etapa (manual o automatico) actualiza last_stage_change_at y reinicia la cuenta.
-// Parametros: ?dry=1 (no envia ni archiva, solo informa) · ?forzar=1 (ignora la hora de Madrid)
+// Parametros: ?dry=1 (no envia ni archiva, solo informa) · ?forzar=1 (ignora la hora de Madrid).
+//   Ambos solo con la service role key (la función es pública; sin ellos solo actúa a las 13h y es idempotente).
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -14,8 +15,7 @@ const VR_URL = `${SB_URL}/functions/v1/viviendas-recomendadas`;
 const SITE = "https://www.tuhogarposible.com/viviendas";
 const HORA_ENVIO = 13;
 const RONDAS = [2, 4, 6]; // dias en la etapa para cada follow-up
-const DIAS_ARCHIVO_BUSCANDO = 10;
-const DIAS_ARCHIVO_TASACION = 15; // archiva con MAS de 15 dias
+const DIAS_ARCHIVO_BUSCANDO = 90;
 
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
 
@@ -53,8 +53,9 @@ async function recomendar(idealista: string, excluir: string[], count = 3) {
 
 Deno.serve(async (req) => {
   const u = new URL(req.url);
-  const dry = u.searchParams.get("dry") === "1";
-  const forzar = u.searchParams.get("forzar") === "1";
+  const admin = (req.headers.get("authorization") || "") === `Bearer ${SB_KEY}`;
+  const dry = admin && u.searchParams.get("dry") === "1";
+  const forzar = admin && u.searchParams.get("forzar") === "1";
   const ahora = new Date();
   const hora = Number(fmtHora.format(ahora));
   const out: Record<string, unknown> = { dry, hora_madrid: hora };
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
 
   try {
     const rows: { key: string; value: string }[] = await rest(
-      "admin_settings?select=key,value&key=in.(seguimiento_desde,archivo_tasacion_desde,seguimiento_spoki_url,seguimiento_spoki_secret,seguimiento_spoki_campo_link)",
+      "admin_settings?select=key,value&key=in.(seguimiento_desde,seguimiento_spoki_url,seguimiento_spoki_secret,seguimiento_spoki_campo_link)",
     );
     const cfg = Object.fromEntries(rows.map((r) => [r.key, (r.value || "").trim()]));
     const archivados: unknown[] = [];
@@ -79,22 +80,7 @@ Deno.serve(async (req) => {
       });
     };
 
-    // ---- Tasacion: mas de 15 dias -> archivo ----
-    if (cfg.archivo_tasacion_desde) {
-      const leads = await rest(
-        `leads?select=id,nombre_completo,last_stage_change_at&stage=eq.tasacion_prevision&archivado_at=is.null` +
-          `&last_stage_change_at=gte.${encodeURIComponent(cfg.archivo_tasacion_desde)}`,
-      );
-      for (const l of leads) {
-        const dias = diasEnEtapa(l.last_stage_change_at, ahora);
-        if (dias > DIAS_ARCHIVO_TASACION) {
-          await archivar(l.id, `tasacion_mas_de_${DIAS_ARCHIVO_TASACION}_dias`);
-          archivados.push({ id: l.id, nombre: l.nombre_completo, etapa: "tasacion_prevision", dias });
-        }
-      }
-    }
-
-    // ---- Buscando Vivienda: follow-ups 2/4/6 y archivo dia 10 ----
+    // ---- Buscando Vivienda: follow-ups 2/4/6 y archivo dia 90 ----
     if (cfg.seguimiento_desde) {
       const spokiOk = !!(cfg.seguimiento_spoki_url && cfg.seguimiento_spoki_secret && cfg.seguimiento_spoki_campo_link);
       const leads = await rest(
@@ -195,7 +181,6 @@ Deno.serve(async (req) => {
 
     Object.assign(out, { archivados, enviados, errores, sin_config_spoki: sinConfig, config: {
       seguimiento_desde: cfg.seguimiento_desde || null,
-      archivo_tasacion_desde: cfg.archivo_tasacion_desde || null,
       spoki_configurado: !!(cfg.seguimiento_spoki_url && cfg.seguimiento_spoki_secret && cfg.seguimiento_spoki_campo_link),
     } });
     return res();

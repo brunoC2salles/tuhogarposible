@@ -1791,8 +1791,9 @@ Deno.serve(async (req) => {
           zona_interes: data.zona_interes || null,
           valor_inmueble_deseado: null, // Será preenchido quando um imóvel for vinculado
         agente_asignado_id: agenteAsignado?.id || null,
-        // Leads não qualificados vão direto para 'descualificados'
-        stage: qualificacao.cualificado ? 'nuevo_lead' : 'descualificados',
+        // Leads não qualificados vão direto para 'descualificados'.
+        // Cualificados con vivienda seleccionada entran en 'vivienda_encontrada' (decisión Bruno 20/10/2026)
+        stage: !qualificacao.cualificado ? 'descualificados' : tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead',
         source: isTally ? 'tally' : isTallyHousage ? 'manual' : 'meta_ads',
           notas: notasLead,
           simulador_personal_data: simulacionPersonalEnriched,
@@ -1810,7 +1811,7 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] Erro ao criar lead:', leadError);
       } else {
         leadId = leadData.id;
-        console.log('[meta-lead-webhook] Lead criado com stage:', qualificacao.cualificado ? 'nuevo_lead' : 'descualificados', leadId);
+        console.log('[meta-lead-webhook] Lead criado com stage:', !qualificacao.cualificado ? 'descualificados' : tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead', leadId);
       }
     } catch (err) {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
@@ -1924,7 +1925,7 @@ Deno.serve(async (req) => {
             ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
             zona_interes: data.zona_interes || null,
             valor_inmueble_deseado: null,
-            stage: 'nuevo_lead',
+            stage: tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead',
             notas: notasLead,
             simulador_personal_data: simulacionPersonalEnriched,
             simulador_hipotecario_data: simulacionHipotecariaEnriched,

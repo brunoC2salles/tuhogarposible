@@ -2,7 +2,10 @@ export type LeadStage =
   | 'nuevo_lead' 
   | 'llamada'
   | 'buscando_vivienda'
-  | 'tasacion_prevision' 
+  | 'vivienda_encontrada'
+  | 'documentacion_ok'
+  | 'tasacion_prevision'
+  | 'firma_contrato'
   | 'informacion_riesgos'
   | 'fein' 
   | 'llamada_consultoria'
@@ -111,8 +114,11 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   nuevo_lead: 'Cualificado',
   llamada: 'Llamada',
   buscando_vivienda: 'Buscando Vivienda',
-  tasacion_prevision: 'Tasación/Previsión de Tasación',
-  informacion_riesgos: 'Información a riesgos',
+  vivienda_encontrada: 'Vivienda encontrada',
+  documentacion_ok: 'Documentación OK',
+  tasacion_prevision: 'Pago tasación y mandar tasador',
+  firma_contrato: 'Firma del contrato',
+  informacion_riesgos: 'Documentación a Riesgos',
   fein: 'FEIN',
   llamada_consultoria: 'Avanzo con Unicaja',
   descualificados: 'Descualificado'
@@ -121,7 +127,10 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
 export const STAGE_ORDER: LeadStage[] = [
   'nuevo_lead',
   'buscando_vivienda',
+  'vivienda_encontrada',
+  'documentacion_ok',
   'tasacion_prevision',
+  'firma_contrato',
   'informacion_riesgos',
   'fein',
   'llamada_consultoria',

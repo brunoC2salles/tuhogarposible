@@ -134,6 +134,13 @@ async function sincronizar(c: any): Promise<any> {
     body: JSON.stringify({ estado: "firmado", lumin_status: status, firmado_path: path, firmado_at, updated_at: firmado_at }),
   });
   if (upd) {
+    // Firmado el mandato: el lead pasa de "Firma del contrato" a "Documentación a Riesgos" (decisión Bruno 20/10/2026).
+    // Solo desde firma_contrato: nunca se mueve un lead que esté en otra etapa.
+    await rest(`leads?id=eq.${c.lead_id}&stage=eq.firma_contrato`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ stage: "informacion_riesgos" }),
+    }).catch((e) => console.error("[contrato-mandato] mover etapa:", e));
     await notificar(c, "contract_signed", "Contrato Firmado", `El lead "${c.datos?.nombre || ""}" firmó el mandato de compra.`);
     return upd;
   }
