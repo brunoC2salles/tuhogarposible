@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Send, Clock, FileSignature, AlertTriangle, Home } from 'lucide-react';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -165,6 +165,28 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
           <div className="flex items-center gap-2 text-primary">
             <Target className="h-3 w-3 flex-shrink-0" />
             <span className="truncate text-xs font-medium">Hasta {formatCurrency(precioMaximoInmueble)}</span>
+          </div>
+        )}
+
+        {(lead.precio_vivienda || lead.precio_vivienda_texto) && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Home className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate text-xs">
+              Vivienda: {lead.precio_vivienda ? formatCurrency(lead.precio_vivienda) : lead.precio_vivienda_texto}
+            </span>
+          </div>
+        )}
+
+        {lead.vivienda_revisar && lead.stage === 'buscando_vivienda' && (
+          <div
+            className="flex items-start gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+            title={lead.vivienda_revisar_motivo || undefined}
+          >
+            <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold">Vivienda a revisar</p>
+              {lead.vivienda_revisar_motivo && <p className="text-[11px] leading-snug">{lead.vivienda_revisar_motivo}</p>}
+            </div>
           </div>
         )}
 

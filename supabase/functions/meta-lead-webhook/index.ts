@@ -10,6 +10,7 @@ import { dispatchSecondaryQualified } from '../_shared/secondaryQualifiedPayload
 import { dispatchDisqualifiedEmail } from '../_shared/disqualifiedEmailPayload.ts';
 import { parseReunionDateTime } from '../_shared/parseReunionDateTime.ts';
 import { reemplazarNumerosEnTexto } from '../_shared/numeroTexto.ts';
+import { parseImporte } from '../_shared/importe.ts';
 
 // Antiguo agente del CRM Castellón (sigue excluido del reparto)
 const CASTELLON_AGENT_ID = 'cc83ec3e-aeed-4ba9-916e-014af99c8fdd';
@@ -128,6 +129,8 @@ interface MetaLeadData {
   tiene_ahorros_impuestos?: string;
   monto_ahorros?: string | number;
   tiene_vivienda_seleccionada?: string;
+  // Precio de la vivienda ya seleccionada (texto libre, formulario desde 21/10/2026)
+  precio_vivienda?: string | number;
   // Descuentos de ITP (cuando el formulario los envíe)
   familia_numerosa?: boolean;
   menor_de_35?: boolean;
@@ -1683,6 +1686,7 @@ Deno.serve(async (req) => {
       `Ingresos mensuales: ${ingresos > 0 ? `${ingresos.toLocaleString('es-ES')}€` : 'não especificado'}${data.rango_ingresos ? ` (respuesta: ${data.rango_ingresos})` : ''}`,
       `Deudas mensuales: ${deudas > 0 ? `${deudas.toLocaleString('es-ES')}€` : '0€ / no declaradas'}`,
       `Vivienda seleccionada: ${data.tiene_vivienda_seleccionada || 'não especificado'}`,
+      data.precio_vivienda ? `Precio de la vivienda (respuesta): ${String(data.precio_vivienda).trim()}` : null,
       (cuotaHipoteca > 0 || cuotaPersonal > 0)
         ? `Plan combinado: ${Math.round(planPagos.pago_combinado_mensual_aprox)}€/mes (hip: ${Math.round(cuotaHipoteca)}€ + cp 15k: ${Math.round(cuotaPersonal)}€)`
         : null,
@@ -1716,6 +1720,31 @@ Deno.serve(async (req) => {
       ingresos,
       deudas,
     };
+
+    // Vivienda seleccionada con precio > 130 % del máximo financiable -> se queda en Buscando Vivienda
+    // marcada "vivienda a revisar" (decisión Bruno 21/10/2026). Precio ilegible también se revisa.
+    // Máximo = mismo valor que se envía a Spoki como MAX_FINANCIABLE (precio máximo recomendado).
+    const precioViviendaTexto = String(data.precio_vivienda ?? '').replace(/\s+/g, ' ').trim() || null;
+    const precioVivienda = precioViviendaTexto ? parseImporte(precioViviendaTexto) : null;
+    const maxFinanciableLead = Number(precioMaxInmueble.precio_max_recomendado) > 0
+      ? Number(precioMaxInmueble.precio_max_recomendado)
+      : Number((simulacionHipotecaria as any).monto_maximo_financiable || 0);
+    let viviendaRevisarMotivo: string | null = null;
+    if (qualificacao.cualificado && tieneViviendaSeleccionada(data) && precioViviendaTexto) {
+      if (precioVivienda === null || precioVivienda <= 0) {
+        viviendaRevisarMotivo = `Precio de la vivienda no legible: "${precioViviendaTexto}"`;
+      } else if (maxFinanciableLead > 0 && precioVivienda > maxFinanciableLead * 1.3) {
+        const fmt = (n: number) => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(n)} €`;
+        viviendaRevisarMotivo = `Vivienda de ${fmt(precioVivienda)} supera en más de un 30 % el máximo financiable (${fmt(maxFinanciableLead)})`;
+      }
+    }
+    const viviendaRevisar = viviendaRevisarMotivo !== null;
+    const stageInicial = !qualificacao.cualificado
+      ? 'descualificados'
+      : viviendaRevisar
+        ? 'buscando_vivienda'
+        : tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead';
+    if (viviendaRevisar) console.log('[meta-lead-webhook] Vivienda a revisar:', viviendaRevisarMotivo);
 
     const simulacionHipotecariaEnriched = {
       ...simulacionHipotecaria,
@@ -1754,6 +1783,7 @@ Deno.serve(async (req) => {
       meta_monto_ahorros: montoAhorros,
       meta_tiene_ahorros: metaTieneAhorrosNormalizado,
       meta_vivienda_seleccionada: data.tiene_vivienda_seleccionada || null,
+      meta_precio_vivienda: precioViviendaTexto,
       meta_antiguedad_trabajo: data.antiguedad_trabajo || null,
       meta_dni_nie: data.tiene_nie_dni || null,
       meta_preferencia_llamada: data.preferencia_llamada || null,
@@ -1792,10 +1822,15 @@ Deno.serve(async (req) => {
           valor_inmueble_deseado: null, // Será preenchido quando um imóvel for vinculado
         agente_asignado_id: agenteAsignado?.id || null,
         // Leads não qualificados vão direto para 'descualificados'.
-        // Cualificados con vivienda seleccionada entran en 'vivienda_encontrada' (decisión Bruno 20/10/2026)
-        stage: !qualificacao.cualificado ? 'descualificados' : tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead',
+        // Cualificados con vivienda seleccionada entran en 'vivienda_encontrada' (decisión Bruno 20/10/2026),
+        // salvo vivienda a revisar (21/10/2026), que se queda en 'buscando_vivienda'.
+        stage: stageInicial,
+        precio_vivienda: precioVivienda,
+        precio_vivienda_texto: precioViviendaTexto,
+        vivienda_revisar: viviendaRevisar,
+        vivienda_revisar_motivo: viviendaRevisarMotivo,
         source: isTally ? 'tally' : isTallyHousage ? 'manual' : 'meta_ads',
-          notas: notasLead,
+          notas: viviendaRevisar ? `${notasLead}\nVIVIENDA A REVISAR: ${viviendaRevisarMotivo}` : notasLead,
           simulador_personal_data: simulacionPersonalEnriched,
           simulador_hipotecario_data: simulacionHipotecariaEnriched,
           fecha_reunion: fechaReunion,
@@ -1811,7 +1846,7 @@ Deno.serve(async (req) => {
         console.error('[meta-lead-webhook] Erro ao criar lead:', leadError);
       } else {
         leadId = leadData.id;
-        console.log('[meta-lead-webhook] Lead criado com stage:', !qualificacao.cualificado ? 'descualificados' : tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead', leadId);
+        console.log('[meta-lead-webhook] Lead criado com stage:', stageInicial, leadId);
       }
     } catch (err) {
       console.error('[meta-lead-webhook] Exceção ao criar lead:', err);
@@ -1925,7 +1960,7 @@ Deno.serve(async (req) => {
             ciudad_interes: zonaParseada.ciudad || data.zona_interes || null,
             zona_interes: data.zona_interes || null,
             valor_inmueble_deseado: null,
-            stage: tieneViviendaSeleccionada(data) ? 'vivienda_encontrada' : 'nuevo_lead',
+            stage: stageInicial,
             notas: notasLead,
             simulador_personal_data: simulacionPersonalEnriched,
             simulador_hipotecario_data: simulacionHipotecariaEnriched,

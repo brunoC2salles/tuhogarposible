@@ -80,6 +80,12 @@ export interface Lead {
   updated_at: string;
   last_stage_change_at: string;
   agente_nombre?: string;
+  /** Precio de la vivienda seleccionada (formulario Meta, 21/10/2026) */
+  precio_vivienda?: number | null;
+  precio_vivienda_texto?: string | null;
+  /** Vivienda > 130 % del máximo financiable (o precio ilegible): se queda en Buscando Vivienda para revisar */
+  vivienda_revisar?: boolean;
+  vivienda_revisar_motivo?: string | null;
 }
 
 export interface LeadInmueble {

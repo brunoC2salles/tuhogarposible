@@ -4,6 +4,7 @@
 // Regla (decisión Bruno 14/10/2026): solo pasa desde nuevo_lead, llamada o buscando_vivienda;
 // cualquier otra etapa no se toca (nunca retroceder un lead).
 // 20/10/2026: el destino pasa de tasacion_prevision a vivienda_encontrada (nuevo kanban).
+// 21/10/2026: los leads marcados "vivienda a revisar" se quedan en buscando_vivienda.
 // El nombre de la función se mantiene porque el escenario Make "Spoki - Con vivienda a Tasación" la llama.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -47,7 +48,7 @@ Deno.serve(async (req) => {
 
   const { data: leads, error } = await supabase
     .from('leads')
-    .select('id, telefono, stage, notas, agente_asignado_id, created_at')
+    .select('id, telefono, stage, notas, agente_asignado_id, created_at, vivienda_revisar')
     .like('telefono', `%${phone}`)
     .order('created_at', { ascending: false })
     .limit(10);
@@ -60,6 +61,10 @@ Deno.serve(async (req) => {
   if (!lead) {
     await log('success', 'lead_no_encontrado', { phone });
     return json({ ok: true, updated: false, reason: 'lead_no_encontrado' });
+  }
+  if (lead.vivienda_revisar) {
+    await log('success', 'sin_cambio_vivienda_a_revisar', { phone, lead_id: lead.id });
+    return json({ ok: true, updated: false, reason: 'vivienda_a_revisar', lead_id: lead.id });
   }
   if (!ETAPAS_ORIGEN.includes(lead.stage)) {
     await log('success', `sin_cambio_etapa_actual_${lead.stage}`, { phone, lead_id: lead.id });
