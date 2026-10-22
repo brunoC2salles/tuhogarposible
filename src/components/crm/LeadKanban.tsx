@@ -12,6 +12,7 @@ interface LeadKanbanProps {
   onDelete: (leadId: string) => void;
   onDisqualify?: (leadId: string) => void;
   onToggleVisitaAgendada?: (leadId: string, value: boolean) => void;
+  onToggleLlamadaRealizada?: (leadId: string, value: boolean) => void;
 }
 
 export const LeadKanban = ({
@@ -22,6 +23,7 @@ export const LeadKanban = ({
   onDelete,
   onDisqualify,
   onToggleVisitaAgendada,
+  onToggleLlamadaRealizada,
 }: LeadKanbanProps) => {
   const [draggedLead, setDraggedLead] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
@@ -236,6 +238,7 @@ export const LeadKanban = ({
                       onDelete={onDelete}
                       onDisqualify={onDisqualify}
                       onToggleVisitaAgendada={onToggleVisitaAgendada}
+                      onToggleLlamadaRealizada={onToggleLlamadaRealizada}
                     />
                   </div>
                 ))}

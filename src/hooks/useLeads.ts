@@ -297,6 +297,25 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
     }
   };
 
+  // Llamada realizada (22/10/2026): marca manual del agente/admin en cualquier etapa.
+  // El historial lo registra la base de datos (trigger trg_llamada_realizada en leads).
+  const toggleLlamadaRealizada = async (leadId: string, value: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ llamada_realizada: value } as any)
+        .eq('id', leadId);
+      if (error) throw error;
+      toast.success(value ? 'Llamada realizada marcada' : 'Llamada realizada desmarcada');
+      await fetchLeads();
+      return true;
+    } catch (err: any) {
+      console.error('[Leads] Llamada realizada error:', err);
+      toast.error('No se pudo actualizar la llamada realizada');
+      return false;
+    }
+  };
+
   const reassignLead = async (leadId: string, newAgenteId: string) => {
     if (!isAdmin) {
       toast.error('Solo administradores pueden reasignar leads');
@@ -343,5 +362,6 @@ export const useLeads = (options: UseLeadsOptions = {}) => {
     deleteLead,
     reassignLead,
     toggleVisitaAgendada,
+    toggleLlamadaRealizada,
   };
 };

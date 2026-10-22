@@ -89,6 +89,9 @@ export interface Lead {
   /** Visita agendada en una vivienda (marca manual del agente en Buscando Vivienda, 21/10/2026).
    *  Se quita automáticamente al salir de la etapa; los cambios quedan en lead_historico. */
   visita_agendada?: boolean;
+  /** Llamada realizada (marca manual del agente/admin, 22/10/2026).
+   *  Se mantiene al cambiar de etapa; los cambios quedan en lead_historico. */
+  llamada_realizada?: boolean;
 }
 
 export interface LeadInmueble {

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck, PhoneOutgoing } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
@@ -20,14 +20,17 @@ interface LeadCardProps {
   onDisqualify?: (leadId: string) => void;
   onStageChange?: (leadId: string, newStage: LeadStage) => void;
   onToggleVisitaAgendada?: (leadId: string, value: boolean) => void;
+  onToggleLlamadaRealizada?: (leadId: string, value: boolean) => void;
 }
 
-export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange, onToggleVisitaAgendada }: LeadCardProps) => {
+export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, onStageChange, onToggleVisitaAgendada, onToggleLlamadaRealizada }: LeadCardProps) => {
   const [contratoOpen, setContratoOpen] = useState(false);
   const { profile } = useAuth();
   // Visita agendada: solo existe en Buscando Vivienda (la base de datos la quita al salir de la etapa)
   const enBuscandoVivienda = lead.stage === 'buscando_vivienda';
   const visitaAgendada = enBuscandoVivienda && !!lead.visita_agendada;
+  // Llamada realizada: marca manual que se mantiene en todas las etapas
+  const llamadaRealizada = !!lead.llamada_realizada;
 
   const formatPhoneForWhatsApp = (phone: string) => {
     // Remove todos os caracteres não numéricos
@@ -88,6 +91,15 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
       <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 space-y-2">
         <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words flex items-start gap-1.5">
           <span className="min-w-0">{lead.nombre_completo}</span>
+          {llamadaRealizada && (
+            <span
+              className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
+              title="Llamada realizada"
+              aria-label="Llamada realizada"
+            >
+              <PhoneOutgoing className="h-3.5 w-3.5" />
+            </span>
+          )}
           {visitaAgendada && (
             <span
               className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
@@ -120,6 +132,18 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
               aria-pressed={visitaAgendada}
             >
               <CalendarCheck className="h-4 w-4" />
+            </Button>
+          )}
+          {onToggleLlamadaRealizada && lead.stage !== 'descualificados' && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className={cn('h-7 w-7', llamadaRealizada ? 'text-primary bg-primary/10 hover:bg-primary/15 hover:text-primary' : 'text-muted-foreground')}
+              onClick={(e) => { e.stopPropagation(); onToggleLlamadaRealizada(lead.id, !llamadaRealizada); }}
+              title={llamadaRealizada ? 'Quitar llamada realizada' : 'Marcar llamada realizada'}
+              aria-pressed={llamadaRealizada}
+            >
+              <PhoneOutgoing className="h-4 w-4" />
             </Button>
           )}
           <div className="ml-auto flex items-center gap-0.5">

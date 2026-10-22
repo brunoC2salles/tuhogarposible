@@ -29,7 +29,7 @@ export default function AgenteDetails() {
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
   const { statistics } = useAgentStatistics(agenteId);
-  const { leads, loading: leadsLoading, updateLeadStage, toggleVisitaAgendada } = useLeads();
+  const { leads, loading: leadsLoading, updateLeadStage, toggleVisitaAgendada, toggleLlamadaRealizada } = useLeads();
   
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
@@ -214,6 +214,7 @@ export default function AgenteDetails() {
               onDelete={handleDelete}
               onDisqualify={(leadId) => handleStageChange(leadId, 'descualificados')}
               onToggleVisitaAgendada={toggleVisitaAgendada}
+              onToggleLlamadaRealizada={toggleLlamadaRealizada}
             />
           ) : (
             <p className="text-center text-muted-foreground py-8">

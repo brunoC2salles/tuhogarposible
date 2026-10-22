@@ -38,6 +38,9 @@ const normalize = (s: string) =>
 export const tieneVisitaAgendada = (lead: Lead): boolean =>
   !!lead.visita_agendada && lead.stage === 'buscando_vivienda';
 
+/** true si el agente marcó la llamada como realizada (vale en todas las etapas) */
+export const tieneLlamadaRealizada = (lead: Lead): boolean => !!lead.llamada_realizada;
+
 /** true si el lead declaró que ya tiene una vivienda seleccionada */
 export const tieneVivienda = (lead: Lead): boolean => {
   const hip = lead.simulador_hipotecario_data as any;

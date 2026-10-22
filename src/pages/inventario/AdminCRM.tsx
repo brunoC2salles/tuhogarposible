@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus, CalendarCheck } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus, CalendarCheck, PhoneOutgoing } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
 import { AgentStatsModal } from '@/components/crm/AgentStatsModal';
@@ -20,7 +20,7 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
-import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda, tieneVisitaAgendada } from '@/lib/leadFilters';
+import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda, tieneVisitaAgendada, tieneLlamadaRealizada } from '@/lib/leadFilters';
 import { esZonaCastellon } from '@/lib/castellon';
 
 type PeriodOption = '30' | '90' | 'all';
@@ -62,7 +62,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
 
   const periodDays = period === 'all' ? null : Number(period);
 
-  const { leads, updateLeadStage, updateLead, createLead, deleteLead, toggleVisitaAgendada } = useLeads({
+  const { leads, updateLeadStage, updateLead, createLead, deleteLead, toggleVisitaAgendada, toggleLlamadaRealizada } = useLeads({
     periodDays,
     includeDisqualified,
   });
@@ -76,6 +76,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   const [callTimeFilter, setCallTimeFilter] = useState<CallTimeFilter | null>(null);
   const [viviendaFilter, setViviendaFilter] = useState<'si' | 'no' | null>(null);
   const [visitaFilter, setVisitaFilter] = useState(false);
+  const [llamadaFilter, setLlamadaFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -103,8 +104,11 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
     if (visitaFilter) {
       result = result.filter(lead => tieneVisitaAgendada(lead));
     }
+    if (llamadaFilter) {
+      result = result.filter(lead => tieneLlamadaRealizada(lead));
+    }
     return result;
-  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, visitaFilter, scope]);
+  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, visitaFilter, llamadaFilter, scope]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
@@ -307,6 +311,14 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
                   <CalendarCheck className="h-4 w-4 mr-1" />
                   Visita agendada
                 </Button>
+                <Button
+                  size="sm"
+                  variant={llamadaFilter ? 'default' : 'outline'}
+                  onClick={() => setLlamadaFilter(prev => !prev)}
+                >
+                  <PhoneOutgoing className="h-4 w-4 mr-1" />
+                  Llamada realizada
+                </Button>
               </div>
 
               {/* Linha de filtros de carga */}
@@ -349,6 +361,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
               onDelete={handleKanbanDelete}
               onDisqualify={handleKanbanDisqualify}
               onToggleVisitaAgendada={toggleVisitaAgendada}
+              onToggleLlamadaRealizada={toggleLlamadaRealizada}
             />
           </CardContent>
         </Card>
