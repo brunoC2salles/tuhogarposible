@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
@@ -373,6 +373,78 @@ export type Database = {
         }
         Relationships: []
       }
+      embargados_acceso: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      embargados_leads: {
+        Row: {
+          ciudad: string | null
+          created_at: string
+          cualificado: boolean | null
+          email: string | null
+          id: string
+          last_stage_change_at: string
+          meta_lead_id: string | null
+          motivo_descualificacion: string | null
+          nombre_completo: string
+          notas: string | null
+          respuestas: Json
+          source: string
+          spoki_enviado_at: string | null
+          stage: Database["public"]["Enums"]["embargados_stage"]
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          ciudad?: string | null
+          created_at?: string
+          cualificado?: boolean | null
+          email?: string | null
+          id?: string
+          last_stage_change_at?: string
+          meta_lead_id?: string | null
+          motivo_descualificacion?: string | null
+          nombre_completo: string
+          notas?: string | null
+          respuestas?: Json
+          source?: string
+          spoki_enviado_at?: string | null
+          stage?: Database["public"]["Enums"]["embargados_stage"]
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ciudad?: string | null
+          created_at?: string
+          cualificado?: boolean | null
+          email?: string | null
+          id?: string
+          last_stage_change_at?: string
+          meta_lead_id?: string | null
+          motivo_descualificacion?: string | null
+          nombre_completo?: string
+          notas?: string | null
+          respuestas?: Json
+          source?: string
+          spoki_enviado_at?: string | null
+          stage?: Database["public"]["Enums"]["embargados_stage"]
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       faturacoes: {
         Row: {
           agente_id: string | null
@@ -470,6 +542,77 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "lead_comments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_contratos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          datos: Json | null
+          enviado_at: string | null
+          error: string | null
+          estado: string
+          expires_at: string
+          firmado_at: string | null
+          firmado_path: string | null
+          honorarios: number
+          id: string
+          lead_id: string
+          lumin_request_id: string | null
+          lumin_status: string | null
+          pdf_path: string | null
+          tipo: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          datos?: Json | null
+          enviado_at?: string | null
+          error?: string | null
+          estado?: string
+          expires_at?: string
+          firmado_at?: string | null
+          firmado_path?: string | null
+          honorarios?: number
+          id?: string
+          lead_id: string
+          lumin_request_id?: string | null
+          lumin_status?: string | null
+          pdf_path?: string | null
+          tipo?: string
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          datos?: Json | null
+          enviado_at?: string | null
+          error?: string | null
+          estado?: string
+          expires_at?: string
+          firmado_at?: string | null
+          firmado_path?: string | null
+          honorarios?: number
+          id?: string
+          lead_id?: string
+          lumin_request_id?: string | null
+          lumin_status?: string | null
+          pdf_path?: string | null
+          tipo?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contratos_lead_id_fkey"
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
@@ -803,6 +946,59 @@ export type Database = {
           },
         ]
       }
+      lead_recomendaciones: {
+        Row: {
+          base: Json | null
+          created_at: string
+          enviado_at: string | null
+          estado: string
+          id: string
+          lead_id: string
+          link: string | null
+          respuesta: string | null
+          ronda: number
+          slugs: string[]
+          stage_entrada_at: string
+          viviendas: Json
+        }
+        Insert: {
+          base?: Json | null
+          created_at?: string
+          enviado_at?: string | null
+          estado?: string
+          id?: string
+          lead_id: string
+          link?: string | null
+          respuesta?: string | null
+          ronda: number
+          slugs?: string[]
+          stage_entrada_at: string
+          viviendas?: Json
+        }
+        Update: {
+          base?: Json | null
+          created_at?: string
+          enviado_at?: string | null
+          estado?: string
+          id?: string
+          lead_id?: string
+          link?: string | null
+          respuesta?: string | null
+          ronda?: number
+          slugs?: string[]
+          stage_entrada_at?: string
+          viviendas?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_recomendaciones_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_reuniones_recordatorios: {
         Row: {
           canal: string | null
@@ -999,6 +1195,8 @@ export type Database = {
       leads: {
         Row: {
           agente_asignado_id: string | null
+          archivado_at: string | null
+          archivado_motivo: string | null
           ciudad_interes: string | null
           created_at: string
           email: string
@@ -1007,8 +1205,11 @@ export type Database = {
           hora_reunion_texto: string | null
           id: string
           last_stage_change_at: string
+          llamada_realizada: boolean
           nombre_completo: string
           notas: string | null
+          precio_vivienda: number | null
+          precio_vivienda_texto: string | null
           reunion_datetime: string | null
           simulador_hipotecario_data: Json | null
           simulador_personal_data: Json | null
@@ -1017,11 +1218,16 @@ export type Database = {
           telefono: string
           updated_at: string
           valor_inmueble_deseado: number | null
+          visita_agendada: boolean
+          vivienda_revisar: boolean
+          vivienda_revisar_motivo: string | null
           zona_horaria_reunion: string | null
           zona_interes: string | null
         }
         Insert: {
           agente_asignado_id?: string | null
+          archivado_at?: string | null
+          archivado_motivo?: string | null
           ciudad_interes?: string | null
           created_at?: string
           email: string
@@ -1030,8 +1236,11 @@ export type Database = {
           hora_reunion_texto?: string | null
           id?: string
           last_stage_change_at?: string
+          llamada_realizada?: boolean
           nombre_completo: string
           notas?: string | null
+          precio_vivienda?: number | null
+          precio_vivienda_texto?: string | null
           reunion_datetime?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
@@ -1040,11 +1249,16 @@ export type Database = {
           telefono: string
           updated_at?: string
           valor_inmueble_deseado?: number | null
+          visita_agendada?: boolean
+          vivienda_revisar?: boolean
+          vivienda_revisar_motivo?: string | null
           zona_horaria_reunion?: string | null
           zona_interes?: string | null
         }
         Update: {
           agente_asignado_id?: string | null
+          archivado_at?: string | null
+          archivado_motivo?: string | null
           ciudad_interes?: string | null
           created_at?: string
           email?: string
@@ -1053,8 +1267,11 @@ export type Database = {
           hora_reunion_texto?: string | null
           id?: string
           last_stage_change_at?: string
+          llamada_realizada?: boolean
           nombre_completo?: string
           notas?: string | null
+          precio_vivienda?: number | null
+          precio_vivienda_texto?: string | null
           reunion_datetime?: string | null
           simulador_hipotecario_data?: Json | null
           simulador_personal_data?: Json | null
@@ -1063,6 +1280,9 @@ export type Database = {
           telefono?: string
           updated_at?: string
           valor_inmueble_deseado?: number | null
+          visita_agendada?: boolean
+          vivienda_revisar?: boolean
+          vivienda_revisar_motivo?: string | null
           zona_horaria_reunion?: string | null
           zona_interes?: string | null
         }
@@ -1359,6 +1579,60 @@ export type Database = {
         }
         Relationships: []
       }
+      voxhouse_search_logs: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          devueltos: number | null
+          duracion_ms: number | null
+          envio: string | null
+          error: string | null
+          estado: string
+          habitaciones: number | null
+          herramienta: string | null
+          id: number
+          lead_id: string | null
+          precio_max: number | null
+          tipo: string | null
+          total: number | null
+          zona: string | null
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          devueltos?: number | null
+          duracion_ms?: number | null
+          envio?: string | null
+          error?: string | null
+          estado: string
+          habitaciones?: number | null
+          herramienta?: string | null
+          id?: never
+          lead_id?: string | null
+          precio_max?: number | null
+          tipo?: string | null
+          total?: number | null
+          zona?: string | null
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          devueltos?: number | null
+          duracion_ms?: number | null
+          envio?: string | null
+          error?: string | null
+          estado?: string
+          habitaciones?: number | null
+          herramienta?: string | null
+          id?: never
+          lead_id?: string | null
+          precio_max?: number | null
+          tipo?: string | null
+          total?: number | null
+          zona?: string | null
+        }
+        Relationships: []
+      }
       webhook_logs: {
         Row: {
           created_at: string | null
@@ -1419,8 +1693,14 @@ export type Database = {
         Args: { _candidates: string[] }
         Returns: string
       }
+      puede_ver_embargados: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
+      embargados_stage:
+        | "contactado"
+        | "en_proceso"
+        | "exito"
+        | "descualificados"
       estado_reserva: "pendiente" | "confirmada" | "cancelada" | "completada"
       lead_source:
         | "formulario_web"
@@ -1455,6 +1735,9 @@ export type Database = {
         | "fein"
         | "llamada"
         | "llamada_consultoria"
+        | "vivienda_encontrada"
+        | "documentacion_ok"
+        | "firma_contrato"
       notification_type:
         | "new_lead"
         | "lead_stage_listo"
@@ -1599,6 +1882,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      embargados_stage: [
+        "contactado",
+        "en_proceso",
+        "exito",
+        "descualificados",
+      ],
       estado_reserva: ["pendiente", "confirmada", "cancelada", "completada"],
       lead_source: [
         "formulario_web",
@@ -1634,6 +1923,9 @@ export const Constants = {
         "fein",
         "llamada",
         "llamada_consultoria",
+        "vivienda_encontrada",
+        "documentacion_ok",
+        "firma_contrato",
       ],
       notification_type: [
         "new_lead",

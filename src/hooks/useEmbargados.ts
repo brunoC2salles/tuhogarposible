@@ -93,7 +93,7 @@ export const useEmbargadosLeads = () => {
         try { msg = (await ctx.json())?.error; } catch { /* sin detalle */ }
       }
       console.error('[Embargados] Spoki error:', error || data);
-      toast.error(`No se pudo enviar a Spoki${msg ? `: ${msg}` : ''}`);
+      toast.error(msg || 'No se pudo enviar a Spoki');
       return null;
     }
     toast.success('Enviado a Spoki');

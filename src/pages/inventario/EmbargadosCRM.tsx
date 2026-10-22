@@ -306,21 +306,22 @@ const EmbargadosCRM = () => {
                       ? `Enviado a Spoki el ${fecha(selected.spoki_enviado_at)}`
                       : 'Aún no enviado a Spoki'}
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={enviando || !selected.telefono}
-                    onClick={async () => {
-                      if (selected.spoki_enviado_at && !window.confirm('Este lead ya se envió a Spoki. ¿Enviar de nuevo?')) return;
-                      setEnviando(true);
-                      const at = await sendToSpoki(selected.id);
-                      setEnviando(false);
-                      if (at) setSelected({ ...selected, spoki_enviado_at: at });
-                    }}
-                  >
-                    {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
-                    {selected.spoki_enviado_at ? 'Reenviar a Spoki' : 'Enviar a Spoki'}
-                  </Button>
+                  {selected.source !== 'meta_ads' && !selected.spoki_enviado_at && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={enviando || !selected.telefono}
+                      onClick={async () => {
+                        setEnviando(true);
+                        const at = await sendToSpoki(selected.id);
+                        setEnviando(false);
+                        if (at) setSelected({ ...selected, spoki_enviado_at: at });
+                      }}
+                    >
+                      {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                      Enviar a Spoki
+                    </Button>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Entró el {fecha(selected.created_at)}{selected.source === 'manual' ? ' · Alta manual' : ''}
