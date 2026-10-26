@@ -116,7 +116,7 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onViewDetails(lead)} title="Ver detalles">
             <Eye className="h-4 w-4" />
           </Button>
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setContratoOpen(true)} title="Mandato de compra">
+          <Button size="icon" variant="ghost" className="h-7 w-7 text-primary hover:text-primary" onClick={() => setContratoOpen(true)} title="Contratos">
             <FileSignature className="h-4 w-4" />
           </Button>
           <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(lead)} title="Editar lead">

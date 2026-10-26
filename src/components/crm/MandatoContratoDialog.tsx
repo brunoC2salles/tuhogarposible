@@ -14,6 +14,7 @@ import {
   LeadContrato,
   contratoExpirado,
   contratoUrl,
+  tieneTmh,
   useLeadContratos,
 } from '@/hooks/useLeadContratos';
 
@@ -36,17 +37,23 @@ const fechaCorta = (iso: string) => format(new Date(iso), "d 'de' MMMM", { local
 
 const fmt = (iso: string) => format(new Date(iso), "d MMM yyyy, HH:mm", { locale: es });
 const eur = (n: number) => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(n)} €`;
-const archivo = (c: LeadContrato, firmado: boolean) =>
-  `Mandato_de_compra_${(c.datos?.nombre || 'THP').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_')}${firmado ? '_firmado' : ''}.pdf`;
+const slug = (c: LeadContrato) => (c.datos?.nombre || 'THP').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_');
+const archivo = (c: LeadContrato, firmado: boolean) => `Mandato_de_compra_${slug(c)}${firmado ? '_firmado' : ''}.pdf`;
+const archivoTmh = (c: LeadContrato, firmado: boolean) => `Encargo_de_Servicio_TMH_${slug(c)}${firmado ? '_firmado' : ''}.pdf`;
 
 const EstadoBadge = ({ c }: { c: LeadContrato }) => {
   if (c.estado === 'firmado') return <Badge className="bg-green-600 hover:bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />Firmado</Badge>;
-  if (c.estado === 'firmando') return <Badge className="bg-amber-500 hover:bg-amber-500"><PenLine className="h-3 w-3 mr-1" />Pendiente de firma</Badge>;
+  if (c.estado === 'firmando') {
+    const total = tieneTmh(c) ? 2 : 1;
+    const firmados = (c.firmado_path ? 1 : 0) + (tieneTmh(c) && c.tmh_firmado_path ? 1 : 0);
+    const texto = total > 1 && firmados > 0 ? `Firmados ${firmados} de ${total}` : 'Pendiente de firma';
+    return <Badge className="bg-amber-500 hover:bg-amber-500"><PenLine className="h-3 w-3 mr-1" />{texto}</Badge>;
+  }
   if (contratoExpirado(c)) return <Badge variant="secondary">Enlace caducado</Badge>;
   return <Badge variant="outline"><Clock className="h-3 w-3 mr-1" />Esperando datos del cliente</Badge>;
 };
 
-/** Mandato de compra: genera el enlace para el cliente y muestra el estado del contrato */
+/** Contratos del cliente (mandato de compra + encargo de servicio TMH): genera el enlace y muestra el estado */
 export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, leadTelefono }: Props) => {
   const { profile } = useAuth();
   const telefono = telefonoWhatsApp(leadTelefono);
@@ -72,9 +79,12 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, 
     const agente = profile?.nombre ? `, soy ${profile.nombre.trim().split(/\s+/)[0]} de Tu Hogar Posible` : ', te escribimos de Tu Hogar Posible';
     const url = contratoUrl(c.token);
     if (c.estado === 'firmando') {
-      return `Hola ${nombre}${agente}. Tu mandato de compra ya está listo con tus datos, solo falta tu firma. Puedes firmarlo online desde este enlace:\n\n${url}\n\nSi tienes cualquier duda, dímelo por aquí.`;
+      if (!tieneTmh(c)) {
+        return `Hola ${nombre}${agente}. Tu mandato de compra ya está listo con tus datos, solo falta tu firma. Puedes firmarlo online desde este enlace:\n\n${url}\n\nSi tienes cualquier duda, dímelo por aquí.`;
+      }
+      return `Hola ${nombre}${agente}. Tus contratos ya están listos con tus datos, solo falta tu firma. Puedes firmarlos online desde este enlace:\n\n${url}\n\nSi tienes cualquier duda, dímelo por aquí.`;
     }
-    return `Hola ${nombre}${agente}. Te envío el enlace para tu mandato de compra:\n\n${url}\n\nSolo tienes que rellenar tus datos, descargar el contrato y firmarlo online. Te llevará unos minutos. El enlace es válido hasta el ${fechaCorta(c.expires_at)}.\n\nSi tienes cualquier duda, dímelo por aquí.`;
+    return `Hola ${nombre}${agente}. Te envío el enlace para tus contratos: el mandato de compra con Tu Hogar Posible y el encargo de servicio con Tu Mejor Hipoteca:\n\n${url}\n\nSolo tienes que rellenar tus datos una vez, descargar los contratos y firmarlos online. Te llevará unos minutos. El enlace es válido hasta el ${fechaCorta(c.expires_at)}.\n\nSi tienes cualquier duda, dímelo por aquí.`;
   };
 
   const enviarWhatsApp = (c: LeadContrato) => {
@@ -95,7 +105,7 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, 
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileSignature className="h-5 w-5 text-primary" />Mandato de compra
+            <FileSignature className="h-5 w-5 text-primary" />Contratos
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground -mt-2">{leadNombre}</p>
@@ -122,7 +132,7 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, 
             {!importeValido && <p className="text-xs text-destructive">Introduce un importe válido.</p>}
           </div>
           <p className="text-xs text-muted-foreground">
-            El enlace es válido 7 días. El cliente rellena nombre, DNI/NIE, domicilio y email, descarga el contrato y lo firma con Lumin.
+            El enlace es válido 7 días. El cliente rellena nombre, DNI/NIE, domicilio y email una sola vez y se generan dos contratos: el mandato de compra (Tu Hogar Posible) y el encargo de servicio (Tu Mejor Hipoteca). Cada uno se firma por separado con Lumin.
           </p>
         </div>
 
@@ -148,9 +158,10 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, 
                 <div className="text-xs text-muted-foreground space-y-0.5">
                   <p>Creado: {fmt(c.created_at)}{c.estado === 'pendiente' ? ` · caduca ${fmt(c.expires_at)}` : ''}</p>
                   {c.enviado_at && <p>Datos enviados: {fmt(c.enviado_at)}</p>}
-                  {c.firmado_at && <p>Firmado: {fmt(c.firmado_at)}</p>}
+                  {c.firmado_at && <p>Mandato firmado: {fmt(c.firmado_at)}</p>}
+                  {c.tmh_firmado_at && <p>Encargo TMH firmado: {fmt(c.tmh_firmado_at)}</p>}
                   {c.datos && <p>{c.datos.nombre} · {c.datos.dni} · {c.datos.email}</p>}
-                  {c.error && c.estado === 'pendiente' && <p className="text-destructive">Último error: {c.error}</p>}
+                  {c.error && (c.estado === 'pendiente' || c.estado === 'firmando') && <p className="text-destructive">Último error: {c.error}</p>}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {c.estado !== 'firmado' && !contratoExpirado(c) && (
@@ -171,11 +182,20 @@ export const MandatoContratoDialog = ({ open, onOpenChange, leadId, leadNombre, 
                   )}
                   {c.firmado_path ? (
                     <Button size="sm" onClick={() => descargar(c.firmado_path!, archivo(c, true))}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />Contrato firmado
+                      <Download className="h-3.5 w-3.5 mr-1.5" />Mandato firmado
                     </Button>
                   ) : c.pdf_path ? (
                     <Button size="sm" variant="outline" onClick={() => descargar(c.pdf_path!, archivo(c, false))}>
-                      <Download className="h-3.5 w-3.5 mr-1.5" />Contrato sin firmar
+                      <Download className="h-3.5 w-3.5 mr-1.5" />Mandato sin firmar
+                    </Button>
+                  ) : null}
+                  {c.tmh_firmado_path ? (
+                    <Button size="sm" onClick={() => descargar(c.tmh_firmado_path!, archivoTmh(c, true))}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />Encargo TMH firmado
+                    </Button>
+                  ) : c.tmh_pdf_path && c.estado !== 'pendiente' ? (
+                    <Button size="sm" variant="outline" onClick={() => descargar(c.tmh_pdf_path!, archivoTmh(c, false))}>
+                      <Download className="h-3.5 w-3.5 mr-1.5" />Encargo TMH sin firmar
                     </Button>
                   ) : null}
                 </div>

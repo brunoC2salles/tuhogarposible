@@ -1,10 +1,17 @@
-// contrato-mandato (20/10/2026)
-// Página pública del mandato de compra (/contrato/:token) y webhook de Lumin Sign.
-//  GET  ?token=...                  -> estado del contrato (y sincroniza con Lumin si está pendiente de firma)
-//  POST {token,nombre,dni,domicilio,email} -> genera el PDF, lo envía a Lumin y devuelve el enlace de firma
-//  POST con cabecera X-Signature -> webhook de Lumin: al firmarse, guarda el PDF firmado en el lead
+// contrato-mandato (20/10/2026; encargo TMH añadido el 26/10/2026)
+// Página pública de contratos (/contrato/:token) y webhook de Lumin Sign.
+// Un mismo enlace y formulario generan dos contratos con firmas separadas en Lumin:
+//  - Mandato de compra con exclusividad (Tu Hogar Posible)  -> columnas pdf_path, lumin_*, firmado_*
+//  - Encargo de Servicio de Tu Mejor Hipoteca (TMH)          -> columnas tmh_pdf_path, tmh_lumin_*, tmh_firmado_*
+//  GET  ?token=...                  -> estado (y sincroniza con Lumin si está pendiente de firma)
+//  POST {token,nombre,dni,domicilio,email} -> genera los dos PDF, los envía a Lumin y devuelve los enlaces de firma
+//  POST con cabecera X-Signature -> webhook de Lumin: al firmarse cada contrato, guarda el PDF firmado en el lead
+// estado = "firmado" solo cuando los dos están firmados. La etapa del lead se mueve al firmar el mandato
+// (decisión Bruno 26/10/2026: el encargo TMH no influye en la etapa).
 import { generarContratoPdf } from "./contratoPdf.ts";
+import { generarEncargoTmhPdf } from "./encargoTmhPdf.ts";
 import { FIRMA_ALBERT_PNG, LOGO_PNG } from "./assets.ts";
+import { TMH_LOGO_PNG, TMH_MARCA_AGUA_PNG } from "./assetsTmh.ts";
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -108,32 +115,51 @@ async function notificar(contrato: any, tipo: string, titulo: string, mensaje: s
   }
 }
 
-// Si Lumin ya lo marcó como firmado, guarda el PDF firmado y cierra el contrato
-async function sincronizar(c: any): Promise<any> {
-  if (!c.lumin_request_id || c.estado === "firmado") return c;
-  const d = await lumin(`/signature_request/${encodeURIComponent(c.lumin_request_id)}`);
+// Documentos del contrato: columnas de cada uno en lead_contratos
+type Doc = "mandato" | "tmh";
+const COL = {
+  mandato: { pdf: "pdf_path", req: "lumin_request_id", status: "lumin_status", firmado: "firmado_path", firmadoAt: "firmado_at", sufijo: "" },
+  tmh: { pdf: "tmh_pdf_path", req: "tmh_lumin_request_id", status: "tmh_lumin_status", firmado: "tmh_firmado_path", firmadoAt: "tmh_firmado_at", sufijo: "-tmh" },
+} as const;
+
+// Contratos generados antes del 26/10/2026 no tienen encargo TMH: solo cuenta el mandato
+const tieneTmh = (c: any) => !!(c.tmh_pdf_path || c.tmh_lumin_request_id);
+const todoFirmado = (c: any) => !!c.firmado_path && (!tieneTmh(c) || !!c.tmh_firmado_path);
+
+async function leer(id: string) {
+  const [c] = await rest(`lead_contratos?select=*&id=eq.${id}`);
+  return c;
+}
+
+// Si Lumin ya marcó un documento como firmado, guarda su PDF firmado
+async function sincronizarDoc(c: any, doc: Doc): Promise<any> {
+  const k = COL[doc];
+  if (!c[k.req] || c[k.firmado]) return c;
+  const d = await lumin(`/signature_request/${encodeURIComponent(c[k.req])}`);
   const status = d?.signature_request?.status as string | undefined;
   if (!status) return c;
   if (status !== "APPROVED") {
-    if (status !== c.lumin_status) {
-      await rest(`lead_contratos?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ lumin_status: status, updated_at: new Date().toISOString() }) });
+    if (status !== c[k.status]) {
+      await rest(`lead_contratos?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ [k.status]: status, updated_at: new Date().toISOString() }) });
     }
-    return { ...c, lumin_status: status };
+    return { ...c, [k.status]: status };
   }
   let f: any;
-  try { f = await lumin(`/signature_request/${encodeURIComponent(c.lumin_request_id)}/file?type=merged`); }
-  catch { f = await lumin(`/signature_request/${encodeURIComponent(c.lumin_request_id)}/file?type=agreement`); }
+  try { f = await lumin(`/signature_request/${encodeURIComponent(c[k.req])}/file?type=merged`); }
+  catch { f = await lumin(`/signature_request/${encodeURIComponent(c[k.req])}/file?type=agreement`); }
   if (!f?.signed_url) throw new Error("Lumin no devolvió el PDF firmado");
   const pdf = new Uint8Array(await (await fetch(f.signed_url, { signal: AbortSignal.timeout(30000) })).arrayBuffer());
-  const path = `${c.lead_id}/${c.id}-firmado.pdf`;
+  const path = `${c.lead_id}/${c.id}${k.sufijo}-firmado.pdf`;
   await subir(path, pdf);
-  const firmado_at = new Date().toISOString();
-  const [upd] = await rest(`lead_contratos?id=eq.${c.id}&estado=neq.firmado`, {
+  const ahora = new Date().toISOString();
+  // Condición firmado=is.null: si llegan dos avisos a la vez, solo uno registra la firma
+  const [upd] = await rest(`lead_contratos?id=eq.${c.id}&${k.firmado}=is.null`, {
     method: "PATCH",
     headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ estado: "firmado", lumin_status: status, firmado_path: path, firmado_at, updated_at: firmado_at }),
+    body: JSON.stringify({ [k.status]: status, [k.firmado]: path, [k.firmadoAt]: ahora, updated_at: ahora }),
   });
-  if (upd) {
+  if (!upd) return await leer(c.id);
+  if (doc === "mandato") {
     // Firmado el mandato: el lead pasa de "Firma del contrato" a "Documentación a Riesgos" (decisión Bruno 20/10/2026).
     // Solo desde firma_contrato: nunca se mueve un lead que esté en otra etapa.
     await rest(`leads?id=eq.${c.lead_id}&stage=eq.firma_contrato`, {
@@ -142,18 +168,73 @@ async function sincronizar(c: any): Promise<any> {
       body: JSON.stringify({ stage: "informacion_riesgos" }),
     }).catch((e) => console.error("[contrato-mandato] mover etapa:", e));
     await notificar(c, "contract_signed", "Contrato Firmado", `El lead "${c.datos?.nombre || ""}" firmó el mandato de compra.`);
-    return upd;
+  } else {
+    await notificar(c, "contract_signed", "Encargo TMH Firmado", `El lead "${c.datos?.nombre || ""}" firmó el encargo de servicio de Tu Mejor Hipoteca.`);
   }
-  const [actual] = await rest(`lead_contratos?select=*&id=eq.${c.id}`);
-  return actual;
+  return upd;
 }
 
-async function enlaceFirma(c: any): Promise<string | null> {
+// Envía a Lumin un PDF ya generado y guarda el id de la solicitud
+async function enviarALumin(c: any, doc: Doc, titulo: string): Promise<any> {
+  const k = COL[doc];
+  const fileUrl = await urlFirmada(c[k.pdf], 6 * 3600);
+  const envio = await lumin("/signature_request/send", {
+    method: "POST",
+    body: JSON.stringify({
+      title: titulo,
+      file_url: fileUrl,
+      use_text_tags: true,
+      signing_type: "SAME_TIME",
+      expires_at: Date.now() + DIAS_FIRMA * 864e5,
+      signers: [{ name: c.datos.nombre, email_address: c.datos.email }],
+    }),
+  });
+  const reqId = envio?.signature_request?.signature_request_id;
+  if (!reqId) throw new Error("Lumin no devolvió el id de la solicitud");
+  const [upd] = await rest(`lead_contratos?id=eq.${c.id}`, {
+    method: "PATCH",
+    headers: { Prefer: "return=representation" },
+    body: JSON.stringify({ [k.req]: reqId, [k.status]: envio.signature_request.status, updated_at: new Date().toISOString() }),
+  });
+  return upd;
+}
+
+// Si el envío del encargo TMH falló después de enviar el mandato, se reintenta al abrir el enlace
+async function reintentarTmh(c: any): Promise<any> {
+  if (c.estado !== "firmando" || !c.tmh_pdf_path || c.tmh_lumin_request_id) return c;
+  try {
+    const upd = await enviarALumin(c, "tmh", `Encargo de Servicio TMH - ${c.datos?.nombre || ""}`);
+    await rest(`lead_contratos?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ error: null }) });
+    return { ...upd, error: null };
+  } catch (e) {
+    console.error("[contrato-mandato] reintento TMH:", e);
+    return c;
+  }
+}
+
+async function sincronizar(c: any): Promise<any> {
+  if (c.estado === "firmado") return c;
+  c = await reintentarTmh(c);
+  c = await sincronizarDoc(c, "mandato");
+  c = await sincronizarDoc(c, "tmh");
+  if (c.estado !== "firmado" && todoFirmado(c)) {
+    const [upd] = await rest(`lead_contratos?id=eq.${c.id}&estado=neq.firmado`, {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ estado: "firmado", updated_at: new Date().toISOString() }),
+    });
+    return upd || await leer(c.id);
+  }
+  return c;
+}
+
+async function enlaceFirma(c: any, doc: Doc): Promise<string | null> {
   const email = c.datos?.email;
-  if (!c.lumin_request_id || !email) return null;
+  const reqId = c[COL[doc].req];
+  if (!reqId || !email || c[COL[doc].firmado]) return null;
   for (let i = 0; i < 6; i++) {
     try {
-      const d = await lumin(`/signature_request/${encodeURIComponent(c.lumin_request_id)}/signing-link`, {
+      const d = await lumin(`/signature_request/${encodeURIComponent(reqId)}/signing-link`, {
         method: "POST",
         body: JSON.stringify({ signer_email: email }),
       });
@@ -170,16 +251,46 @@ async function respuestaPublica(c: any, conEnlace = true) {
   const [lead] = await rest(`leads?select=nombre_completo,email&id=eq.${c.lead_id}`);
   const expirado = c.estado === "pendiente" && new Date(c.expires_at).getTime() < Date.now();
   const nombreArchivo = `Mandato_de_compra_${slug(c.datos?.nombre || "THP")}.pdf`;
+  const archivoTmh = `Encargo_de_Servicio_TMH_${slug(c.datos?.nombre || "THP")}.pdf`;
+  const firmando = c.estado === "firmando" && conEnlace;
+  const [firmarMandato, firmarTmh] = await Promise.all([
+    firmando ? enlaceFirma(c, "mandato") : null,
+    firmando ? enlaceFirma(c, "tmh") : null,
+  ]);
+  const documentos = [
+    {
+      id: "mandato",
+      titulo: "Contrato de mandato de compra con exclusividad",
+      empresa: "Tu Hogar Posible",
+      pdf_url: c.pdf_path ? await urlFirmada(c.pdf_path, 3600, nombreArchivo) : null,
+      firmar_url: firmarMandato,
+      firmado_url: c.firmado_path ? await urlFirmada(c.firmado_path, 3600, nombreArchivo.replace(".pdf", "_firmado.pdf")) : null,
+      firmado_at: c.firmado_at,
+    },
+  ];
+  if (tieneTmh(c)) {
+    documentos.push({
+      id: "tmh",
+      titulo: "Encargo de Servicio",
+      empresa: "Tu Mejor Hipoteca",
+      pdf_url: c.tmh_pdf_path ? await urlFirmada(c.tmh_pdf_path, 3600, archivoTmh) : null,
+      firmar_url: firmarTmh,
+      firmado_url: c.tmh_firmado_path ? await urlFirmada(c.tmh_firmado_path, 3600, archivoTmh.replace(".pdf", "_firmado.pdf")) : null,
+      firmado_at: c.tmh_firmado_at,
+    });
+  }
   return {
     estado: expirado ? "expirado" : c.estado,
     honorarios: Number(c.honorarios),
     expires_at: c.expires_at,
     prefill: { nombre: lead?.nombre_completo || "", email: lead?.email || "" },
     datos: c.datos ? { nombre: c.datos.nombre, dni: c.datos.dni, domicilio: c.datos.domicilio, email: c.datos.email } : null,
-    pdf_url: c.pdf_path ? await urlFirmada(c.pdf_path, 3600, nombreArchivo) : null,
-    firmar_url: c.estado === "firmando" && conEnlace ? await enlaceFirma(c) : null,
-    firmado_url: c.firmado_path ? await urlFirmada(c.firmado_path, 3600, nombreArchivo.replace(".pdf", "_firmado.pdf")) : null,
+    // Campos del mandato (compatibilidad con la página anterior)
+    pdf_url: documentos[0].pdf_url,
+    firmar_url: documentos[0].firmar_url,
+    firmado_url: documentos[0].firmado_url,
     firmado_at: c.firmado_at,
+    documentos,
   };
 }
 
@@ -217,7 +328,8 @@ Deno.serve(async (req) => {
       try { ev = JSON.parse(raw); } catch { return json({ ok: true }); }
       const id = ev?.signature_request?.signature_request_id;
       if (id) {
-        const [c] = await rest(`lead_contratos?select=*&lumin_request_id=eq.${encodeURIComponent(id)}`);
+        const v = encodeURIComponent(id);
+        const [c] = await rest(`lead_contratos?select=*&or=(lumin_request_id.eq.${v},tmh_lumin_request_id.eq.${v})`);
         if (c) await sincronizar(c); // el estado real se consulta a la API de Lumin
       }
       return json({ ok: true });
@@ -259,34 +371,49 @@ Deno.serve(async (req) => {
         return json(await respuestaPublica(actual));
       }
 
+      let mandatoEnviado = false;
       try {
-        const pdf = await generarContratoPdf({ nombre, dni, domicilio, fecha: ahora, honorarios: Number(c.honorarios) }, LOGO_PNG, FIRMA_ALBERT_PNG);
+        // 1) Genera y guarda los dos PDF
+        const [pdfMandato, pdfTmh] = await Promise.all([
+          generarContratoPdf({ nombre, dni, domicilio, fecha: ahora, honorarios: Number(c.honorarios) }, LOGO_PNG, FIRMA_ALBERT_PNG),
+          generarEncargoTmhPdf({ nombre, dni, domicilio, fecha: ahora }, TMH_LOGO_PNG, TMH_MARCA_AGUA_PNG),
+        ]);
         const pdfPath = `${c.lead_id}/${c.id}.pdf`;
-        await subir(pdfPath, pdf);
-        const fileUrl = await urlFirmada(pdfPath, 6 * 3600);
-        const envio = await lumin("/signature_request/send", {
-          method: "POST",
-          body: JSON.stringify({
-            title: `Mandato de compra - ${nombre}`,
-            file_url: fileUrl,
-            use_text_tags: true,
-            signing_type: "SAME_TIME",
-            expires_at: ahora.getTime() + DIAS_FIRMA * 864e5,
-            signers: [{ name: nombre, email_address: email }],
-          }),
-        });
-        const reqId = envio?.signature_request?.signature_request_id;
-        if (!reqId) throw new Error("Lumin no devolvió el id de la solicitud");
-        const [upd] = await rest(`lead_contratos?id=eq.${c.id}`, {
+        const tmhPath = `${c.lead_id}/${c.id}-tmh.pdf`;
+        await Promise.all([subir(pdfPath, pdfMandato), subir(tmhPath, pdfTmh)]);
+        let cur = { ...lock, pdf_path: pdfPath, tmh_pdf_path: tmhPath };
+        await rest(`lead_contratos?id=eq.${c.id}`, {
           method: "PATCH",
-          headers: { Prefer: "return=representation" },
-          body: JSON.stringify({ estado: "firmando", pdf_path: pdfPath, lumin_request_id: reqId, lumin_status: envio.signature_request.status, error: null, updated_at: new Date().toISOString() }),
+          body: JSON.stringify({ pdf_path: pdfPath, tmh_pdf_path: tmhPath, updated_at: new Date().toISOString() }),
         });
-        await notificar(upd, "contract_generated", "Contrato Generado", `El lead "${nombre}" completó sus datos del mandato de compra.`);
-        return json(await respuestaPublica(upd));
+
+        // 2) Mandato a Lumin
+        cur = await enviarALumin(cur, "mandato", `Mandato de compra - ${nombre}`);
+        mandatoEnviado = true;
+        await rest(`lead_contratos?id=eq.${c.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ estado: "firmando", error: null, updated_at: new Date().toISOString() }),
+        });
+        cur = { ...cur, estado: "firmando", error: null };
+
+        // 3) Encargo TMH a Lumin (si falla, el mandato sigue y se reintenta al abrir el enlace)
+        try {
+          cur = await enviarALumin(cur, "tmh", `Encargo de Servicio TMH - ${nombre}`);
+        } catch (e) {
+          const msg = String((e as Error).message || e);
+          console.error("[contrato-mandato] envío TMH:", msg);
+          await rest(`lead_contratos?id=eq.${c.id}`, { method: "PATCH", body: JSON.stringify({ error: `TMH: ${msg}`.slice(0, 500) }) });
+          cur = { ...cur, error: `TMH: ${msg}`.slice(0, 500) };
+        }
+        await notificar(cur, "contract_generated", "Contrato Generado", `El lead "${nombre}" completó sus datos del mandato de compra y del encargo TMH.`);
+        return json(await respuestaPublica(cur));
       } catch (e) {
         const msg = String((e as Error).message || e);
         console.error("[contrato-mandato] envío:", msg);
+        if (mandatoEnviado) {
+          const actual = await leer(c.id);
+          return json(await respuestaPublica(actual));
+        }
         await rest(`lead_contratos?id=eq.${c.id}`, {
           method: "PATCH",
           body: JSON.stringify({ estado: "pendiente", error: msg.slice(0, 500), updated_at: new Date().toISOString() }),

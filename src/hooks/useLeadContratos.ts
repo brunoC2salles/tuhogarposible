@@ -20,6 +20,11 @@ export interface LeadContrato {
   lumin_status: string | null;
   firmado_path: string | null;
   firmado_at: string | null;
+  // Encargo de Servicio de Tu Mejor Hipoteca (26/10/2026)
+  tmh_pdf_path: string | null;
+  tmh_lumin_status: string | null;
+  tmh_firmado_path: string | null;
+  tmh_firmado_at: string | null;
   error: string | null;
   created_at: string;
 }
@@ -28,10 +33,13 @@ export const HONORARIOS_DEFECTO = 6000;
 
 export const contratoUrl = (token: string) => `${window.location.origin}/contrato/${token}`;
 
+/** Contratos generados antes del 26/10/2026 no tienen encargo TMH */
+export const tieneTmh = (c: LeadContrato) => !!c.tmh_pdf_path;
+
 export const contratoExpirado = (c: LeadContrato) =>
   c.estado === 'pendiente' && new Date(c.expires_at).getTime() < Date.now();
 
-/** Mandatos de compra de un lead (último primero) */
+/** Contratos de un lead: mandato de compra + encargo TMH (último primero) */
 export const useLeadContratos = (leadId: string | null) => {
   const [contratos, setContratos] = useState<LeadContrato[]>([]);
   const [loading, setLoading] = useState(false);

@@ -567,6 +567,11 @@ export type Database = {
           lumin_status: string | null
           pdf_path: string | null
           tipo: string
+          tmh_firmado_at: string | null
+          tmh_firmado_path: string | null
+          tmh_lumin_request_id: string | null
+          tmh_lumin_status: string | null
+          tmh_pdf_path: string | null
           token: string
           updated_at: string
         }
@@ -587,6 +592,11 @@ export type Database = {
           lumin_status?: string | null
           pdf_path?: string | null
           tipo?: string
+          tmh_firmado_at?: string | null
+          tmh_firmado_path?: string | null
+          tmh_lumin_request_id?: string | null
+          tmh_lumin_status?: string | null
+          tmh_pdf_path?: string | null
           token?: string
           updated_at?: string
         }
@@ -607,6 +617,11 @@ export type Database = {
           lumin_status?: string | null
           pdf_path?: string | null
           tipo?: string
+          tmh_firmado_at?: string | null
+          tmh_firmado_path?: string | null
+          tmh_lumin_request_id?: string | null
+          tmh_lumin_status?: string | null
+          tmh_pdf_path?: string | null
           token?: string
           updated_at?: string
         }
