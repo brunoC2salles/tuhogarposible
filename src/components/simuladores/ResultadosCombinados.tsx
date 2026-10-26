@@ -8,6 +8,8 @@ import { generateSimulacionCombinadaPDF } from "@/lib/pdfGenerator";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { getMarketPrice } from "@/lib/marketPriceUtils";
 
+const CREDITO_PERSONAL = 15000;
+
 interface ResultadosCombinadosProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -62,14 +64,18 @@ export function ResultadosCombinados({
             </div>
             <div className="p-4 space-y-4">
               {/* Datos principales */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Precio Vivienda</p>
                   <p className="font-bold">{formatEuro(datos.precioVivienda)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Capital Propio Necesario</p>
-                  <p className="font-bold">{formatEuro(resultadosHipoteca.capitalPropioNecesario)}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Ahorros</p>
+                  <p className="font-bold">{formatEuro(datos.ahorrosDisponibles || 0)}</p>
+                </div>
+                <div className="bg-muted/50 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Crédito Personal</p>
+                  <p className="font-bold">{formatEuro(CREDITO_PERSONAL)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Monto a Financiar ({resultadosHipoteca.porcentajeFinanciamiento.toFixed(0)}%)</p>

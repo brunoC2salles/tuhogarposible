@@ -434,7 +434,8 @@ export function generateSimulacionCombinadaPDF(
     head: [['Concepto', 'Valor']],
     body: [
       [`Monto a financiar (${pct.toFixed(0)}%)`, formatEuro(resultadosHipoteca.montoFinanciable)],
-      ['Capital propio necesario', formatEuro(resultadosHipoteca.capitalPropioNecesario)],
+      ['Ahorros', formatEuro(datos.ahorrosDisponibles || 0)],
+      ['Crédito personal', formatEuro(15000)],
       ['Cuota mensual', formatEuro(resultadosHipoteca.cuotaMensual)],
       ['Hipoteca máxima financiable', formatEuro(resultadosHipoteca.montoMaximoFinanciable)],
       ['Precio máximo de vivienda*', formatEuro(precioMax)],
