@@ -136,10 +136,13 @@ export const STAGE_LABELS: Record<LeadStage, string> = {
   descualificados: 'Descualificado'
 };
 
+// Etapas ocultas no frontend (decisão Bruno 27/10/2026): continuam existindo no banco
+// (nuevo_lead é o default da coluna e é usado pelas automações Spoki), mas não aparecem
+// no kanban, no seletor de etapa, nos filtros nem nas contagens/métricas.
+export const HIDDEN_STAGES: LeadStage[] = ['nuevo_lead', 'llamada_consultoria'];
+
 export const STAGE_ORDER: LeadStage[] = [
-  'nuevo_lead',
   'buscando_vivienda',
-  'llamada_consultoria',
   'vivienda_encontrada',
   'documentacion_ok',
   'tasacion_prevision',

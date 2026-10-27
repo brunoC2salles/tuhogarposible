@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { LeadStage, STAGE_ORDER } from '@/types/crm';
+import { LeadStage, STAGE_ORDER, HIDDEN_STAGES } from '@/types/crm';
 import { fetchAllPaginated } from '@/lib/fetchAllPaginated';
 import { FASE_CUTOFF } from '@/lib/faseCutoff';
 
@@ -78,6 +78,7 @@ export const useDashboardStats = (period: '7d' | '30d' | '90d' | 'all' = '30d') 
             .from('leads')
             .select('*, profiles!agente_asignado_id(nombre)')
             .gte('created_at', FASE_CUTOFF)
+            .not('stage', 'in', `(${HIDDEN_STAGES.join(',')})`)
             .order('created_at', { ascending: false })
             .range(from, to)
         ),
