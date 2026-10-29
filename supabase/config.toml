@@ -49,3 +49,6 @@ verify_jwt = false
 
 [functions.spoki-stage-tasacion]
 verify_jwt = false
+
+[functions.email-bienvenida]
+verify_jwt = false
