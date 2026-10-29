@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles }: ProtectedRouteProps) => {
-  const { user, profile, loading, isAdmin, isAgente, isSupervisor } = useAuth();
+  const { user, profile, loading, isAdmin, isSupervisor } = useAuth();
   const [showReload, setShowReload] = useState(false);
 
   useEffect(() => {
@@ -81,14 +81,6 @@ const ProtectedRoute = ({ children, requireAdmin = false, allowedRoles }: Protec
               <Button variant="outline" onClick={() => window.history.back()}>
                 Volver
               </Button>
-              {isAgente && (
-                <Button asChild>
-                  <Link to="/inventario/agente">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Portal Agente
-                  </Link>
-                </Button>
-              )}
               {isSupervisor && (
                 <Button asChild>
                   <Link to="/supervisor/crm">

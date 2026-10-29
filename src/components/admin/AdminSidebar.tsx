@@ -11,51 +11,30 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import {
-  Home,
   Users,
   BarChart3,
-  GraduationCap,
-  DollarSign,
   Settings,
   FileCheck,
-  Building2,
   LayoutDashboard,
-  CalendarDays,
-  Shuffle,
   MapPin,
+  Calculator,
 } from 'lucide-react';
 
 const menuItems = [
   {
     group: 'Gestión',
     items: [
-      { title: 'Página Inicial', url: '/', icon: Home },
-      { title: 'Panel Admin', url: '/admin', icon: LayoutDashboard },
+      { title: 'Panel Admin', url: '/', icon: LayoutDashboard },
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
       { title: 'CRM Embargados', url: '/crm/embargados', icon: MapPin },
-      { title: 'Visitas', url: '/admin/visitas', icon: CalendarDays },
-      { title: 'Dashboard Analítico', url: '/admin/dashboard', icon: BarChart3 },
-      { title: 'Reparto de Leads', url: '/admin/asignaciones', icon: Shuffle },
-    ],
-  },
-  {
-    group: 'Equipo',
-    items: [
-      { title: 'Agentes', url: '/admin/agentes', icon: Users },
+      { title: 'Analíticos', url: '/admin/analiticos', icon: BarChart3 },
     ],
   },
   {
     group: 'Operacional',
     items: [
       { title: 'Verificación de Extractos', url: '/admin/verificaciones-extractos', icon: FileCheck },
-      { title: 'Academia', url: '/academia', icon: GraduationCap },
-      { title: 'Portal del Agente', url: '/inventario/agente', icon: Building2 },
-    ],
-  },
-  {
-    group: 'Financiero',
-    items: [
-      { title: 'Control Financiero', url: '/financiero', icon: DollarSign },
+      { title: 'Simulador Financiero', url: '/simuladores', icon: Calculator },
     ],
   },
   {

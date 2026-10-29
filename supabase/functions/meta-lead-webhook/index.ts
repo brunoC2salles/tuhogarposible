@@ -1272,7 +1272,12 @@ Deno.serve(async (req) => {
     data.tiene_ahorros_impuestos = sanitizeField(data.tiene_ahorros_impuestos) as string | undefined;
     data.monto_ahorros = sanitizeField(data.monto_ahorros) as string | number | undefined;
     data.tiene_vivienda_seleccionada = sanitizeField(data.tiene_vivienda_seleccionada) as string | undefined;
-    
+    // 2026-10-29 (decisión Bruno): los leads de Tally entran siempre como "sin vivienda",
+    // sea cual sea su respuesta en el formulario (así van a la automatización sin vivienda de Spoki).
+    if (data.source_origin === 'tally') {
+      data.tiene_vivienda_seleccionada = 'No';
+    }
+
     console.log('[meta-lead-webhook] Dados recebidos (sanitizados):', JSON.stringify(data));
     
     // LOG DIAGNÓSTICO: Mostrar todos os campos recebidos para debug

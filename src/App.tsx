@@ -5,31 +5,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
-import AgenteInventario from "./pages/inventario/AgenteInventario";
 import AgenteCRM from "./pages/inventario/AgenteCRM";
 import AdminCRM from "./pages/inventario/AdminCRM";
 import SimuladoresIndex from "./pages/simuladores/SimuladoresIndex";
 import SimuladorPersonalPage from "./pages/simuladores/SimuladorPersonalPage";
 import SimuladorHipotecarioPage from "./pages/simuladores/SimuladorHipotecarioPage";
 import AgentSettings from "./pages/AgentSettings";
-import AdminAgentes from "./pages/AdminAgentes";
 import AdminSettings from "./pages/AdminSettings";
-import AgenteDetails from "./pages/AgenteDetails";
-import AcademiaAgentes from "./pages/academia/AcademiaAgentes";
-import ControleFinanceiro from "./pages/financeiro/ControleFinanceiro";
-import Dashboard from "./pages/admin/Dashboard";
 import AdminDashboardCentral from "./pages/admin/AdminDashboardCentral";
-import AsignacionesMetrics from "./pages/admin/AsignacionesMetrics";
+import Analiticos from "./pages/admin/Analiticos";
 import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
-import SupervisorFinanceiro from "./pages/supervisor/SupervisorFinanceiro";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import ContratoMandato from "./pages/ContratoMandato";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
-import AgenteVisitas from "./pages/visitas/AgenteVisitas";
-import AdminVisitas from "./pages/visitas/AdminVisitas";
 import EmbargadosCRM from "./pages/inventario/EmbargadosCRM";
 import BlockAgenteRoute from "@/components/BlockAgenteRoute";
 
@@ -43,19 +33,18 @@ const App = () => (
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminDashboardCentral />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/auth" element={<Auth />} />
             <Route path="/simuladores" element={<BlockAgenteRoute><SimuladoresIndex /></BlockAgenteRoute>} />
             <Route path="/simuladores/credito-personal" element={<BlockAgenteRoute><SimuladorPersonalPage /></BlockAgenteRoute>} />
             <Route path="/simuladores/credito-hipotecario" element={<BlockAgenteRoute><SimuladorHipotecarioPage /></BlockAgenteRoute>} />
-            <Route 
-              path="/inventario/agente"
-              element={
-          <ProtectedRoute allowedRoles={['admin']}>
-            <AgenteInventario />
-          </ProtectedRoute>
-              } 
-            />
             <Route 
               path="/inventario/agente/crm"
               element={
@@ -82,27 +71,12 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AdminDashboardCentral />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/admin" element={<Navigate to="/" replace />} />
             <Route
-              path="/admin/asignaciones"
+              path="/admin/analiticos"
               element={
                 <ProtectedRoute requireAdmin>
-                  <AsignacionesMetrics />
+                  <Analiticos />
                 </ProtectedRoute>
               }
             />
@@ -112,22 +86,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <AgentSettings />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/agentes"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AdminAgentes />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/admin/agentes/:agenteId"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <AgenteDetails />
                 </ProtectedRoute>
               } 
             />
@@ -150,52 +108,12 @@ const App = () => (
               }
             />
             <Route 
-              path="/academia"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
-                  <AcademiaAgentes />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/financiero"
-              element={
-                <ProtectedRoute requireAdmin>
-                  <ControleFinanceiro />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
               path="/supervisor/crm"
               element={
                 <ProtectedRoute allowedRoles={['supervisor']}>
                   <SupervisorCRM />
                 </ProtectedRoute>
               } 
-            />
-            <Route 
-              path="/supervisor/financiero"
-              element={
-                <ProtectedRoute allowedRoles={['supervisor']}>
-                  <SupervisorFinanceiro />
-                </ProtectedRoute>
-              } 
-            />
-            <Route
-              path="/agente/visitas"
-              element={
-                <ProtectedRoute>
-                  <AgenteVisitas />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/visitas"
-              element={
-                <ProtectedRoute allowedRoles={['admin', 'supervisor']}>
-                  <AdminVisitas />
-                </ProtectedRoute>
-              }
             />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

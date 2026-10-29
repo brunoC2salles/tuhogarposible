@@ -3,11 +3,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Users,
   BarChart3,
-  GraduationCap,
-  DollarSign,
   Settings,
   FileCheck,
-  Building2,
+  MapPin,
+  Calculator,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 
@@ -23,18 +22,18 @@ const AdminDashboardCentral = () => {
       color: 'text-blue-600',
     },
     {
-      title: 'Dashboard Analítico',
-      description: 'Métricas y estadísticas',
-      icon: BarChart3,
-      path: '/admin/dashboard',
-      color: 'text-purple-600',
+      title: 'CRM Embargados',
+      description: 'Leads del producto Embargados',
+      icon: MapPin,
+      path: '/crm/embargados',
+      color: 'text-orange-600',
     },
     {
-      title: 'Agentes',
-      description: 'Gestión del equipo de agentes',
-      icon: Users,
-      path: '/admin/agentes',
-      color: 'text-green-600',
+      title: 'Analíticos',
+      description: 'Tiempo por etapa y proceso completo',
+      icon: BarChart3,
+      path: '/admin/analiticos',
+      color: 'text-purple-600',
     },
     {
       title: 'Verificación de Extractos',
@@ -44,25 +43,11 @@ const AdminDashboardCentral = () => {
       color: 'text-amber-600',
     },
     {
-      title: 'Academia',
-      description: 'Capacitación del equipo',
-      icon: GraduationCap,
-      path: '/academia',
-      color: 'text-indigo-600',
-    },
-    {
-      title: 'Control Financiero',
-      description: 'Facturación y gastos',
-      icon: DollarSign,
-      path: '/financiero',
+      title: 'Simulador Financiero',
+      description: 'Crédito personal e hipotecario',
+      icon: Calculator,
+      path: '/simuladores',
       color: 'text-emerald-600',
-    },
-    {
-      title: 'Portal del Agente',
-      description: 'Acceso a Inmovilla y productos',
-      icon: Building2,
-      path: '/inventario/agente',
-      color: 'text-orange-600',
     },
     {
       title: 'Settings',

@@ -1,4 +1,4 @@
-import { LogIn, LogOut, User, CalendarDays, Users, Settings } from "lucide-react";
+import { LogIn, LogOut, User, Users, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -47,7 +47,6 @@ const AuthButton = ({ className = "", size = "sm", variant = "outline" }: AuthBu
     : isSupervisor
     ? "/supervisor/crm"
     : "/inventario/agente/crm";
-  const visitasPath = isAdmin || isSupervisor ? "/admin/visitas" : "/agente/visitas";
 
   const initial = (profile?.nombre || user.email || "U").charAt(0).toUpperCase();
 
@@ -72,10 +71,6 @@ const AuthButton = ({ className = "", size = "sm", variant = "outline" }: AuthBu
         <DropdownMenuItem onClick={() => navigate("/agente/settings")}>
           <Settings className="mr-2 h-4 w-4" />
           Mi perfil y disponibilidad
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => navigate(visitasPath)}>
-          <CalendarDays className="mr-2 h-4 w-4" />
-          Mis visitas
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate(crmPath)}>
           <Users className="mr-2 h-4 w-4" />

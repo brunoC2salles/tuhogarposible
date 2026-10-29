@@ -18,7 +18,6 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const isCRM = location.pathname.includes('/crm');
   const { profile, user, signOut } = useAuth();
 
   const handleLogout = async () => {
@@ -27,7 +26,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <SidebarProvider defaultOpen={!isCRM} key={isCRM ? 'crm' : 'default'}>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full">
         <AdminSidebar />
         <SidebarInset className="flex-1">

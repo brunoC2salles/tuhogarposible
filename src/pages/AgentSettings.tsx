@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Save, CalendarDays, Users } from "lucide-react";
+import { ArrowLeft, Save, Users } from "lucide-react";
 import Logo from "@/components/Logo";
 import AuthButton from "@/components/AuthButton";
 import { useNavigate } from "react-router-dom";
@@ -145,13 +145,9 @@ export default function AgentSettings() {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Accesos rápidos</CardTitle>
-            <CardDescription>Tus visitas y tus leads</CardDescription>
+            <CardDescription>Tus leads</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => navigate("/agente/visitas")}>
-              <CalendarDays className="mr-2 h-4 w-4" />
-              Mis visitas
-            </Button>
             <Button variant="outline" className="flex-1" onClick={() => navigate("/inventario/agente/crm")}>
               <Users className="mr-2 h-4 w-4" />
               Mis leads (CRM)
