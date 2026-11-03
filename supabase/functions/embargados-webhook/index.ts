@@ -1,10 +1,13 @@
-// embargados-webhook (20/10/2026)
+// embargados-webhook (20/10/2026, actualizado 03/11/2026)
 // Recibe de Make los leads del formulario Meta "producto 2" (Embargados), los cualifica,
 // los guarda en el CRM Embargados y envia los aptos a la automatizacion Spoki "producto 2".
 // Regla: apto si caja neta (valor de mercado - deuda pendiente) > valor de mercado x 35 %.
 //   Apto -> etapa "contactado" + Spoki. No apto -> etapa "descualificados" (solo CRM).
 // Importes de texto libre que no se pueden leer -> "descualificados" con motivo para revisar (sin Spoki).
 // Excepcion (20/10/2026): situacion "estoy en proceso de ejecucion hipotecaria" -> siempre apto y a Spoki.
+// 03/11/2026: los aptos tambien van a la planilla "embargados a inmolender"
+//   (Make: "Embargados cualificados a planilla Inmolender", admin_settings.embargados_inmolender_url),
+//   de la que Inmolender crea la tarjeta en el tablero "Embargados".
 // Body (form-urlencoded o JSON): secret, meta_lead_id, nombre, email, telefono, importe_inicial, pagado, pendiente,
 //   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, campaign_name, form_id, created_time.
 // ?dry=1: calcula y devuelve el resultado sin guardar ni enviar.
@@ -57,9 +60,17 @@ function telefonoSpoki(x: string): string | null {
   return "+" + d;
 }
 
+// Telefono para la planilla de Inmolender: solo digitos con prefijo 34 (igual que "cualificados a inmolender")
+function telefonoInmolender(x: string): string {
+  let d = clean(x).replace(/[^0-9]/g, "");
+  if (d.startsWith("00")) d = d.slice(2);
+  if (d.length === 9) d = "34" + d;
+  return d;
+}
+
 // "estoy_en_proceso_de_ejecución_hipotecaria_" (opcion del formulario Meta), sin depender de acentos ni separadores
 const norm = (v: unknown) =>
-  clean(v).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  clean(v).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 export const enEjecucionHipotecaria = (situacion: unknown) =>
   norm(situacion).includes("en proceso de ejecucion hipotecaria");
 
@@ -82,7 +93,7 @@ Deno.serve(async (req) => {
     } catch { return json({ error: "Body inválido" }, 400); }
 
     const rows: { key: string; value: string }[] = await rest(
-      "admin_settings?select=key,value&key=in.(embargados_webhook_secret,embargados_spoki_url,embargados_spoki_secret,embargados_umbral_caja)",
+      "admin_settings?select=key,value&key=in.(embargados_webhook_secret,embargados_spoki_url,embargados_spoki_secret,embargados_umbral_caja,embargados_inmolender_url)",
     );
     const cfg = Object.fromEntries(rows.map((r) => [r.key, (r.value || "").trim()]));
     if (!cfg.embargados_webhook_secret || clean(b.secret) !== cfg.embargados_webhook_secret) {
@@ -195,7 +206,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, id: lead.id, stage: lead.stage, ...resultado, spoki });
+    // 03/11/2026: apto -> planilla "embargados a inmolender" (independiente de Spoki)
+    let inmolender: unknown = null;
+    if (cualificado && cfg.embargados_inmolender_url) {
+      try {
+        const r = await fetch(cfg.embargados_inmolender_url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            nombre,
+            telefono: telefonoInmolender(clean(b.telefono)),
+            correo: clean(b.email),
+            puede_pagar: clean(b.puede_pagar),
+            situacion: clean(b.situacion),
+            importe_inicial: clean(b.importe_inicial),
+            pagado: clean(b.pagado),
+            pendiente: clean(b.pendiente),
+            meses_retraso: clean(b.meses_retraso),
+            valor_mercado: clean(b.valor_mercado),
+            lead_id: lead.id,
+          }),
+        });
+        inmolender = { status: r.status };
+      } catch (e) {
+        inmolender = { error: String(e) };
+      }
+    }
+
+    return json({ ok: true, id: lead.id, stage: lead.stage, ...resultado, spoki, inmolender });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
   }
