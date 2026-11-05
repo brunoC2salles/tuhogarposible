@@ -1,4 +1,4 @@
-// lead-inmolender-planilla (02/11/2026, actualizado 03/11/2026)
+// lead-inmolender-planilla (02/11/2026, actualizado 03/11/2026 y 05/11/2026)
 // Envía cada lead cualificado UNA sola vez a Inmolender a través de una planilla:
 //   - con vivienda -> "cualificados a inmolender" (Make: "CRM cualificados a planilla Inmolender")
 //                     Inmolender crea la operación (finanzas_tuhogarposible).
@@ -6,9 +6,13 @@
 //                     Inmolender crea la tarjeta en el tablero "Hipotecados" (Alanis).   [03/11/2026]
 // Lo llama el trigger trg_lead_inmolender_planilla (alta o cambio de etapa).
 // Anti-duplicado: public.inmolender_envios (PK lead_id). Si el lead ya está, no se envía.
-// Entrada (POST JSON): { secret, lead_id, dry_run?, backfill? }  · secret = admin_settings.inmolender_trigger_secret
+// Entrada (POST JSON): { secret, lead_id, origen?, dry_run?, backfill? }  · secret = admin_settings.inmolender_trigger_secret
+//   origen = 'alta' | 'cambio_etapa' (lo manda el trigger).
 // backfill=true (03/11/2026): reenvía un lead SIN vivienda a la planilla "sin vivienda" aunque ya esté en
 //   inmolender_envios (carga de los últimos días). Nunca envía con vivienda por esta vía.
+// 05/11/2026: un lead con "Vivienda a revisar" (leads.vivienda_revisar = true) NO va a ninguna planilla
+//   hasta que cambie de etapa (cambiar de etapa = revisado). No se reserva en inmolender_envios, así que
+//   el primer cambio de etapa lo envía, con la planilla según la etapa de ese momento.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const json = (body: unknown, status = 200) =>
@@ -126,6 +130,12 @@ Deno.serve(async (req) => {
   if (EXCLUIDAS.includes(String(lead.stage)) || lead.archivado_at) {
     return json({ ok: true, skipped: 'etapa_excluida_o_archivado' });
   }
+
+  // 05/11/2026: "Vivienda a revisar" no va a Inmolender hasta que el lead cambie de etapa (= revisado).
+  if (lead.vivienda_revisar === true && body?.origen !== 'cambio_etapa') {
+    return json({ ok: true, skipped: 'vivienda_a_revisar' });
+  }
+
   if (!url) return json({ ok: false, error: 'sin_webhook' }, 500);
 
   // Carga manual de sin vivienda (no toca inmolender_envios)
