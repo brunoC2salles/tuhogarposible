@@ -1,13 +1,15 @@
-// embargados-webhook (20/10/2026, actualizado 03/11/2026)
+// embargados-webhook (20/10/2026, actualizado 03/11/2026 y 06/11/2026)
 // Recibe de Make los leads del formulario Meta "producto 2" (Embargados), los cualifica,
-// los guarda en el CRM Embargados y envia los aptos a la automatizacion Spoki "producto 2".
+// los guarda en el CRM Embargados y envia los aptos a la planilla de Inmolender.
 // Regla: apto si caja neta (valor de mercado - deuda pendiente) > valor de mercado x 35 %.
-//   Apto -> etapa "contactado" + Spoki. No apto -> etapa "descualificados" (solo CRM).
-// Importes de texto libre que no se pueden leer -> "descualificados" con motivo para revisar (sin Spoki).
-// Excepcion (20/10/2026): situacion "estoy en proceso de ejecucion hipotecaria" -> siempre apto y a Spoki.
+//   Apto -> etapa "contactado". No apto -> etapa "descualificados" (solo CRM).
+// Importes de texto libre que no se pueden leer -> "descualificados" con motivo para revisar.
+// Excepcion (20/10/2026): situacion "estoy en proceso de ejecucion hipotecaria" -> siempre apto.
 // 03/11/2026: los aptos tambien van a la planilla "embargados a inmolender"
 //   (Make: "Embargados cualificados a planilla Inmolender", admin_settings.embargados_inmolender_url),
 //   de la que Inmolender crea la tarjeta en el tablero "Embargados".
+// 06/11/2026: Spoki desactivado (SPOKI_ACTIVO = false): el WhatsApp de bienvenida lo manda Inmolender.
+//   Sin correo, a la planilla va CORREO_GENERICO (Inmolender no procesa filas sin correo).
 // Body (form-urlencoded o JSON): secret, meta_lead_id, nombre, email, telefono, importe_inicial, pagado, pendiente,
 //   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, campaign_name, form_id, created_time.
 // ?dry=1: calcula y devuelve el resultado sin guardar ni enviar.
@@ -15,6 +17,10 @@
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
 const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
+
+// 06/11/2026
+const SPOKI_ACTIVO = false;
+const CORREO_GENERICO = "sincorreo@tuhogarposible.com";
 
 async function rest(path: string, init: RequestInit = {}) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init.headers || {}) } });
@@ -171,8 +177,8 @@ Deno.serve(async (req) => {
       }),
     });
 
-    let spoki: unknown = null;
-    if (cualificado) {
+    let spoki: unknown = SPOKI_ACTIVO ? null : { omitido: "Spoki desactivado (06/11/2026)" };
+    if (cualificado && SPOKI_ACTIVO) {
       const phone = telefonoSpoki(clean(b.telefono));
       if (!phone || !cfg.embargados_spoki_url || !cfg.embargados_spoki_secret) {
         spoki = { error: !phone ? "teléfono no válido" : "Spoki sin configurar" };
@@ -217,7 +223,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             nombre,
             telefono: telefonoInmolender(clean(b.telefono)),
-            correo: clean(b.email),
+            correo: clean(b.email) || CORREO_GENERICO,
             puede_pagar: clean(b.puede_pagar),
             situacion: clean(b.situacion),
             importe_inicial: clean(b.importe_inicial),

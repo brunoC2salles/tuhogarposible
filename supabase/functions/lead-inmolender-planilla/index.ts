@@ -1,4 +1,4 @@
-// lead-inmolender-planilla (02/11/2026, actualizado 03/11/2026 y 05/11/2026)
+// lead-inmolender-planilla (02/11/2026, actualizado 03/11/2026, 05/11/2026 y 06/11/2026)
 // Envía cada lead cualificado UNA sola vez a Inmolender a través de una planilla:
 //   - con vivienda -> "cualificados a inmolender" (Make: "CRM cualificados a planilla Inmolender")
 //                     Inmolender crea la operación (finanzas_tuhogarposible).
@@ -17,6 +17,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+
+// 06/11/2026: Inmolender no procesa filas sin correo -> correo genérico si el lead no tiene.
+const CORREO_GENERICO = 'sincorreo@tuhogarposible.com';
 
 // Etapas que NO van a Inmolender
 const EXCLUIDAS = ['descualificados', 'no_cualificado', 'llamada_consultoria'];
@@ -81,7 +84,7 @@ function construirFila(lead: any) {
   return {
     nombre: String(lead.nombre_completo || '').trim(),
     telefono: telefono(lead.telefono),
-    correo: lead.email || '',
+    correo: String(lead.email || '').trim() || CORREO_GENERICO,
     zona: String(lead.ciudad_interes || lead.zona_interes || '').trim(),
     provincia: PROVINCIAS[cod] || '',
     vivienda: conVivienda ? 'sí' : 'no',
