@@ -20,7 +20,6 @@ import SupervisorCRM from "./pages/supervisor/SupervisorCRM";
 import PublicDocumentUpload from "./pages/PublicDocumentUpload";
 import ContratoMandato from "./pages/ContratoMandato";
 import VerificacionesExtractos from "./pages/admin/VerificacionesExtractos";
-import EmbargadosCRM from "./pages/inventario/EmbargadosCRM";
 import BlockAgenteRoute from "@/components/BlockAgenteRoute";
 
 const queryClient = new QueryClient();
@@ -53,15 +52,9 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
-            <Route
-              path="/crm/embargados"
-              element={
-                <ProtectedRoute allowedRoles={['agente', 'admin', 'supervisor']}>
-                  <EmbargadosCRM />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/crm/castellon" element={<Navigate to="/crm/embargados" replace />} />
+            {/* 09/11/2026: CRM Embargados eliminado; los embargados están en el CRM principal con la etiqueta "Embargado" */}
+            <Route path="/crm/embargados" element={<Navigate to="/inventario/admin/crm" replace />} />
+            <Route path="/crm/castellon" element={<Navigate to="/inventario/admin/crm" replace />} />
 
             <Route 
               path="/inventario/admin/crm"

@@ -92,6 +92,10 @@ export interface Lead {
   /** Llamada realizada (marca manual del agente/admin, 22/10/2026).
    *  Se mantiene al cambiar de etapa; los cambios quedan en lead_historico. */
   llamada_realizada?: boolean;
+  /** Etiqueta "Embargado": lead apto del formulario Embargados (09/11/2026).
+   *  No va a Inmolender desde el CRM (tiene su propia planilla), sin email de bienvenida ni Analíticos. */
+  embargado?: boolean;
+  embargados_lead_id?: string | null;
 }
 
 export interface LeadInmueble {

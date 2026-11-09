@@ -7,7 +7,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
 import { useAgentes } from '@/hooks/useAgentes';
-import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus, CalendarCheck, PhoneOutgoing } from 'lucide-react';
+import { Users, TrendingUp, CheckCircle, Download, Search, Kanban, Plus, CalendarCheck, PhoneOutgoing, Tag } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
 import { AgentLeadsKanbanModal } from '@/components/crm/AgentLeadsKanbanModal';
 import { AgentStatsModal } from '@/components/crm/AgentStatsModal';
@@ -20,7 +20,7 @@ import { downloadCSV } from '@/lib/csvExporter';
 import { format, startOfDay, startOfWeek, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { Lead, LeadStage } from '@/types/crm';
-import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda, tieneVisitaAgendada, tieneLlamadaRealizada } from '@/lib/leadFilters';
+import { CallTimeFilter, matchesCallTime, matchesLeadSearch, tieneVivienda, tieneVisitaAgendada, tieneLlamadaRealizada, esEmbargado } from '@/lib/leadFilters';
 import { esZonaCastellon } from '@/lib/castellon';
 
 type PeriodOption = '30' | '90' | 'all';
@@ -77,6 +77,7 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
   const [viviendaFilter, setViviendaFilter] = useState<'si' | 'no' | null>(null);
   const [visitaFilter, setVisitaFilter] = useState(false);
   const [llamadaFilter, setLlamadaFilter] = useState(false);
+  const [embargadoFilter, setEmbargadoFilter] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
@@ -107,8 +108,11 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
     if (llamadaFilter) {
       result = result.filter(lead => tieneLlamadaRealizada(lead));
     }
+    if (embargadoFilter) {
+      result = result.filter(lead => esEmbargado(lead));
+    }
     return result;
-  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, visitaFilter, llamadaFilter, scope]);
+  }, [leads, kanbanSearch, callTimeFilter, viviendaFilter, visitaFilter, llamadaFilter, embargadoFilter, scope]);
 
   // Kanban handlers
   const handleKanbanStageChange = (leadId: string, newStage: LeadStage) => {
@@ -318,6 +322,14 @@ const AdminCRM = ({ scope = 'all', title, subtitle }: AdminCRMProps) => {
                 >
                   <PhoneOutgoing className="h-4 w-4 mr-1" />
                   Llamada realizada
+                </Button>
+                <Button
+                  size="sm"
+                  variant={embargadoFilter ? 'default' : 'outline'}
+                  onClick={() => setEmbargadoFilter(prev => !prev)}
+                >
+                  <Tag className="h-4 w-4 mr-1" />
+                  Embargado
                 </Button>
               </div>
 

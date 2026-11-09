@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Lead, LeadStage, STAGE_LABELS, STAGE_ORDER } from '@/types/crm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck, PhoneOutgoing } from 'lucide-react';
+import { Mail, Phone, MapPin, DollarSign, Eye, Edit, Trash, UserCircle, XCircle, Target, CalendarClock, Clock, FileSignature, AlertTriangle, Home, MessageCircle, Copy, CalendarCheck, PhoneOutgoing, Tag } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { MandatoContratoDialog } from './MandatoContratoDialog';
 import { format } from 'date-fns';
@@ -91,6 +91,15 @@ export const LeadCard = ({ lead, onViewDetails, onEdit, onDelete, onDisqualify, 
       <CardHeader className="pb-2 px-3 sm:px-4 pt-3 sm:pt-4 space-y-2">
         <CardTitle className="text-sm sm:text-base font-semibold leading-tight break-words flex items-start gap-1.5">
           <span className="min-w-0">{lead.nombre_completo}</span>
+          {lead.embargado && (
+            <span
+              className="mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"
+              title="Lead Embargados"
+            >
+              <Tag className="h-3 w-3" />
+              Embargado
+            </span>
+          )}
           {llamadaRealizada && (
             <span
               className="mt-0.5 inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"

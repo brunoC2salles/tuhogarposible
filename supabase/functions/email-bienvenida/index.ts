@@ -4,7 +4,7 @@
 // Entrada (POST JSON): { secret, action: "pendientes" } -> { ok, leads: [{ id, nombre, email }] }
 //                      { secret, action: "marcar", lead_id } -> { ok, updated }
 // Pendiente = creado desde admin_settings.email_bienvenida_desde, hace 24h o más, no descualificado,
-// no archivado, con email y sin email_bienvenida_enviado_at.
+// no archivado, no embargado, con email y sin email_bienvenida_enviado_at.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const json = (body: unknown, status = 200) =>
@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
       .gte('created_at', desde)
       .lte('created_at', hace24h)
       .neq('stage', 'descualificados')
+      .eq('embargado', false) // 09/11/2026: los embargados no reciben el email de bienvenida
       .is('archivado_at', null)
       .is('email_bienvenida_enviado_at', null)
       .not('email', 'is', null)

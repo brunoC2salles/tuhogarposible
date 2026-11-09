@@ -16,7 +16,6 @@ import {
   Settings,
   FileCheck,
   LayoutDashboard,
-  MapPin,
   Calculator,
 } from 'lucide-react';
 
@@ -26,7 +25,6 @@ const menuItems = [
     items: [
       { title: 'Panel Admin', url: '/', icon: LayoutDashboard },
       { title: 'CRM', url: '/inventario/admin/crm', icon: Users },
-      { title: 'CRM Embargados', url: '/crm/embargados', icon: MapPin },
       { title: 'Analíticos', url: '/admin/analiticos', icon: BarChart3 },
     ],
   },

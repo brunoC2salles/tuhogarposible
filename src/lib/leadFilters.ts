@@ -38,6 +38,9 @@ const normalize = (s: string) =>
 export const tieneVisitaAgendada = (lead: Lead): boolean =>
   !!lead.visita_agendada && lead.stage === 'buscando_vivienda';
 
+/** true si el lead tiene la etiqueta "Embargado" (09/11/2026) */
+export const esEmbargado = (lead: Lead): boolean => !!lead.embargado;
+
 /** true si el agente marcó la llamada como realizada (vale en todas las etapas) */
 export const tieneLlamadaRealizada = (lead: Lead): boolean => !!lead.llamada_realizada;
 

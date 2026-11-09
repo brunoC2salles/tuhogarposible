@@ -5,7 +5,6 @@ import {
   BarChart3,
   Settings,
   FileCheck,
-  MapPin,
   Calculator,
 } from 'lucide-react';
 import { AdminLayout } from '@/components/admin/AdminLayout';
@@ -20,13 +19,6 @@ const AdminDashboardCentral = () => {
       icon: Users,
       path: '/inventario/admin/crm',
       color: 'text-blue-600',
-    },
-    {
-      title: 'CRM Embargados',
-      description: 'Leads del producto Embargados',
-      icon: MapPin,
-      path: '/crm/embargados',
-      color: 'text-orange-600',
     },
     {
       title: 'Analíticos',

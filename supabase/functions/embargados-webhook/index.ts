@@ -10,6 +10,10 @@
 //   de la que Inmolender crea la tarjeta en el tablero "Embargados".
 // 06/11/2026: Spoki desactivado (SPOKI_ACTIVO = false): el WhatsApp de bienvenida lo manda Inmolender.
 //   Sin correo, a la planilla va CORREO_GENERICO (Inmolender no procesa filas sin correo).
+// 09/11/2026: los aptos tambien se crean en el CRM principal (tabla leads): etapa "vivienda_encontrada",
+//   embargado = true (etiqueta "Embargado"), asignados a Albert, con las respuestas del formulario en notas.
+//   Se crean aunque el telefono/correo ya exista en el CRM principal. La planilla de Inmolender no cambia.
+//   embargados_leads se mantiene como registro (duplicados por meta_lead_id y no aptos); la pagina CRM Embargados se elimina.
 // Body (form-urlencoded o JSON): secret, meta_lead_id, nombre, email, telefono, importe_inicial, pagado, pendiente,
 //   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, campaign_name, form_id, created_time.
 // ?dry=1: calcula y devuelve el resultado sin guardar ni enviar.
@@ -21,6 +25,16 @@ const H = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "
 // 06/11/2026
 const SPOKI_ACTIVO = false;
 const CORREO_GENERICO = "sincorreo@tuhogarposible.com";
+// 09/11/2026: responsable de los embargados en el CRM principal (Albert Puig)
+const AGENTE_EMBARGADOS = "de6eade7-9a34-4397-986d-6001d44c5760";
+
+// Respuestas del formulario como texto para las notas del lead en el CRM principal
+export function notasEmbargado(respuestas: Record<string, unknown>): string {
+  const lineas = Object.entries(respuestas)
+    .filter(([k, v]) => !k.startsWith("_") && clean(v))
+    .map(([k, v]) => `${k}: ${clean(v)}`);
+  return ["Lead Embargados", ...lineas].join("\n");
+}
 
 async function rest(path: string, init: RequestInit = {}) {
   const r = await fetch(`${SB_URL}/rest/v1/${path}`, { ...init, headers: { ...H, ...(init.headers || {}) } });
@@ -177,6 +191,35 @@ Deno.serve(async (req) => {
       }),
     });
 
+    // 09/11/2026: apto -> CRM principal (Vivienda encontrada, etiqueta Embargado). No bloquea el resto.
+    let crm: unknown = null;
+    if (cualificado) {
+      try {
+        const [l] = await rest("leads", {
+          method: "POST",
+          headers: { Prefer: "return=representation" },
+          body: JSON.stringify({
+            nombre_completo: nombre,
+            telefono: clean(b.telefono) || "",
+            email: clean(b.email) || "",
+            stage: "vivienda_encontrada",
+            source: "meta_ads",
+            agente_asignado_id: AGENTE_EMBARGADOS,
+            embargado: true,
+            embargados_lead_id: lead.id,
+            notas: notasEmbargado(respuestas),
+          }),
+        });
+        crm = { id: l.id };
+      } catch (e) {
+        crm = { error: String((e as Error).message || e) };
+        await rest(`embargados_leads?id=eq.${lead.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ notas: `CRM principal no creado: ${String((e as Error).message || e).slice(0, 200)}` }),
+        }).catch(() => {});
+      }
+    }
+
     let spoki: unknown = SPOKI_ACTIVO ? null : { omitido: "Spoki desactivado (06/11/2026)" };
     if (cualificado && SPOKI_ACTIVO) {
       const phone = telefonoSpoki(clean(b.telefono));
@@ -240,7 +283,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    return json({ ok: true, id: lead.id, stage: lead.stage, ...resultado, spoki, inmolender });
+    return json({ ok: true, id: lead.id, stage: lead.stage, ...resultado, crm, spoki, inmolender });
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
   }
