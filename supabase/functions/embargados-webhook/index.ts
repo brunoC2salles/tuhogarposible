@@ -14,6 +14,8 @@
 //   embargado = true (etiqueta "Embargado"), asignados a Albert, con las respuestas del formulario en notas.
 //   Se crean aunque el telefono/correo ya exista en el CRM principal. La planilla de Inmolender no cambia.
 //   embargados_leads se mantiene como registro (duplicados por meta_lead_id y no aptos); la pagina CRM Embargados se elimina.
+// 11/11/2026: al webhook de Inmolender tambien van precio_vivienda (valor de mercado) y max_a_financiar (capital pendiente)
+//   como numero (0 si no se puede leer), para la planilla "embargados a inmolender v2" (Make: "... v2").
 // Body (form-urlencoded o JSON): secret, meta_lead_id, nombre, email, telefono, importe_inicial, pagado, pendiente,
 //   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, campaign_name, form_id, created_time.
 // ?dry=1: calcula y devuelve el resultado sin guardar ni enviar.
@@ -274,6 +276,10 @@ Deno.serve(async (req) => {
             pendiente: clean(b.pendiente),
             meses_retraso: clean(b.meses_retraso),
             valor_mercado: clean(b.valor_mercado),
+            // 11/11/2026: planilla "embargados a inmolender v2" (columnas de operación):
+            // Precio vivienda = valor de mercado y Max a Financiar = capital pendiente, en número; 0 si no se pudo leer
+            precio_vivienda: valores.valor_mercado ?? 0,
+            max_a_financiar: valores.pendiente ?? 0,
             lead_id: lead.id,
           }),
         });
