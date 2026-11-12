@@ -16,8 +16,12 @@
 //   embargados_leads se mantiene como registro (duplicados por meta_lead_id y no aptos); la pagina CRM Embargados se elimina.
 // 11/11/2026: al webhook de Inmolender tambien van precio_vivienda (valor de mercado) y max_a_financiar (capital pendiente)
 //   como numero (0 si no se puede leer), para la planilla "embargados a inmolender v2" (Make: "... v2").
+// 12/11/2026: formulario Meta "Embargados Nuevo" (1697964958497567) con 2 preguntas nuevas:
+//   "¿Dónde vives actualmente?" -> zona y "¿Qué edad tienes?" -> edad (opcionales; el formulario antiguo no las tiene).
+//   A Inmolender van zona (texto real), edad y plazo = 75 - edad (en años).
+//   Sin edad legible (o edad fuera de 18-74) -> plazo por defecto 20 y nota "Revisar edad".
 // Body (form-urlencoded o JSON): secret, meta_lead_id, nombre, email, telefono, importe_inicial, pagado, pendiente,
-//   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, campaign_name, form_id, created_time.
+//   meses_retraso, valor_mercado, y opcionales puede_pagar, situacion, zona, edad, campaign_name, form_id, created_time.
 // ?dry=1: calcula y devuelve el resultado sin guardar ni enviar.
 
 const SB_URL = Deno.env.get("SUPABASE_URL")!;
@@ -29,6 +33,9 @@ const SPOKI_ACTIVO = false;
 const CORREO_GENERICO = "sincorreo@tuhogarposible.com";
 // 09/11/2026: responsable de los embargados en el CRM principal (Albert Puig)
 const AGENTE_EMBARGADOS = "de6eade7-9a34-4397-986d-6001d44c5760";
+// 12/11/2026: plazo = EDAD_LIMITE - edad; sin edad valida -> PLAZO_DEFECTO (regla del 10/11/2026)
+const EDAD_LIMITE = 75;
+const PLAZO_DEFECTO = 20;
 
 // Respuestas del formulario como texto para las notas del lead en el CRM principal
 export function notasEmbargado(respuestas: Record<string, unknown>): string {
@@ -71,6 +78,20 @@ export function parseImporte(raw: unknown): number | null {
   }
   const v = Number(n) * mult;
   return Number.isFinite(v) && n !== "" ? Math.round(v * 100) / 100 : null;
+}
+
+// 12/11/2026: edad en texto libre ("45", "45 años", "tengo 45"). Un solo numero entero; si no, null.
+export function parseEdad(raw: unknown): number | null {
+  const nums = clean(raw).match(/\d+/g);
+  if (!nums || nums.length !== 1) return null;
+  const e = Number(nums[0]);
+  return Number.isInteger(e) ? e : null;
+}
+
+// 12/11/2026: plazo en años = 75 - edad, solo con edad entre 18 y 74; si no, plazo por defecto
+export function plazoPorEdad(edad: number | null): { plazo: number; valido: boolean } {
+  if (edad === null || edad < 18 || edad >= EDAD_LIMITE) return { plazo: PLAZO_DEFECTO, valido: false };
+  return { plazo: EDAD_LIMITE - edad, valido: true };
 }
 
 // Telefono en formato +34 (misma regla que Make, 16/10/2026)
@@ -139,6 +160,12 @@ Deno.serve(async (req) => {
       valor_mercado: parseImporte(b.valor_mercado),
     };
 
+    // 12/11/2026: zona y edad (formulario "Embargados Nuevo")
+    const zona = clean(b.zona);
+    const edadTexto = clean(b.edad);
+    const edad = parseEdad(edadTexto);
+    const { plazo, valido: edadValida } = plazoPorEdad(edad);
+
     let cualificado = false;
     let motivo: string | null = null;
     let caja: number | null = null;
@@ -167,6 +194,11 @@ Deno.serve(async (req) => {
     };
     if (clean(b.puede_pagar)) respuestas["¿Puede pagar la hipoteca?"] = clean(b.puede_pagar);
     if (clean(b.situacion)) respuestas["Situación"] = clean(b.situacion);
+    if (zona) respuestas["¿Dónde vive actualmente?"] = zona;
+    if (edadTexto) {
+      respuestas["Edad"] = edadTexto;
+      respuestas["Plazo calculado"] = edadValida ? `${plazo} años (75 - edad)` : `${plazo} años por defecto (Revisar edad)`;
+    }
     if (caja !== null && minimo !== null) {
       respuestas["Caja neta estimada"] = eur(caja);
       respuestas[`Umbral ${Math.round(umbral * 100)} %`] = eur(minimo);
@@ -174,7 +206,7 @@ Deno.serve(async (req) => {
     if (porEjecucion) respuestas["Cualificado por"] = "Situación: en proceso de ejecución hipotecaria";
     if (clean(b.campaign_name)) respuestas["Campaña"] = clean(b.campaign_name);
 
-    const resultado = { cualificado, por_ejecucion: porEjecucion, motivo, caja_neta: caja, umbral: minimo, valores };
+    const resultado = { cualificado, por_ejecucion: porEjecucion, motivo, caja_neta: caja, umbral: minimo, valores, zona, edad, plazo };
     if (dry) return json({ ok: true, dry: true, ...resultado });
 
     const [lead] = await rest("embargados_leads", {
@@ -187,7 +219,11 @@ Deno.serve(async (req) => {
         stage: cualificado ? "contactado" : "descualificados",
         cualificado,
         motivo_descualificacion: motivo,
-        respuestas: { ...respuestas, _valores: valores, _meta: { form_id: clean(b.form_id), created_time: clean(b.created_time) } },
+        respuestas: {
+          ...respuestas,
+          _valores: { ...valores, edad, plazo },
+          _meta: { form_id: clean(b.form_id), created_time: clean(b.created_time) },
+        },
         source: "meta_ads",
         meta_lead_id: metaId,
       }),
@@ -280,6 +316,10 @@ Deno.serve(async (req) => {
             // Precio vivienda = valor de mercado y Max a Financiar = capital pendiente, en número; 0 si no se pudo leer
             precio_vivienda: valores.valor_mercado ?? 0,
             max_a_financiar: valores.pendiente ?? 0,
+            // 12/11/2026: Zona = respuesta real "¿Dónde vives actualmente?"; Plazo = 75 - edad (20 sin edad valida)
+            zona,
+            edad: edad ?? "",
+            plazo,
             lead_id: lead.id,
           }),
         });
